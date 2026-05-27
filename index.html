@@ -1,0 +1,1677 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1a1a">
+<title>Nova Site Survey Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #c9a961;
+  --gold-dark: #a98c45;
+  --anthracite: #1a1a1a;
+  --bg: #ffffff;
+  --card: #f5f5f5;
+  --border: #e0e0e0;
+  --text: #1a1a1a;
+  --muted: #6b6b6b;
+  --err: #c44;
+  --ok: #2d6a3e;
+  --ok-bg: #eaf5ec;
+  --err-bg: #fbeaea;
+
+  /* Severity palette — used in form summary pills + report table */
+  --sev-critical: #c44;
+  --sev-critical-bg: #fbeaea;
+  --sev-high: #b85c00;
+  --sev-high-bg: #fff1de;
+  --sev-medium: #8a6d00;
+  --sev-medium-bg: #fef9c3;
+  --sev-low: #1f4ea1;
+  --sev-low-bg: #e0ecff;
+  --sev-note: #555;
+  --sev-note-bg: #ececec;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+input, button, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+
+/* HEADER */
+.topbar {
+  background: var(--anthracite);
+  color: white;
+  padding: 1rem 1.25rem;
+  padding-top: calc(1rem + env(safe-area-inset-top));
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.brand-name { font-weight: 700; font-size: 1.4rem; letter-spacing: -0.02em; color: var(--gold); }
+.brand-sub { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.7); font-weight: 500; }
+
+/* LAYOUT */
+main { padding-bottom: env(safe-area-inset-bottom); }
+.view { display: none; }
+.view.active { display: block; }
+.container { max-width: 880px; margin: 0 auto; padding: 1.25rem; }
+@media (min-width: 768px) { .container { padding: 2rem; } }
+.container.wide { max-width: 1080px; }
+
+/* BUTTONS */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s, transform 0.05s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--gold); color: var(--anthracite); }
+.btn-primary:hover { background: var(--gold-dark); }
+.btn-secondary { background: var(--anthracite); color: white; }
+.btn-secondary:hover { opacity: 0.88; }
+.btn-ghost { background: transparent; color: var(--anthracite); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--gold); color: var(--gold-dark); }
+.btn-danger { background: transparent; color: var(--err); border: 1px solid var(--border); }
+.btn-danger:hover { border-color: var(--err); background: var(--err-bg); }
+.btn-big { width: 100%; min-height: 64px; font-size: 1.05rem; }
+.btn:disabled { opacity: 0.55; cursor: wait; }
+.link-btn {
+  background: none; border: none; color: var(--anthracite);
+  font-weight: 500; cursor: pointer; padding: 0.5rem 0.25rem; min-height: 44px; font-size: 0.95rem;
+}
+.link-btn:hover { color: var(--gold-dark); }
+
+/* HOME VIEW */
+.home-cta { margin-bottom: 2rem; }
+.section-title {
+  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--gold-dark);
+  margin: 1.5rem 0 0.75rem;
+}
+.survey-list { display: grid; gap: 0.75rem; }
+.survey-card {
+  display: block; width: 100%; text-align: left;
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1rem 1.1rem; cursor: pointer; font: inherit; color: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.survey-card:hover { border-color: var(--gold); background: white; }
+.survey-card-id { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; color: var(--gold-dark); text-transform: uppercase; }
+.survey-card-title { font-weight: 600; margin-top: 0.2rem; font-size: 1rem; }
+.survey-card-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.25rem; }
+.empty-state {
+  background: var(--card); border: 1px dashed var(--border); border-radius: 8px;
+  padding: 2rem 1.25rem; text-align: center; color: var(--muted); font-size: 0.95rem;
+}
+
+/* VIEW HEADER */
+.view-header { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.5rem; }
+.view-header h1 { margin: 0; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
+.view-header .meta { font-size: 0.82rem; color: var(--muted); }
+
+/* ACCORDION SECTIONS */
+.section {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 1rem; overflow: hidden;
+}
+.section > summary {
+  list-style: none; cursor: pointer; padding: 1rem 1.1rem;
+  font-weight: 600; color: var(--gold-dark);
+  font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase;
+  display: flex; align-items: center; justify-content: space-between; user-select: none;
+}
+.section > summary::-webkit-details-marker { display: none; }
+.section > summary::after {
+  content: '+'; font-size: 1.4rem; font-weight: 400; color: var(--muted); line-height: 1;
+}
+.section[open] > summary::after { content: '−'; }
+.section-body { padding: 0.25rem 1.1rem 1.1rem; background: white; }
+@media (min-width: 768px) {
+  .section > summary { cursor: default; pointer-events: none; }
+  .section > summary::after { display: none; }
+  .section-body { padding: 0.5rem 1.5rem 1.5rem; }
+}
+
+/* FIELDS */
+.field { margin-top: 1rem; }
+.field-row { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 768px) {
+  .field-row { grid-template-columns: 1fr 1fr; }
+  .field-row.three { grid-template-columns: 1fr 1fr 1fr; }
+}
+.field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--anthracite); margin-bottom: 0.35rem; }
+.field .req { color: var(--err); margin-left: 0.15rem; }
+.field .hint { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; font-weight: 400; }
+.field input[type="text"], .field input[type="number"], .field input[type="tel"], .field input[type="date"],
+.field input[type="email"], .field select, .field textarea {
+  width: 100%; min-height: 48px; padding: 0.7rem 0.85rem;
+  background: white; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); transition: border-color 0.15s;
+  -webkit-appearance: none; appearance: none;
+}
+.field textarea { min-height: 96px; resize: vertical; line-height: 1.45; }
+.field textarea.large { min-height: 140px; }
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.15);
+}
+.field input.error, .field select.error, .field textarea.error { border-color: var(--err); }
+.field select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%231a1a1a' d='M6 8L0 0h12z'/></svg>");
+  background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem;
+}
+.field input[type="text"][data-uppercase] { text-transform: uppercase; }
+
+/* CHECKBOX */
+.checkbox { display: flex; align-items: center; gap: 0.65rem; min-height: 48px; cursor: pointer; padding: 0.25rem 0; }
+.checkbox input[type="checkbox"] { width: 22px; height: 22px; cursor: pointer; accent-color: var(--gold); flex: 0 0 auto; margin: 0; }
+.checkbox span { font-size: 0.92rem; }
+.field[hidden] { display: none; }
+
+/* READOUT (asbestos register currency) */
+.readout {
+  padding: 0.7rem 0.85rem; background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; font-size: 0.92rem; color: var(--muted);
+}
+
+/* DEFECT BLOCKS */
+.defects-empty {
+  background: var(--card); border: 1px dashed var(--border); border-radius: 8px;
+  padding: 1.25rem; text-align: center; color: var(--muted); font-size: 0.92rem;
+  margin-top: 1rem;
+}
+.defect {
+  background: white; border: 1px solid var(--border); border-radius: 8px;
+  margin-top: 0.9rem; overflow: hidden;
+}
+.defect > summary {
+  list-style: none; cursor: pointer; padding: 0.85rem 1rem;
+  display: flex; align-items: center; gap: 0.75rem; user-select: none;
+}
+.defect > summary::-webkit-details-marker { display: none; }
+.defect-num {
+  flex: 0 0 auto; min-width: 1.7rem; height: 1.7rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--anthracite); color: white; border-radius: 999px;
+  font-size: 0.78rem; font-weight: 700;
+}
+.defect-title-display { flex: 1; font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; }
+.defect-title-display.placeholder { color: var(--muted); font-weight: 500; font-style: italic; }
+.defect > summary::after { content: '+'; color: var(--muted); font-size: 1.4rem; line-height: 1; }
+.defect[open] > summary::after { content: '−'; }
+.defect-body { padding: 0.25rem 1rem 1rem; border-top: 1px solid var(--border); }
+.defect-footer {
+  display: flex; justify-content: flex-end; padding: 0.5rem 1rem 1rem; border-top: 1px solid var(--border);
+}
+.add-defect-row { margin-top: 1.25rem; }
+
+/* SEVERITY PILL */
+.pill {
+  display: inline-block; padding: 0.18rem 0.55rem; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.pill-critical { background: var(--sev-critical-bg); color: var(--sev-critical); }
+.pill-high     { background: var(--sev-high-bg);     color: var(--sev-high); }
+.pill-medium   { background: var(--sev-medium-bg);   color: var(--sev-medium); }
+.pill-low      { background: var(--sev-low-bg);      color: var(--sev-low); }
+.pill-note     { background: var(--sev-note-bg);     color: var(--sev-note); }
+.pill-quote    { background: var(--ok-bg); color: var(--ok); }
+.pill-nogo     { background: var(--err-bg); color: var(--err); }
+.pill-draft    { background: var(--card); color: var(--muted); }
+
+/* FORM ACTIONS */
+.form-actions {
+  display: flex; flex-direction: column; gap: 0.6rem;
+  margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);
+}
+@media (min-width: 768px) {
+  .form-actions { flex-direction: row; align-items: center; }
+  .form-actions .btn { width: auto; }
+  .form-actions .link-btn { margin-left: auto; }
+}
+.form-actions .btn { width: 100%; }
+.draft-indicator { font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem; }
+
+/* DETAIL VIEW */
+.detail-grid { display: grid; gap: 0.85rem; grid-template-columns: 1fr; }
+@media (min-width: 768px) { .detail-grid { grid-template-columns: 1fr 1fr; } }
+.detail-block {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1rem 1.1rem;
+}
+.detail-block h3 {
+  margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--gold-dark);
+}
+.detail-row {
+  display: flex; justify-content: space-between; gap: 1rem;
+  padding: 0.35rem 0; border-bottom: 1px solid var(--border); font-size: 0.92rem;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-row .k { color: var(--muted); flex: 0 0 45%; }
+.detail-row .v { font-weight: 500; text-align: right; word-break: break-word; }
+.detail-row .v.empty { color: var(--muted); font-style: italic; font-weight: 400; }
+.detail-notes { white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55; padding: 0.5rem 0; }
+.detail-defects { margin-top: 1rem; }
+.detail-defect {
+  background: white; border: 1px solid var(--border); border-left: 4px solid var(--border);
+  border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 0.65rem;
+}
+.detail-defect.sev-critical { border-left-color: var(--sev-critical); }
+.detail-defect.sev-high     { border-left-color: var(--sev-high); }
+.detail-defect.sev-medium   { border-left-color: var(--sev-medium); }
+.detail-defect.sev-low      { border-left-color: var(--sev-low); }
+.detail-defect.sev-note     { border-left-color: var(--sev-note); }
+.detail-defect-head { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.detail-defect-head strong { font-size: 0.95rem; }
+.detail-defect-meta { font-size: 0.78rem; color: var(--muted); }
+.detail-defect p { margin: 0.35rem 0; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
+.detail-defect .kv { font-size: 0.82rem; color: var(--muted); }
+.detail-defect .kv strong { color: var(--text); font-weight: 600; }
+
+/* TOAST */
+#toast {
+  position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%); background: var(--anthracite); color: white;
+  padding: 0.85rem 1.25rem; border-radius: 8px; font-weight: 500; font-size: 0.92rem;
+  z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  max-width: calc(100vw - 2rem); text-align: center;
+}
+#toast.ok { background: var(--ok); }
+#toast.err { background: var(--err); }
+#toast[hidden] { display: none; }
+
+/* ============================================================
+   REPORT VIEW (screen + print)
+   ============================================================ */
+#view-report .container { max-width: 1000px; }
+.report {
+  background: white; color: var(--text);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border-radius: 8px;
+  padding: 2rem 1.5rem;
+}
+@media (min-width: 768px) { .report { padding: 2.5rem 3rem; } }
+.report-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  border-bottom: 3px solid var(--gold); padding-bottom: 1rem; margin-bottom: 1.75rem;
+  gap: 1rem; flex-wrap: wrap;
+}
+.report-brand .wordmark { font-size: 2rem; font-weight: 700; color: var(--anthracite); letter-spacing: -0.02em; }
+.report-brand .wordmark .accent { color: var(--gold); }
+.report-brand .tagline {
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-top: 0.1rem;
+}
+.report-meta { text-align: right; font-size: 0.85rem; color: var(--muted); }
+.report-meta .ref { font-size: 1.05rem; font-weight: 700; color: var(--anthracite); letter-spacing: 0.02em; }
+.report h1.report-title {
+  font-size: 1.55rem; font-weight: 700; letter-spacing: -0.01em;
+  margin: 0 0 0.25rem;
+}
+.report .report-subtitle { font-size: 0.92rem; color: var(--muted); margin-bottom: 1.75rem; }
+
+.report h2 {
+  font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--gold-dark);
+  margin: 2rem 0 0.75rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border);
+}
+.report h2:first-of-type { margin-top: 1rem; }
+
+.report .info-grid {
+  display: grid; gap: 0.85rem 2rem; grid-template-columns: 1fr;
+}
+@media (min-width: 768px) { .report .info-grid { grid-template-columns: 1fr 1fr; } }
+.report .info-row { display: flex; gap: 0.75rem; }
+.report .info-row .k { color: var(--muted); flex: 0 0 40%; font-size: 0.85rem; }
+.report .info-row .v { font-weight: 500; font-size: 0.9rem; }
+
+.report .exec-summary {
+  background: var(--card); border-left: 4px solid var(--gold);
+  padding: 1rem 1.2rem; border-radius: 0 6px 6px 0;
+  white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6;
+}
+
+.summary-tables {
+  display: grid; gap: 1rem; grid-template-columns: 1fr; margin-bottom: 1rem;
+}
+@media (min-width: 768px) { .summary-tables { grid-template-columns: 1fr 1fr; } }
+.summary-table {
+  border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+}
+.summary-table h3 {
+  margin: 0; padding: 0.65rem 0.85rem; background: var(--card);
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--gold-dark);
+  border-bottom: 1px solid var(--border);
+}
+.summary-table table { width: 100%; border-collapse: collapse; }
+.summary-table td { padding: 0.5rem 0.85rem; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+.summary-table tr:last-child td { border-bottom: none; }
+.summary-table td.label { color: var(--muted); }
+.summary-table td.count { text-align: right; font-weight: 700; }
+.summary-table td.zero { color: var(--muted); font-weight: 400; }
+
+.defects-table {
+  width: 100%; border-collapse: collapse; margin-top: 0.5rem;
+  border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+}
+.defects-table thead { background: var(--card); }
+.defects-table th, .defects-table td {
+  padding: 0.55rem 0.75rem; text-align: left; font-size: 0.82rem;
+  border-bottom: 1px solid var(--border); vertical-align: top;
+}
+.defects-table th {
+  font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: 0.7rem; color: var(--gold-dark);
+}
+.defects-table tr:last-child td { border-bottom: none; }
+.defects-table td.sev-cell { white-space: nowrap; }
+
+.report-defect {
+  border: 1px solid var(--border); border-left: 5px solid var(--border);
+  border-radius: 6px; padding: 1rem 1.2rem; margin-top: 0.9rem;
+}
+.report-defect.sev-critical { border-left-color: var(--sev-critical); }
+.report-defect.sev-high     { border-left-color: var(--sev-high); }
+.report-defect.sev-medium   { border-left-color: var(--sev-medium); }
+.report-defect.sev-low      { border-left-color: var(--sev-low); }
+.report-defect.sev-note     { border-left-color: var(--sev-note); }
+.report-defect-head { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.report-defect-num {
+  background: var(--anthracite); color: white; border-radius: 999px;
+  padding: 0.1rem 0.55rem; font-size: 0.72rem; font-weight: 700;
+}
+.report-defect-title { font-weight: 700; font-size: 1rem; }
+.report-defect-meta { font-size: 0.78rem; color: var(--muted); }
+.report-defect p { margin: 0.3rem 0; font-size: 0.9rem; line-height: 1.55; white-space: pre-wrap; }
+.report-defect .label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-dark); margin-top: 0.65rem; display: block; }
+.report-defect .kv-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.65rem; font-size: 0.85rem; }
+.report-defect .kv-row .kv { color: var(--muted); }
+.report-defect .kv-row .kv strong { color: var(--text); font-weight: 600; margin-left: 0.25rem; }
+.photo-row {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.65rem;
+}
+.photo-row img {
+  width: 120px; height: 90px; object-fit: cover; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--card);
+}
+.recommendation-block {
+  background: var(--card); border-left: 4px solid var(--gold);
+  padding: 1rem 1.2rem; border-radius: 0 6px 6px 0; margin-top: 0.5rem;
+}
+.recommendation-block .reco-headline {
+  font-size: 1.05rem; font-weight: 700; color: var(--anthracite); margin-bottom: 0.4rem;
+}
+.recommendation-block p { margin: 0.35rem 0; white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55; }
+
+.report-footer {
+  margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border);
+  font-size: 0.78rem; color: var(--muted); line-height: 1.55;
+}
+.report-footer .credentials { font-weight: 600; color: var(--anthracite); }
+
+.report-actions {
+  display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.5rem;
+}
+@media (min-width: 768px) {
+  .report-actions { flex-direction: row; }
+  .report-actions .btn { width: auto; }
+  .report-actions .link-btn { margin-left: auto; }
+}
+.report-actions .btn { width: 100%; }
+
+/* ============================================================
+   PRINT
+   ============================================================ */
+@media print {
+  @page { size: A4; margin: 14mm 12mm; }
+  body { background: white; }
+  .topbar, .form-actions, .report-actions, .view-header .link-btn, .no-print { display: none !important; }
+  .view { display: none !important; }
+  #view-report.active { display: block !important; }
+  .container, .container.wide { padding: 0 !important; max-width: none !important; }
+  .report {
+    box-shadow: none !important; padding: 0 !important; border-radius: 0 !important;
+  }
+  .report h2 { page-break-after: avoid; }
+  .report-defect { page-break-inside: avoid; }
+  .summary-table { page-break-inside: avoid; }
+  .recommendation-block { page-break-inside: avoid; }
+  .report-footer { page-break-inside: avoid; }
+  .defects-table { page-break-inside: auto; }
+  .defects-table tr { page-break-inside: avoid; }
+  a { color: var(--text); text-decoration: none; }
+  /* Force exact background colors for severity pills + brand stripes when the user has them enabled. */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+</style>
+</head>
+<body>
+<header class="topbar no-print">
+  <span class="brand-name">nova</span>
+  <span class="brand-sub">Site Survey Tool</span>
+</header>
+
+<main id="app">
+  <!-- HOME -->
+  <section id="view-home" class="view active">
+    <div class="container">
+      <div class="home-cta">
+        <button class="btn btn-primary btn-big" onclick="goToNewSurvey()">+ New Survey</button>
+      </div>
+      <h2 class="section-title">Saved surveys</h2>
+      <div id="survey-list" class="survey-list"></div>
+    </div>
+  </section>
+
+  <!-- FORM -->
+  <section id="view-form" class="view">
+    <div class="container">
+      <div class="view-header">
+        <button class="link-btn" onclick="cancelEdit()" style="align-self:flex-start;">← Back</button>
+        <h1 id="form-title">New condition survey</h1>
+        <div class="meta" id="form-meta"></div>
+      </div>
+
+      <details class="section" id="section-a" open>
+        <summary>Section A — Site Info</summary>
+        <div class="section-body">
+          <div class="field-row">
+            <div class="field">
+              <label for="f-client-name">Client name <span class="req">*</span></label>
+              <input type="text" id="f-client-name" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="f-client-company">Client company</label>
+              <input type="text" id="f-client-company" autocomplete="organization">
+            </div>
+          </div>
+          <div class="field">
+            <label for="f-site-address">Site address <span class="req">*</span></label>
+            <textarea id="f-site-address" rows="3" autocomplete="street-address"></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-postcode">Postcode <span class="req">*</span></label>
+              <input type="text" id="f-postcode" data-uppercase autocomplete="postal-code">
+            </div>
+            <div class="field">
+              <label for="f-telephone">Contact telephone</label>
+              <input type="tel" id="f-telephone" autocomplete="tel">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-visit-date">Date of visit <span class="req">*</span></label>
+              <input type="date" id="f-visit-date">
+            </div>
+            <div class="field">
+              <label for="f-surveyor-name">Surveyor name</label>
+              <input type="text" id="f-surveyor-name" value="Jamie Gibbs">
+            </div>
+          </div>
+          <div class="field">
+            <label>Survey reference</label>
+            <div class="readout" id="f-ref-readout">— assigned on save —</div>
+          </div>
+          <div class="field">
+            <label for="f-works-description">Works description / brief</label>
+            <textarea id="f-works-description" rows="3" placeholder="What the client asked us to survey and report on."></textarea>
+          </div>
+        </div>
+      </details>
+
+      <details class="section" id="section-b">
+        <summary>Section B — Building Overview</summary>
+        <div class="section-body">
+          <div class="field-row">
+            <div class="field">
+              <label for="f-roof-type">Roof type</label>
+              <select id="f-roof-type">
+                <option value="">—</option>
+                <option>Asbestos Cement</option>
+                <option>Metal Profile</option>
+                <option>Composite</option>
+                <option>Flat Membrane</option>
+                <option>Slate or Tile</option>
+                <option>Mixed</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-roof-area">Approx. roof area (m²)</label>
+              <input type="number" id="f-roof-area" min="0" inputmode="numeric">
+            </div>
+          </div>
+          <div class="field-row three">
+            <div class="field">
+              <label for="f-num-buildings">Number of buildings</label>
+              <input type="number" id="f-num-buildings" min="1" value="1" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label for="f-eaves-height">Eaves height (m)</label>
+              <input type="number" id="f-eaves-height" min="0" step="0.1" inputmode="decimal">
+            </div>
+            <div class="field"></div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-age">Approximate age</label>
+              <select id="f-age">
+                <option value="">—</option>
+                <option>Pre-1980</option>
+                <option>1980s</option>
+                <option>1990s</option>
+                <option>2000s</option>
+                <option>2010s</option>
+                <option>Post-2020</option>
+                <option>Unknown</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-construction-type">Construction type</label>
+              <select id="f-construction-type">
+                <option value="">—</option>
+                <option>Steel portal frame</option>
+                <option>Concrete portal</option>
+                <option>Traditional</option>
+                <option>Mixed</option>
+                <option>Unknown</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="section" id="section-c" open>
+        <summary>Section C — Condition Assessment</summary>
+        <div class="section-body">
+          <p style="font-size:0.85rem;color:var(--muted);margin:0.5rem 0 0;">Add one entry per observed defect. Each can be collapsed once filled in.</p>
+          <div id="defects-list"></div>
+          <div class="add-defect-row">
+            <button type="button" class="btn btn-ghost" onclick="addDefect()">+ Add Defect</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="section" id="section-d">
+        <summary>Section D — Access &amp; Safety</summary>
+        <div class="section-body">
+          <div class="field">
+            <label for="f-eaves-access">Eaves access</label>
+            <select id="f-eaves-access">
+              <option value="">—</option>
+              <option>Ground</option>
+              <option>Internal ladder</option>
+              <option>External scaffold</option>
+              <option>MEWP</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="checkbox">
+              <input type="checkbox" id="f-edge-protection">
+              <span>Existing edge protection</span>
+            </label>
+          </div>
+          <div class="field">
+            <label class="checkbox">
+              <input type="checkbox" id="f-live-services">
+              <span>Live overhead services within 9 m</span>
+            </label>
+          </div>
+          <div class="field">
+            <label class="checkbox">
+              <input type="checkbox" id="f-adjacent-public">
+              <span>Adjacent to public area</span>
+            </label>
+          </div>
+        </div>
+      </details>
+
+      <details class="section" id="section-e">
+        <summary>Section E — Asbestos</summary>
+        <div class="section-body">
+          <div class="field">
+            <label for="f-asb-contains">Roof contains asbestos</label>
+            <select id="f-asb-contains">
+              <option value="">—</option>
+              <option>Yes confirmed</option>
+              <option>Suspected</option>
+              <option>No</option>
+              <option>Unknown</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="checkbox">
+              <input type="checkbox" id="f-asb-register-seen">
+              <span>Asbestos register seen</span>
+            </label>
+          </div>
+          <div class="field" data-cond="asb-seen" hidden>
+            <label for="f-asb-register-date">Asbestos register date</label>
+            <input type="date" id="f-asb-register-date">
+          </div>
+          <div class="field">
+            <label class="checkbox">
+              <input type="checkbox" id="f-asb-sampling">
+              <span>Sampling required</span>
+            </label>
+          </div>
+        </div>
+      </details>
+
+      <details class="section" id="section-f">
+        <summary>Section F — Summary &amp; Conclusions</summary>
+        <div class="section-body">
+          <div class="field-row">
+            <div class="field">
+              <label for="f-overall-rating">Overall condition rating</label>
+              <select id="f-overall-rating">
+                <option value="">—</option>
+                <option>Excellent</option>
+                <option>Good</option>
+                <option>Fair</option>
+                <option>Poor</option>
+                <option>End of Life</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-remaining-life">Estimated remaining life (years)</label>
+              <input type="number" id="f-remaining-life" min="0" inputmode="numeric">
+            </div>
+          </div>
+          <div class="field">
+            <label for="f-executive-summary">Executive summary</label>
+            <textarea id="f-executive-summary" class="large" placeholder="Two or three paragraphs capturing the headline findings the client should take away."></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-total-cost-band">Total indicative cost band</label>
+              <select id="f-total-cost-band">
+                <option value="">—</option>
+                <option>Under £10k</option>
+                <option>£10k-£25k</option>
+                <option>£25k-£50k</option>
+                <option>£50k-£100k</option>
+                <option>£100k-£250k</option>
+                <option>£250k+</option>
+                <option>TBC</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-recommendation">Recommendation</label>
+              <select id="f-recommendation">
+                <option value="">—</option>
+                <option>Continue maintenance</option>
+                <option>Targeted repairs</option>
+                <option>Recover</option>
+                <option>Replace</option>
+                <option>Further investigation</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="f-next-steps">Next steps</label>
+            <textarea id="f-next-steps" rows="4" placeholder="What happens after this report — programmed works, further surveys, quotes to follow, decisions needed."></textarea>
+          </div>
+        </div>
+      </details>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" id="save-btn" onclick="saveSurvey()">Save Survey</button>
+        <button class="link-btn" onclick="cancelEdit()">Cancel</button>
+      </div>
+      <div class="draft-indicator" id="draft-indicator"></div>
+    </div>
+  </section>
+
+  <!-- DETAIL -->
+  <section id="view-detail" class="view">
+    <div class="container">
+      <div class="view-header">
+        <button class="link-btn" onclick="goHome()" style="align-self:flex-start;">← Back</button>
+        <h1 id="detail-title">Survey</h1>
+        <div class="meta" id="detail-meta"></div>
+      </div>
+      <div id="detail-body"></div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="editCurrent()">Edit</button>
+        <button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>
+        <button class="btn btn-danger" onclick="deleteCurrent()" style="margin-left:auto;">Delete</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="view-report" class="view">
+    <div class="container wide">
+      <div class="view-header no-print">
+        <button class="link-btn" onclick="backToDetail()" style="align-self:flex-start;">← Back to survey</button>
+        <h1>Report preview</h1>
+        <div class="meta">Tap Print to send this to printer or save as PDF.</div>
+      </div>
+      <div id="report-body"></div>
+      <div class="report-actions no-print">
+        <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
+        <button class="link-btn" onclick="backToDetail()">Close</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" hidden></div>
+
+<script>
+// ============================================================
+// Nova Survey Tool v0.1 — single-file, localStorage-backed.
+// Schema: top-level fields + defects array.
+// ============================================================
+
+const STORAGE_KEY = 'nova_surveys_v1';
+const DRAFT_KEY   = 'nova_survey_draft';
+const AUTOSAVE_MS = 10000;
+
+// Schema-defined top-level form fields, grouped for collect/populate/reset.
+const FIELDS = {
+  text: [
+    'f-client-name', 'f-client-company', 'f-postcode', 'f-telephone',
+    'f-visit-date', 'f-surveyor-name',
+    'f-roof-type', 'f-age', 'f-construction-type',
+    'f-eaves-access', 'f-asb-contains', 'f-asb-register-date',
+    'f-overall-rating', 'f-total-cost-band', 'f-recommendation'
+  ],
+  textarea: ['f-site-address', 'f-works-description',
+             'f-executive-summary', 'f-next-steps'],
+  number: ['f-roof-area', 'f-eaves-height', 'f-num-buildings', 'f-remaining-life'],
+  checkbox: ['f-edge-protection', 'f-live-services', 'f-adjacent-public',
+             'f-asb-register-seen', 'f-asb-sampling']
+};
+
+// Defect schema — each defect carries these fields.
+const DEFECT_FIELDS = ['title', 'location', 'description', 'severity',
+                       'photoUrls', 'recommendedAction', 'costBand', 'priority'];
+const SEVERITY_OPTIONS = ['Critical', 'High', 'Medium', 'Low', 'Note Only'];
+const COST_BAND_OPTIONS = ['Under £1k', '£1k-£5k', '£5k-£20k', '£20k-£50k', '£50k+', 'TBC'];
+const PRIORITY_OPTIONS = ['Immediate', 'Within 6 months', 'Within 12 months', 'Within 5 years', 'Monitor'];
+
+// ---- State ----
+let currentSurveyId = null;     // null = new draft; otherwise editing this id
+let currentDefects = [];        // editable defect array, synced to DOM on every keystroke
+let autosaveTimer = null;
+let toastTimer = null;
+let reportSurveyId = null;      // survey being shown in the report view
+
+// ---- Storage ----
+function loadSurveys() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch(e) { console.error('Survey load failed:', e); return []; }
+}
+function saveSurveys(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); }
+  catch(e) { return null; }
+}
+function saveDraft(obj) { localStorage.setItem(DRAFT_KEY, JSON.stringify(obj)); }
+function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
+
+// ---- ID generation: SURV-YYYY-NNN ----
+function nextSurveyId() {
+  const year = new Date().getFullYear();
+  const prefix = 'SURV-' + year + '-';
+  let max = 0;
+  for (const s of loadSurveys()) {
+    if (typeof s.id === 'string' && s.id.startsWith(prefix)) {
+      const n = parseInt(s.id.slice(prefix.length), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  }
+  return prefix + String(max + 1).padStart(3, '0');
+}
+
+// ---- View routing ----
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const v = document.getElementById('view-' + name);
+  if (v) v.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function goHome() {
+  stopAutoSave();
+  reportSurveyId = null;
+  renderSurveyList();
+  showView('home');
+}
+
+function goToNewSurvey() {
+  currentSurveyId = null;
+  currentDefects = [];
+  resetForm();
+  const draft = loadDraft();
+  if (draft && (Object.keys(draft).length > 0)) {
+    populateForm(draft);
+    currentDefects = Array.isArray(draft.defects) ? draft.defects.slice() : [];
+    showToast('Draft restored', 'ok');
+  } else {
+    document.getElementById('f-visit-date').value = todayIso();
+    document.getElementById('f-surveyor-name').value = 'Jamie Gibbs';
+    document.getElementById('f-num-buildings').value = '1';
+  }
+  document.getElementById('form-title').textContent = 'New condition survey';
+  document.getElementById('form-meta').textContent = '';
+  document.getElementById('f-ref-readout').textContent = '— assigned on save —';
+  renderDefects();
+  updateConditionals();
+  startAutoSave();
+  showView('form');
+}
+
+function goToSurvey(id) {
+  const s = loadSurveys().find(x => x.id === id);
+  if (!s) { showToast('Survey not found', 'err'); return; }
+  currentSurveyId = id;
+  renderSurveyDetail(s);
+  showView('detail');
+}
+
+function editCurrent() {
+  if (!currentSurveyId) return;
+  const s = loadSurveys().find(x => x.id === currentSurveyId);
+  if (!s) { showToast('Survey not found', 'err'); goHome(); return; }
+  resetForm();
+  populateForm(s);
+  currentDefects = Array.isArray(s.defects) ? s.defects.map(d => ({ ...d })) : [];
+  document.getElementById('form-title').textContent = 'Edit survey';
+  document.getElementById('form-meta').textContent = s.id + ' · created ' + fmtDate(s.createdAt);
+  document.getElementById('f-ref-readout').textContent = s.id;
+  renderDefects();
+  updateConditionals();
+  startAutoSave();
+  showView('form');
+}
+
+function deleteCurrent() {
+  if (!currentSurveyId) return;
+  if (!confirm('Delete this survey? This cannot be undone.')) return;
+  const surveys = loadSurveys().filter(s => s.id !== currentSurveyId);
+  saveSurveys(surveys);
+  currentSurveyId = null;
+  showToast('Survey deleted', 'ok');
+  goHome();
+}
+
+function cancelEdit() {
+  if (currentSurveyId === null) {
+    const data = collectFormData();
+    const hasAny = Object.values(data).some(v =>
+      v !== '' && v !== false && v !== 0 && v !== null && v !== undefined && v !== '1' && v !== 'Jamie Gibbs'
+    ) || currentDefects.length > 0;
+    if (hasAny && !confirm('Discard this survey draft?')) return;
+    clearDraft();
+  }
+  goHome();
+}
+
+function goToReportCurrent() {
+  if (!currentSurveyId) return;
+  reportSurveyId = currentSurveyId;
+  renderReport(currentSurveyId);
+  showView('report');
+}
+
+function backToDetail() {
+  if (!reportSurveyId) { goHome(); return; }
+  const s = loadSurveys().find(x => x.id === reportSurveyId);
+  if (!s) { goHome(); return; }
+  currentSurveyId = reportSurveyId;
+  renderSurveyDetail(s);
+  showView('detail');
+}
+
+// ---- Form data collect / populate / reset ----
+function collectFormData() {
+  const out = {};
+  for (const id of FIELDS.text) out[id] = (document.getElementById(id) || {}).value || '';
+  for (const id of FIELDS.textarea) out[id] = (document.getElementById(id) || {}).value || '';
+  for (const id of FIELDS.number) {
+    const el = document.getElementById(id);
+    const v = el ? el.value : '';
+    out[id] = (v === '' || v === null) ? '' : Number(v);
+  }
+  for (const id of FIELDS.checkbox) out[id] = !!(document.getElementById(id) || {}).checked;
+  out.defects = currentDefects.map(d => ({ ...d }));
+  return out;
+}
+
+function populateForm(data) {
+  for (const id of FIELDS.text) {
+    const el = document.getElementById(id);
+    if (el) el.value = data[id] != null ? data[id] : '';
+  }
+  for (const id of FIELDS.textarea) {
+    const el = document.getElementById(id);
+    if (el) el.value = data[id] != null ? data[id] : '';
+  }
+  for (const id of FIELDS.number) {
+    const el = document.getElementById(id);
+    if (el) el.value = (data[id] === '' || data[id] == null) ? '' : data[id];
+  }
+  for (const id of FIELDS.checkbox) {
+    const el = document.getElementById(id);
+    if (el) el.checked = !!data[id];
+  }
+}
+
+function resetForm() {
+  for (const id of FIELDS.text) {
+    const el = document.getElementById(id);
+    if (el) el.value = (id === 'f-surveyor-name') ? 'Jamie Gibbs' : '';
+  }
+  for (const id of FIELDS.textarea) {
+    const el = document.getElementById(id); if (el) el.value = '';
+  }
+  for (const id of FIELDS.number) {
+    const el = document.getElementById(id); if (el) el.value = '';
+  }
+  for (const id of FIELDS.checkbox) {
+    const el = document.getElementById(id); if (el) el.checked = false;
+  }
+  document.querySelectorAll('.field input, .field select, .field textarea').forEach(el => el.classList.remove('error'));
+  if (window.matchMedia('(max-width: 767px)').matches) {
+    document.querySelectorAll('#view-form .section').forEach(s => {
+      s.open = (s.id === 'section-a' || s.id === 'section-c');
+    });
+  } else {
+    document.querySelectorAll('#view-form .section').forEach(s => { s.open = true; });
+  }
+}
+
+// ---- Defects ----
+function makeBlankDefect() {
+  const d = {};
+  for (const k of DEFECT_FIELDS) d[k] = '';
+  return d;
+}
+
+function addDefect() {
+  currentDefects.push(makeBlankDefect());
+  renderDefects(currentDefects.length - 1);
+  // Open the newly added defect so the user can immediately start typing.
+  const list = document.getElementById('defects-list');
+  const last = list.lastElementChild;
+  if (last && last.tagName === 'DETAILS') {
+    last.open = true;
+    const firstInput = last.querySelector('input, textarea, select');
+    if (firstInput) firstInput.focus();
+  }
+}
+
+function removeDefect(idx) {
+  if (!confirm('Remove this defect?')) return;
+  currentDefects.splice(idx, 1);
+  renderDefects();
+}
+
+function _defectSummary(d) {
+  return d.title || '(untitled defect)';
+}
+
+function renderDefects(focusIdx) {
+  const list = document.getElementById('defects-list');
+  if (!list) return;
+  if (currentDefects.length === 0) {
+    list.innerHTML = '<div class="defects-empty">No defects recorded yet. Tap <strong>+ Add Defect</strong> to start.</div>';
+    return;
+  }
+  list.innerHTML = currentDefects.map((d, i) => {
+    const sevClass = severityClass(d.severity);
+    const sevPill = d.severity ? '<span class="pill ' + sevClass + '">' + escapeHtml(d.severity) + '</span>' : '';
+    const titleEl = d.title
+      ? '<span class="defect-title-display">' + escapeHtml(d.title) + '</span>'
+      : '<span class="defect-title-display placeholder">New defect — fill in details below</span>';
+    return '<details class="defect" data-defect-idx="' + i + '">' +
+      '<summary>' +
+        '<span class="defect-num">' + (i + 1) + '</span>' +
+        titleEl + sevPill +
+      '</summary>' +
+      '<div class="defect-body">' +
+        '<div class="field"><label>Defect title</label>' +
+          '<input type="text" data-defect-idx="' + i + '" data-defect-field="title" value="' + attr(d.title) + '" placeholder="e.g. Sheet corrosion at gutter line"></div>' +
+        '<div class="field"><label>Location</label>' +
+          '<input type="text" data-defect-idx="' + i + '" data-defect-field="location" value="' + attr(d.location) + '" placeholder="e.g. North elevation, bay 3"></div>' +
+        '<div class="field"><label>Description</label>' +
+          '<textarea data-defect-idx="' + i + '" data-defect-field="description" rows="3" placeholder="What was observed.">' + escapeHtml(d.description || '') + '</textarea></div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Severity</label>' + selectHtml(SEVERITY_OPTIONS, d.severity, i, 'severity') + '</div>' +
+          '<div class="field"><label>Priority</label>' + selectHtml(PRIORITY_OPTIONS, d.priority, i, 'priority') + '</div>' +
+        '</div>' +
+        '<div class="field"><label>Photo URLs</label>' +
+          '<textarea data-defect-idx="' + i + '" data-defect-field="photoUrls" rows="3" placeholder="One URL per line.">' + escapeHtml(d.photoUrls || '') + '</textarea></div>' +
+        '<div class="field"><label>Recommended action</label>' +
+          '<textarea data-defect-idx="' + i + '" data-defect-field="recommendedAction" rows="3" placeholder="What to do about this.">' + escapeHtml(d.recommendedAction || '') + '</textarea></div>' +
+        '<div class="field"><label>Indicative cost band</label>' + selectHtml(COST_BAND_OPTIONS, d.costBand, i, 'costBand') + '</div>' +
+      '</div>' +
+      '<div class="defect-footer">' +
+        '<button type="button" class="btn btn-danger" onclick="removeDefect(' + i + ')">Remove defect</button>' +
+      '</div>' +
+    '</details>';
+  }).join('');
+  if (typeof focusIdx === 'number') {
+    const el = list.querySelector('details[data-defect-idx="' + focusIdx + '"]');
+    if (el) el.open = true;
+  }
+}
+
+function selectHtml(options, current, idx, field) {
+  let html = '<select data-defect-idx="' + idx + '" data-defect-field="' + field + '">';
+  html += '<option value="">—</option>';
+  for (const o of options) {
+    html += '<option' + (o === current ? ' selected' : '') + '>' + escapeHtml(o) + '</option>';
+  }
+  html += '</select>';
+  return html;
+}
+
+function severityClass(sev) {
+  switch (sev) {
+    case 'Critical':  return 'pill-critical';
+    case 'High':      return 'pill-high';
+    case 'Medium':    return 'pill-medium';
+    case 'Low':       return 'pill-low';
+    case 'Note Only': return 'pill-note';
+    default:          return 'pill-draft';
+  }
+}
+function severitySectionClass(sev) {
+  switch (sev) {
+    case 'Critical':  return 'sev-critical';
+    case 'High':      return 'sev-high';
+    case 'Medium':    return 'sev-medium';
+    case 'Low':       return 'sev-low';
+    case 'Note Only': return 'sev-note';
+    default:          return '';
+  }
+}
+
+// Sync individual defect field edits back into the array; only re-render the
+// summary line if title or severity changed (avoids losing focus mid-typing).
+function onDefectInput(e) {
+  const t = e.target;
+  if (!t.dataset || t.dataset.defectIdx == null) return;
+  const idx = Number(t.dataset.defectIdx);
+  const field = t.dataset.defectField;
+  if (!DEFECT_FIELDS.includes(field)) return;
+  if (!currentDefects[idx]) return;
+  currentDefects[idx][field] = t.value;
+  if (field === 'title' || field === 'severity') {
+    // Update only the summary line in place.
+    const details = t.closest('details.defect');
+    if (!details) return;
+    const sevClass = severityClass(currentDefects[idx].severity);
+    const sevPill = currentDefects[idx].severity
+      ? '<span class="pill ' + sevClass + '">' + escapeHtml(currentDefects[idx].severity) + '</span>' : '';
+    const title = currentDefects[idx].title;
+    const titleHtml = title
+      ? '<span class="defect-title-display">' + escapeHtml(title) + '</span>'
+      : '<span class="defect-title-display placeholder">New defect — fill in details below</span>';
+    const summary = details.querySelector('summary');
+    if (summary) {
+      summary.innerHTML = '<span class="defect-num">' + (idx + 1) + '</span>' + titleHtml + sevPill;
+    }
+  }
+}
+
+// ---- Conditional field visibility + asbestos register currency calc ----
+function updateConditionals() {
+  const asbSeen = document.getElementById('f-asb-register-seen').checked;
+  document.querySelectorAll('[data-cond="asb-seen"]').forEach(el => el.hidden = !asbSeen);
+}
+
+function monthsBetween(earlier, later) {
+  if (earlier > later) return 0;
+  let m = (later.getFullYear() - earlier.getFullYear()) * 12 + (later.getMonth() - earlier.getMonth());
+  if (later.getDate() < earlier.getDate()) m -= 1;
+  return Math.max(0, m);
+}
+function registerCurrencyLabel(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const months = monthsBetween(d, new Date());
+  return (months <= 12 ? 'Yes' : 'No') + ' — ' + months + ' month' + (months === 1 ? '' : 's') + ' old';
+}
+
+// ---- Validation ----
+function validateForm() {
+  const required = ['f-client-name', 'f-site-address', 'f-postcode', 'f-visit-date'];
+  let firstBadEl = null;
+  for (const id of required) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (!el.value || !el.value.trim()) {
+      el.classList.add('error');
+      if (!firstBadEl) firstBadEl = el;
+    } else {
+      el.classList.remove('error');
+    }
+  }
+  if (firstBadEl) {
+    showToast('Fill in the required fields (marked *)', 'err');
+    const containingSection = firstBadEl.closest('.section');
+    if (containingSection) containingSection.open = true;
+    firstBadEl.focus({ preventScroll: false });
+    return false;
+  }
+  return true;
+}
+
+// ---- Save ----
+function saveSurvey() {
+  if (!validateForm()) return;
+  const data = collectFormData();
+  const now = new Date().toISOString();
+  const surveys = loadSurveys();
+
+  let saved;
+  if (currentSurveyId) {
+    const idx = surveys.findIndex(x => x.id === currentSurveyId);
+    if (idx === -1) {
+      saved = { id: nextSurveyId(), createdAt: now, updatedAt: now, ...data };
+      surveys.push(saved);
+    } else {
+      saved = { ...surveys[idx], ...data, updatedAt: now };
+      surveys[idx] = saved;
+    }
+  } else {
+    saved = { id: nextSurveyId(), createdAt: now, updatedAt: now, ...data };
+    surveys.push(saved);
+  }
+
+  saveSurveys(surveys);
+  clearDraft();
+  stopAutoSave();
+  currentSurveyId = saved.id;
+
+  const btn = document.getElementById('save-btn');
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Saved';
+    btn.disabled = true;
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 900);
+  }
+  setTimeout(() => goHome(), 750);
+  setTimeout(() => showToast('Survey saved — ' + saved.id, 'ok'), 100);
+}
+
+// ---- Auto-save draft ----
+function startAutoSave() {
+  stopAutoSave();
+  autosaveTimer = setInterval(() => {
+    if (currentSurveyId !== null) return;
+    const data = collectFormData();
+    const ignoreSurveyor = (data['f-surveyor-name'] === 'Jamie Gibbs');
+    const fieldsHaveAny = Object.entries(data).some(([k, v]) => {
+      if (k === 'defects') return false;
+      if (k === 'f-surveyor-name' && ignoreSurveyor) return false;
+      return v !== '' && v !== false && v !== 0 && v !== null && v !== undefined && v !== '1';
+    });
+    const hasAny = fieldsHaveAny || (data.defects && data.defects.length > 0);
+    if (hasAny) {
+      saveDraft(data);
+      const ind = document.getElementById('draft-indicator');
+      if (ind) ind.textContent = 'Draft auto-saved · ' + new Date().toLocaleTimeString('en-GB');
+    }
+  }, AUTOSAVE_MS);
+}
+function stopAutoSave() {
+  if (autosaveTimer) { clearInterval(autosaveTimer); autosaveTimer = null; }
+}
+
+// ---- Render: survey list ----
+function renderSurveyList() {
+  const el = document.getElementById('survey-list');
+  const surveys = loadSurveys().slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  if (!surveys.length) {
+    el.innerHTML = '<div class="empty-state">No surveys yet. Tap <strong>New Survey</strong> to start.</div>';
+    return;
+  }
+  el.innerHTML = surveys.map(s => {
+    const client = escapeHtml(s['f-client-company'] || s['f-client-name'] || '(no client name)');
+    const site = escapeHtml(firstLine(s['f-site-address']) || '(no site address)');
+    const visit = s['f-visit-date'] ? fmtDate(s['f-visit-date']) : fmtDate(s.createdAt);
+    const defectCount = Array.isArray(s.defects) ? s.defects.length : 0;
+    const rating = s['f-overall-rating'] || '';
+    const meta = [
+      defectCount + ' defect' + (defectCount === 1 ? '' : 's'),
+      rating ? 'rating: ' + rating : null
+    ].filter(Boolean).join(' · ');
+    return '<button class="survey-card" onclick="goToSurvey(\'' + s.id + '\')">' +
+             '<div class="survey-card-id">' + s.id + ' · ' + visit + (meta ? ' · ' + escapeHtml(meta) : '') + '</div>' +
+             '<div class="survey-card-title">' + client + '</div>' +
+             '<div class="survey-card-meta">' + site + '</div>' +
+           '</button>';
+  }).join('');
+}
+
+// ---- Render: detail view ----
+function renderSurveyDetail(s) {
+  document.getElementById('detail-title').textContent =
+    (s['f-client-company'] || s['f-client-name'] || 'Survey') + ' — ' + (firstLine(s['f-site-address']) || '');
+  document.getElementById('detail-meta').textContent =
+    s.id + ' · visit ' + (s['f-visit-date'] ? fmtDate(s['f-visit-date']) : '—') +
+    ' · last updated ' + fmtDate(s.updatedAt);
+
+  const body = document.getElementById('detail-body');
+  body.innerHTML = renderDetailBlocks(s);
+}
+
+function renderDetailBlocks(s) {
+  const blocks = [
+    ['Site Info', [
+      ['Client name', s['f-client-name']],
+      ['Client company', s['f-client-company']],
+      ['Site address', s['f-site-address']],
+      ['Postcode', s['f-postcode']],
+      ['Contact telephone', s['f-telephone']],
+      ['Date of visit', s['f-visit-date'] ? fmtDate(s['f-visit-date']) : ''],
+      ['Surveyor', s['f-surveyor-name']],
+      ['Works description', s['f-works-description']]
+    ]],
+    ['Building', [
+      ['Roof type', s['f-roof-type']],
+      ['Roof area (m²)', s['f-roof-area']],
+      ['Number of buildings', s['f-num-buildings']],
+      ['Eaves height (m)', s['f-eaves-height']],
+      ['Approximate age', s['f-age']],
+      ['Construction type', s['f-construction-type']]
+    ]],
+    ['Access & Safety', [
+      ['Eaves access', s['f-eaves-access']],
+      ['Edge protection', boolDisplay(s['f-edge-protection'])],
+      ['Live overhead services <9m', boolDisplay(s['f-live-services'])],
+      ['Adjacent to public area', boolDisplay(s['f-adjacent-public'])]
+    ]],
+    ['Asbestos', [
+      ['Roof contains asbestos', s['f-asb-contains']],
+      ['Register seen', boolDisplay(s['f-asb-register-seen'])],
+      ['Register date', s['f-asb-register-seen'] && s['f-asb-register-date'] ? fmtDate(s['f-asb-register-date']) : ''],
+      ['Register current', s['f-asb-register-seen'] ? registerCurrencyLabel(s['f-asb-register-date']) : ''],
+      ['Sampling required', boolDisplay(s['f-asb-sampling'])]
+    ]],
+    ['Summary', [
+      ['Overall condition rating', s['f-overall-rating']],
+      ['Remaining life (years)', s['f-remaining-life']],
+      ['Total indicative cost band', s['f-total-cost-band']],
+      ['Recommendation', s['f-recommendation']]
+    ]]
+  ];
+
+  let html = '<div class="detail-grid">';
+  for (const [title, rows] of blocks) {
+    html += '<div class="detail-block"><h3>' + escapeHtml(title) + '</h3>';
+    for (const [k, v] of rows) {
+      const display = (v === '' || v == null) ? '<span class="v empty">—</span>' :
+                      '<span class="v">' + escapeHtml(String(v)) + '</span>';
+      html += '<div class="detail-row"><span class="k">' + escapeHtml(k) + '</span>' + display + '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Executive summary + next steps as wide blocks beneath the grid.
+  if (s['f-executive-summary']) {
+    html += '<div class="detail-block" style="margin-top:1rem;"><h3>Executive summary</h3><div class="detail-notes">' + escapeHtml(s['f-executive-summary']) + '</div></div>';
+  }
+  if (s['f-next-steps']) {
+    html += '<div class="detail-block" style="margin-top:1rem;"><h3>Next steps</h3><div class="detail-notes">' + escapeHtml(s['f-next-steps']) + '</div></div>';
+  }
+
+  // Defects block
+  const defects = Array.isArray(s.defects) ? s.defects : [];
+  html += '<div class="detail-block" style="margin-top:1rem;"><h3>Defects (' + defects.length + ')</h3>';
+  if (!defects.length) {
+    html += '<div class="detail-row"><span class="k">No defects recorded.</span></div>';
+  } else {
+    html += '<div class="detail-defects">';
+    defects.forEach((d, i) => {
+      const sc = severitySectionClass(d.severity);
+      const sp = d.severity ? '<span class="pill ' + severityClass(d.severity) + '">' + escapeHtml(d.severity) + '</span>' : '';
+      html += '<div class="detail-defect ' + sc + '">' +
+        '<div class="detail-defect-head">' +
+          '<strong>' + (i + 1) + '. ' + escapeHtml(d.title || '(untitled)') + '</strong>' + sp +
+        '</div>' +
+        (d.location ? '<div class="detail-defect-meta">' + escapeHtml(d.location) + '</div>' : '') +
+        (d.description ? '<p>' + escapeHtml(d.description) + '</p>' : '') +
+        (d.recommendedAction ? '<div class="kv"><strong>Recommended:</strong> ' + escapeHtml(d.recommendedAction) + '</div>' : '') +
+        '<div class="kv" style="margin-top:0.35rem;">' +
+          (d.costBand ? '<strong>Cost:</strong> ' + escapeHtml(d.costBand) + ' &nbsp; ' : '') +
+          (d.priority ? '<strong>Priority:</strong> ' + escapeHtml(d.priority) : '') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  return html;
+}
+
+// ---- Render: report view ----
+function renderReport(id) {
+  const s = loadSurveys().find(x => x.id === id);
+  const body = document.getElementById('report-body');
+  if (!s) { body.innerHTML = '<p>Survey not found.</p>'; return; }
+  const defects = Array.isArray(s.defects) ? s.defects : [];
+
+  // Severity tallies for the summary table.
+  const sevCounts = { 'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0, 'Note Only': 0 };
+  const costCounts = {};
+  for (const o of COST_BAND_OPTIONS) costCounts[o] = 0;
+  for (const d of defects) {
+    if (d.severity && sevCounts[d.severity] != null) sevCounts[d.severity]++;
+    if (d.costBand && costCounts[d.costBand] != null) costCounts[d.costBand]++;
+  }
+
+  const clientLine = (s['f-client-company'] || s['f-client-name'] || '').trim();
+  const reportDateStr = fmtDate(s['f-visit-date'] || s.createdAt);
+
+  let html = '';
+
+  // Header
+  html += '<div class="report">';
+  html += '<div class="report-header">' +
+    '<div class="report-brand">' +
+      '<div class="wordmark">nova<span class="accent">.</span></div>' +
+      '<div class="tagline">Site Condition Survey &amp; Remedial Works Report</div>' +
+    '</div>' +
+    '<div class="report-meta">' +
+      '<div class="ref">' + escapeHtml(s.id) + '</div>' +
+      '<div>Visit ' + escapeHtml(reportDateStr) + '</div>' +
+      (s['f-surveyor-name'] ? '<div>Surveyor: ' + escapeHtml(s['f-surveyor-name']) + '</div>' : '') +
+    '</div>' +
+  '</div>';
+
+  html += '<h1 class="report-title">' + escapeHtml(clientLine || 'Site Condition Survey') + '</h1>';
+  if (s['f-site-address']) {
+    html += '<div class="report-subtitle">' + escapeHtml(s['f-site-address']) + (s['f-postcode'] ? ' · ' + escapeHtml(s['f-postcode']) : '') + '</div>';
+  }
+
+  // Site info grid
+  html += '<h2>1. Site information</h2>';
+  html += '<div class="info-grid">';
+  const siteRows = [
+    ['Client name', s['f-client-name']],
+    ['Client company', s['f-client-company']],
+    ['Site address', s['f-site-address']],
+    ['Postcode', s['f-postcode']],
+    ['Contact telephone', s['f-telephone']],
+    ['Date of visit', s['f-visit-date'] ? fmtDate(s['f-visit-date']) : ''],
+    ['Surveyor', s['f-surveyor-name']],
+    ['Works brief', s['f-works-description']]
+  ];
+  for (const [k, v] of siteRows) {
+    if (!v) continue;
+    html += '<div class="info-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(String(v)) + '</span></div>';
+  }
+  html += '</div>';
+
+  // Building overview
+  const buildingRows = [
+    ['Roof type', s['f-roof-type']],
+    ['Roof area (m²)', s['f-roof-area']],
+    ['Number of buildings', s['f-num-buildings']],
+    ['Eaves height (m)', s['f-eaves-height']],
+    ['Approximate age', s['f-age']],
+    ['Construction type', s['f-construction-type']]
+  ].filter(([, v]) => v !== '' && v != null);
+  if (buildingRows.length) {
+    html += '<h2>2. Building overview</h2><div class="info-grid">';
+    for (const [k, v] of buildingRows) {
+      html += '<div class="info-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(String(v)) + '</span></div>';
+    }
+    html += '</div>';
+  }
+
+  // Executive summary
+  if (s['f-executive-summary']) {
+    html += '<h2>3. Executive summary</h2>';
+    html += '<div class="exec-summary">' + escapeHtml(s['f-executive-summary']) + '</div>';
+  }
+
+  // Summary tables
+  if (defects.length) {
+    html += '<h2>4. Findings at a glance</h2>';
+    html += '<div class="summary-tables">';
+    // Severity table
+    html += '<div class="summary-table"><h3>Defects by severity</h3><table>';
+    for (const sev of SEVERITY_OPTIONS) {
+      const cnt = sevCounts[sev];
+      html += '<tr><td class="label"><span class="pill ' + severityClass(sev) + '">' + escapeHtml(sev) + '</span></td>' +
+              '<td class="count' + (cnt === 0 ? ' zero' : '') + '">' + cnt + '</td></tr>';
+    }
+    html += '<tr><td class="label"><strong>Total</strong></td><td class="count"><strong>' + defects.length + '</strong></td></tr>';
+    html += '</table></div>';
+    // Cost band table
+    html += '<div class="summary-table"><h3>Indicative cost band</h3><table>';
+    let costAny = false;
+    for (const band of COST_BAND_OPTIONS) {
+      const cnt = costCounts[band];
+      if (cnt === 0) continue;
+      costAny = true;
+      html += '<tr><td class="label">' + escapeHtml(band) + '</td><td class="count">' + cnt + '</td></tr>';
+    }
+    if (!costAny) {
+      html += '<tr><td class="label zero" colspan="2">No cost bands assigned yet.</td></tr>';
+    }
+    html += '</table></div>';
+    html += '</div>';
+  }
+
+  // Access & Asbestos compact block
+  const accessRows = [
+    ['Eaves access', s['f-eaves-access']],
+    ['Edge protection', s['f-edge-protection'] ? 'Yes' : 'No'],
+    ['Live overhead services <9 m', s['f-live-services'] ? 'Yes' : 'No'],
+    ['Adjacent to public area', s['f-adjacent-public'] ? 'Yes' : 'No']
+  ];
+  const asbRows = [
+    ['Roof contains asbestos', s['f-asb-contains']],
+    ['Register seen', s['f-asb-register-seen'] ? 'Yes' : 'No'],
+    ['Register date', s['f-asb-register-seen'] && s['f-asb-register-date'] ? fmtDate(s['f-asb-register-date']) : ''],
+    ['Register current', s['f-asb-register-seen'] ? registerCurrencyLabel(s['f-asb-register-date']) : ''],
+    ['Sampling required', s['f-asb-sampling'] ? 'Yes' : 'No']
+  ].filter(([, v]) => v !== '' && v != null);
+  html += '<h2>5. Access &amp; safety, asbestos</h2><div class="summary-tables">';
+  html += '<div class="summary-table"><h3>Access &amp; safety</h3><table>';
+  for (const [k, v] of accessRows) {
+    if (!v) continue;
+    html += '<tr><td class="label">' + escapeHtml(k) + '</td><td class="count">' + escapeHtml(String(v)) + '</td></tr>';
+  }
+  html += '</table></div>';
+  html += '<div class="summary-table"><h3>Asbestos</h3><table>';
+  if (asbRows.length) {
+    for (const [k, v] of asbRows) {
+      html += '<tr><td class="label">' + escapeHtml(k) + '</td><td class="count">' + escapeHtml(String(v)) + '</td></tr>';
+    }
+  } else {
+    html += '<tr><td class="label zero" colspan="2">No asbestos information recorded.</td></tr>';
+  }
+  html += '</table></div></div>';
+
+  // Defects detail
+  html += '<h2>6. Defects &amp; recommended works</h2>';
+  if (!defects.length) {
+    html += '<p style="color:var(--muted);">No defects recorded.</p>';
+  } else {
+    // Compact overview table (mirrors site/condition style of typical condition reports)
+    html += '<table class="defects-table">' +
+      '<thead><tr><th>#</th><th>Defect</th><th>Location</th><th>Severity</th><th>Cost band</th><th>Priority</th></tr></thead>' +
+      '<tbody>';
+    defects.forEach((d, i) => {
+      const sp = d.severity ? '<span class="pill ' + severityClass(d.severity) + '">' + escapeHtml(d.severity) + '</span>' : '—';
+      html += '<tr>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + escapeHtml(d.title || '(untitled)') + '</td>' +
+        '<td>' + escapeHtml(d.location || '—') + '</td>' +
+        '<td class="sev-cell">' + sp + '</td>' +
+        '<td>' + escapeHtml(d.costBand || '—') + '</td>' +
+        '<td>' + escapeHtml(d.priority || '—') + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+
+    // Per-defect detail blocks
+    defects.forEach((d, i) => {
+      const sc = severitySectionClass(d.severity);
+      const sp = d.severity ? '<span class="pill ' + severityClass(d.severity) + '">' + escapeHtml(d.severity) + '</span>' : '';
+      html += '<div class="report-defect ' + sc + '">' +
+        '<div class="report-defect-head">' +
+          '<span class="report-defect-num">' + (i + 1) + '</span>' +
+          '<span class="report-defect-title">' + escapeHtml(d.title || '(untitled defect)') + '</span>' + sp +
+        '</div>' +
+        (d.location ? '<div class="report-defect-meta">Location: ' + escapeHtml(d.location) + '</div>' : '') +
+        (d.description ? '<span class="label">Observation</span><p>' + escapeHtml(d.description) + '</p>' : '') +
+        (d.recommendedAction ? '<span class="label">Recommended action</span><p>' + escapeHtml(d.recommendedAction) + '</p>' : '') +
+        renderDefectPhotos(d.photoUrls) +
+        '<div class="kv-row">' +
+          (d.costBand ? '<span class="kv">Cost band: <strong>' + escapeHtml(d.costBand) + '</strong></span>' : '') +
+          (d.priority ? '<span class="kv">Priority: <strong>' + escapeHtml(d.priority) + '</strong></span>' : '') +
+        '</div>' +
+      '</div>';
+    });
+  }
+
+  // Recommendation
+  html += '<h2>7. Recommendation &amp; next steps</h2>';
+  const headlineParts = [];
+  if (s['f-overall-rating']) headlineParts.push('Overall condition: ' + s['f-overall-rating']);
+  if (s['f-remaining-life'] !== '' && s['f-remaining-life'] != null) headlineParts.push('Est. remaining life: ' + s['f-remaining-life'] + ' years');
+  if (s['f-total-cost-band']) headlineParts.push('Total indicative cost: ' + s['f-total-cost-band']);
+  html += '<div class="recommendation-block">';
+  if (s['f-recommendation']) {
+    html += '<div class="reco-headline">Recommendation: ' + escapeHtml(s['f-recommendation']) + '</div>';
+  }
+  if (headlineParts.length) {
+    html += '<p>' + escapeHtml(headlineParts.join(' · ')) + '</p>';
+  }
+  if (s['f-next-steps']) {
+    html += '<p><strong>Next steps:</strong></p><p>' + escapeHtml(s['f-next-steps']) + '</p>';
+  }
+  if (!s['f-recommendation'] && !headlineParts.length && !s['f-next-steps']) {
+    html += '<p style="color:var(--muted);">No recommendation captured yet.</p>';
+  }
+  html += '</div>';
+
+  // Footer
+  html += '<div class="report-footer">' +
+    '<div class="credentials">Prepared by ' + escapeHtml(s['f-surveyor-name'] || 'Nova') + ', Nova (SW) Limited.</div>' +
+    '<div>Construction Law qualified. 22 years sector experience. nova-limited.com</div>' +
+  '</div>';
+
+  html += '</div>'; // .report
+  body.innerHTML = html;
+}
+
+function renderDefectPhotos(photoUrlsRaw) {
+  if (!photoUrlsRaw) return '';
+  const urls = String(photoUrlsRaw).split(/\r?\n/).map(u => u.trim()).filter(Boolean);
+  if (!urls.length) return '';
+  let html = '<span class="label">Photos</span><div class="photo-row">';
+  for (const u of urls) {
+    const safeUrl = escapeHtml(u);
+    html += '<img src="' + safeUrl + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ---- Toast ----
+function showToast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = kind || '';
+  el.hidden = false;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 2500);
+}
+
+// ---- Small helpers ----
+function todayIso() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+function fmtDate(s) {
+  if (!s) return '';
+  const d = (s instanceof Date) ? s : new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function firstLine(s) {
+  if (!s) return '';
+  return String(s).split(/\r?\n/)[0].trim();
+}
+function boolDisplay(v) { return v ? 'Yes' : 'No'; }
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function attr(s) { return escapeHtml(s == null ? '' : s); }
+
+// ---- Wiring ----
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (!t || !t.id && t.dataset.defectIdx == null) return;
+  // Per-defect inputs.
+  if (t.dataset && t.dataset.defectIdx != null) {
+    onDefectInput(e);
+    return;
+  }
+  // Auto-uppercase postcode.
+  if (t.dataset && t.dataset.uppercase) {
+    const pos = t.selectionStart;
+    const v = t.value.toUpperCase();
+    if (v !== t.value) {
+      t.value = v;
+      if (pos != null) t.setSelectionRange(pos, pos);
+    }
+  }
+  if (t.id === 'f-asb-register-seen') updateConditionals();
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (!t) return;
+  if (t.dataset && t.dataset.defectIdx != null) {
+    onDefectInput(e);
+    return;
+  }
+  if (t.id === 'f-asb-register-seen') updateConditionals();
+});
+
+document.addEventListener('DOMContentLoaded', () => { renderSurveyList(); });
+</script>
+</body>
+</html>
