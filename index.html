@@ -865,6 +865,86 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 }
 .report-actions .btn { width: 100%; }
 
+/* SUBSECTIONS within Section A (engagement, end client, main contractor, etc.) */
+.subsection { margin-top: 1.4rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
+.subsection:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.subsection-title {
+  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--gold); margin-bottom: 0.25rem;
+}
+.subsection-hint { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.6rem; }
+.subsection[hidden] { display: none; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(20,20,22,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; padding: 1rem;
+  animation: modal-fade-in 0.15s ease-out;
+}
+.modal-overlay[hidden] { display: none; }
+@keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.modal-card {
+  background: var(--paper); border-radius: 10px;
+  padding: 1.5rem 1.5rem 1.25rem; max-width: 440px; width: 100%;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.28);
+  border-top: 4px solid var(--gold);
+}
+.modal-title {
+  font-size: 1.15rem; font-weight: 800; color: var(--ink);
+  margin-bottom: 0.65rem; letter-spacing: -0.005em;
+}
+.modal-body {
+  font-size: 0.94rem; color: var(--ink-2); line-height: 1.55;
+  margin-bottom: 1.25rem;
+}
+.modal-actions { display: flex; flex-direction: column; gap: 0.6rem; }
+@media (min-width: 480px) {
+  .modal-actions { flex-direction: row-reverse; justify-content: flex-start; }
+  .modal-actions .btn { width: auto; min-width: 120px; }
+}
+.modal-actions .btn { width: 100%; }
+
+/* REPORT — Engaged by + info-blocks (new site info layout) */
+.engaged-by {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--gold);
+  border-radius: 0 6px 6px 0;
+  padding: 1rem 1.25rem;
+  margin: 0.5rem 0 2rem;
+}
+.engaged-by .engaged-eyebrow {
+  display: block;
+  font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  font-weight: 800; color: var(--gold); margin-bottom: 0.35rem;
+}
+.engaged-by .engaged-text {
+  font-size: 1.05rem; font-weight: 700; color: var(--ink); line-height: 1.4;
+}
+.info-blocks {
+  display: grid; gap: 1.5rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 700px) { .info-blocks { grid-template-columns: 1fr 1fr; } }
+.info-block { }
+.info-block-title {
+  font-size: 11.5px; font-weight: 800; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--gold);
+  margin-bottom: 0.75rem; padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--rule);
+}
+.info-block-rows { display: grid; gap: 0.85rem; grid-template-columns: 1fr; }
+.info-block .info-item-eyebrow {
+  display: block;
+  font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  font-weight: 800; color: var(--gold); margin-bottom: 0.2rem;
+}
+.info-block .info-item-val {
+  font-size: 14.5px; color: var(--ink); font-weight: 600; line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 /* ============================================================
    PRINT — A4 layout, force backgrounds, page-break between sections
    ============================================================ */
@@ -932,47 +1012,126 @@ main { padding-bottom: env(safe-area-inset-bottom); }
       <details class="section" id="section-a" open>
         <summary>Section A — Site Info</summary>
         <div class="section-body">
-          <div class="field-row">
+          <div class="subsection">
+            <div class="subsection-title">Engagement</div>
             <div class="field">
-              <label for="f-client-name">Client name <span class="req">*</span></label>
-              <input type="text" id="f-client-name" autocomplete="off">
-            </div>
-            <div class="field">
-              <label for="f-client-company">Client company</label>
-              <input type="text" id="f-client-company" autocomplete="organization">
-            </div>
-          </div>
-          <div class="field">
-            <label for="f-site-address">Site address <span class="req">*</span></label>
-            <textarea id="f-site-address" rows="3" autocomplete="street-address"></textarea>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="f-postcode">Postcode <span class="req">*</span></label>
-              <input type="text" id="f-postcode" data-uppercase autocomplete="postal-code">
-            </div>
-            <div class="field">
-              <label for="f-telephone">Contact telephone</label>
-              <input type="tel" id="f-telephone" autocomplete="tel">
+              <label for="f-engagement-type">Engagement type <span class="req">*</span></label>
+              <select id="f-engagement-type">
+                <option value="direct">Direct (engaged by client)</option>
+                <option value="subcontracted">Sub-contracted (engaged by main contractor)</option>
+              </select>
             </div>
           </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="f-visit-date">Date of visit <span class="req">*</span></label>
-              <input type="date" id="f-visit-date">
+
+          <div class="subsection">
+            <div class="subsection-title">End Client</div>
+            <div class="subsection-hint">The building owner or occupier.</div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-ec-company">Company name</label>
+                <input type="text" id="f-ec-company" autocomplete="organization">
+              </div>
+              <div class="field">
+                <label for="f-ec-contact-name">Contact name <span class="req">*</span></label>
+                <input type="text" id="f-ec-contact-name" autocomplete="name">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-ec-contact-title">Contact title / role</label>
+                <input type="text" id="f-ec-contact-title" placeholder="e.g. Facilities Manager, Director">
+              </div>
+              <div class="field">
+                <label for="f-ec-email">Email <span class="req">*</span></label>
+                <input type="email" id="f-ec-email" autocomplete="email">
+              </div>
             </div>
             <div class="field">
-              <label for="f-surveyor-name">Surveyor name</label>
-              <input type="text" id="f-surveyor-name" value="Jamie Gibbs">
+              <label for="f-ec-telephone">Telephone</label>
+              <input type="tel" id="f-ec-telephone" autocomplete="tel">
             </div>
           </div>
-          <div class="field">
-            <label>Survey reference</label>
-            <div class="readout" id="f-ref-readout">— assigned on save —</div>
+
+          <div class="subsection" id="main-contractor-subsection" hidden>
+            <div class="subsection-title">Main Contractor</div>
+            <div class="subsection-hint">The entity engaging Nova.</div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-mc-company">Company name <span class="req">*</span></label>
+                <input type="text" id="f-mc-company">
+              </div>
+              <div class="field">
+                <label for="f-mc-contact-name">Contact name <span class="req">*</span></label>
+                <input type="text" id="f-mc-contact-name">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-mc-contact-title">Contact title / role</label>
+                <input type="text" id="f-mc-contact-title">
+              </div>
+              <div class="field">
+                <label for="f-mc-email">Email <span class="req">*</span></label>
+                <input type="email" id="f-mc-email">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-mc-telephone">Telephone</label>
+                <input type="tel" id="f-mc-telephone">
+              </div>
+              <div class="field">
+                <label for="f-mc-reference">Reference / PO number</label>
+                <input type="text" id="f-mc-reference" placeholder="Their internal job reference if applicable">
+              </div>
+            </div>
           </div>
-          <div class="field">
-            <label for="f-works-description">Works description / brief</label>
-            <textarea id="f-works-description" rows="3" placeholder="What the client asked us to survey and report on."></textarea>
+
+          <div class="subsection">
+            <div class="subsection-title">Site</div>
+            <div class="field">
+              <label for="f-site-address">Site address <span class="req">*</span></label>
+              <textarea id="f-site-address" rows="3" autocomplete="street-address"></textarea>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-site-postcode">Postcode <span class="req">*</span></label>
+                <input type="text" id="f-site-postcode" data-uppercase autocomplete="postal-code">
+              </div>
+              <div class="field"></div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-site-contact-name">Site contact name</label>
+                <input type="text" id="f-site-contact-name" placeholder="If different from above">
+              </div>
+              <div class="field">
+                <label for="f-site-contact-telephone">Site contact telephone</label>
+                <input type="tel" id="f-site-contact-telephone">
+              </div>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <div class="subsection-title">Visit</div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-visit-date">Date of visit <span class="req">*</span></label>
+                <input type="date" id="f-visit-date">
+              </div>
+              <div class="field">
+                <label for="f-visit-surveyor">Surveyor name</label>
+                <input type="text" id="f-visit-surveyor" value="Jamie Gibbs">
+              </div>
+            </div>
+            <div class="field">
+              <label>Survey reference</label>
+              <div class="readout" id="f-ref-readout">— assigned on save —</div>
+            </div>
+            <div class="field">
+              <label for="f-visit-brief">Works description / brief</label>
+              <textarea id="f-visit-brief" rows="3" placeholder="What we were asked to survey and report on."></textarea>
+            </div>
           </div>
         </div>
       </details>
@@ -1228,6 +1387,17 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   </section>
 </main>
 
+<div id="modal-overlay" class="modal-overlay" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="modal-primary-btn"></button>
+      <button type="button" class="btn btn-ghost" id="modal-secondary-btn"></button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" hidden></div>
 
 <script>
@@ -1240,20 +1410,82 @@ const STORAGE_KEY = 'nova_surveys_v1';
 const DRAFT_KEY   = 'nova_survey_draft';
 const AUTOSAVE_MS = 10000;
 
-const FIELDS = {
-  text: [
-    'f-client-name', 'f-client-company', 'f-postcode', 'f-telephone',
-    'f-visit-date', 'f-surveyor-name',
-    'f-roof-type', 'f-age', 'f-construction-type',
-    'f-eaves-access', 'f-asb-contains', 'f-asb-register-date',
-    'f-overall-rating', 'f-total-cost-band', 'f-recommendation'
-  ],
-  textarea: ['f-site-address', 'f-works-description',
-             'f-executive-summary', 'f-next-steps'],
-  number: ['f-roof-area', 'f-num-buildings', 'f-remaining-life'],
-  checkbox: ['f-edge-protection', 'f-live-services', 'f-adjacent-public',
-             'f-asb-register-seen', 'f-asb-sampling']
-};
+// FIELD_MAP drives collect / populate / reset by binding each input DOM id to
+// a JSON path on the survey object. Section A keys are nested (endClient,
+// mainContractor, site, visit); other sections kept flat to minimise churn.
+// `dflt` is the value used by resetForm and treated as "no content" by the
+// draft auto-save / cancel-discard checks.
+const FIELD_MAP = [
+  // Section A — Engagement + parties
+  { id: 'f-engagement-type',         type: 'text',     path: 'engagementType',          dflt: 'direct' },
+  { id: 'f-ec-company',              type: 'text',     path: 'endClient.company' },
+  { id: 'f-ec-contact-name',         type: 'text',     path: 'endClient.contactName' },
+  { id: 'f-ec-contact-title',        type: 'text',     path: 'endClient.contactTitle' },
+  { id: 'f-ec-email',                type: 'text',     path: 'endClient.email' },
+  { id: 'f-ec-telephone',            type: 'text',     path: 'endClient.telephone' },
+  { id: 'f-mc-company',              type: 'text',     path: 'mainContractor.company' },
+  { id: 'f-mc-contact-name',         type: 'text',     path: 'mainContractor.contactName' },
+  { id: 'f-mc-contact-title',        type: 'text',     path: 'mainContractor.contactTitle' },
+  { id: 'f-mc-email',                type: 'text',     path: 'mainContractor.email' },
+  { id: 'f-mc-telephone',            type: 'text',     path: 'mainContractor.telephone' },
+  { id: 'f-mc-reference',            type: 'text',     path: 'mainContractor.reference' },
+  { id: 'f-site-address',            type: 'textarea', path: 'site.address' },
+  { id: 'f-site-postcode',           type: 'text',     path: 'site.postcode' },
+  { id: 'f-site-contact-name',       type: 'text',     path: 'site.contactName' },
+  { id: 'f-site-contact-telephone',  type: 'text',     path: 'site.contactTelephone' },
+  { id: 'f-visit-date',              type: 'text',     path: 'visit.date' },
+  { id: 'f-visit-surveyor',          type: 'text',     path: 'visit.surveyorName',      dflt: 'Jamie Gibbs' },
+  { id: 'f-visit-brief',             type: 'textarea', path: 'visit.worksDescription' },
+
+  // Section B (flat)
+  { id: 'f-roof-type',         type: 'text',   path: 'f-roof-type' },
+  { id: 'f-roof-area',         type: 'number', path: 'f-roof-area' },
+  { id: 'f-num-buildings',     type: 'number', path: 'f-num-buildings',     dflt: 1 },
+  { id: 'f-age',               type: 'text',   path: 'f-age' },
+  { id: 'f-construction-type', type: 'text',   path: 'f-construction-type' },
+
+  // Section D (flat)
+  { id: 'f-eaves-access',     type: 'text',     path: 'f-eaves-access' },
+  { id: 'f-edge-protection',  type: 'checkbox', path: 'f-edge-protection' },
+  { id: 'f-live-services',    type: 'checkbox', path: 'f-live-services' },
+  { id: 'f-adjacent-public',  type: 'checkbox', path: 'f-adjacent-public' },
+
+  // Section E (flat)
+  { id: 'f-asb-contains',       type: 'text',     path: 'f-asb-contains' },
+  { id: 'f-asb-register-seen',  type: 'checkbox', path: 'f-asb-register-seen' },
+  { id: 'f-asb-register-date',  type: 'text',     path: 'f-asb-register-date' },
+  { id: 'f-asb-sampling',       type: 'checkbox', path: 'f-asb-sampling' },
+
+  // Section F (flat)
+  { id: 'f-overall-rating',     type: 'text',     path: 'f-overall-rating' },
+  { id: 'f-remaining-life',     type: 'number',   path: 'f-remaining-life' },
+  { id: 'f-executive-summary',  type: 'textarea', path: 'f-executive-summary' },
+  { id: 'f-total-cost-band',    type: 'text',     path: 'f-total-cost-band' },
+  { id: 'f-recommendation',     type: 'text',     path: 'f-recommendation' },
+  { id: 'f-next-steps',         type: 'textarea', path: 'f-next-steps' }
+];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getPath(obj, path) {
+  if (!obj) return undefined;
+  const parts = path.split('.');
+  let cur = obj;
+  for (const p of parts) {
+    if (cur == null) return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+function setPath(obj, path, value) {
+  const parts = path.split('.');
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (cur[parts[i]] == null || typeof cur[parts[i]] !== 'object') cur[parts[i]] = {};
+    cur = cur[parts[i]];
+  }
+  cur[parts[parts.length - 1]] = value;
+}
 
 const DEFECT_FIELDS = ['title', 'location', 'description', 'severity',
                        'photoUrls', 'recommendedAction', 'costBand', 'priority'];
@@ -1279,17 +1511,152 @@ let toastTimer = null;
 let reportSurveyId = null;
 
 // ---- Storage ----
+// Legacy → new-schema migration. Old surveys store Section A fields flat under
+// f-* keys; new schema nests them under endClient / mainContractor / site /
+// visit. We detect the old shape by the absence of `engagementType` and
+// rewrite the survey in place, then save it back so the next load is clean.
+function migrateSurveyIfNeeded(s) {
+  if (!s || s.engagementType) return { survey: s, migrated: false };
+  const hasOldField = (
+    'f-client-name' in s || 'f-client-company' in s || 'f-site-address' in s ||
+    'f-postcode' in s || 'f-telephone' in s || 'f-visit-date' in s ||
+    'f-surveyor-name' in s || 'f-works-description' in s
+  );
+  const m = { ...s };
+  m.engagementType = 'direct';
+  m.endClient = {
+    company:      s['f-client-company'] || '',
+    contactName:  s['f-client-name']    || '',
+    contactTitle: '',
+    email:        '',
+    telephone:    s['f-telephone']      || ''
+  };
+  m.mainContractor = {
+    company: '', contactName: '', contactTitle: '', email: '', telephone: '', reference: ''
+  };
+  m.site = {
+    address:          s['f-site-address'] || '',
+    postcode:         s['f-postcode']     || '',
+    contactName:      '',
+    contactTelephone: ''
+  };
+  m.visit = {
+    date:             s['f-visit-date']        || '',
+    surveyorName:     s['f-surveyor-name']     || 'Jamie Gibbs',
+    worksDescription: s['f-works-description'] || ''
+  };
+  // Strip the now-redundant flat keys so the stored shape is clean.
+  ['f-client-company','f-client-name','f-site-address','f-postcode','f-telephone',
+   'f-visit-date','f-surveyor-name','f-works-description']
+    .forEach(k => { delete m[k]; });
+  return { survey: m, migrated: hasOldField || true };
+}
+
 function loadSurveys() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-  catch(e) { console.error('Survey load failed:', e); return []; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    let any = false;
+    const out = raw.map(s => {
+      const r = migrateSurveyIfNeeded(s);
+      if (r.migrated) any = true;
+      return r.survey;
+    });
+    if (any) localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
+    return out;
+  } catch(e) { console.error('Survey load failed:', e); return []; }
 }
 function saveSurveys(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
 function loadDraft() {
-  try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); }
-  catch(e) { return null; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    if (!raw) return null;
+    // Migrate old-shape drafts on read so the restore flow uses the new schema.
+    if (!raw.engagementType) {
+      return migrateSurveyIfNeeded(raw).survey;
+    }
+    return raw;
+  } catch(e) { return null; }
 }
-function saveDraft(obj) { localStorage.setItem(DRAFT_KEY, JSON.stringify(obj)); }
+function saveDraft(obj) {
+  // Stamp the save time so the restore prompt can show a useful "from X" timestamp.
+  const stamped = { ...obj, _draftSavedAt: new Date().toISOString() };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(stamped));
+}
 function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
+
+// ---- Engagement-type visibility (main contractor subsection) ----
+function updateEngagementVisibility() {
+  const et = document.getElementById('f-engagement-type');
+  const mc = document.getElementById('main-contractor-subsection');
+  if (et && mc) mc.hidden = (et.value !== 'subcontracted');
+}
+
+// ---- Survey content check (used by draft auto-save + cancel-discard prompt).
+// Treats default values (engagementType=direct, surveyor=Jamie Gibbs, etc.) as
+// "empty" so a freshly-opened form doesn't trip an auto-save on its defaults. */
+function surveyHasContent(data) {
+  if (!data) return false;
+  if (Array.isArray(data.defects) && data.defects.length) return true;
+  if (Array.isArray(data.buildings) && data.buildings.length) return true;
+  for (const f of FIELD_MAP) {
+    const v = getPath(data, f.path);
+    if (v == null || v === '' || v === false) continue;
+    if (f.dflt != null && v === f.dflt) continue;
+    return true;
+  }
+  return false;
+}
+
+// ---- Draft timestamp formatter ----
+function fmtDraftTimestamp(iso) {
+  if (!iso) return 'earlier';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'earlier';
+  const now = new Date();
+  const isSameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  if (isSameDay(d, now)) return 'today at ' + time;
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  if (isSameDay(d, y)) return 'yesterday at ' + time;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' at ' + time;
+}
+
+// ---- Choice modal (two-button Promise) ----
+function showChoiceModal({ title, body, primaryLabel, secondaryLabel }) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('modal-overlay');
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').textContent  = body;
+    const pBtn = document.getElementById('modal-primary-btn');
+    const sBtn = document.getElementById('modal-secondary-btn');
+    pBtn.textContent = primaryLabel;
+    sBtn.textContent = secondaryLabel;
+    const done = (val) => {
+      overlay.hidden = true;
+      pBtn.removeEventListener('click', onP);
+      sBtn.removeEventListener('click', onS);
+      overlay.removeEventListener('click', onO);
+      document.removeEventListener('keydown', onK);
+      resolve(val);
+    };
+    const onP = () => done(true);
+    const onS = () => done(false);
+    const onO = (e) => { if (e.target === overlay) done(false); };
+    const onK = (e) => {
+      if (e.key === 'Escape') done(false);
+      else if (e.key === 'Enter') done(true);
+    };
+    pBtn.addEventListener('click', onP);
+    sBtn.addEventListener('click', onS);
+    overlay.addEventListener('click', onO);
+    document.addEventListener('keydown', onK);
+    overlay.hidden = false;
+    setTimeout(() => pBtn.focus(), 50);
+  });
+}
 
 function nextSurveyId() {
   const year = new Date().getFullYear();
@@ -1319,30 +1686,45 @@ function goHome() {
   showView('home');
 }
 
-function goToNewSurvey() {
+async function goToNewSurvey() {
   currentSurveyId = null;
   currentDefects = [];
   currentBuildings = [];
   resetForm();
+
+  // Draft restore prompt — explicit modal instead of silent restore.
   const draft = loadDraft();
-  if (draft && (Object.keys(draft).length > 0)) {
+  let useDraft = false;
+  if (draft && Object.keys(draft).length > 0) {
+    const ts = fmtDraftTimestamp(draft._draftSavedAt);
+    useDraft = await showChoiceModal({
+      title: 'Resume draft?',
+      body: 'You have an unsaved draft from ' + ts + '. Continue editing it, or start fresh?',
+      primaryLabel: 'Continue draft',
+      secondaryLabel: 'Start fresh'
+    });
+    if (!useDraft) clearDraft();
+  }
+
+  if (useDraft) {
     populateForm(draft);
     currentDefects = Array.isArray(draft.defects) ? draft.defects.slice() : [];
     currentBuildings = Array.isArray(draft.buildings)
       ? draft.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(s => ({ ...s })) }))
       : [];
-    showToast('Draft restored', 'ok');
   } else {
-    document.getElementById('f-visit-date').value = todayIso();
-    document.getElementById('f-surveyor-name').value = 'Jamie Gibbs';
-    document.getElementById('f-num-buildings').value = '1';
+    // Fresh-form defaults beyond what resetForm/FIELD_MAP dflts handle (the date).
+    const d = document.getElementById('f-visit-date');
+    if (d) d.value = todayIso();
   }
+
   document.getElementById('form-title').textContent = 'New condition survey';
   document.getElementById('form-meta').textContent = '';
   document.getElementById('f-ref-readout').textContent = '— assigned on save —';
   renderDefects();
   renderBuildings();
   updateConditionals();
+  updateEngagementVisibility();
   startAutoSave();
   showView('form');
 }
@@ -1371,6 +1753,7 @@ function editCurrent() {
   renderDefects();
   renderBuildings();
   updateConditionals();
+  updateEngagementVisibility();
   startAutoSave();
   showView('form');
 }
@@ -1387,10 +1770,7 @@ function deleteCurrent() {
 
 function cancelEdit() {
   if (currentSurveyId === null) {
-    const data = collectFormData();
-    const hasAny = Object.values(data).some(v =>
-      v !== '' && v !== false && v !== 0 && v !== null && v !== undefined && v !== '1' && v !== 'Jamie Gibbs'
-    ) || currentDefects.length > 0 || currentBuildings.length > 0;
+    const hasAny = surveyHasContent(collectFormData());
     if (hasAny && !confirm('Discard this survey draft?')) return;
     clearDraft();
   }
@@ -1413,17 +1793,22 @@ function backToDetail() {
   showView('detail');
 }
 
-// ---- Form collect / populate / reset ----
+// ---- Form collect / populate / reset (FIELD_MAP-driven) ----
 function collectFormData() {
   const out = {};
-  for (const id of FIELDS.text) out[id] = (document.getElementById(id) || {}).value || '';
-  for (const id of FIELDS.textarea) out[id] = (document.getElementById(id) || {}).value || '';
-  for (const id of FIELDS.number) {
-    const el = document.getElementById(id);
-    const v = el ? el.value : '';
-    out[id] = (v === '' || v === null) ? '' : Number(v);
+  for (const f of FIELD_MAP) {
+    const el = document.getElementById(f.id);
+    if (!el) continue;
+    let v;
+    if (f.type === 'checkbox') v = !!el.checked;
+    else if (f.type === 'number') {
+      const raw = el.value;
+      v = (raw === '' || raw == null) ? '' : Number(raw);
+    } else {
+      v = el.value || '';
+    }
+    setPath(out, f.path, v);
   }
-  for (const id of FIELDS.checkbox) out[id] = !!(document.getElementById(id) || {}).checked;
   out.defects = currentDefects.map(d => ({ ...d }));
   out.buildings = currentBuildings.map(b => ({
     ...b,
@@ -1432,36 +1817,24 @@ function collectFormData() {
   return out;
 }
 function populateForm(data) {
-  for (const id of FIELDS.text) {
-    const el = document.getElementById(id);
-    if (el) el.value = data[id] != null ? data[id] : '';
-  }
-  for (const id of FIELDS.textarea) {
-    const el = document.getElementById(id);
-    if (el) el.value = data[id] != null ? data[id] : '';
-  }
-  for (const id of FIELDS.number) {
-    const el = document.getElementById(id);
-    if (el) el.value = (data[id] === '' || data[id] == null) ? '' : data[id];
-  }
-  for (const id of FIELDS.checkbox) {
-    const el = document.getElementById(id);
-    if (el) el.checked = !!data[id];
+  for (const f of FIELD_MAP) {
+    const el = document.getElementById(f.id);
+    if (!el) continue;
+    let v = getPath(data, f.path);
+    if (v == null) v = (f.dflt != null ? f.dflt : '');
+    if (f.type === 'checkbox') el.checked = !!v;
+    else if (f.type === 'number') el.value = (v === '' || v == null) ? '' : v;
+    else el.value = v;
   }
 }
 function resetForm() {
-  for (const id of FIELDS.text) {
-    const el = document.getElementById(id);
-    if (el) el.value = (id === 'f-surveyor-name') ? 'Jamie Gibbs' : '';
-  }
-  for (const id of FIELDS.textarea) {
-    const el = document.getElementById(id); if (el) el.value = '';
-  }
-  for (const id of FIELDS.number) {
-    const el = document.getElementById(id); if (el) el.value = '';
-  }
-  for (const id of FIELDS.checkbox) {
-    const el = document.getElementById(id); if (el) el.checked = false;
+  for (const f of FIELD_MAP) {
+    const el = document.getElementById(f.id);
+    if (!el) continue;
+    const v = (f.dflt != null ? f.dflt : '');
+    if (f.type === 'checkbox') el.checked = false;
+    else if (f.type === 'number') el.value = v === '' ? '' : v;
+    else el.value = v;
   }
   document.querySelectorAll('.field input, .field select, .field textarea').forEach(el => el.classList.remove('error'));
   if (window.matchMedia('(max-width: 767px)').matches) {
@@ -1471,6 +1844,7 @@ function resetForm() {
   } else {
     document.querySelectorAll('#view-form .section').forEach(s => { s.open = true; });
   }
+  updateEngagementVisibility();
 }
 
 // ---- Defects (form editing) ----
@@ -1616,22 +1990,50 @@ function registerCurrencyLabel(dateStr) {
 
 // ---- Validation + save ----
 function validateForm() {
-  const required = ['f-client-name', 'f-site-address', 'f-postcode', 'f-visit-date'];
+  // Always-required + conditional (main contractor block when subcontracted).
+  const reqs = [
+    { id: 'f-ec-contact-name',  label: 'End client contact name' },
+    { id: 'f-ec-email',         label: 'End client email', email: true },
+    { id: 'f-site-address',     label: 'Site address' },
+    { id: 'f-site-postcode',    label: 'Postcode' },
+    { id: 'f-visit-date',       label: 'Date of visit' }
+  ];
+  const et = (document.getElementById('f-engagement-type') || {}).value || 'direct';
+  if (et === 'subcontracted') {
+    reqs.push({ id: 'f-mc-company',      label: 'Main contractor company' });
+    reqs.push({ id: 'f-mc-contact-name', label: 'Main contractor contact name' });
+    reqs.push({ id: 'f-mc-email',        label: 'Main contractor email', email: true });
+  }
+
+  // Clear any prior error highlights.
+  document.querySelectorAll('.field input.error, .field select.error, .field textarea.error')
+    .forEach(el => el.classList.remove('error'));
+
   let firstBadEl = null;
-  for (const id of required) {
-    const el = document.getElementById(id);
+  let firstBadLabel = '';
+  let firstBadReason = '';
+  for (const r of reqs) {
+    const el = document.getElementById(r.id);
     if (!el) continue;
-    if (!el.value || !el.value.trim()) {
+    const val = (el.value || '').trim();
+    if (!val) {
       el.classList.add('error');
-      if (!firstBadEl) firstBadEl = el;
-    } else {
-      el.classList.remove('error');
+      if (!firstBadEl) { firstBadEl = el; firstBadLabel = r.label; firstBadReason = 'required'; }
+      continue;
+    }
+    if (r.email && !EMAIL_RE.test(val)) {
+      el.classList.add('error');
+      if (!firstBadEl) { firstBadEl = el; firstBadLabel = r.label; firstBadReason = 'invalid email'; }
     }
   }
+
   if (firstBadEl) {
-    showToast('Fill in the required fields (marked *)', 'err');
-    const containingSection = firstBadEl.closest('.section');
-    if (containingSection) containingSection.open = true;
+    const msg = firstBadReason === 'invalid email'
+      ? firstBadLabel + ' isn\'t a valid email'
+      : 'Required: ' + firstBadLabel;
+    showToast(msg, 'err');
+    const section = firstBadEl.closest('.section');
+    if (section) section.open = true;
     firstBadEl.focus({ preventScroll: false });
     return false;
   }
@@ -1680,20 +2082,10 @@ function startAutoSave() {
   autosaveTimer = setInterval(() => {
     if (currentSurveyId !== null) return;
     const data = collectFormData();
-    const ignoreSurveyor = (data['f-surveyor-name'] === 'Jamie Gibbs');
-    const fieldsHaveAny = Object.entries(data).some(([k, v]) => {
-      if (k === 'defects' || k === 'buildings') return false;
-      if (k === 'f-surveyor-name' && ignoreSurveyor) return false;
-      return v !== '' && v !== false && v !== 0 && v !== null && v !== undefined && v !== '1';
-    });
-    const hasAny = fieldsHaveAny
-      || (data.defects && data.defects.length > 0)
-      || (data.buildings && data.buildings.length > 0);
-    if (hasAny) {
-      saveDraft(data);
-      const ind = document.getElementById('draft-indicator');
-      if (ind) ind.textContent = 'Draft auto-saved · ' + new Date().toLocaleTimeString('en-GB');
-    }
+    if (!surveyHasContent(data)) return;
+    saveDraft(data);
+    const ind = document.getElementById('draft-indicator');
+    if (ind) ind.textContent = 'Draft auto-saved · ' + new Date().toLocaleTimeString('en-GB');
   }, AUTOSAVE_MS);
 }
 function stopAutoSave() {
@@ -1709,9 +2101,12 @@ function renderSurveyList() {
     return;
   }
   el.innerHTML = surveys.map(s => {
-    const client = escapeHtml(s['f-client-company'] || s['f-client-name'] || '(no client name)');
-    const site = escapeHtml(firstLine(s['f-site-address']) || '(no site address)');
-    const visit = s['f-visit-date'] ? fmtDate(s['f-visit-date']) : fmtDate(s.createdAt);
+    const ec = s.endClient || {};
+    const st = s.site || {};
+    const vi = s.visit || {};
+    const client = escapeHtml(ec.company || ec.contactName || '(no client name)');
+    const site = escapeHtml(firstLine(st.address) || '(no site address)');
+    const visit = vi.date ? fmtDate(vi.date) : fmtDate(s.createdAt);
     const defectCount = Array.isArray(s.defects) ? s.defects.length : 0;
     const rating = s['f-overall-rating'] || '';
     const meta = [
@@ -1728,25 +2123,50 @@ function renderSurveyList() {
 
 // ---- Detail view ----
 function renderSurveyDetail(s) {
+  const ec = s.endClient || {};
+  const st = s.site || {};
+  const vi = s.visit || {};
   document.getElementById('detail-title').textContent =
-    (s['f-client-company'] || s['f-client-name'] || 'Survey') + ' — ' + (firstLine(s['f-site-address']) || '');
+    (ec.company || ec.contactName || 'Survey') + ' — ' + (firstLine(st.address) || '');
   document.getElementById('detail-meta').textContent =
-    s.id + ' · visit ' + (s['f-visit-date'] ? fmtDate(s['f-visit-date']) : '—') +
+    s.id + ' · visit ' + (vi.date ? fmtDate(vi.date) : '—') +
     ' · last updated ' + fmtDate(s.updatedAt);
   document.getElementById('detail-body').innerHTML = renderDetailBlocks(s);
 }
 function renderDetailBlocks(s) {
+  const ec = s.endClient || {};
+  const mc = s.mainContractor || {};
+  const st = s.site || {};
+  const vi = s.visit || {};
+  const isSub = s.engagementType === 'subcontracted';
+
+  const ecContact = ec.contactName + (ec.contactTitle ? ' (' + ec.contactTitle + ')' : '');
+  const mcContact = mc.contactName + (mc.contactTitle ? ' (' + mc.contactTitle + ')' : '');
+
+  const siteInfoRows = [
+    ['Engagement type', isSub ? 'Sub-contracted' : 'Direct'],
+    ['End client company', ec.company],
+    ['End client contact', ecContact && ecContact.trim() ? ecContact : ''],
+    ['End client email', ec.email],
+    ['End client phone', ec.telephone]
+  ];
+  if (isSub) {
+    siteInfoRows.push(['Main contractor', mc.company]);
+    siteInfoRows.push(['MC contact', mcContact && mcContact.trim() ? mcContact : '']);
+    siteInfoRows.push(['MC email', mc.email]);
+    siteInfoRows.push(['MC phone', mc.telephone]);
+    siteInfoRows.push(['MC reference', mc.reference]);
+  }
+  siteInfoRows.push(['Site address', st.address]);
+  siteInfoRows.push(['Postcode', st.postcode]);
+  if (st.contactName) siteInfoRows.push(['Site contact', st.contactName]);
+  if (st.contactTelephone) siteInfoRows.push(['Site contact phone', st.contactTelephone]);
+  siteInfoRows.push(['Date of visit', vi.date ? fmtDate(vi.date) : '']);
+  siteInfoRows.push(['Surveyor', vi.surveyorName]);
+  siteInfoRows.push(['Works description', vi.worksDescription]);
+
   const blocks = [
-    ['Site Info', [
-      ['Client name', s['f-client-name']],
-      ['Client company', s['f-client-company']],
-      ['Site address', s['f-site-address']],
-      ['Postcode', s['f-postcode']],
-      ['Contact telephone', s['f-telephone']],
-      ['Date of visit', s['f-visit-date'] ? fmtDate(s['f-visit-date']) : ''],
-      ['Surveyor', s['f-surveyor-name']],
-      ['Works description', s['f-works-description']]
-    ]],
+    ['Site Info', siteInfoRows],
     ['Building', [
       ['Roof type', s['f-roof-type']],
       ['Roof area (m²)', s['f-roof-area']],
@@ -1856,8 +2276,9 @@ function renderReport(id) {
   for (const o of COST_BAND_OPTIONS) costCounts[o] = 0;
   for (const d of defects) if (d.costBand && costCounts[d.costBand] != null) costCounts[d.costBand]++;
 
-  const clientLine     = (s['f-client-company'] || s['f-client-name'] || '').trim();
-  const visitDateStr   = fmtDate(s['f-visit-date'] || s.createdAt);
+  const ec             = s.endClient || {};
+  const clientLine     = (ec.company || ec.contactName || '').trim();
+  const visitDateStr   = fmtDate((s.visit && s.visit.date) || s.createdAt);
   const refDisplay     = 'NOV-' + s.id;
   const overallRating  = s['f-overall-rating']    || 'TBC';
   const recommendation = s['f-recommendation']    || 'TBC';
@@ -1965,37 +2386,91 @@ function renderExecSummary(s, rating, num) {
 }
 
 function renderSiteInfo(s, num) {
-  const items = [
-    ['Client',         (s['f-client-company'] || s['f-client-name'] || '')],
-    ['Contact',        (s['f-client-name'] && s['f-client-company']) ? s['f-client-name'] : ''],
-    ['Site address',   (s['f-site-address'] || '') + (s['f-postcode'] ? '\n' + s['f-postcode'] : '')],
-    ['Telephone',      s['f-telephone']],
-    ['Date of visit',  s['f-visit-date'] ? fmtDate(s['f-visit-date']) : ''],
-    ['Surveyor',       s['f-surveyor-name']],
-    ['Roof type',      s['f-roof-type']],
-    ['Roof area',      s['f-roof-area'] !== '' && s['f-roof-area'] != null ? (s['f-roof-area'] + ' m²') : ''],
-    ['Approx. age',    s['f-age']],
-    ['Construction',   s['f-construction-type']],
-    ['Buildings',      s['f-num-buildings']],
-    ['Eaves height',   (s['f-eaves-height'] !== '' && s['f-eaves-height'] != null) ? (s['f-eaves-height'] + ' m') : ''],
-    ['Works brief',    s['f-works-description']]
-  ].filter(([, v]) => v !== '' && v != null && String(v).trim() !== '');
+  const ec = s.endClient || {};
+  const mc = s.mainContractor || {};
+  const st = s.site || {};
+  const vi = s.visit || {};
+  const isSub = s.engagementType === 'subcontracted';
 
-  let infoHtml = '<div class="info-grid">';
-  for (const [k, v] of items) {
-    infoHtml += '<div class="info-item">' +
-      '<span class="eyebrow-small">' + escapeHtml(k) + '</span>' +
-      '<div class="info-val">' + escapeHtml(String(v)) + '</div>' +
-    '</div>';
+  // "Engaged by" line — surfaces the relationship the report was prepared under.
+  let engagedBy;
+  if (isSub) {
+    const mcName = mc.company || mc.contactName || 'main contractor';
+    const ecName = ec.company || ec.contactName || 'end client';
+    engagedBy = mcName + ' on behalf of ' + ecName;
+  } else {
+    const ecName = ec.company || ec.contactName || 'end client';
+    engagedBy = 'Direct from ' + ecName;
   }
-  infoHtml += '</div>';
 
-  return '' +
-  '<section class="report-section section-light-tone">' +
-    '<span class="eyebrow">' + num + ' · Site Information</span>' +
-    '<h2 class="r-title">' + CHEVRON_SVG + '<span>The site.</span></h2>' +
-    infoHtml +
-  '</section>';
+  // Build info-blocks for the populated subsections only.
+  const blocks = [];
+
+  const ecRows = [
+    ['Company',   ec.company],
+    ['Contact',   ec.contactName + (ec.contactTitle ? '\n' + ec.contactTitle : '')],
+    ['Email',     ec.email],
+    ['Telephone', ec.telephone]
+  ].filter(([, v]) => v != null && String(v).trim() !== '');
+  if (ecRows.length) blocks.push(['End Client', ecRows]);
+
+  if (isSub) {
+    const mcRows = [
+      ['Company',         mc.company],
+      ['Contact',         mc.contactName + (mc.contactTitle ? '\n' + mc.contactTitle : '')],
+      ['Email',           mc.email],
+      ['Telephone',       mc.telephone],
+      ['Reference / PO',  mc.reference]
+    ].filter(([, v]) => v != null && String(v).trim() !== '');
+    if (mcRows.length) blocks.push(['Main Contractor', mcRows]);
+  }
+
+  const siteRows = [];
+  const addr = st.address || '';
+  const pc   = st.postcode || '';
+  if (addr || pc) siteRows.push(['Address', (addr ? addr : '') + (pc ? (addr ? '\n' : '') + pc : '')]);
+  // Only show site contact when it actually differs from the end-client contact.
+  if (st.contactName && st.contactName.trim() && st.contactName.trim() !== (ec.contactName || '').trim()) {
+    siteRows.push(['Site contact', st.contactName + (st.contactTelephone ? '\n' + st.contactTelephone : '')]);
+  } else if (st.contactTelephone && st.contactTelephone.trim()) {
+    siteRows.push(['Site contact tel', st.contactTelephone]);
+  }
+  if (siteRows.length) blocks.push(['Site', siteRows]);
+
+  const visitRows = [
+    ['Date of visit',  vi.date ? fmtDate(vi.date) : ''],
+    ['Surveyor',       vi.surveyorName],
+    ['Works brief',    vi.worksDescription]
+  ].filter(([, v]) => v != null && String(v).trim() !== '');
+  if (visitRows.length) blocks.push(['Visit', visitRows]);
+
+  let html = '<section class="report-section section-light-tone">';
+  html += '<span class="eyebrow">' + num + ' · Site Information</span>';
+  html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>The site.</span></h2>';
+  html += '<div class="engaged-by">' +
+    '<span class="engaged-eyebrow">Engaged by</span>' +
+    '<div class="engaged-text">' + escapeHtml(engagedBy) + '</div>' +
+  '</div>';
+
+  if (blocks.length) {
+    html += '<div class="info-blocks">';
+    for (const [title, rows] of blocks) {
+      html += '<div class="info-block">';
+      html += '<div class="info-block-title">' + escapeHtml(title) + '</div>';
+      html += '<div class="info-block-rows">';
+      for (const [k, v] of rows) {
+        html += '<div>' +
+          '<span class="info-item-eyebrow">' + escapeHtml(k) + '</span>' +
+          '<div class="info-item-val">' + escapeHtml(String(v)) + '</div>' +
+        '</div>';
+      }
+      html += '</div></div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</section>';
+  return html;
 }
 
 function renderRoofGeometry(buildings, num) {
@@ -2180,7 +2655,8 @@ function renderRecommendationSection(s, recommendation, totalCost, rating, num) 
 }
 
 function renderCta(s, defects, recommendation, num) {
-  const clientName = (s['f-client-company'] || s['f-client-name'] || '').trim();
+  const ec = s.endClient || {};
+  const clientName = (ec.company || ec.contactName || '').trim();
   const defectCount = defects.length;
   let headline;
   if (defectCount > 0 && recommendation && recommendation !== 'TBC') {
@@ -2657,11 +3133,13 @@ document.addEventListener('change', (e) => {
   const t = e.target;
   if (!t || !t.dataset) {
     if (t && t.id === 'f-asb-register-seen') updateConditionals();
+    if (t && t.id === 'f-engagement-type') updateEngagementVisibility();
     return;
   }
   if (t.dataset.buildingField || t.dataset.slopeField) { onBuildingInput(e); return; }
   if (t.dataset.defectIdx != null) { onDefectInput(e); return; }
   if (t.id === 'f-asb-register-seen') updateConditionals();
+  if (t.id === 'f-engagement-type') updateEngagementVisibility();
 });
 document.addEventListener('click', (e) => {
   const t = e.target.closest && e.target.closest('[data-action="remove-building"]');
