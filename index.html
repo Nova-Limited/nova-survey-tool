@@ -3,43 +3,45 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1a1a1a">
+<meta name="theme-color" content="#434244">
 <title>Nova Site Survey Tool</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --gold: #c9a961;
-  --gold-dark: #a98c45;
-  --anthracite: #1a1a1a;
-  --bg: #ffffff;
-  --card: #f5f5f5;
-  --border: #e0e0e0;
-  --text: #1a1a1a;
-  --muted: #6b6b6b;
-  --err: #c44;
-  --ok: #2d6a3e;
-  --ok-bg: #eaf5ec;
-  --err-bg: #fbeaea;
+  --dark:   #434244;
+  --gold:   #e8a020;
+  --ink:    #434244;
+  --ink-2:  #5f5e60;
+  --muted:  #858386;
+  --light:  #f4f6f9;
+  --paper:  #ffffff;
+  --green:  #1a7a4a;
+  --rule:   #e1e5ec;
 
-  /* Severity palette — used in form summary pills + report table */
-  --sev-critical: #c44;
+  /* Auxiliary tokens kept for state backgrounds — these are UI-functional,
+     not part of the brand palette per se. */
+  --gold-hover: #c98818;
+  --green-bg:   #e6f1eb;
+  --err:        #c44;
+  --err-bg:     #fbeaea;
+
+  /* Severity palette — used for defect cards / pills / badges. Tuned to read
+     against the proposal aesthetic without shouting. */
+  --sev-critical:    #c44;
   --sev-critical-bg: #fbeaea;
-  --sev-high: #b85c00;
-  --sev-high-bg: #fff1de;
-  --sev-medium: #8a6d00;
-  --sev-medium-bg: #fef9c3;
-  --sev-low: #1f4ea1;
-  --sev-low-bg: #e0ecff;
-  --sev-note: #555;
-  --sev-note-bg: #ececec;
+  --sev-high:        #b85c00;
+  --sev-high-bg:     #fff1de;
+  --sev-medium:      #8a6d00;
+  --sev-medium-bg:   #fef9c3;
+  --sev-low:         #1f4ea1;
+  --sev-low-bg:      #e0ecff;
+  --sev-note:        #5f5e60;
+  --sev-note-bg:     #ececec;
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
@@ -49,7 +51,7 @@ input, button, select, textarea { font-family: inherit; font-size: inherit; colo
 
 /* HEADER */
 .topbar {
-  background: var(--anthracite);
+  background: var(--dark);
   color: white;
   padding: 1rem 1.25rem;
   padding-top: calc(1rem + env(safe-area-inset-top));
@@ -58,7 +60,7 @@ input, button, select, textarea { font-family: inherit; font-size: inherit; colo
   gap: 0.75rem;
 }
 .brand-name { font-weight: 700; font-size: 1.4rem; letter-spacing: -0.02em; color: var(--gold); }
-.brand-sub { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.7); font-weight: 500; }
+.brand-sub { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.72); font-weight: 600; }
 
 /* LAYOUT */
 main { padding-bottom: env(safe-area-inset-bottom); }
@@ -66,78 +68,71 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .view.active { display: block; }
 .container { max-width: 880px; margin: 0 auto; padding: 1.25rem; }
 @media (min-width: 768px) { .container { padding: 2rem; } }
-.container.wide { max-width: 1080px; }
+.container.wide { max-width: 1100px; }
 
 /* BUTTONS */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  border: none;
-  font-weight: 600;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: background 0.15s, opacity 0.15s, transform 0.05s;
-  -webkit-appearance: none;
-  appearance: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 48px; padding: 0.75rem 1.25rem;
+  border-radius: 6px; border: none;
+  font-weight: 700; font-size: 0.95rem; letter-spacing: 0.005em;
+  cursor: pointer; transition: background 0.15s, opacity 0.15s, transform 0.05s;
+  -webkit-appearance: none; appearance: none;
 }
 .btn:active { transform: scale(0.98); }
-.btn-primary { background: var(--gold); color: var(--anthracite); }
-.btn-primary:hover { background: var(--gold-dark); }
-.btn-secondary { background: var(--anthracite); color: white; }
+.btn-primary { background: var(--gold); color: var(--dark); }
+.btn-primary:hover { background: var(--gold-hover); }
+.btn-secondary { background: var(--dark); color: white; }
 .btn-secondary:hover { opacity: 0.88; }
-.btn-ghost { background: transparent; color: var(--anthracite); border: 1px solid var(--border); }
-.btn-ghost:hover { border-color: var(--gold); color: var(--gold-dark); }
-.btn-danger { background: transparent; color: var(--err); border: 1px solid var(--border); }
+.btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--rule); }
+.btn-ghost:hover { border-color: var(--gold); color: var(--gold-hover); }
+.btn-danger { background: transparent; color: var(--err); border: 1px solid var(--rule); }
 .btn-danger:hover { border-color: var(--err); background: var(--err-bg); }
 .btn-big { width: 100%; min-height: 64px; font-size: 1.05rem; }
 .btn:disabled { opacity: 0.55; cursor: wait; }
 .link-btn {
-  background: none; border: none; color: var(--anthracite);
-  font-weight: 500; cursor: pointer; padding: 0.5rem 0.25rem; min-height: 44px; font-size: 0.95rem;
+  background: none; border: none; color: var(--ink);
+  font-weight: 600; cursor: pointer; padding: 0.5rem 0.25rem; min-height: 44px; font-size: 0.95rem;
 }
-.link-btn:hover { color: var(--gold-dark); }
+.link-btn:hover { color: var(--gold-hover); }
 
 /* HOME VIEW */
 .home-cta { margin-bottom: 2rem; }
 .section-title {
-  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--gold-dark);
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--gold);
   margin: 1.5rem 0 0.75rem;
 }
 .survey-list { display: grid; gap: 0.75rem; }
 .survey-card {
   display: block; width: 100%; text-align: left;
-  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--light); border: 1px solid var(--rule); border-radius: 6px;
   padding: 1rem 1.1rem; cursor: pointer; font: inherit; color: inherit;
   transition: border-color 0.15s, background 0.15s;
 }
 .survey-card:hover { border-color: var(--gold); background: white; }
-.survey-card-id { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; color: var(--gold-dark); text-transform: uppercase; }
-.survey-card-title { font-weight: 600; margin-top: 0.2rem; font-size: 1rem; }
+.survey-card-id { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; color: var(--gold); text-transform: uppercase; }
+.survey-card-title { font-weight: 700; margin-top: 0.2rem; font-size: 1rem; color: var(--ink); }
 .survey-card-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.25rem; }
 .empty-state {
-  background: var(--card); border: 1px dashed var(--border); border-radius: 8px;
+  background: var(--light); border: 1px dashed var(--rule); border-radius: 6px;
   padding: 2rem 1.25rem; text-align: center; color: var(--muted); font-size: 0.95rem;
 }
 
 /* VIEW HEADER */
 .view-header { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.5rem; }
-.view-header h1 { margin: 0; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
+.view-header h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
 .view-header .meta { font-size: 0.82rem; color: var(--muted); }
 
-/* ACCORDION SECTIONS */
+/* FORM ACCORDION SECTIONS */
 .section {
-  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--light); border: 1px solid var(--rule); border-radius: 6px;
   margin-bottom: 1rem; overflow: hidden;
 }
 .section > summary {
   list-style: none; cursor: pointer; padding: 1rem 1.1rem;
-  font-weight: 600; color: var(--gold-dark);
-  font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 700; color: var(--gold);
+  font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
   display: flex; align-items: center; justify-content: space-between; user-select: none;
 }
 .section > summary::-webkit-details-marker { display: none; }
@@ -159,24 +154,24 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .field-row { grid-template-columns: 1fr 1fr; }
   .field-row.three { grid-template-columns: 1fr 1fr 1fr; }
 }
-.field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--anthracite); margin-bottom: 0.35rem; }
+.field label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--ink); margin-bottom: 0.35rem; letter-spacing: 0.01em; }
 .field .req { color: var(--err); margin-left: 0.15rem; }
 .field .hint { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; font-weight: 400; }
 .field input[type="text"], .field input[type="number"], .field input[type="tel"], .field input[type="date"],
 .field input[type="email"], .field select, .field textarea {
   width: 100%; min-height: 48px; padding: 0.7rem 0.85rem;
-  background: white; border: 1px solid var(--border); border-radius: 8px;
-  color: var(--text); transition: border-color 0.15s;
+  background: white; border: 1px solid var(--rule); border-radius: 6px;
+  color: var(--ink); transition: border-color 0.15s;
   -webkit-appearance: none; appearance: none;
 }
 .field textarea { min-height: 96px; resize: vertical; line-height: 1.45; }
 .field textarea.large { min-height: 140px; }
 .field input:focus, .field select:focus, .field textarea:focus {
-  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.15);
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(232,160,32,0.18);
 }
 .field input.error, .field select.error, .field textarea.error { border-color: var(--err); }
 .field select {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%231a1a1a' d='M6 8L0 0h12z'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23434244' d='M6 8L0 0h12z'/></svg>");
   background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem;
 }
 .field input[type="text"][data-uppercase] { text-transform: uppercase; }
@@ -184,23 +179,23 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 /* CHECKBOX */
 .checkbox { display: flex; align-items: center; gap: 0.65rem; min-height: 48px; cursor: pointer; padding: 0.25rem 0; }
 .checkbox input[type="checkbox"] { width: 22px; height: 22px; cursor: pointer; accent-color: var(--gold); flex: 0 0 auto; margin: 0; }
-.checkbox span { font-size: 0.92rem; }
+.checkbox span { font-size: 0.92rem; color: var(--ink); }
 .field[hidden] { display: none; }
 
-/* READOUT (asbestos register currency) */
+/* READOUT */
 .readout {
-  padding: 0.7rem 0.85rem; background: var(--card); border: 1px solid var(--border);
-  border-radius: 8px; font-size: 0.92rem; color: var(--muted);
+  padding: 0.7rem 0.85rem; background: var(--light); border: 1px solid var(--rule);
+  border-radius: 6px; font-size: 0.92rem; color: var(--muted);
 }
 
-/* DEFECT BLOCKS */
+/* DEFECT EDIT BLOCKS (form) */
 .defects-empty {
-  background: var(--card); border: 1px dashed var(--border); border-radius: 8px;
+  background: var(--light); border: 1px dashed var(--rule); border-radius: 6px;
   padding: 1.25rem; text-align: center; color: var(--muted); font-size: 0.92rem;
   margin-top: 1rem;
 }
 .defect {
-  background: white; border: 1px solid var(--border); border-radius: 8px;
+  background: white; border: 1px solid var(--rule); border-radius: 6px;
   margin-top: 0.9rem; overflow: hidden;
 }
 .defect > summary {
@@ -211,37 +206,35 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .defect-num {
   flex: 0 0 auto; min-width: 1.7rem; height: 1.7rem;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--anthracite); color: white; border-radius: 999px;
+  background: var(--dark); color: white; border-radius: 999px;
   font-size: 0.78rem; font-weight: 700;
 }
-.defect-title-display { flex: 1; font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; }
+.defect-title-display { flex: 1; font-weight: 700; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
 .defect-title-display.placeholder { color: var(--muted); font-weight: 500; font-style: italic; }
 .defect > summary::after { content: '+'; color: var(--muted); font-size: 1.4rem; line-height: 1; }
 .defect[open] > summary::after { content: '−'; }
-.defect-body { padding: 0.25rem 1rem 1rem; border-top: 1px solid var(--border); }
+.defect-body { padding: 0.25rem 1rem 1rem; border-top: 1px solid var(--rule); }
 .defect-footer {
-  display: flex; justify-content: flex-end; padding: 0.5rem 1rem 1rem; border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end; padding: 0.5rem 1rem 1rem; border-top: 1px solid var(--rule);
 }
 .add-defect-row { margin-top: 1.25rem; }
 
-/* SEVERITY PILL */
+/* SEVERITY PILL (form / list) */
 .pill {
   display: inline-block; padding: 0.18rem 0.55rem; border-radius: 999px;
-  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
 }
 .pill-critical { background: var(--sev-critical-bg); color: var(--sev-critical); }
 .pill-high     { background: var(--sev-high-bg);     color: var(--sev-high); }
 .pill-medium   { background: var(--sev-medium-bg);   color: var(--sev-medium); }
 .pill-low      { background: var(--sev-low-bg);      color: var(--sev-low); }
 .pill-note     { background: var(--sev-note-bg);     color: var(--sev-note); }
-.pill-quote    { background: var(--ok-bg); color: var(--ok); }
-.pill-nogo     { background: var(--err-bg); color: var(--err); }
-.pill-draft    { background: var(--card); color: var(--muted); }
+.pill-draft    { background: var(--light); color: var(--muted); }
 
 /* FORM ACTIONS */
 .form-actions {
   display: flex; flex-direction: column; gap: 0.6rem;
-  margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);
+  margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 }
 @media (min-width: 768px) {
   .form-actions { flex-direction: row; align-items: center; }
@@ -255,25 +248,25 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .detail-grid { display: grid; gap: 0.85rem; grid-template-columns: 1fr; }
 @media (min-width: 768px) { .detail-grid { grid-template-columns: 1fr 1fr; } }
 .detail-block {
-  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--light); border: 1px solid var(--rule); border-radius: 6px;
   padding: 1rem 1.1rem;
 }
 .detail-block h3 {
-  margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--gold-dark);
+  margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--gold);
 }
 .detail-row {
   display: flex; justify-content: space-between; gap: 1rem;
-  padding: 0.35rem 0; border-bottom: 1px solid var(--border); font-size: 0.92rem;
+  padding: 0.35rem 0; border-bottom: 1px solid var(--rule); font-size: 0.92rem;
 }
 .detail-row:last-child { border-bottom: none; }
 .detail-row .k { color: var(--muted); flex: 0 0 45%; }
-.detail-row .v { font-weight: 500; text-align: right; word-break: break-word; }
+.detail-row .v { font-weight: 500; text-align: right; word-break: break-word; color: var(--ink); }
 .detail-row .v.empty { color: var(--muted); font-style: italic; font-weight: 400; }
-.detail-notes { white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55; padding: 0.5rem 0; }
+.detail-notes { white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55; padding: 0.5rem 0; color: var(--ink-2); }
 .detail-defects { margin-top: 1rem; }
 .detail-defect {
-  background: white; border: 1px solid var(--border); border-left: 4px solid var(--border);
+  background: white; border: 1px solid var(--rule); border-left: 4px solid var(--rule);
   border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 0.65rem;
 }
 .detail-defect.sev-critical { border-left-color: var(--sev-critical); }
@@ -282,153 +275,466 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .detail-defect.sev-low      { border-left-color: var(--sev-low); }
 .detail-defect.sev-note     { border-left-color: var(--sev-note); }
 .detail-defect-head { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.detail-defect-head strong { font-size: 0.95rem; }
+.detail-defect-head strong { font-size: 0.95rem; color: var(--ink); }
 .detail-defect-meta { font-size: 0.78rem; color: var(--muted); }
-.detail-defect p { margin: 0.35rem 0; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
+.detail-defect p { margin: 0.35rem 0; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; color: var(--ink-2); }
 .detail-defect .kv { font-size: 0.82rem; color: var(--muted); }
-.detail-defect .kv strong { color: var(--text); font-weight: 600; }
+.detail-defect .kv strong { color: var(--ink); font-weight: 700; }
 
 /* TOAST */
 #toast {
   position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom));
-  transform: translateX(-50%); background: var(--anthracite); color: white;
-  padding: 0.85rem 1.25rem; border-radius: 8px; font-weight: 500; font-size: 0.92rem;
+  transform: translateX(-50%); background: var(--dark); color: white;
+  padding: 0.85rem 1.25rem; border-radius: 6px; font-weight: 600; font-size: 0.92rem;
   z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
   max-width: calc(100vw - 2rem); text-align: center;
 }
-#toast.ok { background: var(--ok); }
+#toast.ok { background: var(--green); }
 #toast.err { background: var(--err); }
 #toast[hidden] { display: none; }
 
 /* ============================================================
-   REPORT VIEW (screen + print)
+   REPORT VIEW — Nova proposal aesthetic
+   Cover (dark) + alternating dark/light sections + brand footer.
    ============================================================ */
-#view-report .container { max-width: 1000px; }
+#view-report .container { max-width: 1100px; }
+
 .report {
-  background: white; color: var(--text);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-  border-radius: 8px;
-  padding: 2rem 1.5rem;
-}
-@media (min-width: 768px) { .report { padding: 2.5rem 3rem; } }
-.report-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  border-bottom: 3px solid var(--gold); padding-bottom: 1rem; margin-bottom: 1.75rem;
-  gap: 1rem; flex-wrap: wrap;
-}
-.report-brand .wordmark { font-size: 2rem; font-weight: 700; color: var(--anthracite); letter-spacing: -0.02em; }
-.report-brand .wordmark .accent { color: var(--gold); }
-.report-brand .tagline {
-  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--muted); margin-top: 0.1rem;
-}
-.report-meta { text-align: right; font-size: 0.85rem; color: var(--muted); }
-.report-meta .ref { font-size: 1.05rem; font-weight: 700; color: var(--anthracite); letter-spacing: 0.02em; }
-.report h1.report-title {
-  font-size: 1.55rem; font-weight: 700; letter-spacing: -0.01em;
-  margin: 0 0 0.25rem;
-}
-.report .report-subtitle { font-size: 0.92rem; color: var(--muted); margin-bottom: 1.75rem; }
-
-.report h2 {
-  font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--gold-dark);
-  margin: 2rem 0 0.75rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border);
-}
-.report h2:first-of-type { margin-top: 1rem; }
-
-.report .info-grid {
-  display: grid; gap: 0.85rem 2rem; grid-template-columns: 1fr;
-}
-@media (min-width: 768px) { .report .info-grid { grid-template-columns: 1fr 1fr; } }
-.report .info-row { display: flex; gap: 0.75rem; }
-.report .info-row .k { color: var(--muted); flex: 0 0 40%; font-size: 0.85rem; }
-.report .info-row .v { font-weight: 500; font-size: 0.9rem; }
-
-.report .exec-summary {
-  background: var(--card); border-left: 4px solid var(--gold);
-  padding: 1rem 1.2rem; border-radius: 0 6px 6px 0;
-  white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 6px 32px rgba(0,0,0,0.08);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
+.report-section {
+  padding: 3rem 1.75rem;
+}
+@media (min-width: 768px) {
+  .report-section { padding: 4.5rem 4rem; }
+}
+
+.section-dark { background: var(--dark); color: white; }
+.section-light { background: var(--paper); color: var(--ink); }
+.section-light-tone { background: var(--light); color: var(--ink); }
+
+.eyebrow {
+  display: block;
+  font-size: 12.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 1.25rem;
+}
+
+.r-title {
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  margin: 0 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: nowrap;
+}
+@media (min-width: 768px) { .r-title { font-size: 52px; gap: 0.85rem; } }
+.section-dark  .r-title { color: var(--gold); }
+.section-light .r-title { color: var(--dark); }
+.section-light-tone .r-title { color: var(--dark); }
+.r-title .accent { color: var(--gold); }
+.r-title .chev { flex: 0 0 auto; width: 28px; height: 28px; display: inline-block; }
+@media (min-width: 768px) { .r-title .chev { width: 36px; height: 36px; } }
+.r-title .chev svg { display: block; width: 100%; height: 100%; }
+
+.r-body {
+  font-size: 16px;
+  line-height: 1.65;
+  max-width: 62ch;
+}
+.r-body p { margin: 0 0 1rem; }
+.r-body p:last-child { margin-bottom: 0; }
+.section-dark .r-body { color: rgba(255,255,255,0.82); }
+.section-light .r-body, .section-light-tone .r-body { color: var(--ink-2); }
+
+/* COVER */
+.cover {
+  border-bottom: 2px solid var(--gold);
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  min-height: 92vh;
+}
+@media print { .cover { min-height: 100vh; } }
+
+.cover-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.cover-wordmark {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--gold);
+  line-height: 1;
+}
+.cover-meta {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+}
+.cover-meta-prepared {
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  font-weight: 700;
+}
+.cover-meta-prepared strong {
+  color: white; font-weight: 700; margin-left: 0.4rem;
+}
+.ref-badge {
+  display: inline-block;
+  padding: 0.5rem 0.85rem;
+  border: 2px solid var(--gold);
+  border-radius: 4px;
+  color: var(--gold);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.cover-body {
+  display: grid;
+  gap: 2.5rem;
+  grid-template-columns: 1fr;
+  flex: 1;
+  align-content: center;
+}
+@media (min-width: 900px) {
+  .cover-body { grid-template-columns: 1.4fr 1fr; gap: 4rem; }
+}
+.cover-title {
+  margin: 0;
+  font-size: 38px;
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: white;
+}
+@media (min-width: 768px) { .cover-title { font-size: 60px; } }
+.cover-title .accent { color: var(--gold); }
+
+.cover-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.75rem 2rem;
+}
+
+.metric { }
+.metric-label {
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 0.45rem;
+}
+.metric-value {
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1;
+  color: white;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 768px) { .metric-value { font-size: 72px; } }
+.metric-value-text {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: white;
+  letter-spacing: -0.01em;
+}
+
+.cover-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255,255,255,0.18);
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  flex-wrap: wrap;
+}
+.cover-tagline {
+  color: white;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  font-size: 16px;
+}
+
+/* TWO-COLUMN SECTION (exec summary + aside) */
+.r-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .r-grid { grid-template-columns: 2fr 1fr; gap: 3.5rem; }
+}
+.r-aside-metric {
+  border-left: 2px solid var(--gold);
+  padding-left: 1.25rem;
+}
+.r-aside-metric .metric-value-text { color: var(--dark); }
+.r-aside-metric .metric-value      { color: var(--dark); font-size: 56px; }
+
+/* INFO GRID (site info) */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem 3rem;
+}
+@media (min-width: 768px) { .info-grid { grid-template-columns: 1fr 1fr; } }
+.info-item .eyebrow-small {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 0.45rem;
+}
+.info-item .info-val {
+  font-size: 16px;
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+/* DEFECT CARD (report) */
+.defect-card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 6px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.5rem 1.5rem;
+  margin-top: 1.25rem;
+}
+@media (min-width: 768px) { .defect-card { padding: 1.75rem 2rem; } }
+.defect-card.sev-critical { border-left-color: var(--sev-critical); }
+.defect-card.sev-high     { border-left-color: var(--sev-high); }
+.defect-card.sev-medium   { border-left-color: var(--sev-medium); }
+.defect-card.sev-low      { border-left-color: var(--sev-low); }
+.defect-card.sev-note     { border-left-color: var(--sev-note); }
+
+.defect-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.defect-pill {
+  display: inline-block;
+  background: var(--gold);
+  color: var(--dark);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.7rem;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.defect-card-title {
+  flex: 1;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.severity-badge {
+  display: inline-block;
+  padding: 0.32rem 0.85rem;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.severity-badge.sev-critical { background: var(--sev-critical-bg); color: var(--sev-critical); }
+.severity-badge.sev-high     { background: var(--sev-high-bg);     color: var(--sev-high); }
+.severity-badge.sev-medium   { background: var(--sev-medium-bg);   color: var(--sev-medium); }
+.severity-badge.sev-low      { background: var(--sev-low-bg);      color: var(--sev-low); }
+.severity-badge.sev-note     { background: var(--sev-note-bg);     color: var(--sev-note); }
+
+.defect-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+@media (min-width: 768px) {
+  .defect-card-grid { grid-template-columns: 2fr 1fr; gap: 2.5rem; }
+}
+.defect-card-main .eyebrow-small {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--gold);
+  margin: 0 0 0.35rem;
+}
+.defect-card-main .eyebrow-small + p { margin-top: 0; }
+.defect-card-main p {
+  margin: 0 0 1rem;
+  line-height: 1.6;
+  font-size: 15px;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+.defect-card-main p:last-child { margin-bottom: 0; }
+.defect-card-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.defect-card-side .metric-small-label {
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 0.3rem;
+}
+.defect-card-side .metric-small-value {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.defect-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+.defect-photos img {
+  width: 140px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: var(--light);
+}
+
+/* SUMMARY TABLES */
 .summary-tables {
-  display: grid; gap: 1rem; grid-template-columns: 1fr; margin-bottom: 1rem;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: 1fr;
+  margin-top: 0.5rem;
 }
 @media (min-width: 768px) { .summary-tables { grid-template-columns: 1fr 1fr; } }
-.summary-table {
-  border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+.summary-card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.5rem 1.75rem;
 }
-.summary-table h3 {
-  margin: 0; padding: 0.65rem 0.85rem; background: var(--card);
-  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--gold-dark);
-  border-bottom: 1px solid var(--border);
+.summary-card .summary-eyebrow {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 1rem;
 }
-.summary-table table { width: 100%; border-collapse: collapse; }
-.summary-table td { padding: 0.5rem 0.85rem; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
-.summary-table tr:last-child td { border-bottom: none; }
-.summary-table td.label { color: var(--muted); }
-.summary-table td.count { text-align: right; font-weight: 700; }
-.summary-table td.zero { color: var(--muted); font-weight: 400; }
+.summary-card table { width: 100%; border-collapse: collapse; }
+.summary-card td {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 15px;
+  color: var(--ink);
+}
+.summary-card tr:last-child td { border-bottom: none; }
+.summary-card td.count { text-align: right; font-weight: 800; font-size: 18px; }
+.summary-card td.count.zero { color: var(--muted); font-weight: 400; font-size: 15px; }
+.summary-card tr.total td { padding-top: 0.9rem; border-top: 2px solid var(--rule); }
+.summary-card tr.total td.count { color: var(--gold); }
 
-.defects-table {
-  width: 100%; border-collapse: collapse; margin-top: 0.5rem;
-  border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+/* RECOMMENDATION */
+.recommendation-headline {
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--gold);
+  margin: 0 0 1.5rem;
+  letter-spacing: -0.02em;
 }
-.defects-table thead { background: var(--card); }
-.defects-table th, .defects-table td {
-  padding: 0.55rem 0.75rem; text-align: left; font-size: 0.82rem;
-  border-bottom: 1px solid var(--border); vertical-align: top;
+@media (min-width: 768px) { .recommendation-headline { font-size: 64px; } }
+.recommendation-stats {
+  display: flex;
+  gap: 2.5rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255,255,255,0.18);
+  flex-wrap: wrap;
 }
-.defects-table th {
-  font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-  font-size: 0.7rem; color: var(--gold-dark);
-}
-.defects-table tr:last-child td { border-bottom: none; }
-.defects-table td.sev-cell { white-space: nowrap; }
+.recommendation-stats .metric .metric-value-text { font-size: 22px; }
 
-.report-defect {
-  border: 1px solid var(--border); border-left: 5px solid var(--border);
-  border-radius: 6px; padding: 1rem 1.2rem; margin-top: 0.9rem;
+/* CTA */
+.cta-headline {
+  margin: 0 0 1.25rem;
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: white;
 }
-.report-defect.sev-critical { border-left-color: var(--sev-critical); }
-.report-defect.sev-high     { border-left-color: var(--sev-high); }
-.report-defect.sev-medium   { border-left-color: var(--sev-medium); }
-.report-defect.sev-low      { border-left-color: var(--sev-low); }
-.report-defect.sev-note     { border-left-color: var(--sev-note); }
-.report-defect-head { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.report-defect-num {
-  background: var(--anthracite); color: white; border-radius: 999px;
-  padding: 0.1rem 0.55rem; font-size: 0.72rem; font-weight: 700;
-}
-.report-defect-title { font-weight: 700; font-size: 1rem; }
-.report-defect-meta { font-size: 0.78rem; color: var(--muted); }
-.report-defect p { margin: 0.3rem 0; font-size: 0.9rem; line-height: 1.55; white-space: pre-wrap; }
-.report-defect .label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-dark); margin-top: 0.65rem; display: block; }
-.report-defect .kv-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.65rem; font-size: 0.85rem; }
-.report-defect .kv-row .kv { color: var(--muted); }
-.report-defect .kv-row .kv strong { color: var(--text); font-weight: 600; margin-left: 0.25rem; }
-.photo-row {
-  display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.65rem;
-}
-.photo-row img {
-  width: 120px; height: 90px; object-fit: cover; border-radius: 4px;
-  border: 1px solid var(--border); background: var(--card);
-}
-.recommendation-block {
-  background: var(--card); border-left: 4px solid var(--gold);
-  padding: 1rem 1.2rem; border-radius: 0 6px 6px 0; margin-top: 0.5rem;
-}
-.recommendation-block .reco-headline {
-  font-size: 1.05rem; font-weight: 700; color: var(--anthracite); margin-bottom: 0.4rem;
-}
-.recommendation-block p { margin: 0.35rem 0; white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55; }
+@media (min-width: 768px) { .cta-headline { font-size: 64px; } }
+.cta-headline .accent { color: var(--gold); }
+.cta-body { color: rgba(255,255,255,0.82); max-width: 62ch; font-size: 16px; line-height: 1.65; }
 
-.report-footer {
-  margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border);
-  font-size: 0.78rem; color: var(--muted); line-height: 1.55;
+/* BRAND FOOTER (in-report) */
+.brand-footer {
+  background: var(--dark);
+  color: rgba(255,255,255,0.7);
+  padding: 2.5rem 1.75rem;
+  border-top: 2px solid var(--gold);
 }
-.report-footer .credentials { font-weight: 600; color: var(--anthracite); }
+@media (min-width: 768px) { .brand-footer { padding: 3rem 4rem; } }
+.brand-footer .ft-tagline {
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.005em;
+  margin-bottom: 1rem;
+}
+.brand-footer .ft-line {
+  color: rgba(255,255,255,0.85);
+  font-size: 14px;
+  margin-bottom: 0.4rem;
+  line-height: 1.55;
+}
+.brand-footer .ft-line-small {
+  color: rgba(255,255,255,0.55);
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
+}
 
 .report-actions {
   display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.5rem;
@@ -441,28 +747,39 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .report-actions .btn { width: 100%; }
 
 /* ============================================================
-   PRINT
+   PRINT — A4 layout, force backgrounds, page-break between sections
    ============================================================ */
 @media print {
-  @page { size: A4; margin: 14mm 12mm; }
-  body { background: white; }
-  .topbar, .form-actions, .report-actions, .view-header .link-btn, .no-print { display: none !important; }
+  @page { size: 210mm 297mm; margin: 18mm 18mm; }
+  html, body { background: white !important; }
+  .topbar, .form-actions, .report-actions, .view-header, .no-print { display: none !important; }
   .view { display: none !important; }
   #view-report.active { display: block !important; }
   .container, .container.wide { padding: 0 !important; max-width: none !important; }
-  .report {
-    box-shadow: none !important; padding: 0 !important; border-radius: 0 !important;
+  .report { box-shadow: none !important; border-radius: 0 !important; }
+  .report-section {
+    padding: 0 0 14mm 0 !important;
+    page-break-after: always;
+    break-after: page;
   }
-  .report h2 { page-break-after: avoid; }
-  .report-defect { page-break-inside: avoid; }
-  .summary-table { page-break-inside: avoid; }
-  .recommendation-block { page-break-inside: avoid; }
-  .report-footer { page-break-inside: avoid; }
-  .defects-table { page-break-inside: auto; }
-  .defects-table tr { page-break-inside: avoid; }
-  a { color: var(--text); text-decoration: none; }
-  /* Force exact background colors for severity pills + brand stripes when the user has them enabled. */
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .report-section:last-of-type {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .cover { min-height: 0 !important; }
+  .defect-card, .summary-card, .info-grid, .recommendation-stats, .cover-metrics {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .r-title { page-break-after: avoid; break-after: avoid; }
+  /* Force exact background/colour fidelity in print — required for dark
+     sections and severity badges to render correctly. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  a { color: inherit; text-decoration: none; }
 }
 </style>
 </head>
@@ -784,15 +1101,14 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 
 <script>
 // ============================================================
-// Nova Survey Tool v0.1 — single-file, localStorage-backed.
-// Schema: top-level fields + defects array.
+// Nova Survey Tool — single-file, localStorage-backed.
+// Schema: top-level form fields + defects array.
 // ============================================================
 
 const STORAGE_KEY = 'nova_surveys_v1';
 const DRAFT_KEY   = 'nova_survey_draft';
 const AUTOSAVE_MS = 10000;
 
-// Schema-defined top-level form fields, grouped for collect/populate/reset.
 const FIELDS = {
   text: [
     'f-client-name', 'f-client-company', 'f-postcode', 'f-telephone',
@@ -808,19 +1124,23 @@ const FIELDS = {
              'f-asb-register-seen', 'f-asb-sampling']
 };
 
-// Defect schema — each defect carries these fields.
 const DEFECT_FIELDS = ['title', 'location', 'description', 'severity',
                        'photoUrls', 'recommendedAction', 'costBand', 'priority'];
 const SEVERITY_OPTIONS = ['Critical', 'High', 'Medium', 'Low', 'Note Only'];
 const COST_BAND_OPTIONS = ['Under £1k', '£1k-£5k', '£5k-£20k', '£20k-£50k', '£50k+', 'TBC'];
 const PRIORITY_OPTIONS = ['Immediate', 'Within 6 months', 'Within 12 months', 'Within 5 years', 'Monitor'];
 
+// Inline chevron SVG — used as the gold marker beside every report section title.
+// Stroke uses the literal #e8a020 so it survives the brand-token rename safely
+// (CSS variables aren't reachable inside an SVG used as inline markup like this).
+const CHEVRON_SVG = '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6l6 6-6 6M11 6l6 6-6 6" fill="none" stroke="#e8a020" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+
 // ---- State ----
-let currentSurveyId = null;     // null = new draft; otherwise editing this id
-let currentDefects = [];        // editable defect array, synced to DOM on every keystroke
+let currentSurveyId = null;
+let currentDefects = [];
 let autosaveTimer = null;
 let toastTimer = null;
-let reportSurveyId = null;      // survey being shown in the report view
+let reportSurveyId = null;
 
 // ---- Storage ----
 function loadSurveys() {
@@ -835,7 +1155,6 @@ function loadDraft() {
 function saveDraft(obj) { localStorage.setItem(DRAFT_KEY, JSON.stringify(obj)); }
 function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
 
-// ---- ID generation: SURV-YYYY-NNN ----
 function nextSurveyId() {
   const year = new Date().getFullYear();
   const prefix = 'SURV-' + year + '-';
@@ -949,7 +1268,7 @@ function backToDetail() {
   showView('detail');
 }
 
-// ---- Form data collect / populate / reset ----
+// ---- Form collect / populate / reset ----
 function collectFormData() {
   const out = {};
   for (const id of FIELDS.text) out[id] = (document.getElementById(id) || {}).value || '';
@@ -963,7 +1282,6 @@ function collectFormData() {
   out.defects = currentDefects.map(d => ({ ...d }));
   return out;
 }
-
 function populateForm(data) {
   for (const id of FIELDS.text) {
     const el = document.getElementById(id);
@@ -982,7 +1300,6 @@ function populateForm(data) {
     if (el) el.checked = !!data[id];
   }
 }
-
 function resetForm() {
   for (const id of FIELDS.text) {
     const el = document.getElementById(id);
@@ -1007,17 +1324,15 @@ function resetForm() {
   }
 }
 
-// ---- Defects ----
+// ---- Defects (form editing) ----
 function makeBlankDefect() {
   const d = {};
   for (const k of DEFECT_FIELDS) d[k] = '';
   return d;
 }
-
 function addDefect() {
   currentDefects.push(makeBlankDefect());
   renderDefects(currentDefects.length - 1);
-  // Open the newly added defect so the user can immediately start typing.
   const list = document.getElementById('defects-list');
   const last = list.lastElementChild;
   if (last && last.tagName === 'DETAILS') {
@@ -1026,17 +1341,11 @@ function addDefect() {
     if (firstInput) firstInput.focus();
   }
 }
-
 function removeDefect(idx) {
   if (!confirm('Remove this defect?')) return;
   currentDefects.splice(idx, 1);
   renderDefects();
 }
-
-function _defectSummary(d) {
-  return d.title || '(untitled defect)';
-}
-
 function renderDefects(focusIdx) {
   const list = document.getElementById('defects-list');
   if (!list) return;
@@ -1082,7 +1391,6 @@ function renderDefects(focusIdx) {
     if (el) el.open = true;
   }
 }
-
 function selectHtml(options, current, idx, field) {
   let html = '<select data-defect-idx="' + idx + '" data-defect-field="' + field + '">';
   html += '<option value="">—</option>';
@@ -1092,7 +1400,6 @@ function selectHtml(options, current, idx, field) {
   html += '</select>';
   return html;
 }
-
 function severityClass(sev) {
   switch (sev) {
     case 'Critical':  return 'pill-critical';
@@ -1113,9 +1420,6 @@ function severitySectionClass(sev) {
     default:          return '';
   }
 }
-
-// Sync individual defect field edits back into the array; only re-render the
-// summary line if title or severity changed (avoids losing focus mid-typing).
 function onDefectInput(e) {
   const t = e.target;
   if (!t.dataset || t.dataset.defectIdx == null) return;
@@ -1125,7 +1429,6 @@ function onDefectInput(e) {
   if (!currentDefects[idx]) return;
   currentDefects[idx][field] = t.value;
   if (field === 'title' || field === 'severity') {
-    // Update only the summary line in place.
     const details = t.closest('details.defect');
     if (!details) return;
     const sevClass = severityClass(currentDefects[idx].severity);
@@ -1142,7 +1445,7 @@ function onDefectInput(e) {
   }
 }
 
-// ---- Conditional field visibility + asbestos register currency calc ----
+// ---- Conditional field visibility ----
 function updateConditionals() {
   const asbSeen = document.getElementById('f-asb-register-seen').checked;
   document.querySelectorAll('[data-cond="asb-seen"]').forEach(el => el.hidden = !asbSeen);
@@ -1162,7 +1465,7 @@ function registerCurrencyLabel(dateStr) {
   return (months <= 12 ? 'Yes' : 'No') + ' — ' + months + ' month' + (months === 1 ? '' : 's') + ' old';
 }
 
-// ---- Validation ----
+// ---- Validation + save ----
 function validateForm() {
   const required = ['f-client-name', 'f-site-address', 'f-postcode', 'f-visit-date'];
   let firstBadEl = null;
@@ -1185,8 +1488,6 @@ function validateForm() {
   }
   return true;
 }
-
-// ---- Save ----
 function saveSurvey() {
   if (!validateForm()) return;
   const data = collectFormData();
@@ -1248,7 +1549,7 @@ function stopAutoSave() {
   if (autosaveTimer) { clearInterval(autosaveTimer); autosaveTimer = null; }
 }
 
-// ---- Render: survey list ----
+// ---- Home survey list ----
 function renderSurveyList() {
   const el = document.getElementById('survey-list');
   const surveys = loadSurveys().slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
@@ -1274,18 +1575,15 @@ function renderSurveyList() {
   }).join('');
 }
 
-// ---- Render: detail view ----
+// ---- Detail view ----
 function renderSurveyDetail(s) {
   document.getElementById('detail-title').textContent =
     (s['f-client-company'] || s['f-client-name'] || 'Survey') + ' — ' + (firstLine(s['f-site-address']) || '');
   document.getElementById('detail-meta').textContent =
     s.id + ' · visit ' + (s['f-visit-date'] ? fmtDate(s['f-visit-date']) : '—') +
     ' · last updated ' + fmtDate(s.updatedAt);
-
-  const body = document.getElementById('detail-body');
-  body.innerHTML = renderDetailBlocks(s);
+  document.getElementById('detail-body').innerHTML = renderDetailBlocks(s);
 }
-
 function renderDetailBlocks(s) {
   const blocks = [
     ['Site Info', [
@@ -1338,16 +1636,12 @@ function renderDetailBlocks(s) {
     html += '</div>';
   }
   html += '</div>';
-
-  // Executive summary + next steps as wide blocks beneath the grid.
   if (s['f-executive-summary']) {
     html += '<div class="detail-block" style="margin-top:1rem;"><h3>Executive summary</h3><div class="detail-notes">' + escapeHtml(s['f-executive-summary']) + '</div></div>';
   }
   if (s['f-next-steps']) {
     html += '<div class="detail-block" style="margin-top:1rem;"><h3>Next steps</h3><div class="detail-notes">' + escapeHtml(s['f-next-steps']) + '</div></div>';
   }
-
-  // Defects block
   const defects = Array.isArray(s.defects) ? s.defects : [];
   html += '<div class="detail-block" style="margin-top:1rem;"><h3>Defects (' + defects.length + ')</h3>';
   if (!defects.length) {
@@ -1373,237 +1667,308 @@ function renderDetailBlocks(s) {
     html += '</div>';
   }
   html += '</div>';
-
   return html;
 }
 
-// ---- Render: report view ----
+// ============================================================
+// REPORT VIEW — Nova proposal aesthetic
+// Sections in order: Cover · Executive Summary · Site Info ·
+// Defects Schedule · Findings at a Glance · Recommendation ·
+// CTA · Brand Footer
+// ============================================================
 function renderReport(id) {
   const s = loadSurveys().find(x => x.id === id);
   const body = document.getElementById('report-body');
   if (!s) { body.innerHTML = '<p>Survey not found.</p>'; return; }
-  const defects = Array.isArray(s.defects) ? s.defects : [];
 
-  // Severity tallies for the summary table.
+  const defects = Array.isArray(s.defects) ? s.defects : [];
   const sevCounts = { 'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0, 'Note Only': 0 };
+  for (const d of defects) if (d.severity && sevCounts[d.severity] != null) sevCounts[d.severity]++;
   const costCounts = {};
   for (const o of COST_BAND_OPTIONS) costCounts[o] = 0;
-  for (const d of defects) {
-    if (d.severity && sevCounts[d.severity] != null) sevCounts[d.severity]++;
-    if (d.costBand && costCounts[d.costBand] != null) costCounts[d.costBand]++;
-  }
+  for (const d of defects) if (d.costBand && costCounts[d.costBand] != null) costCounts[d.costBand]++;
 
-  const clientLine = (s['f-client-company'] || s['f-client-name'] || '').trim();
-  const reportDateStr = fmtDate(s['f-visit-date'] || s.createdAt);
+  const clientLine     = (s['f-client-company'] || s['f-client-name'] || '').trim();
+  const visitDateStr   = fmtDate(s['f-visit-date'] || s.createdAt);
+  const refDisplay     = 'NOV-' + s.id;
+  const overallRating  = s['f-overall-rating']    || 'TBC';
+  const recommendation = s['f-recommendation']    || 'TBC';
+  const totalCost      = s['f-total-cost-band']   || 'TBC';
 
-  let html = '';
-
-  // Header
-  html += '<div class="report">';
-  html += '<div class="report-header">' +
-    '<div class="report-brand">' +
-      '<div class="wordmark">nova<span class="accent">.</span></div>' +
-      '<div class="tagline">Site Condition Survey &amp; Remedial Works Report</div>' +
-    '</div>' +
-    '<div class="report-meta">' +
-      '<div class="ref">' + escapeHtml(s.id) + '</div>' +
-      '<div>Visit ' + escapeHtml(reportDateStr) + '</div>' +
-      (s['f-surveyor-name'] ? '<div>Surveyor: ' + escapeHtml(s['f-surveyor-name']) + '</div>' : '') +
-    '</div>' +
-  '</div>';
-
-  html += '<h1 class="report-title">' + escapeHtml(clientLine || 'Site Condition Survey') + '</h1>';
-  if (s['f-site-address']) {
-    html += '<div class="report-subtitle">' + escapeHtml(s['f-site-address']) + (s['f-postcode'] ? ' · ' + escapeHtml(s['f-postcode']) : '') + '</div>';
-  }
-
-  // Site info grid
-  html += '<h2>1. Site information</h2>';
-  html += '<div class="info-grid">';
-  const siteRows = [
-    ['Client name', s['f-client-name']],
-    ['Client company', s['f-client-company']],
-    ['Site address', s['f-site-address']],
-    ['Postcode', s['f-postcode']],
-    ['Contact telephone', s['f-telephone']],
-    ['Date of visit', s['f-visit-date'] ? fmtDate(s['f-visit-date']) : ''],
-    ['Surveyor', s['f-surveyor-name']],
-    ['Works brief', s['f-works-description']]
-  ];
-  for (const [k, v] of siteRows) {
-    if (!v) continue;
-    html += '<div class="info-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(String(v)) + '</span></div>';
-  }
+  let html = '<div class="report">';
+  html += renderCover(s, defects, sevCounts, clientLine, visitDateStr, refDisplay, overallRating, recommendation);
+  html += renderExecSummary(s, overallRating);
+  html += renderSiteInfo(s);
+  if (defects.length) html += renderDefectsSchedule(defects);
+  html += renderFindingsAtAGlance(defects, sevCounts, costCounts);
+  html += renderRecommendationSection(s, recommendation, totalCost, overallRating);
+  html += renderCta(s, defects, recommendation);
+  html += renderBrandFooter();
   html += '</div>';
-
-  // Building overview
-  const buildingRows = [
-    ['Roof type', s['f-roof-type']],
-    ['Roof area (m²)', s['f-roof-area']],
-    ['Number of buildings', s['f-num-buildings']],
-    ['Eaves height (m)', s['f-eaves-height']],
-    ['Approximate age', s['f-age']],
-    ['Construction type', s['f-construction-type']]
-  ].filter(([, v]) => v !== '' && v != null);
-  if (buildingRows.length) {
-    html += '<h2>2. Building overview</h2><div class="info-grid">';
-    for (const [k, v] of buildingRows) {
-      html += '<div class="info-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(String(v)) + '</span></div>';
-    }
-    html += '</div>';
-  }
-
-  // Executive summary
-  if (s['f-executive-summary']) {
-    html += '<h2>3. Executive summary</h2>';
-    html += '<div class="exec-summary">' + escapeHtml(s['f-executive-summary']) + '</div>';
-  }
-
-  // Summary tables
-  if (defects.length) {
-    html += '<h2>4. Findings at a glance</h2>';
-    html += '<div class="summary-tables">';
-    // Severity table
-    html += '<div class="summary-table"><h3>Defects by severity</h3><table>';
-    for (const sev of SEVERITY_OPTIONS) {
-      const cnt = sevCounts[sev];
-      html += '<tr><td class="label"><span class="pill ' + severityClass(sev) + '">' + escapeHtml(sev) + '</span></td>' +
-              '<td class="count' + (cnt === 0 ? ' zero' : '') + '">' + cnt + '</td></tr>';
-    }
-    html += '<tr><td class="label"><strong>Total</strong></td><td class="count"><strong>' + defects.length + '</strong></td></tr>';
-    html += '</table></div>';
-    // Cost band table
-    html += '<div class="summary-table"><h3>Indicative cost band</h3><table>';
-    let costAny = false;
-    for (const band of COST_BAND_OPTIONS) {
-      const cnt = costCounts[band];
-      if (cnt === 0) continue;
-      costAny = true;
-      html += '<tr><td class="label">' + escapeHtml(band) + '</td><td class="count">' + cnt + '</td></tr>';
-    }
-    if (!costAny) {
-      html += '<tr><td class="label zero" colspan="2">No cost bands assigned yet.</td></tr>';
-    }
-    html += '</table></div>';
-    html += '</div>';
-  }
-
-  // Access & Asbestos compact block
-  const accessRows = [
-    ['Eaves access', s['f-eaves-access']],
-    ['Edge protection', s['f-edge-protection'] ? 'Yes' : 'No'],
-    ['Live overhead services <9 m', s['f-live-services'] ? 'Yes' : 'No'],
-    ['Adjacent to public area', s['f-adjacent-public'] ? 'Yes' : 'No']
-  ];
-  const asbRows = [
-    ['Roof contains asbestos', s['f-asb-contains']],
-    ['Register seen', s['f-asb-register-seen'] ? 'Yes' : 'No'],
-    ['Register date', s['f-asb-register-seen'] && s['f-asb-register-date'] ? fmtDate(s['f-asb-register-date']) : ''],
-    ['Register current', s['f-asb-register-seen'] ? registerCurrencyLabel(s['f-asb-register-date']) : ''],
-    ['Sampling required', s['f-asb-sampling'] ? 'Yes' : 'No']
-  ].filter(([, v]) => v !== '' && v != null);
-  html += '<h2>5. Access &amp; safety, asbestos</h2><div class="summary-tables">';
-  html += '<div class="summary-table"><h3>Access &amp; safety</h3><table>';
-  for (const [k, v] of accessRows) {
-    if (!v) continue;
-    html += '<tr><td class="label">' + escapeHtml(k) + '</td><td class="count">' + escapeHtml(String(v)) + '</td></tr>';
-  }
-  html += '</table></div>';
-  html += '<div class="summary-table"><h3>Asbestos</h3><table>';
-  if (asbRows.length) {
-    for (const [k, v] of asbRows) {
-      html += '<tr><td class="label">' + escapeHtml(k) + '</td><td class="count">' + escapeHtml(String(v)) + '</td></tr>';
-    }
-  } else {
-    html += '<tr><td class="label zero" colspan="2">No asbestos information recorded.</td></tr>';
-  }
-  html += '</table></div></div>';
-
-  // Defects detail
-  html += '<h2>6. Defects &amp; recommended works</h2>';
-  if (!defects.length) {
-    html += '<p style="color:var(--muted);">No defects recorded.</p>';
-  } else {
-    // Compact overview table (mirrors site/condition style of typical condition reports)
-    html += '<table class="defects-table">' +
-      '<thead><tr><th>#</th><th>Defect</th><th>Location</th><th>Severity</th><th>Cost band</th><th>Priority</th></tr></thead>' +
-      '<tbody>';
-    defects.forEach((d, i) => {
-      const sp = d.severity ? '<span class="pill ' + severityClass(d.severity) + '">' + escapeHtml(d.severity) + '</span>' : '—';
-      html += '<tr>' +
-        '<td>' + (i + 1) + '</td>' +
-        '<td>' + escapeHtml(d.title || '(untitled)') + '</td>' +
-        '<td>' + escapeHtml(d.location || '—') + '</td>' +
-        '<td class="sev-cell">' + sp + '</td>' +
-        '<td>' + escapeHtml(d.costBand || '—') + '</td>' +
-        '<td>' + escapeHtml(d.priority || '—') + '</td>' +
-      '</tr>';
-    });
-    html += '</tbody></table>';
-
-    // Per-defect detail blocks
-    defects.forEach((d, i) => {
-      const sc = severitySectionClass(d.severity);
-      const sp = d.severity ? '<span class="pill ' + severityClass(d.severity) + '">' + escapeHtml(d.severity) + '</span>' : '';
-      html += '<div class="report-defect ' + sc + '">' +
-        '<div class="report-defect-head">' +
-          '<span class="report-defect-num">' + (i + 1) + '</span>' +
-          '<span class="report-defect-title">' + escapeHtml(d.title || '(untitled defect)') + '</span>' + sp +
-        '</div>' +
-        (d.location ? '<div class="report-defect-meta">Location: ' + escapeHtml(d.location) + '</div>' : '') +
-        (d.description ? '<span class="label">Observation</span><p>' + escapeHtml(d.description) + '</p>' : '') +
-        (d.recommendedAction ? '<span class="label">Recommended action</span><p>' + escapeHtml(d.recommendedAction) + '</p>' : '') +
-        renderDefectPhotos(d.photoUrls) +
-        '<div class="kv-row">' +
-          (d.costBand ? '<span class="kv">Cost band: <strong>' + escapeHtml(d.costBand) + '</strong></span>' : '') +
-          (d.priority ? '<span class="kv">Priority: <strong>' + escapeHtml(d.priority) + '</strong></span>' : '') +
-        '</div>' +
-      '</div>';
-    });
-  }
-
-  // Recommendation
-  html += '<h2>7. Recommendation &amp; next steps</h2>';
-  const headlineParts = [];
-  if (s['f-overall-rating']) headlineParts.push('Overall condition: ' + s['f-overall-rating']);
-  if (s['f-remaining-life'] !== '' && s['f-remaining-life'] != null) headlineParts.push('Est. remaining life: ' + s['f-remaining-life'] + ' years');
-  if (s['f-total-cost-band']) headlineParts.push('Total indicative cost: ' + s['f-total-cost-band']);
-  html += '<div class="recommendation-block">';
-  if (s['f-recommendation']) {
-    html += '<div class="reco-headline">Recommendation: ' + escapeHtml(s['f-recommendation']) + '</div>';
-  }
-  if (headlineParts.length) {
-    html += '<p>' + escapeHtml(headlineParts.join(' · ')) + '</p>';
-  }
-  if (s['f-next-steps']) {
-    html += '<p><strong>Next steps:</strong></p><p>' + escapeHtml(s['f-next-steps']) + '</p>';
-  }
-  if (!s['f-recommendation'] && !headlineParts.length && !s['f-next-steps']) {
-    html += '<p style="color:var(--muted);">No recommendation captured yet.</p>';
-  }
-  html += '</div>';
-
-  // Footer
-  html += '<div class="report-footer">' +
-    '<div class="credentials">Prepared by ' + escapeHtml(s['f-surveyor-name'] || 'Nova') + ', Nova (SW) Limited.</div>' +
-    '<div>Construction Law qualified. 22 years sector experience. nova-limited.com</div>' +
-  '</div>';
-
-  html += '</div>'; // .report
   body.innerHTML = html;
+}
+
+function renderCover(s, defects, sevCounts, clientLine, dateStr, ref, rating, recommendation) {
+  const defectCount = defects.length;
+  const criticalCount = sevCounts.Critical;
+  // Three short declarative clauses, period-separated, in the proposal style.
+  const titleClauses = [];
+  if (clientLine) titleClauses.push(clientLine);
+  titleClauses.push(defectCount > 0
+    ? defectCount + ' defect' + (defectCount === 1 ? '' : 's') + ' identified'
+    : 'Site condition survey');
+  if (s['f-overall-rating']) titleClauses.push(rating + ' condition');
+  const titleText = titleClauses.map(escapeHtml).join('. ') + '.';
+
+  return '' +
+  '<section class="report-section section-dark cover">' +
+    '<div class="cover-top">' +
+      '<div class="cover-wordmark">nova</div>' +
+      '<div class="cover-meta">' +
+        '<div class="cover-meta-prepared">Prepared <strong>' + escapeHtml(dateStr) + '</strong></div>' +
+        '<div class="ref-badge">' + escapeHtml(ref) + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="cover-body">' +
+      '<div class="cover-lead">' +
+        '<h1 class="cover-title">' + titleText + '</h1>' +
+      '</div>' +
+      '<div class="cover-metrics">' +
+        '<div class="metric">' +
+          '<div class="metric-label">Defects</div>' +
+          '<div class="metric-value">' + defectCount + '</div>' +
+        '</div>' +
+        '<div class="metric">' +
+          '<div class="metric-label">Critical</div>' +
+          '<div class="metric-value">' + criticalCount + '</div>' +
+        '</div>' +
+        '<div class="metric">' +
+          '<div class="metric-label">Rating</div>' +
+          '<div class="metric-value-text">' + escapeHtml(rating) + '</div>' +
+        '</div>' +
+        '<div class="metric">' +
+          '<div class="metric-label">Recommendation</div>' +
+          '<div class="metric-value-text">' + escapeHtml(recommendation) + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="cover-footer">' +
+      '<div class="cover-tagline">Built on experience. Backed by craft.</div>' +
+      '<div>Nova (SW) Limited</div>' +
+    '</div>' +
+  '</section>';
+}
+
+function renderExecSummary(s, rating) {
+  const summary = s['f-executive-summary'];
+  const remaining = s['f-remaining-life'];
+  let asideHtml = '';
+  if (s['f-overall-rating'] || (remaining !== '' && remaining != null)) {
+    asideHtml = '<aside class="r-aside-metric">';
+    if (s['f-overall-rating']) {
+      asideHtml += '<div class="metric"><div class="metric-label">Overall rating</div><div class="metric-value-text">' + escapeHtml(rating) + '</div></div>';
+    }
+    if (remaining !== '' && remaining != null) {
+      asideHtml += '<div class="metric" style="margin-top:1.5rem;"><div class="metric-label">Remaining life</div><div class="metric-value-text">' + escapeHtml(String(remaining)) + ' years</div></div>';
+    }
+    asideHtml += '</aside>';
+  }
+  const bodyHtml = summary
+    ? '<div class="r-body">' + escapeHtml(summary).split(/\n{2,}/).map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>').join('') + '</div>'
+    : '<div class="r-body" style="color:var(--muted);"><p>Executive summary not yet captured.</p></div>';
+
+  return '' +
+  '<section class="report-section section-light">' +
+    '<span class="eyebrow">01 · Executive Summary</span>' +
+    '<h2 class="r-title">' + CHEVRON_SVG + '<span>The picture at a glance.</span></h2>' +
+    '<div class="r-grid">' +
+      '<div>' + bodyHtml + '</div>' +
+      asideHtml +
+    '</div>' +
+  '</section>';
+}
+
+function renderSiteInfo(s) {
+  const items = [
+    ['Client',         (s['f-client-company'] || s['f-client-name'] || '')],
+    ['Contact',        (s['f-client-name'] && s['f-client-company']) ? s['f-client-name'] : ''],
+    ['Site address',   (s['f-site-address'] || '') + (s['f-postcode'] ? '\n' + s['f-postcode'] : '')],
+    ['Telephone',      s['f-telephone']],
+    ['Date of visit',  s['f-visit-date'] ? fmtDate(s['f-visit-date']) : ''],
+    ['Surveyor',       s['f-surveyor-name']],
+    ['Roof type',      s['f-roof-type']],
+    ['Roof area',      s['f-roof-area'] !== '' && s['f-roof-area'] != null ? (s['f-roof-area'] + ' m²') : ''],
+    ['Approx. age',    s['f-age']],
+    ['Construction',   s['f-construction-type']],
+    ['Buildings',      s['f-num-buildings']],
+    ['Eaves height',   (s['f-eaves-height'] !== '' && s['f-eaves-height'] != null) ? (s['f-eaves-height'] + ' m') : ''],
+    ['Works brief',    s['f-works-description']]
+  ].filter(([, v]) => v !== '' && v != null && String(v).trim() !== '');
+
+  let infoHtml = '<div class="info-grid">';
+  for (const [k, v] of items) {
+    infoHtml += '<div class="info-item">' +
+      '<span class="eyebrow-small">' + escapeHtml(k) + '</span>' +
+      '<div class="info-val">' + escapeHtml(String(v)) + '</div>' +
+    '</div>';
+  }
+  infoHtml += '</div>';
+
+  return '' +
+  '<section class="report-section section-light-tone">' +
+    '<span class="eyebrow">02 · Site Information</span>' +
+    '<h2 class="r-title">' + CHEVRON_SVG + '<span>The site.</span></h2>' +
+    infoHtml +
+  '</section>';
+}
+
+function renderDefectsSchedule(defects) {
+  let cardsHtml = '';
+  defects.forEach((d, i) => {
+    const sc = severitySectionClass(d.severity);
+    const num = 'D-' + String(i + 1).padStart(2, '0');
+    const sevBadge = d.severity
+      ? '<span class="severity-badge ' + sc + '">' + escapeHtml(d.severity) + '</span>'
+      : '';
+    cardsHtml += '<article class="defect-card ' + sc + '">' +
+      '<div class="defect-card-top">' +
+        '<span class="defect-pill">' + num + '</span>' +
+        '<h3 class="defect-card-title">' + escapeHtml(d.title || 'Untitled defect') + '</h3>' +
+        sevBadge +
+      '</div>' +
+      '<div class="defect-card-grid">' +
+        '<div class="defect-card-main">' +
+          (d.location ? '<span class="eyebrow-small">Location</span><p>' + escapeHtml(d.location) + '</p>' : '') +
+          (d.description ? '<span class="eyebrow-small">Observation</span><p>' + escapeHtml(d.description) + '</p>' : '') +
+          (d.recommendedAction ? '<span class="eyebrow-small">Recommended action</span><p>' + escapeHtml(d.recommendedAction) + '</p>' : '') +
+        '</div>' +
+        '<div class="defect-card-side">' +
+          (d.costBand ? '<div class="metric"><div class="metric-small-label">Cost band</div><div class="metric-small-value">' + escapeHtml(d.costBand) + '</div></div>' : '') +
+          (d.priority ? '<div class="metric"><div class="metric-small-label">Priority</div><div class="metric-small-value">' + escapeHtml(d.priority) + '</div></div>' : '') +
+        '</div>' +
+      '</div>' +
+      renderDefectPhotos(d.photoUrls) +
+    '</article>';
+  });
+
+  return '' +
+  '<section class="report-section section-light">' +
+    '<span class="eyebrow">03 · Defects Schedule</span>' +
+    '<h2 class="r-title">' + CHEVRON_SVG + '<span>What we found.</span></h2>' +
+    '<div class="r-body" style="margin-bottom:0.5rem;"><p>' + defects.length + ' defect' + (defects.length === 1 ? '' : 's') + ' recorded during the visit. Each is described below with the recommended action and indicative cost band.</p></div>' +
+    cardsHtml +
+  '</section>';
 }
 
 function renderDefectPhotos(photoUrlsRaw) {
   if (!photoUrlsRaw) return '';
   const urls = String(photoUrlsRaw).split(/\r?\n/).map(u => u.trim()).filter(Boolean);
   if (!urls.length) return '';
-  let html = '<span class="label">Photos</span><div class="photo-row">';
+  let html = '<div class="defect-photos">';
   for (const u of urls) {
-    const safeUrl = escapeHtml(u);
-    html += '<img src="' + safeUrl + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+    html += '<img src="' + escapeHtml(u) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
   }
   html += '</div>';
   return html;
+}
+
+function renderFindingsAtAGlance(defects, sevCounts, costCounts) {
+  let html = '';
+  html += '<section class="report-section section-light-tone">';
+  html += '<span class="eyebrow">04 · Findings at a glance</span>';
+  html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>By the numbers.</span></h2>';
+
+  if (!defects.length) {
+    html += '<div class="r-body"><p>No defects were recorded during this survey.</p></div>';
+    html += '</section>';
+    return html;
+  }
+
+  html += '<div class="summary-tables">';
+  // Severity card
+  html += '<div class="summary-card">';
+  html += '<span class="summary-eyebrow">Defects by severity</span><table>';
+  for (const sev of SEVERITY_OPTIONS) {
+    const cnt = sevCounts[sev];
+    html += '<tr>' +
+      '<td><span class="pill ' + severityClass(sev) + '">' + escapeHtml(sev) + '</span></td>' +
+      '<td class="count' + (cnt === 0 ? ' zero' : '') + '">' + cnt + '</td>' +
+    '</tr>';
+  }
+  html += '<tr class="total"><td><strong>Total</strong></td><td class="count">' + defects.length + '</td></tr>';
+  html += '</table></div>';
+
+  // Cost band card
+  html += '<div class="summary-card">';
+  html += '<span class="summary-eyebrow">Indicative cost band</span><table>';
+  let costAny = false;
+  for (const band of COST_BAND_OPTIONS) {
+    const cnt = costCounts[band];
+    if (cnt === 0) continue;
+    costAny = true;
+    html += '<tr><td>' + escapeHtml(band) + '</td><td class="count">' + cnt + '</td></tr>';
+  }
+  if (!costAny) {
+    html += '<tr><td class="zero" colspan="2">No cost bands assigned yet.</td></tr>';
+  }
+  html += '</table></div>';
+  html += '</div>';
+
+  html += '</section>';
+  return html;
+}
+
+function renderRecommendationSection(s, recommendation, totalCost, rating) {
+  const nextSteps = s['f-next-steps'];
+  const remaining = s['f-remaining-life'];
+
+  let html = '<section class="report-section section-dark">';
+  html += '<span class="eyebrow">05 · Recommendation</span>';
+  html += '<h1 class="recommendation-headline">' + escapeHtml(recommendation) + '.</h1>';
+  html += '<div class="r-body">';
+  const intro = [];
+  if (s['f-overall-rating']) intro.push('Overall condition is rated <strong>' + escapeHtml(rating) + '</strong>.');
+  if (totalCost && totalCost !== 'TBC') intro.push('Total indicative cost band: <strong>' + escapeHtml(totalCost) + '</strong>.');
+  if (remaining !== '' && remaining != null) intro.push('Estimated remaining life with current programme: <strong>' + escapeHtml(String(remaining)) + ' year' + (remaining === 1 ? '' : 's') + '</strong>.');
+  if (intro.length) html += '<p>' + intro.join(' ') + '</p>';
+  if (nextSteps) {
+    html += '<p style="margin-top:1.5rem;"><span class="eyebrow" style="margin-bottom:0.5rem;display:block;">Next steps</span>' + escapeHtml(nextSteps).replace(/\n/g, '<br>') + '</p>';
+  }
+  html += '</div>';
+  html += '</section>';
+  return html;
+}
+
+function renderCta(s, defects, recommendation) {
+  const clientName = (s['f-client-company'] || s['f-client-name'] || '').trim();
+  const defectCount = defects.length;
+  let headline;
+  if (defectCount > 0 && recommendation && recommendation !== 'TBC') {
+    headline = defectCount + ' defect' + (defectCount === 1 ? '' : 's') + ' identified.<br><span class="accent">' + escapeHtml(recommendation) + '.</span>';
+  } else if (defectCount > 0) {
+    headline = defectCount + ' defect' + (defectCount === 1 ? '' : 's') + ' identified.<br><span class="accent">One programme of works.</span>';
+  } else {
+    headline = 'Survey complete.<br><span class="accent">Ready for next steps.</span>';
+  }
+  const bodyText = clientName
+    ? 'We\'ve laid out what we found at ' + clientName + ' and what we recommend. The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you\'re ready.'
+    : 'We\'ve laid out the findings and what we recommend. The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you\'re ready.';
+
+  return '' +
+  '<section class="report-section section-dark">' +
+    '<span class="eyebrow">06 · Next step</span>' +
+    '<h2 class="cta-headline">' + headline + '</h2>' +
+    '<p class="cta-body">' + escapeHtml(bodyText) + '</p>' +
+  '</section>';
+}
+
+function renderBrandFooter() {
+  return '' +
+  '<footer class="brand-footer">' +
+    '<div class="ft-tagline">Built on experience. Backed by craft.</div>' +
+    '<div class="ft-line">Nova (SW) Limited &middot; Industrial roofing, commercial solar, facilities management</div>' +
+    '<div class="ft-line-small">Registered in England &amp; Wales &middot; nova-limited.com &middot; 0203 479 2994</div>' +
+  '</footer>';
 }
 
 // ---- Toast ----
@@ -1616,7 +1981,7 @@ function showToast(msg, kind) {
   toastTimer = setTimeout(() => { el.hidden = true; }, 2500);
 }
 
-// ---- Small helpers ----
+// ---- Helpers ----
 function todayIso() {
   const d = new Date();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -1644,13 +2009,8 @@ function attr(s) { return escapeHtml(s == null ? '' : s); }
 // ---- Wiring ----
 document.addEventListener('input', (e) => {
   const t = e.target;
-  if (!t || !t.id && t.dataset.defectIdx == null) return;
-  // Per-defect inputs.
-  if (t.dataset && t.dataset.defectIdx != null) {
-    onDefectInput(e);
-    return;
-  }
-  // Auto-uppercase postcode.
+  if (!t || (!t.id && (!t.dataset || t.dataset.defectIdx == null))) return;
+  if (t.dataset && t.dataset.defectIdx != null) { onDefectInput(e); return; }
   if (t.dataset && t.dataset.uppercase) {
     const pos = t.selectionStart;
     const v = t.value.toUpperCase();
@@ -1664,10 +2024,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (!t) return;
-  if (t.dataset && t.dataset.defectIdx != null) {
-    onDefectInput(e);
-    return;
-  }
+  if (t.dataset && t.dataset.defectIdx != null) { onDefectInput(e); return; }
   if (t.id === 'f-asb-register-seen') updateConditionals();
 });
 
