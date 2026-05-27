@@ -219,6 +219,86 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 }
 .add-defect-row { margin-top: 1.25rem; }
 
+/* BUILDING + SLOPE BLOCKS (form editing) */
+.section-hint { font-size: 0.85rem; color: var(--muted); margin: 0.4rem 0 0; }
+.building {
+  background: var(--light); border: 1px solid var(--rule); border-radius: 6px;
+  margin-top: 0.9rem; overflow: hidden;
+}
+.building > summary {
+  list-style: none; cursor: pointer; padding: 0.9rem 1rem;
+  display: flex; align-items: center; gap: 0.75rem; user-select: none;
+  background: var(--paper);
+}
+.building > summary::-webkit-details-marker { display: none; }
+.building-pill {
+  flex: 0 0 auto; background: var(--gold); color: var(--dark);
+  font-weight: 800; font-size: 0.74rem; letter-spacing: 0.06em;
+  padding: 0.3rem 0.55rem; border-radius: 4px;
+}
+.building-name-display { flex: 1; font-weight: 700; font-size: 0.95rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.building-name-display.placeholder { color: var(--muted); font-weight: 500; font-style: italic; }
+.building-chip {
+  font-size: 0.72rem; font-weight: 700; color: var(--muted);
+  padding: 0.22rem 0.55rem; background: var(--light);
+  border: 1px solid var(--rule); border-radius: 999px; white-space: nowrap;
+}
+.building > summary::after { content: '+'; color: var(--muted); font-size: 1.4rem; line-height: 1; }
+.building[open] > summary::after { content: '−'; }
+.building-body { padding: 0.75rem 1rem 0.5rem; border-top: 1px solid var(--rule); background: var(--paper); }
+.building-totals { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; padding: 0.85rem 0 0.5rem; }
+.building-total { font-size: 0.9rem; color: var(--ink); }
+.building-total strong { color: var(--gold); font-weight: 800; font-size: 1rem; margin-left: 0.25rem; }
+.building-footer {
+  display: flex; justify-content: flex-end; padding: 0.5rem 1rem 1rem;
+  background: var(--paper); border-top: 1px solid var(--rule);
+}
+.add-building-row { margin-top: 1.25rem; }
+
+.slope-section { margin-top: 1.1rem; }
+.slope-section-label {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--gold); margin-bottom: 0.55rem;
+}
+.slope-panel.shared {
+  border: 1px solid rgba(232,160,32,0.45);
+  background: rgba(232,160,32,0.04);
+  border-radius: 6px; padding: 0.85rem 1rem 1rem;
+}
+.slope-block {
+  background: white; border: 1px solid var(--rule); border-radius: 6px;
+  margin-top: 0.75rem; overflow: hidden;
+}
+.slope-block > summary {
+  list-style: none; cursor: pointer; padding: 0.7rem 0.9rem;
+  display: flex; align-items: center; gap: 0.7rem; user-select: none;
+}
+.slope-block > summary::-webkit-details-marker { display: none; }
+.slope-pill {
+  flex: 0 0 auto; background: var(--gold); color: var(--dark);
+  font-weight: 800; font-size: 0.7rem; letter-spacing: 0.06em;
+  padding: 0.2rem 0.45rem; border-radius: 4px;
+}
+.slope-title { flex: 1; font-weight: 600; font-size: 0.9rem; color: var(--ink); }
+.slope-chip { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+.slope-block > summary::after { content: '+'; color: var(--muted); font-size: 1.3rem; line-height: 1; }
+.slope-block[open] > summary::after { content: '−'; }
+.slope-block-body { padding: 0.5rem 0.9rem 0.95rem; border-top: 1px solid var(--rule); }
+
+.calc-readout {
+  padding: 0.7rem 0.85rem; border-radius: 6px;
+  background: rgba(232,160,32,0.08);
+  border: 1px solid rgba(232,160,32,0.4);
+  color: var(--gold); font-weight: 800; font-size: 0.95rem; letter-spacing: 0.01em;
+}
+.survey-roof-total {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.1rem 1.25rem; background: var(--dark); color: white;
+  border-radius: 6px; margin-top: 1.25rem; gap: 1rem; flex-wrap: wrap;
+}
+.survey-roof-total-label { font-size: 0.74rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.7); }
+.survey-roof-total-value { font-size: 1.5rem; font-weight: 900; color: var(--gold); letter-spacing: -0.01em; }
+
 /* SEVERITY PILL (form / list) */
 .pill {
   display: inline-block; padding: 0.18rem 0.55rem; border-radius: 999px;
@@ -640,6 +720,45 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   background: var(--light);
 }
 
+/* ROOF GEOMETRY (report) */
+.roof-geo-building {
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: 6px; margin-top: 1rem; overflow: hidden;
+}
+.roof-geo-header {
+  background: var(--light); padding: 0.85rem 1.25rem;
+  display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap;
+}
+.roof-geo-pill {
+  background: var(--gold); color: var(--dark);
+  font-weight: 800; font-size: 12px; letter-spacing: 0.08em;
+  padding: 0.3rem 0.6rem; border-radius: 4px;
+}
+.roof-geo-name { flex: 1; font-weight: 700; font-size: 17px; color: var(--ink); }
+.roof-geo-total { font-weight: 800; color: var(--gold); font-size: 16px; }
+.roof-geo-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.roof-geo-table th {
+  background: var(--paper); text-align: left;
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  font-weight: 800; color: var(--gold);
+  padding: 0.6rem 1.25rem 0.4rem; border-bottom: 1px solid var(--rule);
+}
+.roof-geo-table td {
+  padding: 0.6rem 1.25rem; border-bottom: 1px solid var(--rule); color: var(--ink);
+  vertical-align: top;
+}
+.roof-geo-table tr:last-child td { border-bottom: none; }
+.roof-geo-table td.num { text-align: right; white-space: nowrap; }
+.roof-geo-table td.area { font-weight: 800; color: var(--gold); }
+.roof-geo-table td.notes { font-style: italic; color: var(--muted); font-size: 13px; padding-top: 0; padding-bottom: 0.85rem; }
+.roof-geo-survey-total {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 1.25rem; padding: 1rem 1.25rem;
+  background: var(--dark); color: white; border-radius: 6px; gap: 1rem; flex-wrap: wrap;
+}
+.roof-geo-survey-total span { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 800; color: rgba(255,255,255,0.78); }
+.roof-geo-survey-total strong { color: var(--gold); font-weight: 900; font-size: 22px; letter-spacing: -0.01em; }
+
 /* SUMMARY TABLES */
 .summary-tables {
   display: grid;
@@ -880,14 +999,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
               <input type="number" id="f-roof-area" min="0" inputmode="numeric">
             </div>
           </div>
-          <div class="field-row three">
+          <div class="field-row">
             <div class="field">
               <label for="f-num-buildings">Number of buildings</label>
               <input type="number" id="f-num-buildings" min="1" value="1" inputmode="numeric">
-            </div>
-            <div class="field">
-              <label for="f-eaves-height">Eaves height (m)</label>
-              <input type="number" id="f-eaves-height" min="0" step="0.1" inputmode="decimal">
+              <span class="hint">Informational; detailed per-building geometry is captured in Section B2.</span>
             </div>
             <div class="field"></div>
           </div>
@@ -916,6 +1032,21 @@ main { padding-bottom: env(safe-area-inset-bottom); }
                 <option>Unknown</option>
               </select>
             </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="section" id="section-b2">
+        <summary>Section B2 — Buildings &amp; Slopes</summary>
+        <div class="section-body">
+          <p class="section-hint">Add a building for each separately measurable structure. For each, set the slope count — if symmetrical, keep "All slopes equal" ticked to enter one set of dimensions multiplied across the roof.</p>
+          <div id="buildings-list"></div>
+          <div class="add-building-row">
+            <button type="button" class="btn btn-ghost" onclick="addBuilding()">+ Add Building</button>
+          </div>
+          <div class="survey-roof-total">
+            <span class="survey-roof-total-label">Total roof area across all buildings</span>
+            <span class="survey-roof-total-value" id="survey-roof-total-value">— m²</span>
           </div>
         </div>
       </details>
@@ -1119,7 +1250,7 @@ const FIELDS = {
   ],
   textarea: ['f-site-address', 'f-works-description',
              'f-executive-summary', 'f-next-steps'],
-  number: ['f-roof-area', 'f-eaves-height', 'f-num-buildings', 'f-remaining-life'],
+  number: ['f-roof-area', 'f-num-buildings', 'f-remaining-life'],
   checkbox: ['f-edge-protection', 'f-live-services', 'f-adjacent-public',
              'f-asb-register-seen', 'f-asb-sampling']
 };
@@ -1130,6 +1261,10 @@ const SEVERITY_OPTIONS = ['Critical', 'High', 'Medium', 'Low', 'Note Only'];
 const COST_BAND_OPTIONS = ['Under £1k', '£1k-£5k', '£5k-£20k', '£20k-£50k', '£50k+', 'TBC'];
 const PRIORITY_OPTIONS = ['Immediate', 'Within 6 months', 'Within 12 months', 'Within 5 years', 'Monitor'];
 
+// Roof geometry
+const PITCH_OPTIONS = ['Pitched', 'Mono-pitch', 'Lean-to', 'Flat'];
+const SLOPE_FIELDS = ['pitch', 'length', 'span', 'eaves', 'ridge', 'notes'];
+
 // Inline chevron SVG — used as the gold marker beside every report section title.
 // Stroke uses the literal #e8a020 so it survives the brand-token rename safely
 // (CSS variables aren't reachable inside an SVG used as inline markup like this).
@@ -1138,6 +1273,7 @@ const CHEVRON_SVG = '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 
 // ---- State ----
 let currentSurveyId = null;
 let currentDefects = [];
+let currentBuildings = [];
 let autosaveTimer = null;
 let toastTimer = null;
 let reportSurveyId = null;
@@ -1186,11 +1322,15 @@ function goHome() {
 function goToNewSurvey() {
   currentSurveyId = null;
   currentDefects = [];
+  currentBuildings = [];
   resetForm();
   const draft = loadDraft();
   if (draft && (Object.keys(draft).length > 0)) {
     populateForm(draft);
     currentDefects = Array.isArray(draft.defects) ? draft.defects.slice() : [];
+    currentBuildings = Array.isArray(draft.buildings)
+      ? draft.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(s => ({ ...s })) }))
+      : [];
     showToast('Draft restored', 'ok');
   } else {
     document.getElementById('f-visit-date').value = todayIso();
@@ -1201,6 +1341,7 @@ function goToNewSurvey() {
   document.getElementById('form-meta').textContent = '';
   document.getElementById('f-ref-readout').textContent = '— assigned on save —';
   renderDefects();
+  renderBuildings();
   updateConditionals();
   startAutoSave();
   showView('form');
@@ -1221,10 +1362,14 @@ function editCurrent() {
   resetForm();
   populateForm(s);
   currentDefects = Array.isArray(s.defects) ? s.defects.map(d => ({ ...d })) : [];
+  currentBuildings = Array.isArray(s.buildings)
+    ? s.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(sl => ({ ...sl })) }))
+    : [];
   document.getElementById('form-title').textContent = 'Edit survey';
   document.getElementById('form-meta').textContent = s.id + ' · created ' + fmtDate(s.createdAt);
   document.getElementById('f-ref-readout').textContent = s.id;
   renderDefects();
+  renderBuildings();
   updateConditionals();
   startAutoSave();
   showView('form');
@@ -1245,7 +1390,7 @@ function cancelEdit() {
     const data = collectFormData();
     const hasAny = Object.values(data).some(v =>
       v !== '' && v !== false && v !== 0 && v !== null && v !== undefined && v !== '1' && v !== 'Jamie Gibbs'
-    ) || currentDefects.length > 0;
+    ) || currentDefects.length > 0 || currentBuildings.length > 0;
     if (hasAny && !confirm('Discard this survey draft?')) return;
     clearDraft();
   }
@@ -1280,6 +1425,10 @@ function collectFormData() {
   }
   for (const id of FIELDS.checkbox) out[id] = !!(document.getElementById(id) || {}).checked;
   out.defects = currentDefects.map(d => ({ ...d }));
+  out.buildings = currentBuildings.map(b => ({
+    ...b,
+    slopes: (b.slopes || []).map(s => ({ ...s }))
+  }));
   return out;
 }
 function populateForm(data) {
@@ -1533,11 +1682,13 @@ function startAutoSave() {
     const data = collectFormData();
     const ignoreSurveyor = (data['f-surveyor-name'] === 'Jamie Gibbs');
     const fieldsHaveAny = Object.entries(data).some(([k, v]) => {
-      if (k === 'defects') return false;
+      if (k === 'defects' || k === 'buildings') return false;
       if (k === 'f-surveyor-name' && ignoreSurveyor) return false;
       return v !== '' && v !== false && v !== 0 && v !== null && v !== undefined && v !== '1';
     });
-    const hasAny = fieldsHaveAny || (data.defects && data.defects.length > 0);
+    const hasAny = fieldsHaveAny
+      || (data.defects && data.defects.length > 0)
+      || (data.buildings && data.buildings.length > 0);
     if (hasAny) {
       saveDraft(data);
       const ind = document.getElementById('draft-indicator');
@@ -1600,7 +1751,6 @@ function renderDetailBlocks(s) {
       ['Roof type', s['f-roof-type']],
       ['Roof area (m²)', s['f-roof-area']],
       ['Number of buildings', s['f-num-buildings']],
-      ['Eaves height (m)', s['f-eaves-height']],
       ['Approximate age', s['f-age']],
       ['Construction type', s['f-construction-type']]
     ]],
@@ -1641,6 +1791,24 @@ function renderDetailBlocks(s) {
   }
   if (s['f-next-steps']) {
     html += '<div class="detail-block" style="margin-top:1rem;"><h3>Next steps</h3><div class="detail-notes">' + escapeHtml(s['f-next-steps']) + '</div></div>';
+  }
+  const buildings = Array.isArray(s.buildings) ? s.buildings : [];
+  if (buildings.length) {
+    html += '<div class="detail-block" style="margin-top:1rem;"><h3>Roof geometry (' + buildings.length + ' building' + (buildings.length === 1 ? '' : 's') + ')</h3>';
+    buildings.forEach(b => {
+      const tot = buildingTotalArea(b);
+      const sw = b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's');
+      html += '<div class="detail-row">' +
+        '<span class="k">' + escapeHtml(b.id + ' — ' + (b.name || 'Untitled')) + '</span>' +
+        '<span class="v">' + escapeHtml(sw + ' · ' + (tot == null ? '— m²' : fmtAreaDisp(tot))) + '</span>' +
+      '</div>';
+    });
+    const surveyTot = surveyTotalRoofArea(buildings);
+    html += '<div class="detail-row" style="border-top:2px solid var(--rule);padding-top:0.6rem;margin-top:0.3rem;">' +
+      '<span class="k"><strong>Survey total</strong></span>' +
+      '<span class="v" style="color:var(--gold);font-weight:800;">' + (surveyTot == null ? '— m²' : fmtAreaDisp(surveyTot)) + '</span>' +
+    '</div>';
+    html += '</div>';
   }
   const defects = Array.isArray(s.defects) ? s.defects : [];
   html += '<div class="detail-block" style="margin-top:1rem;"><h3>Defects (' + defects.length + ')</h3>';
@@ -1695,14 +1863,22 @@ function renderReport(id) {
   const recommendation = s['f-recommendation']    || 'TBC';
   const totalCost      = s['f-total-cost-band']   || 'TBC';
 
+  const buildings = Array.isArray(s.buildings) ? s.buildings : [];
+
+  // Dynamic section numbering — sections that depend on data are skipped when
+  // empty, so the visible numbering stays gapless (01, 02, 03, …).
+  let sectionCounter = 0;
+  const nextNum = () => String(++sectionCounter).padStart(2, '0');
+
   let html = '<div class="report">';
   html += renderCover(s, defects, sevCounts, clientLine, visitDateStr, refDisplay, overallRating, recommendation);
-  html += renderExecSummary(s, overallRating);
-  html += renderSiteInfo(s);
-  if (defects.length) html += renderDefectsSchedule(defects);
-  html += renderFindingsAtAGlance(defects, sevCounts, costCounts);
-  html += renderRecommendationSection(s, recommendation, totalCost, overallRating);
-  html += renderCta(s, defects, recommendation);
+  html += renderExecSummary(s, overallRating, nextNum());
+  html += renderSiteInfo(s, nextNum());
+  if (buildings.length) html += renderRoofGeometry(buildings, nextNum());
+  if (defects.length) html += renderDefectsSchedule(defects, nextNum());
+  html += renderFindingsAtAGlance(defects, sevCounts, costCounts, nextNum());
+  html += renderRecommendationSection(s, recommendation, totalCost, overallRating, nextNum());
+  html += renderCta(s, defects, recommendation, nextNum());
   html += renderBrandFooter();
   html += '</div>';
   body.innerHTML = html;
@@ -1759,7 +1935,7 @@ function renderCover(s, defects, sevCounts, clientLine, dateStr, ref, rating, re
   '</section>';
 }
 
-function renderExecSummary(s, rating) {
+function renderExecSummary(s, rating, num) {
   const summary = s['f-executive-summary'];
   const remaining = s['f-remaining-life'];
   let asideHtml = '';
@@ -1779,7 +1955,7 @@ function renderExecSummary(s, rating) {
 
   return '' +
   '<section class="report-section section-light">' +
-    '<span class="eyebrow">01 · Executive Summary</span>' +
+    '<span class="eyebrow">' + num + ' · Executive Summary</span>' +
     '<h2 class="r-title">' + CHEVRON_SVG + '<span>The picture at a glance.</span></h2>' +
     '<div class="r-grid">' +
       '<div>' + bodyHtml + '</div>' +
@@ -1788,7 +1964,7 @@ function renderExecSummary(s, rating) {
   '</section>';
 }
 
-function renderSiteInfo(s) {
+function renderSiteInfo(s, num) {
   const items = [
     ['Client',         (s['f-client-company'] || s['f-client-name'] || '')],
     ['Contact',        (s['f-client-name'] && s['f-client-company']) ? s['f-client-name'] : ''],
@@ -1816,13 +1992,77 @@ function renderSiteInfo(s) {
 
   return '' +
   '<section class="report-section section-light-tone">' +
-    '<span class="eyebrow">02 · Site Information</span>' +
+    '<span class="eyebrow">' + num + ' · Site Information</span>' +
     '<h2 class="r-title">' + CHEVRON_SVG + '<span>The site.</span></h2>' +
     infoHtml +
   '</section>';
 }
 
-function renderDefectsSchedule(defects) {
+function renderRoofGeometry(buildings, num) {
+  let html = '<section class="report-section section-light">';
+  html += '<span class="eyebrow">' + num + ' · Roof Geometry</span>';
+  html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>The roof, measured.</span></h2>';
+  html += '<div class="r-body" style="margin-bottom:0.5rem;"><p>' +
+    buildings.length + ' building' + (buildings.length === 1 ? '' : 's') +
+    ' captured. Slope length is computed via Pythagoras from span, eaves and ridge; area is length along eaves × slope length.' +
+    '</p></div>';
+
+  buildings.forEach(b => {
+    const tot = buildingTotalArea(b);
+    const slopeWord = b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's');
+    html += '<div class="roof-geo-building">' +
+      '<div class="roof-geo-header">' +
+        '<span class="roof-geo-pill">' + escapeHtml(b.id) + '</span>' +
+        '<span class="roof-geo-name">' + escapeHtml(b.name || 'Untitled building') + '</span>' +
+        '<span class="roof-geo-total">' + escapeHtml(slopeWord) + ' · ' + fmtAreaDisp(tot) + '</span>' +
+      '</div>' +
+      '<table class="roof-geo-table"><thead><tr>' +
+        '<th>Ref</th><th>Pitch</th><th>L × Span</th><th>Eaves → Ridge</th><th>Slope length</th><th>Area</th>' +
+      '</tr></thead><tbody>';
+
+    const rowFor = (s, refLabel, areaLabel) => {
+      const sl = calcSlopeLength(s);
+      const a  = calcSlopeArea(s);
+      const ridgePart = s.pitch === 'Flat' ? '—'
+        : ((s.eaves !== '' && s.eaves != null ? s.eaves : '—') + ' → ' + (s.ridge !== '' && s.ridge != null ? s.ridge : '—'));
+      const lxs = ((s.length !== '' && s.length != null ? s.length : '—') + ' × ' + (s.span !== '' && s.span != null ? s.span : '—'));
+      let row = '<tr>' +
+        '<td>' + escapeHtml(refLabel) + '</td>' +
+        '<td>' + escapeHtml(s.pitch || '—') + '</td>' +
+        '<td class="num">' + escapeHtml(lxs) + '</td>' +
+        '<td class="num">' + escapeHtml(ridgePart) + '</td>' +
+        '<td class="num">' + fmtSlopeLengthDisp(sl) + '</td>' +
+        '<td class="num area">' + areaLabel + '</td>' +
+      '</tr>';
+      if (s.notes) {
+        row += '<tr><td colspan="6" class="notes">' + escapeHtml(s.notes) + '</td></tr>';
+      }
+      return row;
+    };
+
+    if (b.allEqual) {
+      const s0 = b.slopes[0];
+      const a  = calcSlopeArea(s0);
+      const areaLabel = (a == null)
+        ? '—'
+        : fmtAreaDisp(a) + '  × ' + b.slopeCount + ' = ' + fmtAreaDisp(tot);
+      html += rowFor(s0, '×' + b.slopeCount + ' equal', areaLabel);
+    } else {
+      b.slopes.forEach(s2 => { html += rowFor(s2, s2.id, fmtAreaDisp(calcSlopeArea(s2))); });
+    }
+    html += '</tbody></table></div>';
+  });
+
+  const surveyTot = surveyTotalRoofArea(buildings);
+  html += '<div class="roof-geo-survey-total">' +
+    '<span>Total roof area across all buildings</span>' +
+    '<strong>' + fmtAreaDisp(surveyTot) + '</strong>' +
+  '</div>';
+  html += '</section>';
+  return html;
+}
+
+function renderDefectsSchedule(defects, num) {
   let cardsHtml = '';
   defects.forEach((d, i) => {
     const sc = severitySectionClass(d.severity);
@@ -1853,7 +2093,7 @@ function renderDefectsSchedule(defects) {
 
   return '' +
   '<section class="report-section section-light">' +
-    '<span class="eyebrow">03 · Defects Schedule</span>' +
+    '<span class="eyebrow">' + num + ' · Defects Schedule</span>' +
     '<h2 class="r-title">' + CHEVRON_SVG + '<span>What we found.</span></h2>' +
     '<div class="r-body" style="margin-bottom:0.5rem;"><p>' + defects.length + ' defect' + (defects.length === 1 ? '' : 's') + ' recorded during the visit. Each is described below with the recommended action and indicative cost band.</p></div>' +
     cardsHtml +
@@ -1872,10 +2112,10 @@ function renderDefectPhotos(photoUrlsRaw) {
   return html;
 }
 
-function renderFindingsAtAGlance(defects, sevCounts, costCounts) {
+function renderFindingsAtAGlance(defects, sevCounts, costCounts, num) {
   let html = '';
   html += '<section class="report-section section-light-tone">';
-  html += '<span class="eyebrow">04 · Findings at a glance</span>';
+  html += '<span class="eyebrow">' + num + ' · Findings at a glance</span>';
   html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>By the numbers.</span></h2>';
 
   if (!defects.length) {
@@ -1918,12 +2158,12 @@ function renderFindingsAtAGlance(defects, sevCounts, costCounts) {
   return html;
 }
 
-function renderRecommendationSection(s, recommendation, totalCost, rating) {
+function renderRecommendationSection(s, recommendation, totalCost, rating, num) {
   const nextSteps = s['f-next-steps'];
   const remaining = s['f-remaining-life'];
 
   let html = '<section class="report-section section-dark">';
-  html += '<span class="eyebrow">05 · Recommendation</span>';
+  html += '<span class="eyebrow">' + num + ' · Recommendation</span>';
   html += '<h1 class="recommendation-headline">' + escapeHtml(recommendation) + '.</h1>';
   html += '<div class="r-body">';
   const intro = [];
@@ -1939,7 +2179,7 @@ function renderRecommendationSection(s, recommendation, totalCost, rating) {
   return html;
 }
 
-function renderCta(s, defects, recommendation) {
+function renderCta(s, defects, recommendation, num) {
   const clientName = (s['f-client-company'] || s['f-client-name'] || '').trim();
   const defectCount = defects.length;
   let headline;
@@ -1956,7 +2196,7 @@ function renderCta(s, defects, recommendation) {
 
   return '' +
   '<section class="report-section section-dark">' +
-    '<span class="eyebrow">06 · Next step</span>' +
+    '<span class="eyebrow">' + num + ' · Next step</span>' +
     '<h2 class="cta-headline">' + headline + '</h2>' +
     '<p class="cta-body">' + escapeHtml(bodyText) + '</p>' +
   '</section>';
@@ -1969,6 +2209,394 @@ function renderBrandFooter() {
     '<div class="ft-line">Nova (SW) Limited &middot; Industrial roofing, commercial solar, facilities management</div>' +
     '<div class="ft-line-small">Registered in England &amp; Wales &middot; nova-limited.com &middot; 0203 479 2994</div>' +
   '</footer>';
+}
+
+// ============================================================
+// ROOF GEOMETRY — buildings → slopes hierarchy
+// ============================================================
+
+function nextBuildingId(buildings) {
+  let max = 0;
+  for (const b of (buildings || [])) {
+    const m = String(b.id || '').match(/^B(\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return 'B' + (max + 1);
+}
+function makeBlankSlope(id) {
+  return { id: id || 'S1', pitch: 'Pitched', length: '', span: '', eaves: '', ridge: '', notes: '' };
+}
+function makeBlankBuilding(id) {
+  return { id, name: '', slopeCount: 2, allEqual: true, slopes: [makeBlankSlope('S1')] };
+}
+
+// Calculations. All inputs may be strings (from form) or numbers (loaded).
+// Returns null when required inputs are missing/invalid, so display can show "—".
+function calcSlopeLength(slope) {
+  if (!slope) return null;
+  const pitch = slope.pitch || '';
+  const span  = Number(slope.span);
+  const eaves = Number(slope.eaves);
+  const ridge = Number(slope.ridge);
+  const have = (raw, num) => raw !== '' && raw != null && isFinite(num);
+  if (pitch === 'Flat') {
+    if (!have(slope.span, span)) return null;
+    return span;
+  }
+  if (!have(slope.span, span) || !have(slope.eaves, eaves) || !have(slope.ridge, ridge)) return null;
+  const rise = ridge - eaves;
+  return Math.sqrt(rise * rise + span * span);
+}
+function calcSlopeArea(slope) {
+  const sl = calcSlopeLength(slope);
+  if (sl == null) return null;
+  const len = Number(slope.length);
+  if (slope.length === '' || slope.length == null || !isFinite(len)) return null;
+  return len * sl;
+}
+function buildingTotalArea(b) {
+  if (!b || !Array.isArray(b.slopes) || !b.slopes.length) return null;
+  if (b.allEqual) {
+    const a = calcSlopeArea(b.slopes[0]);
+    if (a == null) return null;
+    const count = Number(b.slopeCount);
+    if (!isFinite(count) || count < 1) return null;
+    return a * count;
+  }
+  let any = false; let sum = 0;
+  for (const s of b.slopes) {
+    const a = calcSlopeArea(s);
+    if (a == null) continue;
+    sum += a; any = true;
+  }
+  return any ? sum : null;
+}
+function surveyTotalRoofArea(buildings) {
+  let any = false; let sum = 0;
+  for (const b of (buildings || [])) {
+    const t = buildingTotalArea(b);
+    if (t == null) continue;
+    sum += t; any = true;
+  }
+  return any ? sum : null;
+}
+
+// Display formatters — slope length is rounded, areas are truncated to match
+// the surveyor's hand-calc convention (e.g. 30 × sqrt(153) → 371.07 m²).
+function fmtSlopeLengthDisp(n) {
+  if (n == null) return '—';
+  return (Math.round(n * 100) / 100).toFixed(2) + ' m';
+}
+function fmtAreaDisp(n) {
+  if (n == null) return '—';
+  return (Math.floor(n * 100) / 100).toFixed(2) + ' m²';
+}
+
+// ---- Building/slope mutation ----
+function slopesDiffer(slopes) {
+  if (!slopes || slopes.length < 2) return false;
+  const ref = slopes[0];
+  for (let i = 1; i < slopes.length; i++) {
+    const s = slopes[i];
+    for (const f of SLOPE_FIELDS) {
+      if (String(s[f] || '') !== String(ref[f] || '')) return true;
+    }
+  }
+  return false;
+}
+function addBuilding() {
+  const id = nextBuildingId(currentBuildings);
+  currentBuildings.push(makeBlankBuilding(id));
+  renderBuildings();
+  const newEl = document.querySelector('details.building[data-building-idx="' + (currentBuildings.length - 1) + '"]');
+  if (newEl) {
+    newEl.open = true;
+    const firstInput = newEl.querySelector('input[data-building-field="name"]');
+    if (firstInput) firstInput.focus();
+  }
+}
+function removeBuilding(idx) {
+  if (!confirm('Remove this building? This deletes the building and all its slopes.')) return;
+  currentBuildings.splice(idx, 1);
+  renderBuildings();
+}
+
+// ---- Building rendering ----
+function renderBuildings() {
+  const list = document.getElementById('buildings-list');
+  if (!list) return;
+  if (currentBuildings.length === 0) {
+    list.innerHTML = '<div class="defects-empty">No buildings recorded yet. Tap <strong>+ Add Building</strong> to start.</div>';
+    updateSurveyRoofTotalDisplay();
+    return;
+  }
+  list.innerHTML = currentBuildings.map((b, i) => renderBuildingHtml(b, i)).join('');
+  updateSurveyRoofTotalDisplay();
+}
+function renderBuildingHtml(b, idx) {
+  const total = buildingTotalArea(b);
+  const slopeWord = b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's');
+  const chipText = slopeWord + ' · ' + (total == null ? '— m²' : fmtAreaDisp(total));
+  const titleHtml = b.name
+    ? '<span class="building-name-display">' + escapeHtml(b.name) + '</span>'
+    : '<span class="building-name-display placeholder">New building — fill in details below</span>';
+
+  const slopesHtml = b.allEqual ? renderSharedSlopePanel(b, idx) : b.slopes.map((s, si) => renderSlopeBlockHtml(b, idx, s, si)).join('');
+  const totalsHtml = b.allEqual ? renderSingleSlopeTotals(b) : renderUnequalTotal(b);
+
+  return '<details class="building" data-building-idx="' + idx + '" open>' +
+    '<summary>' +
+      '<span class="building-pill">' + escapeHtml(b.id) + '</span>' +
+      titleHtml +
+      '<span class="building-chip">' + escapeHtml(chipText) + '</span>' +
+    '</summary>' +
+    '<div class="building-body">' +
+      '<div class="field-row">' +
+        '<div class="field"><label>Building name</label>' +
+          '<input type="text" data-building-idx="' + idx + '" data-building-field="name" value="' + attr(b.name) + '" placeholder="e.g. Main warehouse, North annexe, Workshop"></div>' +
+        '<div class="field"><label>Number of slopes</label>' +
+          '<input type="number" min="1" inputmode="numeric" data-building-idx="' + idx + '" data-building-field="slopeCount" value="' + attr(b.slopeCount) + '"></div>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label class="checkbox">' +
+          '<input type="checkbox" data-building-idx="' + idx + '" data-building-field="allEqual"' + (b.allEqual ? ' checked' : '') + '>' +
+          '<span>All slopes equal (enter one set of dimensions, multiplied by slope count)</span>' +
+        '</label>' +
+      '</div>' +
+      slopesHtml +
+      '<div class="building-totals" data-building-totals="' + idx + '">' + totalsHtml + '</div>' +
+    '</div>' +
+    '<div class="building-footer">' +
+      '<button type="button" class="btn btn-danger" data-action="remove-building" data-building-idx="' + idx + '">Remove building</button>' +
+    '</div>' +
+  '</details>';
+}
+function renderSharedSlopePanel(b, idx) {
+  const s = b.slopes[0];
+  const isFlat = s.pitch === 'Flat';
+  const sl = calcSlopeLength(s);
+  const a  = calcSlopeArea(s);
+  return '<div class="slope-section">' +
+    '<div class="slope-section-label">All slopes (×' + b.slopeCount + ')</div>' +
+    '<div class="slope-panel shared">' +
+      renderSlopeFields(idx, 0, s, isFlat) +
+      '<div class="field-row">' +
+        '<div class="field"><label>Slope length (m)</label>' +
+          '<div class="calc-readout" data-readout="slope-length" data-bi="' + idx + '" data-si="0">' + fmtSlopeLengthDisp(sl) + '</div></div>' +
+        '<div class="field"><label>Single slope area (m²)</label>' +
+          '<div class="calc-readout" data-readout="slope-area" data-bi="' + idx + '" data-si="0">' + fmtAreaDisp(a) + '</div></div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+function renderSlopeBlockHtml(b, bIdx, s, sIdx) {
+  const isFlat = s.pitch === 'Flat';
+  const sl = calcSlopeLength(s);
+  const a  = calcSlopeArea(s);
+  const parts = []; if (s.pitch) parts.push(s.pitch); parts.push(fmtAreaDisp(a));
+  return '<details class="slope-block" data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" open>' +
+    '<summary>' +
+      '<span class="slope-pill">' + escapeHtml(s.id) + '</span>' +
+      '<span class="slope-title">' + escapeHtml(s.pitch || 'New slope') + '</span>' +
+      '<span class="slope-chip">' + escapeHtml(parts.join(' · ')) + '</span>' +
+    '</summary>' +
+    '<div class="slope-block-body">' +
+      renderSlopeFields(bIdx, sIdx, s, isFlat) +
+      '<div class="field-row">' +
+        '<div class="field"><label>Slope length (m)</label>' +
+          '<div class="calc-readout" data-readout="slope-length" data-bi="' + bIdx + '" data-si="' + sIdx + '">' + fmtSlopeLengthDisp(sl) + '</div></div>' +
+        '<div class="field"><label>Slope area (m²)</label>' +
+          '<div class="calc-readout" data-readout="slope-area" data-bi="' + bIdx + '" data-si="' + sIdx + '">' + fmtAreaDisp(a) + '</div></div>' +
+      '</div>' +
+    '</div>' +
+  '</details>';
+}
+function renderSlopeFields(bIdx, sIdx, s, isFlat) {
+  const opts = ['<option value="">—</option>']
+    .concat(PITCH_OPTIONS.map(o => '<option' + (o === s.pitch ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'))
+    .join('');
+  return '<div class="field"><label>Pitch type</label>' +
+    '<select data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" data-slope-field="pitch">' + opts + '</select></div>' +
+  '<div class="field-row">' +
+    '<div class="field"><label>Length along eaves (m)</label>' +
+      '<input type="number" step="0.1" min="0" inputmode="decimal" data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" data-slope-field="length" value="' + attr(s.length) + '"></div>' +
+    '<div class="field"><label>Span (m)</label>' +
+      '<input type="number" step="0.1" min="0" inputmode="decimal" data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" data-slope-field="span" value="' + attr(s.span) + '">' +
+      '<span class="hint">Horizontal distance eaves to apex (pitched) or eaves to opposite eaves (flat).</span></div>' +
+  '</div>' +
+  '<div class="field-row">' +
+    '<div class="field"><label>Eaves height (m)</label>' +
+      '<input type="number" step="0.1" min="0" inputmode="decimal" data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" data-slope-field="eaves" value="' + attr(s.eaves) + '"></div>' +
+    '<div class="field" data-slope-cond="ridge"' + (isFlat ? ' hidden' : '') + '><label>Ridge height (m)</label>' +
+      '<input type="number" step="0.1" min="0" inputmode="decimal" data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" data-slope-field="ridge" value="' + attr(s.ridge) + '"></div>' +
+  '</div>' +
+  '<div class="field"><label>Notes</label>' +
+    '<textarea rows="2" data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" data-slope-field="notes" placeholder="Anything measurement-relevant for this slope.">' + escapeHtml(s.notes || '') + '</textarea></div>';
+}
+function renderSingleSlopeTotals(b) {
+  const single = calcSlopeArea(b.slopes[0]);
+  const tot = buildingTotalArea(b);
+  return '<div class="building-total">Single slope area: <strong data-single-area="">' + fmtAreaDisp(single) + '</strong></div>' +
+    '<div class="building-total">Total for this building (×' + b.slopeCount + '): <strong data-building-area="">' + fmtAreaDisp(tot) + '</strong></div>';
+}
+function renderUnequalTotal(b) {
+  const tot = buildingTotalArea(b);
+  return '<div class="building-total">Total for this building: <strong data-building-area="">' + fmtAreaDisp(tot) + '</strong></div>';
+}
+
+// ---- Live-recalc helpers (avoid re-rendering on every keystroke) ----
+function updateSlopeReadouts(bi, si) {
+  const b = currentBuildings[bi]; if (!b) return;
+  const s = b.slopes[si]; if (!s) return;
+  const sl = calcSlopeLength(s);
+  const a  = calcSlopeArea(s);
+  document.querySelectorAll('[data-readout="slope-length"][data-bi="' + bi + '"][data-si="' + si + '"]').forEach(el => { el.textContent = fmtSlopeLengthDisp(sl); });
+  document.querySelectorAll('[data-readout="slope-area"][data-bi="' + bi + '"][data-si="' + si + '"]').forEach(el => { el.textContent = fmtAreaDisp(a); });
+}
+function updateBuildingTotalsRow(bi) {
+  const b = currentBuildings[bi]; if (!b) return;
+  const row = document.querySelector('[data-building-totals="' + bi + '"]');
+  if (!row) return;
+  if (b.allEqual) {
+    const singleEl = row.querySelector('[data-single-area]');
+    if (singleEl) singleEl.textContent = fmtAreaDisp(calcSlopeArea(b.slopes[0]));
+  }
+  const totEl = row.querySelector('[data-building-area]');
+  if (totEl) totEl.textContent = fmtAreaDisp(buildingTotalArea(b));
+}
+function updateBuildingSummaryChip(bi) {
+  const b = currentBuildings[bi]; if (!b) return;
+  const detail = document.querySelector('details.building[data-building-idx="' + bi + '"]');
+  if (!detail) return;
+  const total = buildingTotalArea(b);
+  const slopeWord = b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's');
+  const chip = detail.querySelector(':scope > summary .building-chip');
+  if (chip) chip.textContent = slopeWord + ' · ' + (total == null ? '— m²' : fmtAreaDisp(total));
+  const nameEl = detail.querySelector(':scope > summary .building-name-display');
+  if (nameEl) {
+    if (b.name) { nameEl.classList.remove('placeholder'); nameEl.textContent = b.name; }
+    else { nameEl.classList.add('placeholder'); nameEl.textContent = 'New building — fill in details below'; }
+  }
+}
+function updateSlopeSummaryChip(bi, si) {
+  const b = currentBuildings[bi]; if (!b || b.allEqual) return;
+  const s = b.slopes[si]; if (!s) return;
+  const block = document.querySelector('details.slope-block[data-building-idx="' + bi + '"][data-slope-idx="' + si + '"]');
+  if (!block) return;
+  const titleEl = block.querySelector(':scope > summary .slope-title');
+  if (titleEl) titleEl.textContent = s.pitch || 'New slope';
+  const chipEl = block.querySelector(':scope > summary .slope-chip');
+  if (chipEl) {
+    const a = calcSlopeArea(s);
+    const parts = []; if (s.pitch) parts.push(s.pitch); parts.push(fmtAreaDisp(a));
+    chipEl.textContent = parts.join(' · ');
+  }
+}
+function updateSurveyRoofTotalDisplay() {
+  const el = document.getElementById('survey-roof-total-value');
+  if (!el) return;
+  const t = surveyTotalRoofArea(currentBuildings);
+  el.textContent = t == null ? '— m²' : fmtAreaDisp(t);
+}
+
+// ---- Building/slope input handler ----
+function onBuildingInput(e) {
+  const t = e.target;
+  if (!t || !t.dataset) return;
+
+  // Building-level field
+  if (t.dataset.buildingField) {
+    const bi = Number(t.dataset.buildingIdx);
+    const field = t.dataset.buildingField;
+    const b = currentBuildings[bi];
+    if (!b) return;
+
+    if (field === 'name') {
+      b.name = t.value;
+      updateBuildingSummaryChip(bi);
+      return;
+    }
+
+    if (field === 'slopeCount') {
+      const newCount = Math.max(1, parseInt(t.value, 10) || 1);
+      if (b.allEqual) {
+        b.slopeCount = newCount;
+        renderBuildings();
+        return;
+      }
+      const oldCount = b.slopes.length;
+      if (newCount > oldCount) {
+        for (let i = oldCount; i < newCount; i++) {
+          b.slopes.push(makeBlankSlope('S' + (i + 1)));
+        }
+        b.slopeCount = newCount;
+        renderBuildings();
+      } else if (newCount < oldCount) {
+        const dropping = b.slopes.slice(newCount);
+        const hasData = dropping.some(s => SLOPE_FIELDS.some(f => f !== 'pitch' && s[f] !== '' && s[f] != null));
+        if (hasData) {
+          const list = 'slopes ' + (newCount + 1) + '-' + oldCount;
+          if (!confirm('This will delete ' + list + '. Continue?')) {
+            t.value = oldCount;
+            return;
+          }
+        }
+        b.slopes = b.slopes.slice(0, newCount);
+        b.slopeCount = newCount;
+        renderBuildings();
+      } else {
+        b.slopeCount = newCount;
+      }
+      return;
+    }
+
+    if (field === 'allEqual') {
+      const willEqual = t.checked;
+      if (b.allEqual === willEqual) return;
+      if (willEqual) {
+        if (b.slopes.length > 1 && slopesDiffer(b.slopes)) {
+          if (!confirm("Keep only slope 1's values, discard the rest?")) {
+            t.checked = false;
+            return;
+          }
+        }
+        b.slopes = [{ ...b.slopes[0], id: 'S1' }];
+        b.allEqual = true;
+      } else {
+        const template = b.slopes[0];
+        b.slopes = [];
+        for (let i = 0; i < b.slopeCount; i++) {
+          b.slopes.push({ ...template, id: 'S' + (i + 1) });
+        }
+        b.allEqual = false;
+      }
+      renderBuildings();
+      return;
+    }
+    return;
+  }
+
+  // Slope-level field
+  if (t.dataset.slopeField) {
+    const bi = Number(t.dataset.buildingIdx);
+    const si = Number(t.dataset.slopeIdx);
+    const field = t.dataset.slopeField;
+    const b = currentBuildings[bi]; if (!b) return;
+    const s = b.slopes[si]; if (!s) return;
+    s[field] = t.value;
+
+    if (field === 'pitch') {
+      // Structural: re-render so the ridge field can hide/show.
+      renderBuildings();
+      return;
+    }
+    // Non-structural: update in place to preserve focus.
+    updateSlopeReadouts(bi, si);
+    updateBuildingTotalsRow(bi);
+    updateBuildingSummaryChip(bi);
+    updateSlopeSummaryChip(bi, si);
+    updateSurveyRoofTotalDisplay();
+  }
 }
 
 // ---- Toast ----
@@ -2009,9 +2637,13 @@ function attr(s) { return escapeHtml(s == null ? '' : s); }
 // ---- Wiring ----
 document.addEventListener('input', (e) => {
   const t = e.target;
-  if (!t || (!t.id && (!t.dataset || t.dataset.defectIdx == null))) return;
-  if (t.dataset && t.dataset.defectIdx != null) { onDefectInput(e); return; }
-  if (t.dataset && t.dataset.uppercase) {
+  if (!t || !t.dataset) {
+    if (t && t.id === 'f-asb-register-seen') updateConditionals();
+    return;
+  }
+  if (t.dataset.buildingField || t.dataset.slopeField) { onBuildingInput(e); return; }
+  if (t.dataset.defectIdx != null) { onDefectInput(e); return; }
+  if (t.dataset.uppercase) {
     const pos = t.selectionStart;
     const v = t.value.toUpperCase();
     if (v !== t.value) {
@@ -2023,9 +2655,17 @@ document.addEventListener('input', (e) => {
 });
 document.addEventListener('change', (e) => {
   const t = e.target;
-  if (!t) return;
-  if (t.dataset && t.dataset.defectIdx != null) { onDefectInput(e); return; }
+  if (!t || !t.dataset) {
+    if (t && t.id === 'f-asb-register-seen') updateConditionals();
+    return;
+  }
+  if (t.dataset.buildingField || t.dataset.slopeField) { onBuildingInput(e); return; }
+  if (t.dataset.defectIdx != null) { onDefectInput(e); return; }
   if (t.id === 'f-asb-register-seen') updateConditionals();
+});
+document.addEventListener('click', (e) => {
+  const t = e.target.closest && e.target.closest('[data-action="remove-building"]');
+  if (t) { e.preventDefault(); removeBuilding(Number(t.dataset.buildingIdx)); }
 });
 
 document.addEventListener('DOMContentLoaded', () => { renderSurveyList(); });
