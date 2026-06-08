@@ -157,6 +157,54 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .field label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--ink); margin-bottom: 0.35rem; letter-spacing: 0.01em; }
 .field .req { color: var(--err); margin-left: 0.15rem; }
 .field .hint { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; font-weight: 400; }
+/* Circled-i tooltip for inline field help. Hover-driven on desktop; the click
+   handler in the wiring block also toggles .tip-visible for tap support on
+   tablet/mobile (and to dismiss when tapping elsewhere). */
+.field-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #6b7280;
+  font-size: 11px;
+  font-style: normal;
+  cursor: pointer;
+  margin-left: 6px;
+  position: relative;
+  vertical-align: middle;
+  user-select: none;
+}
+.field-info-icon:hover,
+.field-info-icon.tip-visible {
+  background: #F7901E;
+  color: #ffffff;
+}
+.field-info-icon::after {
+  content: attr(data-tooltip);
+  display: none;
+  position: absolute;
+  left: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1f2937;
+  color: #f9fafb;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: 260px;
+  white-space: pre-line;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+.field-info-icon:hover::after,
+.field-info-icon.tip-visible::after {
+  display: block;
+}
 .field input[type="text"], .field input[type="number"], .field input[type="tel"], .field input[type="date"],
 .field input[type="email"], .field select, .field textarea {
   width: 100%; min-height: 48px; padding: 0.7rem 0.85rem;
@@ -2845,7 +2893,7 @@ function renderBuildingHtml(b, idx) {
       // Building-level full eaves-to-eaves width. When set or changed, the slope
       // input handler propagates an auto-fill to each slope's span field.
       '<div class="field-row">' +
-        '<div class="field"><label>Building width (m)</label>' +
+        '<div class="field"><label>Building width (m) <span class="field-info-icon" tabindex="0" aria-label="How building width works" data-tooltip="Span per slope is auto-calculated from this value.\nFor a symmetric roof (e.g. 20m wide, 2 slopes) each span fills to 10m.\nFor an offset ridge, edit each slope span manually — the amber hint confirms the spans account for the full width.\nIf you add or remove slopes after setting the width, re-type the width value to re-fill the spans.">ⓘ</span></label>' +
           '<input type="number" step="0.01" min="0" inputmode="decimal" data-building-idx="' + idx + '" data-building-field="widthM" value="' + (b.widthM == null ? '' : attr(b.widthM)) + '">' +
           '<span class="hint">Full eaves-to-eaves width. Span per slope is calculated from this.</span></div>' +
         '<div class="field"></div>' +
@@ -3275,6 +3323,22 @@ document.addEventListener('change', (e) => {
 document.addEventListener('click', (e) => {
   const t = e.target.closest && e.target.closest('[data-action="remove-building"]');
   if (t) { e.preventDefault(); removeBuilding(Number(t.dataset.buildingIdx)); }
+});
+
+// Field info-icon tap toggle. Hover handles desktop; this click handler covers
+// tablet/mobile (tap the icon to open, tap anywhere else to dismiss).
+document.addEventListener('click', function(e) {
+  const icon = e.target.closest('.field-info-icon');
+  if (icon) {
+    e.stopPropagation();
+    const isVisible = icon.classList.contains('tip-visible');
+    document.querySelectorAll('.field-info-icon.tip-visible')
+      .forEach(el => el.classList.remove('tip-visible'));
+    if (!isVisible) icon.classList.add('tip-visible');
+    return;
+  }
+  document.querySelectorAll('.field-info-icon.tip-visible')
+    .forEach(el => el.classList.remove('tip-visible'));
 });
 
 document.addEventListener('DOMContentLoaded', () => { renderSurveyList(); });
