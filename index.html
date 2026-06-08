@@ -205,6 +205,114 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .field-info-icon.tip-visible::after {
   display: block;
 }
+
+/* ── Site Plan section ──
+   Image wrapper handles all zoom/pan; inner div is the transformed surface
+   (image + annotation SVG share the same transform-origin so pins stay on
+   the building they were placed on). */
+.sp-image-outer {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #d4d4d0;
+  position: relative;
+  cursor: crosshair;
+  user-select: none;
+  touch-action: none;
+  background: #1a1a1a;
+}
+.sp-image-inner {
+  position: relative;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.sp-image-inner canvas,
+.sp-image-inner img {
+  display: block;
+  width: 100%;
+}
+.sp-image-inner svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  overflow: visible;
+}
+.sp-mode-btn {
+  padding: 0 14px;
+  height: 32px;
+  border-radius: 7px;
+  border: 1px solid #d4d4d0;
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  color: #434244;
+}
+.sp-mode-btn.active {
+  background: #F7901E;
+  color: #fff;
+  border-color: #F7901E;
+}
+.sp-sev-btn {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid #d4d4d0;
+  font-size: 12px;
+  cursor: pointer;
+  background: transparent;
+  font-family: inherit;
+  color: #666;
+}
+.sp-sev-btn.sev-critical { background:#fee2e2; border-color:#dc2626; color:#991b1b; font-weight:500; }
+.sp-sev-btn.sev-poor     { background:#fff3e0; border-color:#F7901E; color:#9a3412; font-weight:500; }
+.sp-sev-btn.sev-fair     { background:#fef9c3; border-color:#eab308; color:#854d0e; font-weight:500; }
+.sp-sev-btn.sev-monitor  { background:#dcfce7; border-color:#16a34a; color:#166534; font-weight:500; }
+.sp-compress-info {
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+  display: none;
+}
+.sp-ref-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  background: #f4f4f0;
+  border-radius: 5px;
+  padding: 3px 8px;
+  color: #666;
+  margin-top: 6px;
+}
+.sp-flag {
+  background: #fff8e6;
+  border: 1px solid #f7c948;
+  border-radius: 7px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #7a4f00;
+  line-height: 1.5;
+}
+.sp-auto-tag {
+  font-size: 11px;
+  color: #aaa;
+  font-style: italic;
+}
+.sp-refresh-link {
+  font-size: 11px;
+  color: #F7901E;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  text-decoration: underline;
+  display: none;
+  margin-top: 4px;
+}
 .field input[type="text"], .field input[type="number"], .field input[type="tel"], .field input[type="date"],
 .field input[type="email"], .field select, .field textarea {
   width: 100%; min-height: 48px; padding: 0.7rem 0.85rem;
@@ -1184,6 +1292,164 @@ main { padding-bottom: env(safe-area-inset-bottom); }
         </div>
       </details>
 
+      <details class="section" id="section-site-plan">
+        <summary>Site Plan</summary>
+        <div class="section-body">
+
+          <!-- Coordinates -->
+          <div class="field-row">
+            <div class="field">
+              <label>Latitude</label>
+              <input type="number" id="sp-lat" data-survey-field="siteLat" step="any" placeholder="e.g. 51.1079">
+            </div>
+            <div class="field">
+              <label>Longitude</label>
+              <input type="number" id="sp-lng" data-survey-field="siteLng" step="any" placeholder="e.g. -3.0840">
+            </div>
+          </div>
+
+          <!-- Image controls -->
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+            <button type="button" id="sp-load-btn" onclick="spLoadSatellite()"
+              style="background:#F7901E;color:#fff;border:none;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
+              Load satellite image
+            </button>
+            <label style="background:transparent;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;color:#434244;">
+              Upload drone image
+              <input type="file" id="sp-upload-input" accept="image/*" style="display:none;" onchange="spUploadImage(this)">
+            </label>
+            <div style="display:flex;align-items:center;gap:4px;margin-left:auto;">
+              <button type="button" onclick="spChangeApiZoom(-1)"
+                style="width:28px;height:28px;border:1px solid #d4d4d0;border-radius:6px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;">-</button>
+              <span id="sp-zoom-label" style="font-size:12px;min-width:20px;text-align:center;color:#666;">18</span>
+              <button type="button" onclick="spChangeApiZoom(1)"
+                style="width:28px;height:28px;border:1px solid #d4d4d0;border-radius:6px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;">+</button>
+            </div>
+          </div>
+
+          <p id="sp-compress-info" class="sp-compress-info"></p>
+
+          <!-- Image area (hidden until loaded) -->
+          <div id="sp-image-area" style="display:none;">
+
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+              <button type="button" id="sp-mode-id" class="sp-mode-btn active" onclick="spSetMode('identify')">Identify buildings</button>
+              <button type="button" id="sp-mode-fault" class="sp-mode-btn" onclick="spSetMode('fault')">Mark faults</button>
+              <button type="button" id="sp-reset-zoom" onclick="spResetZoom()"
+                style="display:none;margin-left:auto;font-size:12px;border:1px solid #d4d4d0;border-radius:6px;background:transparent;cursor:pointer;padding:0 10px;height:28px;color:#666;font-family:inherit;">
+                Reset zoom
+              </button>
+            </div>
+
+            <div class="sp-image-outer" id="sp-outer">
+              <div class="sp-image-inner" id="sp-inner">
+                <img id="sp-img" src="" alt="Site satellite or drone image" style="display:none;">
+                <svg id="sp-svg" viewBox="0 0 640 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="display:none;"></svg>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:6px;">
+              <p id="sp-instruction" style="font-size:12px;color:#888;margin:0;"></p>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:11px;color:#aaa;">Severity:</span>
+                <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block;"></span>Critical</span>
+                <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#F7901E;display:inline-block;"></span>Poor</span>
+                <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#eab308;display:inline-block;"></span>Fair</span>
+                <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;"></span>Monitor</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fault detail panel (hidden until a fault is active) -->
+          <div id="sp-fault-panel" style="display:none;margin-top:12px;padding:16px;border:1px solid #e0e0dc;border-radius:10px;background:#fafaf8;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <span id="sp-fault-title" style="font-weight:600;font-size:14px;color:#434244;"></span>
+              <button type="button" onclick="spCloseFaultPanel()"
+                style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 12px;height:28px;font-size:12px;cursor:pointer;font-family:inherit;">Done</button>
+            </div>
+
+            <div class="field" style="margin-bottom:12px;">
+              <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Severity</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button type="button" class="sp-sev-btn" id="sp-sev-critical" onclick="spSetSeverity('critical')">Critical</button>
+                <button type="button" class="sp-sev-btn" id="sp-sev-poor"     onclick="spSetSeverity('poor')">Poor</button>
+                <button type="button" class="sp-sev-btn" id="sp-sev-fair"     onclick="spSetSeverity('fair')">Fair</button>
+                <button type="button" class="sp-sev-btn" id="sp-sev-monitor"  onclick="spSetSeverity('monitor')">Monitor</button>
+              </div>
+            </div>
+
+            <div class="field" style="margin-bottom:12px;">
+              <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Fault type</label>
+              <select id="sp-fault-type" onchange="spSelectFaultType(this.value)" style="width:100%;">
+                <option value="">Select...</option>
+                <optgroup label="Metal roofing">
+                  <option value="cut-edge-corrosion">Cut edge corrosion</option>
+                  <option value="failed-lap-seal">Failed lap seal</option>
+                  <option value="fastener-failure">Fastener failure</option>
+                  <option value="sheet-damage">Sheet damage</option>
+                  <option value="failed-flashing">Failed flashing</option>
+                  <option value="failed-rooflight">Failed or degraded rooflight</option>
+                </optgroup>
+                <optgroup label="Flat roofing">
+                  <option value="membrane-split">Membrane split or tear</option>
+                  <option value="failed-seam">Failed seam weld</option>
+                  <option value="upstand-failure">Upstand non-compliant or failed</option>
+                  <option value="ponding-water">Ponding water</option>
+                  <option value="blocked-outlet">Blocked outlet or drain</option>
+                </optgroup>
+                <optgroup label="Gutters and drainage">
+                  <option value="blocked-gutter">Blocked gutter</option>
+                  <option value="gutter-failure">Gutter failure or corrosion</option>
+                </optgroup>
+                <optgroup label="General">
+                  <option value="other">Other</option>
+                </optgroup>
+              </select>
+              <div id="sp-fault-ref" style="display:none;"></div>
+            </div>
+
+            <div class="field" style="margin-bottom:12px;">
+              <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Location</label>
+              <input type="text" id="sp-fault-loc" placeholder="e.g. North elevation, bays 3-7" oninput="spLocationChange(this.value)" style="width:100%;">
+            </div>
+
+            <div class="field" style="margin-bottom:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <label style="font-size:12px;color:#666;margin:0;">Condition description</label>
+                <span id="sp-desc-autotag" class="sp-auto-tag" style="display:none;">auto-populated — edit as needed</span>
+              </div>
+              <textarea id="sp-fault-desc" placeholder="Describe the fault and extent" oninput="spFaultFieldChange('description', this.value)"
+                style="width:100%;height:88px;resize:vertical;"></textarea>
+              <button type="button" class="sp-refresh-link" id="sp-desc-refresh" onclick="spRefreshDesc()">Reset to standard wording</button>
+            </div>
+
+            <div class="field" style="margin-bottom:14px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <label style="font-size:12px;color:#666;margin:0;">Recommended remedy</label>
+                <span id="sp-rec-autotag" class="sp-auto-tag" style="display:none;">auto-populated — edit as needed</span>
+              </div>
+              <textarea id="sp-fault-rec" placeholder="Proposed remedial action" oninput="spFaultFieldChange('recommendation', this.value)"
+                style="width:100%;height:88px;resize:vertical;"></textarea>
+              <button type="button" class="sp-refresh-link" id="sp-rec-refresh" onclick="spRefreshRec()">Reset to standard wording</button>
+            </div>
+
+            <button type="button" onclick="spDeleteFault()"
+              style="font-size:12px;color:#dc2626;background:transparent;border:none;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:4px;">
+              Remove this fault
+            </button>
+          </div>
+
+          <!-- Fault schedule (hidden until faults exist) -->
+          <div id="sp-schedule" style="display:none;margin-top:16px;">
+            <div style="border-bottom:1px solid #e0e0dc;padding-bottom:8px;margin-bottom:10px;">
+              <span id="sp-schedule-title" style="font-size:13px;font-weight:600;color:#434244;"></span>
+            </div>
+            <div id="sp-schedule-rows"></div>
+          </div>
+
+        </div>
+      </details>
+
       <details class="section" id="section-b">
         <summary>Section B — Building Overview</summary>
         <div class="section-body">
@@ -1487,6 +1753,12 @@ const FIELD_MAP = [
   { id: 'f-visit-surveyor',          type: 'text',     path: 'visit.surveyorName',      dflt: 'Jamie Gibbs' },
   { id: 'f-visit-brief',             type: 'textarea', path: 'visit.worksDescription' },
 
+  // Site Plan — lat/lng live on form inputs and persist via the standard
+  // FIELD_MAP collect/populate cycle. The image, pins and fault markers live
+  // on currentSiteImage and are spread into collectFormData below.
+  { id: 'sp-lat',                    type: 'text',     path: 'siteLat' },
+  { id: 'sp-lng',                    type: 'text',     path: 'siteLng' },
+
   // Section B (flat)
   { id: 'f-roof-type',         type: 'text',   path: 'f-roof-type' },
   { id: 'f-roof-area',         type: 'number', path: 'f-roof-area' },
@@ -1554,6 +1826,108 @@ const ROOF_TYPE_OPTIONS = [
 ];
 const SLOPE_FIELDS = ['pitch', 'length', 'span', 'eaves', 'ridge', 'roofType', 'notes'];
 
+// ── Site-plan fault knowledge base ──
+// Each entry's description() takes a location string so the auto-populated
+// text reads naturally; recommendation() is location-agnostic. Both return
+// plain prose for direct insertion into the corresponding textarea. dbDesc /
+// dbRec flags on the fault object track whether the textarea content is still
+// the auto-populated version (so a location change can re-flow it without
+// stomping on a manual edit).
+const FAULT_DB = {
+  'cut-edge-corrosion': {
+    ref: 'LRWA Guidance Note 10 / MCRMA',
+    description: function(loc) { return 'Cut edge corrosion has been identified at ' + loc + '. This condition arises where the factory-applied protective coating has been compromised at the cut steel edges, exposing the substrate to atmospheric moisture and oxygen. Progressive delamination of the coating and oxidation of the steel substrate has been observed at the affected eave, lap and verge positions. Left untreated, the corrosion will propagate beneath the coating layer, causing accelerating deterioration of the sheet.'; },
+    recommendation: function() { return 'Application of a proprietary cut edge corrosion treatment system (HD Sharman Seamsil, or equivalent BBA-assessed system) to all affected cut edges. Works to be carried out following mechanical preparation of all affected edges, degreasing with a suitable solvent wipe, and priming in accordance with the manufacturer\'s specification. Minimum two full coat application to achieve the required dry film thickness. All open laps to be resealed prior to treatment using a compatible gun-grade butyl sealant. Application to comply with LRWA Code of Practice for liquid applied systems.'; }
+  },
+  'failed-lap-seal': {
+    ref: 'MCRMA / Kingspan installation guidance',
+    description: function(loc) { return 'End and/or side lap seals have been found to be cracked, lifting or absent at ' + loc + '. Deterioration of the lap sealant, typically caused by UV degradation and repeated thermal cycling, allows wind-driven rain ingress at the lap junction. Where open laps coincide with areas of standing water or sheet deflection, the risk of internal water ingress is significant.'; },
+    recommendation: function() { return 'Mechanical removal of all failed and deteriorated sealant material from the affected lap faces. Thorough cleaning and degreasing of all lap surfaces. Application of a compatible 50 x 6mm butyl co-laminate tape sealant to end laps and 6 x 5mm butyl tape to side laps, in accordance with the sheet manufacturer\'s current installation guidance. Lap faces to be pulled tight and stitched with self-drilling screws at 300mm centres to ensure positive closure and compression of the new sealant.'; }
+  },
+  'fastener-failure': {
+    ref: 'MCRMA / NFRC GN01',
+    description: function(loc) { return 'Primary fixing fasteners have been found to be corroded, backing out or absent at ' + loc + '. Failed or missing fasteners reduce the wind uplift resistance of the sheeting below the design requirement and may allow progressive sheet movement under dynamic wind loading, leading to further lap opening and weathertightness breach.'; },
+    recommendation: function() { return 'Over-drill all failed and corroded fastener positions and install new self-drilling stainless steel fixings of the appropriate length for the sheet gauge and purlin combination, with non-ferrous EPDM-backed washers. Installation to comply with NFRC Guidance Note GN01 using the correct drive speed and depth-locating nose piece to avoid overdriving. Where backing-out is widespread across the slope, review the fixing pattern against current wind load calculations for the site and supplement the fixing density at perimeter and corner zones as required.'; }
+  },
+  'sheet-damage': {
+    ref: 'MCRMA',
+    description: function(loc) { return 'Physical damage to the roof sheeting has been identified at ' + loc + ', comprising impact damage, deformation and/or penetration of the sheet profile. Damage to the sheet disrupts the weathertight profile and may compromise the structural integrity of the sheeting at the affected area, creating a direct risk of water ingress to the building fabric below.'; },
+    recommendation: function() { return 'Minor damage: local repair using a compatible overlay patch sheet, fully sealed at all perimeters with gun-grade butyl sealant and mechanically fixed through both sheets into the purlin. Major damage or penetration: remove and dispose of damaged sheet sections and supply and fix replacement sheets to match the existing profile, gauge, coating and colour, complete with new end and side lap seals, profile foam fillers and fixings in accordance with the manufacturer\'s current installation guidance.'; }
+  },
+  'failed-flashing': {
+    ref: 'MCRMA',
+    description: function(loc) { return 'Flashings at ' + loc + ' have been found to be lifted, cracked, detached or absent. Deterioration or absence of the flashing detail at roof-to-wall, roof-to-roof and eaves junctions allows water penetration at these vulnerable interfaces, with risk of progressive damage to the building fabric, insulation and internal finishes.'; },
+    recommendation: function() { return 'Remove and dispose of all failed flashing sections. Supply and fix new colour-matched flashings formed from minimum 0.7mm polyester powder coated steel to all affected junctions, lapped a minimum of 150mm at joints and fixed at 450mm centres with colour-matched self-drilling screws and EPDM-backed washers. Profile foam fillers to be supplied and fixed at all sheet-to-flashing junctions prior to flashing installation to close the profile void and prevent wind uplift.'; }
+  },
+  'failed-rooflight': {
+    ref: 'ACR / MCRMA',
+    description: function(loc) { return 'Rooflights at ' + loc + ' have been found to be significantly yellowed, cracked or otherwise failed. GRP and polycarbonate rooflights degrade progressively through UV exposure, becoming brittle and discoloured over time. Cracked or failed rooflights represent both a weathertightness risk and a fragile surface hazard. Failed rooflight areas must not be walked upon under any circumstances.'; },
+    recommendation: function() { return 'Remove and dispose of all failed rooflight units. Supply and fix replacement rooflights to match the existing sheet profile, manufactured from GRP or multi-wall polycarbonate as appropriate, complete with new foam fillers and perimeter sealing in accordance with the sheet manufacturer\'s current installation guidance. All replacement rooflights to comply with ACR non-fragility requirements for the current classification. Perimeter sealing at rooflight-to-sheet interfaces to be formed using 50 x 8mm butyl co-laminate tape sealant as specified in the Kingspan Day-Lite Trapezoidal Rooflight installation guide.'; }
+  },
+  'membrane-split': {
+    ref: 'SPRA Design Guide S01',
+    description: function(loc) { return 'The waterproofing membrane has been found to be split, torn or punctured at ' + loc + '. Mechanical damage to the single ply membrane creates a direct pathway for water ingress through the roof build-up to the structural deck below. The extent of the damage and any associated saturation of the insulation layer requires investigation.'; },
+    recommendation: function() { return 'Apply temporary emergency waterproofing immediately to prevent further ingress pending permanent repair. Permanent repair by patch repair using membrane material from the same manufacturer, compatible with the installed system, hot-air welded at all edges with a minimum 50mm weld width, in accordance with SPRA guidance. Where the extent of damage or associated insulation saturation is significant, replacement of the affected membrane and insulation section should be considered. Post-repair integrity testing by electronic integrity testing in accordance with LRWA Guidance Note 18 is recommended.'; }
+  },
+  'failed-seam': {
+    ref: 'SPRA Design Guide S01',
+    description: function(loc) { return 'Single ply membrane seam welds have been found to be delaminated, incompletely welded or split at ' + loc + '. Failed seam welds are the primary failure mode in mechanically fastened single ply systems and represent a direct and unrestricted pathway for water ingress below the membrane layer.'; },
+    recommendation: function() { return 'Probe all suspect seam areas using a seam probe tool to establish the full extent of weld failure before commencing repair. Re-weld all failed seam areas using a calibrated hot-air welding tool, following the membrane manufacturer\'s current welding parameters for temperature, speed and pressure. Where the membrane condition at the failed seam precludes effective re-welding, cut back to sound membrane and patch with compatible material. Post-repair integrity testing by electronic integrity testing in accordance with LRWA Guidance Note 18 to confirm waterproofing continuity.'; }
+  },
+  'upstand-failure': {
+    ref: 'SPRA Design Guide S01',
+    description: function(loc) { return 'Membrane upstands at ' + loc + ' have been found to be below the minimum compliant height, splitting, detached from the substrate, or lacking an adequate counter-flashing. SPRA Design Guide S01 specifies a minimum upstand height of 150mm above the finished roof surface level. Non-compliant or failed upstand details are a primary point of water ingress at the roof perimeter and present a significant weathertightness risk.'; },
+    recommendation: function() { return 'Remediate all non-compliant and failed upstand details to achieve a minimum 150mm upstand height above the finished roof level, in accordance with SPRA Design Guide S01. Where the upstand height cannot be achieved within the existing structure, install a proprietary upstand kerb system. All upstand terminations to be mechanically fixed and counter-flashed with a compatible metal counter-flashing, formed and fixed to prevent wind uplift and direct rainwater clear of the upstand membrane edge.'; }
+  },
+  'ponding-water': {
+    ref: 'SPRA Design Guide S01 / LRWA',
+    description: function(loc) { return 'Areas of standing or ponding water have been identified on the roof surface at ' + loc + '. Permanent ponding water accelerates deterioration of the waterproofing membrane through prolonged immersion, promotes biological growth which can degrade the membrane surface, and imposes additional dead loading on the roof structure. SPRA guidance identifies ponding as a primary risk factor for premature membrane failure.'; },
+    recommendation: function() { return 'Investigate and clear all drainage outlets, sumps and downpipes serving the affected area to confirm unobstructed flow. Where outlets are clear and ponding persists, this indicates inadequate falls in the roof drainage design. Commission a drainage survey and falls assessment. Remedial options include installation of additional outlets, repositioning of existing outlets, or introduction of a tapered insulation scheme to create adequate falls to drainage points. Minimum design fall of 1:80 to be achieved to all drainage outlets in accordance with SPRA Design Guide S01.'; }
+  },
+  'blocked-outlet': {
+    ref: 'SPRA Design Guide S01',
+    description: function(loc) { return 'Roof drainage outlets and/or sumps at ' + loc + ' have been found to be blocked with accumulated debris, moss and sediment. Blocked outlets prevent effective drainage of the roof surface, resulting in ponding and sustained loading of the waterproofing membrane, with risk of overflow and consequential damage to the building fabric.'; },
+    recommendation: function() { return 'Manual clearance of all blocked outlets and sumps by hand, followed by flushing with water to confirm unobstructed flow through to the drainage system. Inspect outlet bodies, gratings and sump boxes on clearance and report any corrosion or damage. Install rodding eyes at all outlet positions where not currently present to facilitate future maintenance access. Establish a planned preventative maintenance inspection programme for gutter and outlet clearance, recommended at a minimum of twice per year.'; }
+  },
+  'blocked-gutter': {
+    ref: 'MCRMA',
+    description: function(loc) { return 'Gutters at ' + loc + ' contain significant accumulations of debris, moss and sediment. Blocked gutters are unable to convey rainwater effectively to the drainage outlets, resulting in risk of overflow at the eaves and potential ponding against vulnerable roof details. Overloaded gutters also impose additional loading on the gutter brackets and fixing supports beyond the design capacity.'; },
+    recommendation: function() { return 'Manual clearance of all debris, moss and sediment from the affected gutters, followed by flushing to confirm clear flow to all outlets. Inspect the gutter body, brackets and fixings on clearance and report any corrosion, joint failure, bracket distortion or failed sections. Establish a planned preventative maintenance programme for gutter clearance at a minimum of twice annually.'; }
+  },
+  'gutter-failure': {
+    ref: 'MCRMA / HD Sharman (Plygene)',
+    description: function(loc) { return 'Gutters at ' + loc + ' have been found to be significantly corroded, with failed joints, bracket failure or structural deformation. Failed gutter sections are unable to contain and convey rainwater, resulting in uncontrolled discharge at the building eaves, risk of water ingress to the building fabric and potential overloading of the supporting structure.'; },
+    recommendation: function() { return 'Option A (lining, where the gutter body is structurally sound): supply and fix Plygene Gutterline GRP lining system (HD Sharman) to all affected gutter sections, following thorough preparation, degreasing and priming of the substrate to the manufacturer\'s specification. All outlets, stop ends and gutter angles to be formed in the same system. Option B (replacement, where the gutter body is beyond lining): remove and dispose of all failed gutter sections. Supply and fix new gutters to match the existing type and profile, complete with new outlets, stop ends, downpipe connections and brackets at the manufacturer\'s recommended spacing.'; }
+  },
+  'other': {
+    ref: null,
+    description: function(loc) { return 'Defect noted at ' + loc + '. '; },
+    recommendation: function() { return ''; }
+  }
+};
+
+const FAULT_LABELS = {
+  'cut-edge-corrosion':'Cut edge corrosion',
+  'failed-lap-seal':'Failed lap seal',
+  'fastener-failure':'Fastener failure',
+  'sheet-damage':'Sheet damage',
+  'failed-flashing':'Failed flashing',
+  'failed-rooflight':'Failed or degraded rooflight',
+  'membrane-split':'Membrane split or tear',
+  'failed-seam':'Failed seam weld',
+  'upstand-failure':'Upstand non-compliant or failed',
+  'ponding-water':'Ponding water',
+  'blocked-outlet':'Blocked outlet or drain',
+  'blocked-gutter':'Blocked gutter',
+  'gutter-failure':'Gutter failure or corrosion',
+  'other':'Other'
+};
+
+const FAULT_SEV_COLORS = {
+  critical:'#dc2626', poor:'#F7901E',
+  fair:'#eab308', monitor:'#16a34a', '':'#9ca3af'
+};
+
 // Inline chevron SVG — used as the gold marker beside every report section title.
 // Stroke uses the literal #F7901E so it survives the brand-token rename safely
 // (CSS variables aren't reachable inside an SVG used as inline markup like this).
@@ -1563,6 +1937,18 @@ const CHEVRON_SVG = '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 
 let currentSurveyId = null;
 let currentDefects = [];
 let currentBuildings = [];
+// Site-plan image + annotation state. Lat/lng live on DOM inputs (via FIELD_MAP
+// just like every other Section A field); everything else hangs off here.
+function makeBlankSiteImage() {
+  return {
+    siteImageZoom: 18,
+    siteImageSource: '',
+    siteImageData: '',
+    siteImagePins: [],
+    siteFaultMarkers: []
+  };
+}
+let currentSiteImage = makeBlankSiteImage();
 let autosaveTimer = null;
 let toastTimer = null;
 let reportSurveyId = null;
@@ -1747,6 +2133,7 @@ async function goToNewSurvey() {
   currentSurveyId = null;
   currentDefects = [];
   currentBuildings = [];
+  currentSiteImage = makeBlankSiteImage();
   resetForm();
 
   // Draft restore prompt — explicit modal instead of silent restore.
@@ -1769,6 +2156,13 @@ async function goToNewSurvey() {
     currentBuildings = Array.isArray(draft.buildings)
       ? draft.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(s => ({ ...s })) }))
       : [];
+    currentSiteImage = {
+      siteImageZoom:    Number.isFinite(Number(draft.siteImageZoom)) ? Number(draft.siteImageZoom) : 18,
+      siteImageSource:  draft.siteImageSource || '',
+      siteImageData:    draft.siteImageData   || '',
+      siteImagePins:    Array.isArray(draft.siteImagePins)    ? draft.siteImagePins.map(p => ({ ...p })) : [],
+      siteFaultMarkers: Array.isArray(draft.siteFaultMarkers) ? draft.siteFaultMarkers.map(f => ({ ...f })) : []
+    };
   } else {
     // Fresh-form defaults beyond what resetForm/FIELD_MAP dflts handle (the date).
     const d = document.getElementById('f-visit-date');
@@ -1780,6 +2174,7 @@ async function goToNewSurvey() {
   document.getElementById('f-ref-readout').textContent = '— assigned on save —';
   renderDefects();
   renderBuildings();
+  spRestoreImageState();
   updateConditionals();
   updateEngagementVisibility();
   startAutoSave();
@@ -1804,11 +2199,19 @@ function editCurrent() {
   currentBuildings = Array.isArray(s.buildings)
     ? s.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(sl => ({ ...sl })) }))
     : [];
+  currentSiteImage = {
+    siteImageZoom:    Number.isFinite(Number(s.siteImageZoom)) ? Number(s.siteImageZoom) : 18,
+    siteImageSource:  s.siteImageSource || '',
+    siteImageData:    s.siteImageData   || '',
+    siteImagePins:    Array.isArray(s.siteImagePins)    ? s.siteImagePins.map(p => ({ ...p })) : [],
+    siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : []
+  };
   document.getElementById('form-title').textContent = 'Edit survey';
   document.getElementById('form-meta').textContent = s.id + ' · created ' + fmtDate(s.createdAt);
   document.getElementById('f-ref-readout').textContent = s.id;
   renderDefects();
   renderBuildings();
+  spRestoreImageState();
   updateConditionals();
   updateEngagementVisibility();
   startAutoSave();
@@ -1871,6 +2274,14 @@ function collectFormData() {
     ...b,
     slopes: (b.slopes || []).map(s => ({ ...s }))
   }));
+  // Site-plan fields: zoom + source + base64 image + pins + fault markers.
+  // Arrays are cloned so mutations to currentSiteImage after this point
+  // don't bleed back into a survey already written to localStorage.
+  out.siteImageZoom    = currentSiteImage.siteImageZoom;
+  out.siteImageSource  = currentSiteImage.siteImageSource;
+  out.siteImageData    = currentSiteImage.siteImageData;
+  out.siteImagePins    = (currentSiteImage.siteImagePins    || []).map(p => ({ ...p }));
+  out.siteFaultMarkers = (currentSiteImage.siteFaultMarkers || []).map(f => ({ ...f }));
   return out;
 }
 function populateForm(data) {
@@ -3288,6 +3699,606 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 function attr(s) { return escapeHtml(s == null ? '' : s); }
+
+// ─────────────────────────────────────────────────────────────────────
+// Site Plan — satellite/drone image, building pins, fault markers.
+// Self-contained module. All UI state hangs off currentSiteImage (image
+// source, zoom, base64 data, pins, fault markers) plus the sp-lat / sp-lng
+// form inputs (bound via FIELD_MAP). All mutations route through
+// spSaveSurveyField, which writes the live state and triggers an immediate
+// draft save when we're not editing a persisted survey.
+// ─────────────────────────────────────────────────────────────────────
+
+// ── State (transient — does not persist across reloads) ──
+let spImgScale = 1;
+let spImgTx = 0;
+let spImgTy = 0;
+let spIsDragging = false;
+let spDragStartX = 0, spDragStartY = 0;
+let spDragStartTx = 0, spDragStartTy = 0;
+let spDragMoved = 0;
+let spActiveMode = 'identify';
+let spActiveFaultId = null;
+let spFaultCounter = 0;
+let spImgNatW = 640;
+let spImgNatH = 400;
+
+// ── Survey-state accessors — bridge the SP module to the existing
+//    collect/save cycle. spCurrentSurvey returns a merged view (lat/lng
+//    from form, image fields from currentSiteImage, buildings live ref);
+//    spSaveSurveyField writes through and immediately persists the draft
+//    if we're not editing a saved survey (matches the autosave pattern).
+function spCurrentSurvey() {
+  const latEl = document.getElementById('sp-lat');
+  const lngEl = document.getElementById('sp-lng');
+  return {
+    siteLat:          latEl ? latEl.value.trim() : '',
+    siteLng:          lngEl ? lngEl.value.trim() : '',
+    siteImageZoom:    currentSiteImage.siteImageZoom,
+    siteImageSource:  currentSiteImage.siteImageSource,
+    siteImageData:    currentSiteImage.siteImageData,
+    siteImagePins:    currentSiteImage.siteImagePins,
+    siteFaultMarkers: currentSiteImage.siteFaultMarkers,
+    buildings:        currentBuildings
+  };
+}
+function spSaveSurveyField(key, value) {
+  if (key === 'siteLat' || key === 'siteLng') {
+    const id = (key === 'siteLat') ? 'sp-lat' : 'sp-lng';
+    const el = document.getElementById(id);
+    if (el && el.value !== String(value)) el.value = value;
+  } else if (key in currentSiteImage) {
+    currentSiteImage[key] = value;
+  }
+  // Mirror the autosave behaviour: only write the draft when we're not
+  // editing a persisted survey (currentSurveyId !== null).
+  if (currentSurveyId === null) {
+    try { saveDraft(collectFormData()); } catch (_) { /* non-fatal */ }
+  }
+}
+
+// ── Helpers ──
+function spFmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ── Image loading ──
+function spLoadSatellite() {
+  const lat = document.getElementById('sp-lat').value.trim();
+  const lng = document.getElementById('sp-lng').value.trim();
+  if (!lat || !lng) { alert('Enter latitude and longitude first.'); return; }
+  const zoom = spCurrentSurvey().siteImageZoom || 18;
+  const url = 'https://nova-ch-proxy.jamie-b41.workers.dev/static-map'
+    + '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng)
+    + '&zoom=' + encodeURIComponent(zoom) + '&size=640x400';
+  const img = document.getElementById('sp-img');
+  img.onload = function() {
+    spImgNatW = 640; spImgNatH = 400;
+    document.getElementById('sp-svg').setAttribute('viewBox', '0 0 640 400');
+    spShowImageArea();
+    spSaveSurveyField('siteImageSource', 'satellite');
+    spSaveSurveyField('siteLat', lat);
+    spSaveSurveyField('siteLng', lng);
+  };
+  img.onerror = function() { alert('Could not load satellite image. Check coordinates and Worker.'); };
+  img.src = url;
+}
+
+function spUploadImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const originalSize = file.size;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const srcImg = new Image();
+    srcImg.onload = function() {
+      const maxW = 1920;
+      let w = srcImg.width, h = srcImg.height;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(srcImg, 0, 0, w, h);
+      const dataUrl = cv.toDataURL('image/jpeg', 0.8);
+      const storedBytes = Math.round(dataUrl.length * 0.75);
+      const info = document.getElementById('sp-compress-info');
+      info.textContent = 'Original: ' + spFmtSize(originalSize)
+        + ' — Stored: ' + spFmtSize(storedBytes)
+        + ' (' + w + 'x' + h + 'px)';
+      info.style.display = 'block';
+      const domImg = document.getElementById('sp-img');
+      domImg.onload = function() {
+        spImgNatW = w; spImgNatH = h;
+        document.getElementById('sp-svg').setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+        spShowImageArea();
+      };
+      domImg.src = dataUrl;
+      spSaveSurveyField('siteImageData', dataUrl);
+      spSaveSurveyField('siteImageSource', 'upload');
+    };
+    srcImg.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function spShowImageArea() {
+  const img = document.getElementById('sp-img');
+  const svg = document.getElementById('sp-svg');
+  img.style.display = 'block';
+  svg.style.display = 'block';
+  document.getElementById('sp-image-area').style.display = 'block';
+  spResetZoom();
+  spSetMode('identify');
+  spRenderAnnotations();
+  spInitInteraction();
+}
+
+// ── API zoom (reloads satellite at new zoom level) ──
+function spChangeApiZoom(delta) {
+  const survey = spCurrentSurvey();
+  const newZoom = Math.max(15, Math.min(21, (survey.siteImageZoom || 18) + delta));
+  spSaveSurveyField('siteImageZoom', newZoom);
+  document.getElementById('sp-zoom-label').textContent = newZoom;
+  if (survey.siteImageSource === 'satellite') spLoadSatellite();
+}
+
+// ── CSS zoom / pan ──
+function spApplyTransform() {
+  const inner = document.getElementById('sp-inner');
+  inner.style.transformOrigin = '0 0';
+  inner.style.transform = 'translate(' + spImgTx + 'px, ' + spImgTy + 'px) scale(' + spImgScale + ')';
+  document.getElementById('sp-reset-zoom').style.display = spImgScale > 1.05 ? 'inline-flex' : 'none';
+}
+
+function spResetZoom() {
+  spImgScale = 1; spImgTx = 0; spImgTy = 0;
+  spApplyTransform();
+}
+
+function spClampTranslation(wrapperW, wrapperH) {
+  spImgTx = Math.min(0, Math.max(wrapperW * (1 - spImgScale), spImgTx));
+  spImgTy = Math.min(0, Math.max(wrapperH * (1 - spImgScale), spImgTy));
+}
+
+function spInitInteraction() {
+  const outer = document.getElementById('sp-outer');
+  if (outer._spInited) return;
+  outer._spInited = true;
+
+  // Mouse wheel zoom toward cursor.
+  outer.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    const rect = outer.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.15 : 0.87;
+    const newScale = Math.max(1, Math.min(6, spImgScale * factor));
+    const scaleChange = newScale / spImgScale;
+    spImgTx = mx - (mx - spImgTx) * scaleChange;
+    spImgTy = my - (my - spImgTy) * scaleChange;
+    spImgScale = newScale;
+    spClampTranslation(rect.width, rect.height);
+    spApplyTransform();
+  }, { passive: false });
+
+  // Drag to pan (only when zoomed in).
+  outer.addEventListener('mousedown', function(e) {
+    if (spImgScale <= 1) return;
+    spIsDragging = true;
+    spDragStartX = e.clientX; spDragStartY = e.clientY;
+    spDragStartTx = spImgTx; spDragStartTy = spImgTy;
+    spDragMoved = 0;
+    outer.style.cursor = 'grab';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!spIsDragging) return;
+    const dx = e.clientX - spDragStartX;
+    const dy = e.clientY - spDragStartY;
+    spDragMoved = Math.sqrt(dx * dx + dy * dy);
+    const rect = document.getElementById('sp-outer').getBoundingClientRect();
+    spImgTx = spDragStartTx + dx;
+    spImgTy = spDragStartTy + dy;
+    spClampTranslation(rect.width, rect.height);
+    spApplyTransform();
+  });
+  document.addEventListener('mouseup', function() {
+    if (!spIsDragging) return;
+    spIsDragging = false;
+    document.getElementById('sp-outer').style.cursor = 'crosshair';
+  });
+
+  // Touch pinch-to-zoom.
+  let lastTouchDist = null;
+  outer.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+    }
+  }, { passive: true });
+  outer.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (lastTouchDist) {
+        const factor = dist / lastTouchDist;
+        const rect = outer.getBoundingClientRect();
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        const newScale = Math.max(1, Math.min(6, spImgScale * factor));
+        const sc = newScale / spImgScale;
+        spImgTx = cx - (cx - spImgTx) * sc;
+        spImgTy = cy - (cy - spImgTy) * sc;
+        spImgScale = newScale;
+        spClampTranslation(rect.width, rect.height);
+        spApplyTransform();
+      }
+      lastTouchDist = dist;
+    }
+  }, { passive: false });
+  outer.addEventListener('touchend', function() { lastTouchDist = null; });
+
+  // Click / tap on the SVG to place a pin or fault marker. SVG is the click
+  // target so coordinates land inside image space; the per-pin/per-fault
+  // groups stopPropagation in their own click handlers so they don't add new
+  // markers when an existing one is tapped.
+  const svg = document.getElementById('sp-svg');
+  svg.addEventListener('click', spHandleImageClick);
+  svg.addEventListener('touchend', function(e) {
+    if (e.changedTouches.length === 1 && spDragMoved < 8) {
+      const t = e.changedTouches[0];
+      spHandleImageClick({ clientX: t.clientX, clientY: t.clientY, target: e.target });
+    }
+  });
+}
+
+// ── Click handler — adds a building pin (identify mode) or a fault
+//    marker (fault mode). Ignored on drags and on clicks landing on an
+//    existing marker (those have their own handlers).
+function spHandleImageClick(e) {
+  if (spIsDragging || spDragMoved > 5) return;
+  if (e.target && (e.target.closest && (e.target.closest('[data-sp-pin]') || e.target.closest('[data-sp-fault]')))) return;
+
+  const inner = document.getElementById('sp-inner');
+  const rect = inner.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = (e.clientY - rect.top) / rect.height;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+
+  const survey = spCurrentSurvey();
+
+  if (spActiveMode === 'identify') {
+    const pins = (survey.siteImagePins || []).slice();
+    const buildings = survey.buildings || [];
+    const nextIdx = pins.length;
+    if (nextIdx >= buildings.length) return;
+    pins.push({ buildingIndex: nextIdx, label: 'B' + (nextIdx + 1), x: x, y: y });
+    spSaveSurveyField('siteImagePins', pins);
+  } else {
+    spFaultCounter++;
+    const id = 'f' + spFaultCounter;
+    const faults = (survey.siteFaultMarkers || []).slice();
+    faults.push({
+      id: id, number: spFaultCounter, x: x, y: y,
+      severity: '', faultType: '', location: '',
+      description: '', recommendation: '',
+      dbDesc: false, dbRec: false
+    });
+    spSaveSurveyField('siteFaultMarkers', faults);
+    spActiveFaultId = id;
+  }
+
+  spRenderAnnotations();
+  if (spActiveMode === 'fault') spOpenFaultPanel(spActiveFaultId);
+}
+
+// ── Mode toggle ──
+function spSetMode(mode) {
+  spActiveMode = mode;
+  document.getElementById('sp-mode-id').className =
+    'sp-mode-btn' + (mode === 'identify' ? ' active' : '');
+  document.getElementById('sp-mode-fault').className =
+    'sp-mode-btn' + (mode === 'fault' ? ' active' : '');
+  document.getElementById('sp-instruction').textContent = mode === 'identify'
+    ? 'Click the image to place a building marker. Click a marker to remove it.'
+    : 'Click the image to place a fault marker. Click a marker to edit it.';
+}
+
+// ── SVG annotation rendering ──
+function spRenderAnnotations() {
+  const svg = document.getElementById('sp-svg');
+  if (!svg) return;
+  svg.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  const survey = spCurrentSurvey();
+  const vw = spImgNatW, vh = spImgNatH;
+
+  // Building pins.
+  (survey.siteImagePins || []).forEach(function(pin, i) {
+    const cx = pin.x * vw, cy = pin.y * vh;
+    const g = document.createElementNS(ns, 'g');
+    g.setAttribute('data-sp-pin', i);
+    g.style.cursor = 'pointer';
+    const circle = document.createElementNS(ns, 'circle');
+    circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
+    circle.setAttribute('r', 17); circle.setAttribute('fill', '#F7901E');
+    circle.setAttribute('stroke', 'white'); circle.setAttribute('stroke-width', 2.5);
+    const text = document.createElementNS(ns, 'text');
+    text.setAttribute('x', cx); text.setAttribute('y', cy + 5);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', 'white');
+    text.setAttribute('font-size', '11'); text.setAttribute('font-weight', 'bold');
+    text.setAttribute('font-family', 'Helvetica Neue, sans-serif');
+    text.textContent = pin.label;
+    g.appendChild(circle); g.appendChild(text);
+    g.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const pins = (spCurrentSurvey().siteImagePins || []).slice();
+      pins.splice(i, 1);
+      pins.forEach(function(p, j) { p.buildingIndex = j; p.label = 'B' + (j + 1); });
+      spSaveSurveyField('siteImagePins', pins);
+      spRenderAnnotations();
+    });
+    svg.appendChild(g);
+  });
+
+  // Fault markers.
+  (survey.siteFaultMarkers || []).forEach(function(fault) {
+    const cx = fault.x * vw, cy = fault.y * vh;
+    const col = FAULT_SEV_COLORS[fault.severity] || FAULT_SEV_COLORS[''];
+    const isActive = fault.id === spActiveFaultId;
+    const g = document.createElementNS(ns, 'g');
+    g.setAttribute('data-sp-fault', fault.id);
+    g.style.cursor = 'pointer';
+    const circle = document.createElementNS(ns, 'circle');
+    circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
+    circle.setAttribute('r', 15); circle.setAttribute('fill', col);
+    circle.setAttribute('stroke', isActive ? 'white' : 'rgba(255,255,255,0.55)');
+    circle.setAttribute('stroke-width', isActive ? 3 : 2);
+    const text = document.createElementNS(ns, 'text');
+    text.setAttribute('x', cx); text.setAttribute('y', cy + 4);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', 'white');
+    text.setAttribute('font-size', '10'); text.setAttribute('font-weight', 'bold');
+    text.setAttribute('font-family', 'Helvetica Neue, sans-serif');
+    text.textContent = 'F' + fault.number;
+    g.appendChild(circle); g.appendChild(text);
+    g.addEventListener('click', function(e) {
+      e.stopPropagation();
+      spActiveFaultId = fault.id;
+      spRenderAnnotations();
+      spOpenFaultPanel(fault.id);
+    });
+    svg.appendChild(g);
+  });
+
+  spRenderSchedule();
+}
+
+// ── Fault panel ──
+function spOpenFaultPanel(id) {
+  const survey = spCurrentSurvey();
+  const fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === id; });
+  if (!fault) return;
+  document.getElementById('sp-fault-panel').style.display = 'block';
+  document.getElementById('sp-fault-title').textContent = 'Fault F' + fault.number;
+  document.getElementById('sp-fault-type').value = fault.faultType;
+  document.getElementById('sp-fault-loc').value = fault.location;
+  document.getElementById('sp-fault-desc').value = fault.description;
+  document.getElementById('sp-fault-rec').value = fault.recommendation;
+  ['critical','poor','fair','monitor'].forEach(function(s) {
+    document.getElementById('sp-sev-' + s).className =
+      'sp-sev-btn' + (fault.severity === s ? ' sev-' + s : '');
+  });
+  const hasDb = fault.faultType && FAULT_DB[fault.faultType];
+  document.getElementById('sp-desc-autotag').style.display = fault.dbDesc ? 'inline' : 'none';
+  document.getElementById('sp-rec-autotag').style.display = fault.dbRec ? 'inline' : 'none';
+  document.getElementById('sp-desc-refresh').style.display = hasDb ? 'inline' : 'none';
+  document.getElementById('sp-rec-refresh').style.display = hasDb ? 'inline' : 'none';
+  if (hasDb && FAULT_DB[fault.faultType].ref) {
+    document.getElementById('sp-fault-ref').style.display = 'block';
+    document.getElementById('sp-fault-ref').innerHTML =
+      '<span class="sp-ref-badge">' + FAULT_DB[fault.faultType].ref + '</span>';
+  } else {
+    document.getElementById('sp-fault-ref').style.display = 'none';
+  }
+  document.getElementById('sp-fault-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function spCloseFaultPanel() {
+  document.getElementById('sp-fault-panel').style.display = 'none';
+  spActiveFaultId = null;
+  spRenderAnnotations();
+}
+
+function spSetSeverity(sev) {
+  if (!spActiveFaultId) return;
+  spUpdateFault(spActiveFaultId, 'severity', sev);
+  ['critical','poor','fair','monitor'].forEach(function(s) {
+    document.getElementById('sp-sev-' + s).className =
+      'sp-sev-btn' + (s === sev ? ' sev-' + sev : '');
+  });
+  spRenderAnnotations();
+}
+
+function spSelectFaultType(type) {
+  if (!spActiveFaultId) return;
+  spUpdateFault(spActiveFaultId, 'faultType', type);
+  const survey = spCurrentSurvey();
+  const fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === spActiveFaultId; });
+  if (!fault) return;
+  const loc = fault.location || 'the location identified';
+  const db = FAULT_DB[type];
+  if (db && db.description) {
+    if (!fault.description || fault.dbDesc) {
+      fault.description = db.description(loc);
+      fault.dbDesc = true;
+      document.getElementById('sp-fault-desc').value = fault.description;
+      document.getElementById('sp-desc-autotag').style.display = 'inline';
+      document.getElementById('sp-desc-refresh').style.display = 'inline';
+    }
+    if (!fault.recommendation || fault.dbRec) {
+      fault.recommendation = db.recommendation();
+      fault.dbRec = true;
+      document.getElementById('sp-fault-rec').value = fault.recommendation;
+      document.getElementById('sp-rec-autotag').style.display = 'inline';
+      document.getElementById('sp-rec-refresh').style.display = 'inline';
+    }
+    spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+  }
+  if (db && db.ref) {
+    document.getElementById('sp-fault-ref').style.display = 'block';
+    document.getElementById('sp-fault-ref').innerHTML =
+      '<span class="sp-ref-badge">' + db.ref + '</span>';
+  } else {
+    document.getElementById('sp-fault-ref').style.display = 'none';
+  }
+  spRenderSchedule();
+}
+
+function spLocationChange(loc) {
+  if (!spActiveFaultId) return;
+  spUpdateFault(spActiveFaultId, 'location', loc);
+  const survey = spCurrentSurvey();
+  const fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === spActiveFaultId; });
+  if (!fault || !fault.faultType || !FAULT_DB[fault.faultType]) return;
+  const db = FAULT_DB[fault.faultType];
+  const useLoc = loc || 'the location identified';
+  if (fault.dbDesc && db.description) {
+    fault.description = db.description(useLoc);
+    document.getElementById('sp-fault-desc').value = fault.description;
+  }
+  spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+}
+
+function spFaultFieldChange(field, value) {
+  if (!spActiveFaultId) return;
+  spUpdateFault(spActiveFaultId, field, value);
+  if (field === 'description') spUpdateFault(spActiveFaultId, 'dbDesc', false);
+  if (field === 'recommendation') spUpdateFault(spActiveFaultId, 'dbRec', false);
+}
+
+function spRefreshDesc() {
+  if (!spActiveFaultId) return;
+  const survey = spCurrentSurvey();
+  const fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === spActiveFaultId; });
+  if (!fault || !FAULT_DB[fault.faultType]) return;
+  const loc = fault.location || 'the location identified';
+  fault.description = FAULT_DB[fault.faultType].description(loc);
+  fault.dbDesc = true;
+  document.getElementById('sp-fault-desc').value = fault.description;
+  document.getElementById('sp-desc-autotag').style.display = 'inline';
+  spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+}
+
+function spRefreshRec() {
+  if (!spActiveFaultId) return;
+  const survey = spCurrentSurvey();
+  const fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === spActiveFaultId; });
+  if (!fault || !FAULT_DB[fault.faultType]) return;
+  fault.recommendation = FAULT_DB[fault.faultType].recommendation();
+  fault.dbRec = true;
+  document.getElementById('sp-fault-rec').value = fault.recommendation;
+  document.getElementById('sp-rec-autotag').style.display = 'inline';
+  spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+}
+
+function spDeleteFault() {
+  if (!spActiveFaultId) return;
+  const survey = spCurrentSurvey();
+  let faults = (survey.siteFaultMarkers || []).filter(function(f) { return f.id !== spActiveFaultId; });
+  faults.forEach(function(f, i) { f.number = i + 1; f.id = 'f' + (i + 1); });
+  spFaultCounter = faults.length;
+  spActiveFaultId = null;
+  spSaveSurveyField('siteFaultMarkers', faults);
+  document.getElementById('sp-fault-panel').style.display = 'none';
+  spRenderAnnotations();
+}
+
+function spUpdateFault(id, field, value) {
+  const survey = spCurrentSurvey();
+  const fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === id; });
+  if (fault) {
+    fault[field] = value;
+    spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+  }
+}
+
+// ── Fault schedule ──
+function spRenderSchedule() {
+  const survey = spCurrentSurvey();
+  const faults = survey.siteFaultMarkers || [];
+  const sc = document.getElementById('sp-schedule');
+  const rows = document.getElementById('sp-schedule-rows');
+  if (!faults.length) { sc.style.display = 'none'; return; }
+  sc.style.display = 'block';
+  document.getElementById('sp-schedule-title').textContent =
+    'Fault schedule (' + faults.length + ' fault' + (faults.length !== 1 ? 's' : '') + ')';
+  rows.innerHTML = '';
+  faults.forEach(function(fault) {
+    const col = FAULT_SEV_COLORS[fault.severity] || FAULT_SEV_COLORS[''];
+    const sevTxt = fault.severity
+      ? fault.severity.charAt(0).toUpperCase() + fault.severity.slice(1)
+      : 'Unset';
+    const typeTxt = FAULT_LABELS[fault.faultType] || fault.faultType || '-';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #e8e8e4;cursor:pointer;';
+    row.innerHTML = '<span style="width:26px;height:26px;border-radius:50%;background:' + col
+      + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;color:white;font-family:monospace;">F'
+      + fault.number + '</span>'
+      + '<span style="font-size:12px;font-weight:500;min-width:56px;color:' + col + ';">' + sevTxt + '</span>'
+      + '<span style="font-size:12px;flex:1;">' + typeTxt + '</span>'
+      + '<span style="font-size:11px;color:#888;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+      + (fault.location || '-') + '</span>';
+    row.addEventListener('click', function() {
+      spActiveFaultId = fault.id;
+      spRenderAnnotations();
+      spOpenFaultPanel(fault.id);
+    });
+    rows.appendChild(row);
+  });
+}
+
+// ── Session restore — called after currentSiteImage + currentBuildings
+//    have been populated by the survey-load path. Re-attaches an uploaded
+//    image data URL synchronously, or re-fetches the satellite tile.
+function spRestoreImageState() {
+  const survey = spCurrentSurvey();
+  if (!survey) return;
+  // Always sync the zoom readout, even if no image is restored, so the
+  // +/- buttons start at the right level for a fresh "Load satellite" click.
+  const zoomEl = document.getElementById('sp-zoom-label');
+  if (zoomEl) zoomEl.textContent = survey.siteImageZoom || 18;
+  // Reset transient UI state so a previous session's open fault panel /
+  // active marker / zoom-and-pan doesn't leak into the new one.
+  spActiveFaultId = null;
+  spResetZoom();
+  const panel = document.getElementById('sp-fault-panel');
+  if (panel) panel.style.display = 'none';
+  // No source set → leave the image area hidden.
+  if (!survey.siteImageSource) {
+    const area = document.getElementById('sp-image-area');
+    if (area) area.style.display = 'none';
+    return;
+  }
+  if (survey.siteImageSource === 'upload' && survey.siteImageData) {
+    const img = document.getElementById('sp-img');
+    img.onload = function() {
+      spImgNatW = img.naturalWidth || 1920;
+      spImgNatH = img.naturalHeight || 1080;
+      document.getElementById('sp-svg').setAttribute('viewBox', '0 0 ' + spImgNatW + ' ' + spImgNatH);
+      spShowImageArea();
+      spFaultCounter = (survey.siteFaultMarkers || []).length;
+    };
+    img.src = survey.siteImageData;
+  } else if (survey.siteImageSource === 'satellite' && survey.siteLat && survey.siteLng) {
+    spFaultCounter = (survey.siteFaultMarkers || []).length;
+    spLoadSatellite();
+  }
+}
 
 // ---- Wiring ----
 document.addEventListener('input', (e) => {
