@@ -3742,6 +3742,13 @@ let spFaultCounter = 0;
 let spImgNatW = 640;
 let spImgNatH = 400;
 let spRecentreMode = false;
+// Drag-to-reposition state for pins and fault markers. spDragItem holds the
+// in-flight drag (null when no marker is being dragged); spDragJustMoved is a
+// one-shot flag set by mousemove when the drag exceeds the 5 px threshold so
+// the subsequent click (fired by the browser on mouseup) can be suppressed in
+// the per-marker click handlers and in spHandleImageClick.
+let spDragItem = null;
+let spDragJustMoved = false;
 
 // ── Survey-state accessors — bridge the SP module to the existing
 //    collect/save cycle. spCurrentSurvey returns a merged view (lat/lng
@@ -3782,6 +3789,19 @@ function spFmtSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ── Drag helper: convert a mouse event into 0–1 image-fraction coords.
+// Clamped so a drag past the edge of the wrapper still resolves to a valid
+// (x, y) inside [0, 1], matching the storage convention used by every pin
+// and fault marker.
+function spEventToFraction(e) {
+  var inner = document.getElementById('sp-inner');
+  var rect = inner.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
+  };
 }
 
 // ── Re-centre: pixel-to-lat/lng via Web-Mercator world coords ──
@@ -4027,6 +4047,43 @@ function spInitInteraction() {
     e.preventDefault();
   });
   document.addEventListener('mousemove', function(e) {
+    // Marker-drag branch — runs first so a marker drag never gets swallowed
+    // by the pan-drag handler below. Once moved >5 px, the marker's <g> is
+    // updated in place each frame; spDragJustMoved is set so the click event
+    // that follows mouseup is suppressed in the marker click handlers.
+    // mdx/mdy (not dx/dy) so `var` hoisting doesn't collide with the `const
+    // dx/dy` declared further down by the pan-drag branch.
+    if (spDragItem) {
+      var mdx = e.clientX - spDragItem.startClientX;
+      var mdy = e.clientY - spDragItem.startClientY;
+      if (Math.abs(mdx) > 5 || Math.abs(mdy) > 5) {
+        spDragItem.moved = true;
+        spDragJustMoved = true;
+      }
+      if (spDragItem.moved) {
+        var frac = spEventToFraction(e);
+        var svg = document.getElementById('sp-svg');
+        var vw = spImgNatW, vh = spImgNatH;
+        var cx = frac.x * vw, cy = frac.y * vh;
+        var selector = spDragItem.type === 'pin'
+          ? '[data-sp-pin="' + spDragItem.key + '"]'
+          : '[data-sp-fault="' + spDragItem.key + '"]';
+        var g = svg.querySelector(selector);
+        if (g) {
+          var circle = g.querySelector('circle');
+          var text = g.querySelector('text');
+          if (circle) {
+            circle.setAttribute('cx', cx);
+            circle.setAttribute('cy', cy);
+          }
+          if (text) {
+            text.setAttribute('x', cx);
+            text.setAttribute('y', cy + 4);
+          }
+        }
+      }
+      return;
+    }
     if (!spIsDragging) return;
     const dx = e.clientX - spDragStartX;
     const dy = e.clientY - spDragStartY;
@@ -4037,7 +4094,39 @@ function spInitInteraction() {
     spClampTranslation(rect.width, rect.height);
     spApplyTransform();
   });
-  document.addEventListener('mouseup', function() {
+  document.addEventListener('mouseup', function(e) {
+    // Marker-drag release: if the marker actually moved (>5 px), commit the
+    // new 0–1 coords to the model, persist via spSaveSurveyField, and re-render
+    // so all derived UI (schedule rows, active fault highlight) catches up.
+    // A drag that didn't pass the threshold falls through to the click handler
+    // on the marker, which restores the original behaviour (remove / open).
+    if (spDragItem) {
+      if (spDragItem.moved) {
+        var frac = spEventToFraction(e);
+        var survey = spCurrentSurvey();
+        if (spDragItem.type === 'pin') {
+          var pins = survey.siteImagePins || [];
+          var pin = pins[spDragItem.key];
+          if (pin) {
+            pin.x = frac.x;
+            pin.y = frac.y;
+            spSaveSurveyField('siteImagePins', pins);
+          }
+        } else {
+          var faults = survey.siteFaultMarkers || [];
+          var fault = faults.find(function(f) { return f.id === spDragItem.key; });
+          if (fault) {
+            fault.x = frac.x;
+            fault.y = frac.y;
+            spSaveSurveyField('siteFaultMarkers', faults);
+          }
+        }
+        spRenderAnnotations();
+      }
+      spDragItem = null;
+      document.getElementById('sp-outer').style.cursor = 'crosshair';
+      return;
+    }
     if (!spIsDragging) return;
     spIsDragging = false;
     document.getElementById('sp-outer').style.cursor = 'crosshair';
@@ -4095,6 +4184,14 @@ function spInitInteraction() {
 //    existing marker (those have their own handlers).
 function spHandleImageClick(e) {
   if (spIsDragging || spDragMoved > 5) return;
+
+  // Drag-finished click landing on the SVG background (not on a marker):
+  // suppress placement AND consume the one-shot flag, otherwise a marker
+  // drag released over empty space would drop a phantom pin/fault and
+  // leave the flag stuck for the next click. Not in the spec — needed
+  // because the click event after a marker drag fires on the common
+  // ancestor (the SVG), which would otherwise reach this handler.
+  if (spDragJustMoved) { spDragJustMoved = false; return; }
 
   // Re-centre branch: convert the click pixel back to a geographic coordinate
   // via Mercator, persist as the new centre, reset CSS zoom, and re-fetch the
@@ -4175,8 +4272,8 @@ function spSetMode(mode) {
   document.getElementById('sp-mode-fault').className =
     'sp-mode-btn' + (mode === 'fault' ? ' active' : '');
   document.getElementById('sp-instruction').textContent = mode === 'identify'
-    ? 'Click the image to place a building marker. Click a marker to remove it.'
-    : 'Click the image to place a fault marker. Click a marker to edit it.';
+    ? 'Click the image to place a building marker. Drag a marker to reposition it. Click a placed marker to remove it.'
+    : 'Click the image to place a fault marker. Drag a marker to reposition it. Click a placed marker to edit it.';
 }
 
 // ── SVG annotation rendering ──
@@ -4193,7 +4290,7 @@ function spRenderAnnotations() {
     const cx = pin.x * vw, cy = pin.y * vh;
     const g = document.createElementNS(ns, 'g');
     g.setAttribute('data-sp-pin', i);
-    g.style.cursor = 'pointer';
+    g.style.cursor = 'grab';
     const circle = document.createElementNS(ns, 'circle');
     circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
     circle.setAttribute('r', 17); circle.setAttribute('fill', '#F7901E');
@@ -4205,7 +4302,19 @@ function spRenderAnnotations() {
     text.setAttribute('font-family', 'Helvetica Neue, sans-serif');
     text.textContent = pin.label;
     g.appendChild(circle); g.appendChild(text);
+    g.addEventListener('mousedown', function(e) {
+      e.stopPropagation();
+      spDragJustMoved = false;
+      spDragItem = {
+        type: 'pin', key: i,
+        startClientX: e.clientX, startClientY: e.clientY,
+        moved: false
+      };
+    });
     g.addEventListener('click', function(e) {
+      // Drag-finished click: suppress the remove action AND consume the flag
+      // so the next genuine click (no drag) removes the pin normally.
+      if (spDragJustMoved) { spDragJustMoved = false; return; }
       e.stopPropagation();
       const pins = (spCurrentSurvey().siteImagePins || []).slice();
       pins.splice(i, 1);
@@ -4223,7 +4332,7 @@ function spRenderAnnotations() {
     const isActive = fault.id === spActiveFaultId;
     const g = document.createElementNS(ns, 'g');
     g.setAttribute('data-sp-fault', fault.id);
-    g.style.cursor = 'pointer';
+    g.style.cursor = 'grab';
     const circle = document.createElementNS(ns, 'circle');
     circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
     circle.setAttribute('r', 15); circle.setAttribute('fill', col);
@@ -4236,7 +4345,20 @@ function spRenderAnnotations() {
     text.setAttribute('font-family', 'Helvetica Neue, sans-serif');
     text.textContent = 'F' + fault.number;
     g.appendChild(circle); g.appendChild(text);
+    g.addEventListener('mousedown', function(e) {
+      e.stopPropagation();
+      spDragJustMoved = false;
+      var faultId = fault.id;
+      spDragItem = {
+        type: 'fault', key: faultId,
+        startClientX: e.clientX, startClientY: e.clientY,
+        moved: false
+      };
+    });
     g.addEventListener('click', function(e) {
+      // Drag-finished click: suppress the open-fault-panel action AND consume
+      // the flag so the next genuine click (no drag) opens the panel normally.
+      if (spDragJustMoved) { spDragJustMoved = false; return; }
       e.stopPropagation();
       spActiveFaultId = fault.id;
       spRenderAnnotations();
