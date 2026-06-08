@@ -3840,28 +3840,28 @@ function spBuildMap(centre, zoom, mode, imageData) {
 function spPinIcon(label) {
   return L.divIcon({
     className: '',
-    html: '<div style="width:34px;height:34px;border-radius:50%;'
-      + 'background:#F7901E;border:2.5px solid white;display:flex;'
+    html: '<div style="width:28px;height:28px;border-radius:50%;'
+      + 'background:#F7901E;border:2px solid white;display:flex;'
       + 'align-items:center;justify-content:center;color:white;'
-      + 'font-size:13px;font-weight:bold;'
+      + 'font-size:12px;font-weight:bold;'
       + 'font-family:Helvetica Neue,sans-serif;'
       + 'box-shadow:0 1px 4px rgba(0,0,0,0.45);">' + label + '</div>',
-    iconSize: [34, 34],
-    iconAnchor: [17, 17]
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
   });
 }
 function spFaultIcon(number, severity) {
   var col = FAULT_SEV_COLORS[severity] || FAULT_SEV_COLORS[''];
   return L.divIcon({
     className: '',
-    html: '<div style="width:30px;height:30px;border-radius:50%;'
+    html: '<div style="width:24px;height:24px;border-radius:50%;'
       + 'background:' + col + ';border:2px solid white;display:flex;'
       + 'align-items:center;justify-content:center;color:white;'
-      + 'font-size:11px;font-weight:bold;'
+      + 'font-size:10px;font-weight:bold;'
       + 'font-family:Helvetica Neue,sans-serif;'
       + 'box-shadow:0 1px 4px rgba(0,0,0,0.45);">F' + number + '</div>',
-    iconSize: [30, 30],
-    iconAnchor: [15, 15]
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
   });
 }
 
@@ -3929,8 +3929,6 @@ function spHandleMapClick(lat, lng) {
   var survey = spCurrentSurvey();
   if (spActiveMode === 'identify') {
     var pins = survey.siteImagePins || [];
-    var buildings = survey.buildings || [];
-    if (pins.length >= buildings.length) return;
     var idx = pins.length;
     pins.push({
       buildingIndex: idx,
