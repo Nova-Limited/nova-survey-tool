@@ -2712,7 +2712,7 @@ function makeBlankSlope(id) {
   return { id: id || 'S1', pitch: 'Pitched', length: '', span: '', eaves: '', ridge: '', roofType: '', notes: '' };
 }
 function makeBlankBuilding(id) {
-  return { id, name: '', slopeCount: 2, allEqual: true, slopes: [makeBlankSlope('S1')] };
+  return { id, name: '', slopeCount: 2, allEqual: true, widthM: null, slopes: [makeBlankSlope('S1')] };
 }
 
 // Calculations. All inputs may be strings (from form) or numbers (loaded).
@@ -2842,6 +2842,14 @@ function renderBuildingHtml(b, idx) {
         '<div class="field"><label>Number of slopes</label>' +
           '<input type="number" min="1" inputmode="numeric" data-building-idx="' + idx + '" data-building-field="slopeCount" value="' + attr(b.slopeCount) + '"></div>' +
       '</div>' +
+      // Building-level full eaves-to-eaves width. When set or changed, the slope
+      // input handler propagates an auto-fill to each slope's span field.
+      '<div class="field-row">' +
+        '<div class="field"><label>Building width (m)</label>' +
+          '<input type="number" step="0.01" min="0" inputmode="decimal" data-building-idx="' + idx + '" data-building-field="widthM" value="' + (b.widthM == null ? '' : attr(b.widthM)) + '">' +
+          '<span class="hint">Full eaves-to-eaves width. Span per slope is calculated from this.</span></div>' +
+        '<div class="field"></div>' +
+      '</div>' +
       '<div class="field">' +
         '<label class="checkbox">' +
           '<input type="checkbox" data-building-idx="' + idx + '" data-building-field="allEqual"' + (b.allEqual ? ' checked' : '') + '>' +
@@ -2907,7 +2915,11 @@ function renderSlopeFields(bIdx, sIdx, s, isFlat) {
       '<input type="number" step="0.1" min="0" inputmode="decimal" data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" data-slope-field="length" value="' + attr(s.length) + '"></div>' +
     '<div class="field"><label>Span (m)</label>' +
       '<input type="number" step="0.1" min="0" inputmode="decimal" data-building-idx="' + bIdx + '" data-slope-idx="' + sIdx + '" data-slope-field="span" value="' + attr(s.span) + '">' +
-      '<span class="hint">Horizontal distance eaves to apex (pitched) or eaves to opposite eaves (flat).</span></div>' +
+      '<span class="hint">Horizontal distance eaves to apex (pitched) or eaves to opposite eaves (flat).</span>' +
+      // Span-sum hint vs. building width. Hidden when widthM is unset; green when
+      // the sum equals widthM (within 0.01 m), amber with an offset-ridge note
+      // otherwise. updateSpanSumHint(bi) refreshes textContent + colour on edits.
+      spanSumHintHtml(currentBuildings[bIdx], bIdx) + '</div>' +
   '</div>' +
   '<div class="field-row">' +
     '<div class="field"><label>Eaves height (m)</label>' +
@@ -2991,6 +3003,93 @@ function updateSurveyRoofTotalDisplay() {
   el.textContent = t == null ? '— m²' : fmtAreaDisp(t);
 }
 
+// ---- Building-width auto-span helpers ----
+// All of these are read-only on the model; mutations live in the input handler.
+function round2(n) { return Math.round(n * 100) / 100; }
+
+// Auto-span target for a building given its current state. Returns null when
+// widthM is unset / non-finite or when slopeCount is zero. Flat-solo (slopeCount=1
+// and pitch=Flat) returns the full width — flat roofs aren't divided.
+function computeAutoSpan(widthM, b) {
+  if (widthM == null || !Number.isFinite(widthM) || !b || !b.slopeCount) return null;
+  if (b.slopeCount === 1 && b.slopes[0] && b.slopes[0].pitch === 'Flat') return round2(widthM);
+  return round2(widthM / b.slopeCount);
+}
+
+// Effective sum of slope spans for the building. In allEqual mode there's only
+// one stored slope; the effective sum is its span × slopeCount.
+function sumSpansForBuilding(b) {
+  if (!b || !Array.isArray(b.slopes)) return 0;
+  if (b.allEqual) {
+    const v = Number(b.slopes[0] && b.slopes[0].span);
+    return (Number.isFinite(v) ? v : 0) * (b.slopeCount || 0);
+  }
+  let sum = 0;
+  for (const s of b.slopes) {
+    const v = Number(s.span);
+    if (Number.isFinite(v)) sum += v;
+  }
+  return sum;
+}
+
+// Text + colour for the "Spans entered..." hint shown under each Span input.
+function spanSumHintText(b) {
+  if (!b || b.widthM == null || !Number.isFinite(b.widthM)) return '';
+  const sum = round2(sumSpansForBuilding(b));
+  const ok  = Math.abs(sum - b.widthM) < 0.01;
+  return 'Spans entered: ' + sum + 'm of ' + b.widthM + 'm total'
+       + (ok ? '' : ' (offset ridge — confirm spans are correct)');
+}
+function spanSumHintColour(b) {
+  if (!b || b.widthM == null || !Number.isFinite(b.widthM)) return '';
+  const ok = Math.abs(sumSpansForBuilding(b) - b.widthM) < 0.01;
+  return ok ? '#15803d' : '#92400e';
+}
+// Initial-render HTML for the hint span (called from renderSlopeFields).
+function spanSumHintHtml(b, bi) {
+  const txt = spanSumHintText(b);
+  const col = spanSumHintColour(b);
+  const styleStr = (col ? ('color:' + col + ';') : '') + (txt ? '' : 'display:none;');
+  return '<span class="hint span-sum-hint" data-readout="span-sum" data-bi="' + bi + '" style="' + styleStr + '">' + escapeHtml(txt) + '</span>';
+}
+// Refresh every span-sum hint span for the building in place (no re-render).
+function updateSpanSumHint(bi) {
+  const b = currentBuildings[bi];
+  if (!b) return;
+  const visible = b.widthM != null && Number.isFinite(b.widthM);
+  const txt = spanSumHintText(b);
+  const col = spanSumHintColour(b);
+  document.querySelectorAll('[data-readout="span-sum"][data-bi="' + bi + '"]').forEach(el => {
+    el.textContent = txt;
+    el.style.color = col || '';
+    el.style.display = visible ? '' : 'none';
+  });
+}
+
+// Propagate a widthM change to each slope's span. Slopes are updated when they
+// are blank OR when their current span equals the old auto-span (≈ tolerance).
+// User-edited spans (≠ old auto) are left untouched. The slope-input DOM is
+// updated in place so the user doesn't lose focus on the widthM input.
+function applySpanAutoFill(bi, b, oldAuto, newAuto) {
+  for (let si = 0; si < b.slopes.length; si++) {
+    const s = b.slopes[si];
+    const cur = Number(s.span);
+    const isEmpty = s.span === '' || s.span == null;
+    const matchesOld = oldAuto != null && Number.isFinite(cur) && Math.abs(cur - oldAuto) < 0.005;
+    if (!isEmpty && !matchesOld) continue;
+    const newVal = newAuto == null ? '' : String(newAuto);
+    s.span = newVal;
+    const inp = document.querySelector('input[data-building-idx="' + bi + '"][data-slope-idx="' + si + '"][data-slope-field="span"]');
+    if (inp) inp.value = newVal;
+    updateSlopeReadouts(bi, si);
+    updateSlopeSummaryChip(bi, si);
+  }
+  updateBuildingTotalsRow(bi);
+  updateBuildingSummaryChip(bi);
+  updateSurveyRoofTotalDisplay();
+  updateSpanSumHint(bi);
+}
+
 // ---- Building/slope input handler ----
 function onBuildingInput(e) {
   const t = e.target;
@@ -3006,6 +3105,20 @@ function onBuildingInput(e) {
     if (field === 'name') {
       b.name = t.value;
       updateBuildingSummaryChip(bi);
+      return;
+    }
+
+    if (field === 'widthM') {
+      // Capture the OLD auto-span before mutating widthM so we can tell which
+      // slope spans were previously auto-populated (and should be re-fitted)
+      // vs. manually edited (and should be left alone).
+      const raw = (t.value || '').trim();
+      const parsed = raw === '' ? null : Number(raw);
+      const newWidth = (parsed != null && Number.isFinite(parsed) && parsed >= 0) ? parsed : null;
+      const oldAuto = computeAutoSpan(b.widthM, b);
+      b.widthM = newWidth;
+      const newAuto = computeAutoSpan(newWidth, b);
+      applySpanAutoFill(bi, b, oldAuto, newAuto);
       return;
     }
 
@@ -3088,6 +3201,8 @@ function onBuildingInput(e) {
     updateBuildingSummaryChip(bi);
     updateSlopeSummaryChip(bi, si);
     updateSurveyRoofTotalDisplay();
+    // Span edits or any field change can shift the span-sum vs. widthM comparison.
+    if (field === 'span') updateSpanSumHint(bi);
   }
 }
 
