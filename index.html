@@ -1373,8 +1373,10 @@ main { padding-bottom: env(safe-area-inset-bottom); }
                 <optgroup label="Gutters and drainage">
                   <option value="blocked-gutter">Blocked gutter</option>
                   <option value="gutter-failure">Gutter failure or corrosion</option>
+                  <option value="parapet-gutter-lining">Parapet or box gutter lining failure</option>
                 </optgroup>
                 <optgroup label="General">
+                  <option value="failed-patch-repair">Failed patch repair</option>
                   <option value="other">Other</option>
                 </optgroup>
               </select>
@@ -1872,6 +1874,16 @@ const FAULT_DB = {
     description: function(loc) { return 'Gutters at ' + loc + ' have been found to be significantly corroded, with failed joints, bracket failure or structural deformation. Failed gutter sections are unable to contain and convey rainwater, resulting in uncontrolled discharge at the building eaves, risk of water ingress to the building fabric and potential overloading of the supporting structure.'; },
     recommendation: function() { return 'Option A (lining, where the gutter body is structurally sound): supply and fix Plygene Gutterline GRP lining system (HD Sharman) to all affected gutter sections, following thorough preparation, degreasing and priming of the substrate to the manufacturer\'s specification. All outlets, stop ends and gutter angles to be formed in the same system. Option B (replacement, where the gutter body is beyond lining): remove and dispose of all failed gutter sections. Supply and fix new gutters to match the existing type and profile, complete with new outlets, stop ends, downpipe connections and brackets at the manufacturer\'s recommended spacing.'; }
   },
+  'parapet-gutter-lining': {
+    ref: 'Lead Sheet Association / LRWA',
+    description: function(loc) { return 'The parapet or box gutter lining has been found to be defective at ' + loc + '. The lining shows signs of fatigue cracking, splitting, or failed welts and laps. In lead-lined gutters this is commonly caused by thermal movement across over-long bays where drips and expansion joints are absent or inadequate, leading to stress cracking of the sheet. Failure of the lining allows water to track beneath the gutter sole and behind the upstands into the building fabric, with associated risk of damage to the structure, internal finishes, and any timber gutter boarding below.'; },
+    recommendation: function() { return 'Where the existing lining is lead: strip the defective lining and re-line the gutter in milled lead sheet of the appropriate code to current Lead Sheet Association detailing, with correctly spaced drips and expansion joints sized to the bay length to accommodate thermal movement, and full support to the gutter sole and upstands. Where a fully bonded alternative is preferred or the substrate suits it: overlay with a liquid-applied waterproofing system or a single ply membrane dressed up the upstands and over the drips, installed to the manufacturer\'s specification and to LRWA or SPRA guidance as applicable. All outlets to be renewed and correctly dressed, and adequate falls confirmed to the discharge points.'; }
+  },
+  'failed-patch-repair': {
+    ref: null,
+    description: function(loc) { return 'Previous localised patch repairs have been identified at ' + loc + ' and are found to be breaking down. The patches, typically applied as bituminous compounds, self-adhesive flashing tapes, or localised overlays, are a short-term measure that degrades through UV exposure and thermal movement, lifting at the edges and re-admitting water. Their presence indicates an underlying defect in the substrate or lining that has not been addressed, and continued patching will not provide a durable repair.'; },
+    recommendation: function() { return 'Remove all failed and redundant patch repair materials from the affected area and expose the underlying substrate for inspection. Establish the root cause of the original defect rather than over-patching. Carry out a permanent repair appropriate to the substrate and its condition: localised renewal of the lining or covering, re-lapping and sealing of failed joints, or replacement of the affected section, finished to match the surrounding system and to the relevant manufacturer or trade body guidance. Where multiple failed patches are present across an element, this generally indicates the covering has reached the end of its serviceable life and wholesale renewal should be costed as the durable option.'; }
+  },
   'other': {
     ref: null,
     description: function(loc) { return 'Defect noted at ' + loc + '. '; },
@@ -1893,6 +1905,8 @@ const FAULT_LABELS = {
   'blocked-outlet':'Blocked outlet or drain',
   'blocked-gutter':'Blocked gutter',
   'gutter-failure':'Gutter failure or corrosion',
+  'parapet-gutter-lining':'Parapet or box gutter lining failure',
+  'failed-patch-repair':'Failed patch repair',
   'other':'Other'
 };
 
