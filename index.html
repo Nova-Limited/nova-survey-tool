@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#434244">
 <title>Nova Site Survey Tool</title>
+<link rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
 <style>
 :root {
   --dark:   #434244;
@@ -207,35 +214,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 }
 
 /* ── Site Plan section ──
-   Image wrapper handles all zoom/pan; inner div is the transformed surface
-   (image + annotation SVG share the same transform-origin so pins stay on
-   the building they were placed on). */
-.sp-image-outer {
-  overflow: hidden;
-  border-radius: 8px;
-  border: 1px solid #d4d4d0;
-  position: relative;
-  cursor: crosshair;
-  user-select: none;
-  touch-action: none;
-  background: #1a1a1a;
-}
-.sp-image-inner {
-  position: relative;
-  transform-origin: 0 0;
-  will-change: transform;
-}
-.sp-image-inner canvas,
-.sp-image-inner img {
-  display: block;
-  width: 100%;
-}
-.sp-image-inner svg {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  overflow: visible;
-}
+   The map itself is rendered by Leaflet into #sp-map; rules below cover the
+   non-map UI (mode toggle pills, severity pills, badges, hints, etc.). */
 .sp-mode-btn {
   padding: 0 14px;
   height: 32px;
@@ -1318,57 +1298,31 @@ main { padding-bottom: env(safe-area-inset-bottom); }
             </div>
           </div>
 
-          <!-- Image controls -->
+          <!-- Image controls. Leaflet supplies its own zoom +/- on the map
+               itself, so the old API-zoom row is gone; the load + upload
+               buttons remain as the two ways into the map. -->
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
             <button type="button" id="sp-load-btn" onclick="spLoadSatellite()"
               style="background:#F7901E;color:#fff;border:none;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
-              Load satellite image
+              Show satellite map
             </button>
             <label style="background:transparent;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;color:#434244;">
               Upload drone image
               <input type="file" id="sp-upload-input" accept="image/*" style="display:none;" onchange="spUploadImage(this)">
             </label>
-            <div style="display:flex;align-items:center;gap:4px;margin-left:auto;">
-              <button type="button" onclick="spChangeApiZoom(-1)"
-                style="width:28px;height:28px;border:1px solid #d4d4d0;border-radius:6px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;">-</button>
-              <span id="sp-zoom-label" style="font-size:12px;min-width:20px;text-align:center;color:#666;">18</span>
-              <button type="button" onclick="spChangeApiZoom(1)"
-                style="width:28px;height:28px;border:1px solid #d4d4d0;border-radius:6px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;">+</button>
-            </div>
           </div>
 
           <p id="sp-compress-info" class="sp-compress-info"></p>
 
-          <!-- Image area (hidden until loaded) -->
+          <!-- Map area (hidden until the user loads a tile layer or uploads). -->
           <div id="sp-image-area" style="display:none;">
-
             <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
               <button type="button" id="sp-mode-id" class="sp-mode-btn active" onclick="spSetMode('identify')">Identify buildings</button>
               <button type="button" id="sp-mode-fault" class="sp-mode-btn" onclick="spSetMode('fault')">Mark faults</button>
-              <button type="button" id="sp-recentre-btn" onclick="spToggleRecentre()"
-                style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 12px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;display:none;align-items:center;gap:6px;">
-                Re-centre
-              </button>
-              <button type="button" id="sp-reset-zoom" onclick="spResetZoom()"
-                style="display:none;margin-left:auto;font-size:12px;border:1px solid #d4d4d0;border-radius:6px;background:transparent;cursor:pointer;padding:0 10px;height:28px;color:#666;font-family:inherit;">
-                Reset zoom
-              </button>
             </div>
-
-            <div class="sp-image-outer" id="sp-outer">
-              <div class="sp-image-inner" id="sp-inner">
-                <img id="sp-img" src="" alt="Site satellite or drone image" style="display:none;">
-                <svg id="sp-svg" viewBox="0 0 640 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="display:none;"></svg>
-              </div>
-            </div>
-
+            <div id="sp-map" style="width:100%;height:440px;border-radius:8px;border:1px solid #d4d4d0;"></div>
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:6px;">
-              <div>
-                <p id="sp-instruction" style="font-size:12px;color:#888;margin:0;"></p>
-                <p id="sp-recentre-hint" style="font-size:12px;color:#F7901E;margin:0;display:none;">
-                  Click anywhere on the image to re-centre on that point.
-                </p>
-              </div>
+              <p id="sp-instruction" style="font-size:12px;color:#888;margin:0;"></p>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <span style="font-size:11px;color:#aaa;">Severity:</span>
                 <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block;"></span>Critical</span>
@@ -1959,11 +1913,18 @@ let currentBuildings = [];
 // Site-plan image + annotation state. Lat/lng live on DOM inputs (via FIELD_MAP
 // just like every other Section A field); everything else hangs off here.
 function makeBlankSiteImage() {
+  // siteImageSource is now 'map' (Leaflet + Esri satellite tiles) or 'upload'
+  // (drone JPEG via L.imageOverlay on a Simple CRS map). Pins + fault markers
+  // store geographic coords (lat, lng) so they survive zoom/pan/re-centre.
+  // siteMapCentreLat/Lng + siteMapZoom persist the user's view between
+  // sessions; siteImageData holds the base64 drone JPEG for upload mode.
   return {
-    siteImageZoom: 18,
-    siteImageSource: '',
-    siteImageData: '',
-    siteImagePins: [],
+    siteImageSource:  '',
+    siteImageData:    '',
+    siteMapCentreLat: null,
+    siteMapCentreLng: null,
+    siteMapZoom:      18,
+    siteImagePins:    [],
     siteFaultMarkers: []
   };
 }
@@ -2176,9 +2137,11 @@ async function goToNewSurvey() {
       ? draft.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(s => ({ ...s })) }))
       : [];
     currentSiteImage = {
-      siteImageZoom:    Number.isFinite(Number(draft.siteImageZoom)) ? Number(draft.siteImageZoom) : 18,
       siteImageSource:  draft.siteImageSource || '',
       siteImageData:    draft.siteImageData   || '',
+      siteMapCentreLat: Number.isFinite(Number(draft.siteMapCentreLat)) ? Number(draft.siteMapCentreLat) : null,
+      siteMapCentreLng: Number.isFinite(Number(draft.siteMapCentreLng)) ? Number(draft.siteMapCentreLng) : null,
+      siteMapZoom:      Number.isFinite(Number(draft.siteMapZoom))      ? Number(draft.siteMapZoom)      : 18,
       siteImagePins:    Array.isArray(draft.siteImagePins)    ? draft.siteImagePins.map(p => ({ ...p })) : [],
       siteFaultMarkers: Array.isArray(draft.siteFaultMarkers) ? draft.siteFaultMarkers.map(f => ({ ...f })) : []
     };
@@ -2219,9 +2182,11 @@ function editCurrent() {
     ? s.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(sl => ({ ...sl })) }))
     : [];
   currentSiteImage = {
-    siteImageZoom:    Number.isFinite(Number(s.siteImageZoom)) ? Number(s.siteImageZoom) : 18,
     siteImageSource:  s.siteImageSource || '',
     siteImageData:    s.siteImageData   || '',
+    siteMapCentreLat: Number.isFinite(Number(s.siteMapCentreLat)) ? Number(s.siteMapCentreLat) : null,
+    siteMapCentreLng: Number.isFinite(Number(s.siteMapCentreLng)) ? Number(s.siteMapCentreLng) : null,
+    siteMapZoom:      Number.isFinite(Number(s.siteMapZoom))      ? Number(s.siteMapZoom)      : 18,
     siteImagePins:    Array.isArray(s.siteImagePins)    ? s.siteImagePins.map(p => ({ ...p })) : [],
     siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : []
   };
@@ -2293,12 +2258,14 @@ function collectFormData() {
     ...b,
     slopes: (b.slopes || []).map(s => ({ ...s }))
   }));
-  // Site-plan fields: zoom + source + base64 image + pins + fault markers.
-  // Arrays are cloned so mutations to currentSiteImage after this point
-  // don't bleed back into a survey already written to localStorage.
-  out.siteImageZoom    = currentSiteImage.siteImageZoom;
+  // Site-plan fields. Arrays are cloned so mutations after this point don't
+  // bleed back into a survey already written to localStorage. Pin / fault
+  // marker entries now carry lat/lng (geographic) rather than x/y fractions.
   out.siteImageSource  = currentSiteImage.siteImageSource;
   out.siteImageData    = currentSiteImage.siteImageData;
+  out.siteMapCentreLat = currentSiteImage.siteMapCentreLat;
+  out.siteMapCentreLng = currentSiteImage.siteMapCentreLng;
+  out.siteMapZoom      = currentSiteImage.siteMapZoom;
   out.siteImagePins    = (currentSiteImage.siteImagePins    || []).map(p => ({ ...p }));
   out.siteFaultMarkers = (currentSiteImage.siteFaultMarkers || []).map(f => ({ ...f }));
   return out;
@@ -3729,26 +3696,17 @@ function attr(s) { return escapeHtml(s == null ? '' : s); }
 // ─────────────────────────────────────────────────────────────────────
 
 // ── State (transient — does not persist across reloads) ──
-let spImgScale = 1;
-let spImgTx = 0;
-let spImgTy = 0;
-let spIsDragging = false;
-let spDragStartX = 0, spDragStartY = 0;
-let spDragStartTx = 0, spDragStartTy = 0;
-let spDragMoved = 0;
+// Leaflet-backed state. spMap is the live L.map instance; spPinLayer +
+// spFaultLayer are L.layerGroup holders so spRenderMarkers can clear and
+// repopulate without tearing the map down. spActiveMode / spActiveFaultId /
+// spFaultCounter survive from the previous rev — the click + fault-panel
+// glue still uses them unchanged.
+let spMap = null;
+let spPinLayer = null;
+let spFaultLayer = null;
 let spActiveMode = 'identify';
 let spActiveFaultId = null;
 let spFaultCounter = 0;
-let spImgNatW = 640;
-let spImgNatH = 400;
-let spRecentreMode = false;
-// Drag-to-reposition state for pins and fault markers. spDragItem holds the
-// in-flight drag (null when no marker is being dragged); spDragJustMoved is a
-// one-shot flag set by mousemove when the drag exceeds the 5 px threshold so
-// the subsequent click (fired by the browser on mouseup) can be suppressed in
-// the per-marker click handlers and in spHandleImageClick.
-let spDragItem = null;
-let spDragJustMoved = false;
 
 // ── Survey-state accessors — bridge the SP module to the existing
 //    collect/save cycle. spCurrentSurvey returns a merged view (lat/lng
@@ -3761,9 +3719,11 @@ function spCurrentSurvey() {
   return {
     siteLat:          latEl ? latEl.value.trim() : '',
     siteLng:          lngEl ? lngEl.value.trim() : '',
-    siteImageZoom:    currentSiteImage.siteImageZoom,
     siteImageSource:  currentSiteImage.siteImageSource,
     siteImageData:    currentSiteImage.siteImageData,
+    siteMapCentreLat: currentSiteImage.siteMapCentreLat,
+    siteMapCentreLng: currentSiteImage.siteMapCentreLng,
+    siteMapZoom:      currentSiteImage.siteMapZoom,
     siteImagePins:    currentSiteImage.siteImagePins,
     siteFaultMarkers: currentSiteImage.siteFaultMarkers,
     buildings:        currentBuildings
@@ -3795,100 +3755,205 @@ function spFmtSize(bytes) {
 // Clamped so a drag past the edge of the wrapper still resolves to a valid
 // (x, y) inside [0, 1], matching the storage convention used by every pin
 // and fault marker.
-function spEventToFraction(e) {
-  var inner = document.getElementById('sp-inner');
-  var rect = inner.getBoundingClientRect();
-  return {
-    x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
-    y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
-  };
-}
-
-// ── Re-centre: pixel-to-lat/lng via Web-Mercator world coords ──
-// Given a pixel (px,py) inside an image of size imgW×imgH that's centred on
-// (centreLat,centreLng) at Google's tile zoom level, return the geographic
-// coordinates of that pixel. World pixel coordinates at zoom z fit the whole
-// globe in 256·2^z pixels; the image is a 640×400 cutout centred on
-// (centreLat,centreLng), so a pixel offset from the image centre is the
-// same pixel offset in world space.
-function spPixelToLatLng(px, py, centreLat, centreLng, zoom, imgW, imgH) {
-  var scale = Math.pow(2, zoom) * 256;
-  var sinLat = Math.sin(centreLat * Math.PI / 180);
-  sinLat = Math.max(-0.9999, Math.min(0.9999, sinLat));
-  var centreWorldX = (centreLng + 180) / 360 * scale;
-  var centreWorldY = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
-  var targetWorldX = centreWorldX + (px - imgW / 2);
-  var targetWorldY = centreWorldY + (py - imgH / 2);
-  var lng = targetWorldX / scale * 360 - 180;
-  var latRad = Math.atan(Math.sinh((0.5 - targetWorldY / scale) * 2 * Math.PI));
-  var lat = latRad * 180 / Math.PI;
-  return { lat: lat, lng: lng };
-}
-
-// Toggle the Re-centre pill on/off by user click on the button itself.
-function spToggleRecentre() {
-  spRecentreMode = !spRecentreMode;
-  var btn = document.getElementById('sp-recentre-btn');
-  var hint = document.getElementById('sp-recentre-hint');
-  if (spRecentreMode) {
-    btn.style.background = '#F7901E';
-    btn.style.color = '#fff';
-    btn.style.borderColor = '#F7901E';
-    hint.style.display = 'block';
-    document.getElementById('sp-outer').style.cursor = 'crosshair';
-  } else {
-    btn.style.background = 'transparent';
-    btn.style.color = '#434244';
-    btn.style.borderColor = '#d4d4d0';
-    hint.style.display = 'none';
-    document.getElementById('sp-outer').style.cursor = 'crosshair';
-  }
-}
-
-// Programmatic activation — used after a geocoded image load so the user is
-// nudged to click their exact building rather than the geocoder's best guess.
-function spActivateRecentreMode() {
-  spRecentreMode = true;
-  var btn = document.getElementById('sp-recentre-btn');
-  if (btn) {
-    btn.style.display = 'inline-flex';
-    btn.style.background = '#F7901E';
-    btn.style.color = '#fff';
-    btn.style.borderColor = '#F7901E';
-  }
-  var hint = document.getElementById('sp-recentre-hint');
-  if (hint) hint.style.display = 'block';
-}
-
-// ── Image loading ──
+// ── Map: Leaflet + Esri World Imagery ──
+// Centred on the user's lat/lng if set, otherwise the last persisted view,
+// otherwise a UK-wide overview. siteImageSource flips to 'map' on every load
+// so spRestoreImageState rebuilds correctly on the next session.
 function spLoadSatellite() {
-  const lat = document.getElementById('sp-lat').value.trim();
-  const lng = document.getElementById('sp-lng').value.trim();
-  if (!lat || !lng) {
-    // If the site address is filled in but lat/lng are blank, geocode the
-    // address instead of nagging the user — spFindFromAddress sets the inputs
-    // and re-enters this function once coordinates are available.
-    const addrEl = document.querySelector('#f-site-address, [name="site-address"], #sp-site-addr');
-    const addr = addrEl ? addrEl.value.trim() : '';
-    if (addr) { spFindFromAddress(); return; }
-    alert('Enter latitude and longitude first.');
-    return;
+  var survey = spCurrentSurvey();
+  var lat = parseFloat(document.getElementById('sp-lat').value);
+  var lng = parseFloat(document.getElementById('sp-lng').value);
+  var hasCoords = !isNaN(lat) && !isNaN(lng);
+  var centre = hasCoords ? [lat, lng]
+    : (survey.siteMapCentreLat != null
+        ? [survey.siteMapCentreLat, survey.siteMapCentreLng]
+        : [54.5, -3.0]);  // UK-wide default when nothing is set
+  var zoom = hasCoords ? 18 : (survey.siteMapZoom || 6);
+  spSaveSurveyField('siteImageSource', 'map');
+  document.getElementById('sp-image-area').style.display = 'block';
+  spBuildMap(centre, zoom, 'geographic', null);
+}
+
+// Build (or rebuild) the Leaflet map. mode = 'geographic' wires Esri imagery
+// + WGS84; mode = 'simple' uses L.CRS.Simple to render a drone-photo overlay
+// without geographic projection.
+function spBuildMap(centre, zoom, mode, imageData) {
+  if (spMap) { spMap.remove(); spMap = null; }
+  var mapOpts = { zoomControl: true };
+  if (mode === 'simple') {
+    mapOpts.crs = L.CRS.Simple;
+    mapOpts.minZoom = -4;
   }
-  const zoom = spCurrentSurvey().siteImageZoom || 18;
-  const url = 'https://nova-ch-proxy.jamie-b41.workers.dev/static-map'
-    + '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng)
-    + '&zoom=' + encodeURIComponent(zoom) + '&size=640x400';
-  const img = document.getElementById('sp-img');
-  img.onload = function() {
-    spImgNatW = 640; spImgNatH = 400;
-    document.getElementById('sp-svg').setAttribute('viewBox', '0 0 640 400');
-    spShowImageArea();
-    spSaveSurveyField('siteImageSource', 'satellite');
-    spSaveSurveyField('siteLat', lat);
-    spSaveSurveyField('siteLng', lng);
-  };
-  img.onerror = function() { alert('Could not load satellite image. Check coordinates and Worker.'); };
-  img.src = url;
+  spMap = L.map('sp-map', mapOpts);
+
+  if (mode === 'geographic') {
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/'
+      + 'World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 21,
+        maxNativeZoom: 19,
+        attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'
+      }
+    ).addTo(spMap);
+    spMap.setView(centre, zoom);
+  } else {
+    // Simple CRS for drone image overlay. Image dimensions become the map
+    // bounds; fitBounds zooms to fill the container.
+    var img = new Image();
+    img.onload = function() {
+      var h = img.naturalHeight, w = img.naturalWidth;
+      var bounds = [[0, 0], [h, w]];
+      L.imageOverlay(imageData, bounds).addTo(spMap);
+      spMap.fitBounds(bounds);
+    };
+    img.src = imageData;
+  }
+
+  spPinLayer = L.layerGroup().addTo(spMap);
+  spFaultLayer = L.layerGroup().addTo(spMap);
+
+  spMap.on('click', function(e) {
+    spHandleMapClick(e.latlng.lat, e.latlng.lng);
+  });
+
+  // Persist view changes (geographic only — Simple CRS coords are pixel-based
+  // and meaningless across sessions).
+  if (mode === 'geographic') {
+    spMap.on('moveend', function() {
+      var c = spMap.getCenter();
+      spSaveSurveyField('siteMapCentreLat', c.lat);
+      spSaveSurveyField('siteMapCentreLng', c.lng);
+      spSaveSurveyField('siteMapZoom', spMap.getZoom());
+    });
+  }
+
+  // The map container can have zero size briefly if rendered inside a hidden
+  // <details>; invalidateSize after a tick gets Leaflet to re-measure.
+  setTimeout(function() { if (spMap) spMap.invalidateSize(); }, 120);
+  spSetMode(spActiveMode || 'identify');
+  spRenderMarkers();
+}
+
+// L.divIcon HTML for an orange building pin (Bn) and a coloured fault badge
+// (F n + severity tint). divIcon HTML matches the previous SVG marker look.
+function spPinIcon(label) {
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:34px;height:34px;border-radius:50%;'
+      + 'background:#F7901E;border:2.5px solid white;display:flex;'
+      + 'align-items:center;justify-content:center;color:white;'
+      + 'font-size:13px;font-weight:bold;'
+      + 'font-family:Helvetica Neue,sans-serif;'
+      + 'box-shadow:0 1px 4px rgba(0,0,0,0.45);">' + label + '</div>',
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
+  });
+}
+function spFaultIcon(number, severity) {
+  var col = FAULT_SEV_COLORS[severity] || FAULT_SEV_COLORS[''];
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:30px;height:30px;border-radius:50%;'
+      + 'background:' + col + ';border:2px solid white;display:flex;'
+      + 'align-items:center;justify-content:center;color:white;'
+      + 'font-size:11px;font-weight:bold;'
+      + 'font-family:Helvetica Neue,sans-serif;'
+      + 'box-shadow:0 1px 4px rgba(0,0,0,0.45);">F' + number + '</div>',
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+}
+
+// Clear + repopulate both layers from the survey model. Called by the map
+// click handler, marker drag, marker delete, and on each rebuild.
+function spRenderMarkers() {
+  if (!spMap || !spPinLayer || !spFaultLayer) return;
+  spPinLayer.clearLayers();
+  spFaultLayer.clearLayers();
+  var survey = spCurrentSurvey();
+
+  (survey.siteImagePins || []).forEach(function(pin, i) {
+    if (pin.lat == null || pin.lng == null) return;
+    var m = L.marker([pin.lat, pin.lng], {
+      icon: spPinIcon(pin.label), draggable: true
+    });
+    m.on('dragend', function(ev) {
+      var ll = ev.target.getLatLng();
+      var pins = spCurrentSurvey().siteImagePins || [];
+      if (pins[i]) {
+        pins[i].lat = ll.lat;
+        pins[i].lng = ll.lng;
+        spSaveSurveyField('siteImagePins', pins);
+      }
+    });
+    m.on('click', function() {
+      var pins = (spCurrentSurvey().siteImagePins || []).slice();
+      pins.splice(i, 1);
+      pins.forEach(function(p, j) { p.buildingIndex = j; p.label = 'B' + (j + 1); });
+      spSaveSurveyField('siteImagePins', pins);
+      spRenderMarkers();
+    });
+    spPinLayer.addLayer(m);
+  });
+
+  (survey.siteFaultMarkers || []).forEach(function(fault) {
+    if (fault.lat == null || fault.lng == null) return;
+    var m = L.marker([fault.lat, fault.lng], {
+      icon: spFaultIcon(fault.number, fault.severity), draggable: true
+    });
+    m.on('dragend', function(ev) {
+      var ll = ev.target.getLatLng();
+      var faults = spCurrentSurvey().siteFaultMarkers || [];
+      var f = faults.find(function(q) { return q.id === fault.id; });
+      if (f) {
+        f.lat = ll.lat;
+        f.lng = ll.lng;
+        spSaveSurveyField('siteFaultMarkers', faults);
+      }
+    });
+    m.on('click', function() {
+      spActiveFaultId = fault.id;
+      spOpenFaultPanel(fault.id);
+    });
+    spFaultLayer.addLayer(m);
+  });
+
+  spRenderSchedule();
+}
+
+// Map click → place pin or fault. Building pins are capped at the count of
+// buildings recorded in Section B2; the cap is silent (caller can read why
+// nothing happened from the buildings list).
+function spHandleMapClick(lat, lng) {
+  var survey = spCurrentSurvey();
+  if (spActiveMode === 'identify') {
+    var pins = survey.siteImagePins || [];
+    var buildings = survey.buildings || [];
+    if (pins.length >= buildings.length) return;
+    var idx = pins.length;
+    pins.push({
+      buildingIndex: idx,
+      label: 'B' + (idx + 1),
+      lat: lat, lng: lng
+    });
+    spSaveSurveyField('siteImagePins', pins);
+    spRenderMarkers();
+  } else {
+    spFaultCounter++;
+    var id = 'f' + spFaultCounter;
+    var faults = survey.siteFaultMarkers || [];
+    faults.push({
+      id: id, number: spFaultCounter, lat: lat, lng: lng,
+      severity: '', faultType: '', location: '',
+      description: '', recommendation: '',
+      dbDesc: false, dbRec: false
+    });
+    spSaveSurveyField('siteFaultMarkers', faults);
+    spActiveFaultId = id;
+    spRenderMarkers();
+    spOpenFaultPanel(id);
+  }
 }
 
 // Geocode the site address (Section A textarea) via the Worker's /geocode
@@ -3917,15 +3982,13 @@ function spFindFromAddress() {
       document.getElementById('sp-lng').value = data.lng.toFixed(6);
       spSaveSurveyField('siteLat', String(data.lat.toFixed(6)));
       spSaveSurveyField('siteLng', String(data.lng.toFixed(6)));
-      // Geocoded loads default to a wider view (z=16) so users can see the
-      // wider site context and re-centre on their exact building.
-      spSaveSurveyField('siteImageZoom', 16);
-      document.getElementById('sp-zoom-label').textContent = '16';
-      spLoadSatellite();
-      // Prime re-centre mode: every geocoded load lands with the Re-centre
-      // pill active + orange hint visible. First click on the image fixes
-      // the centre and deactivates the mode automatically.
-      spActivateRecentreMode();
+      // Persist source + centre + zoom so a reload restores this exact view.
+      spSaveSurveyField('siteImageSource', 'map');
+      spSaveSurveyField('siteMapCentreLat', data.lat);
+      spSaveSurveyField('siteMapCentreLng', data.lng);
+      spSaveSurveyField('siteMapZoom', 18);
+      document.getElementById('sp-image-area').style.display = 'block';
+      spBuildMap([data.lat, data.lng], 18, 'geographic', null);
     })
     .catch(function() {
       alert('Geocoding request failed. Check connection.');
@@ -3956,15 +4019,12 @@ function spUploadImage(input) {
         + ' — Stored: ' + spFmtSize(storedBytes)
         + ' (' + w + 'x' + h + 'px)';
       info.style.display = 'block';
-      const domImg = document.getElementById('sp-img');
-      domImg.onload = function() {
-        spImgNatW = w; spImgNatH = h;
-        document.getElementById('sp-svg').setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-        spShowImageArea();
-      };
-      domImg.src = dataUrl;
       spSaveSurveyField('siteImageData', dataUrl);
       spSaveSurveyField('siteImageSource', 'upload');
+      document.getElementById('sp-image-area').style.display = 'block';
+      // Render the drone photo via L.imageOverlay on a Simple-CRS Leaflet map.
+      // Marker drag/click + the click-to-place flow are reused unchanged.
+      spBuildMap(null, null, 'simple', dataUrl);
     };
     srcImg.src = e.target.result;
   };
@@ -3972,299 +4032,8 @@ function spUploadImage(input) {
   input.value = '';
 }
 
-function spShowImageArea() {
-  const img = document.getElementById('sp-img');
-  const svg = document.getElementById('sp-svg');
-  img.style.display = 'block';
-  svg.style.display = 'block';
-  document.getElementById('sp-image-area').style.display = 'block';
-  // Re-centre is available whenever the image is visible, so the user can
-  // nudge the centre at any time (not just immediately after a geocoded load).
-  var rcBtn = document.getElementById('sp-recentre-btn');
-  if (rcBtn) rcBtn.style.display = 'inline-flex';
-  spResetZoom();
-  spSetMode('identify');
-  spRenderAnnotations();
-  spInitInteraction();
-}
-
-// ── API zoom (reloads satellite at new zoom level) ──
-function spChangeApiZoom(delta) {
-  const survey = spCurrentSurvey();
-  const newZoom = Math.max(15, Math.min(21, (survey.siteImageZoom || 18) + delta));
-  spSaveSurveyField('siteImageZoom', newZoom);
-  document.getElementById('sp-zoom-label').textContent = newZoom;
-  if (survey.siteImageSource === 'satellite') spLoadSatellite();
-}
-
-// ── CSS zoom / pan ──
-function spApplyTransform() {
-  const inner = document.getElementById('sp-inner');
-  inner.style.transformOrigin = '0 0';
-  inner.style.transform = 'translate(' + spImgTx + 'px, ' + spImgTy + 'px) scale(' + spImgScale + ')';
-  document.getElementById('sp-reset-zoom').style.display = spImgScale > 1.05 ? 'inline-flex' : 'none';
-}
-
-function spResetZoom() {
-  spImgScale = 1; spImgTx = 0; spImgTy = 0;
-  spApplyTransform();
-}
-
-function spClampTranslation(wrapperW, wrapperH) {
-  spImgTx = Math.min(0, Math.max(wrapperW * (1 - spImgScale), spImgTx));
-  spImgTy = Math.min(0, Math.max(wrapperH * (1 - spImgScale), spImgTy));
-}
-
-function spInitInteraction() {
-  const outer = document.getElementById('sp-outer');
-  if (outer._spInited) return;
-  outer._spInited = true;
-
-  // Mouse wheel zoom toward cursor.
-  outer.addEventListener('wheel', function(e) {
-    e.preventDefault();
-    const rect = outer.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const factor = e.deltaY < 0 ? 1.15 : 0.87;
-    const newScale = Math.max(1, Math.min(6, spImgScale * factor));
-    const scaleChange = newScale / spImgScale;
-    spImgTx = mx - (mx - spImgTx) * scaleChange;
-    spImgTy = my - (my - spImgTy) * scaleChange;
-    spImgScale = newScale;
-    spClampTranslation(rect.width, rect.height);
-    spApplyTransform();
-  }, { passive: false });
-
-  // Drag to pan (only when zoomed in).
-  outer.addEventListener('mousedown', function(e) {
-    if (spImgScale <= 1) return;
-    spIsDragging = true;
-    spDragStartX = e.clientX; spDragStartY = e.clientY;
-    spDragStartTx = spImgTx; spDragStartTy = spImgTy;
-    spDragMoved = 0;
-    outer.style.cursor = 'grab';
-    e.preventDefault();
-  });
-  document.addEventListener('mousemove', function(e) {
-    // Marker-drag branch — runs first so a marker drag never gets swallowed
-    // by the pan-drag handler below. Once moved >5 px, the marker's <g> is
-    // updated in place each frame; spDragJustMoved is set so the click event
-    // that follows mouseup is suppressed in the marker click handlers.
-    // mdx/mdy (not dx/dy) so `var` hoisting doesn't collide with the `const
-    // dx/dy` declared further down by the pan-drag branch.
-    if (spDragItem) {
-      var mdx = e.clientX - spDragItem.startClientX;
-      var mdy = e.clientY - spDragItem.startClientY;
-      if (Math.abs(mdx) > 5 || Math.abs(mdy) > 5) {
-        spDragItem.moved = true;
-        spDragJustMoved = true;
-      }
-      if (spDragItem.moved) {
-        var frac = spEventToFraction(e);
-        var svg = document.getElementById('sp-svg');
-        var vw = spImgNatW, vh = spImgNatH;
-        var cx = frac.x * vw, cy = frac.y * vh;
-        var selector = spDragItem.type === 'pin'
-          ? '[data-sp-pin="' + spDragItem.key + '"]'
-          : '[data-sp-fault="' + spDragItem.key + '"]';
-        var g = svg.querySelector(selector);
-        if (g) {
-          var circle = g.querySelector('circle');
-          var text = g.querySelector('text');
-          if (circle) {
-            circle.setAttribute('cx', cx);
-            circle.setAttribute('cy', cy);
-          }
-          if (text) {
-            text.setAttribute('x', cx);
-            text.setAttribute('y', cy + 4);
-          }
-        }
-      }
-      return;
-    }
-    if (!spIsDragging) return;
-    const dx = e.clientX - spDragStartX;
-    const dy = e.clientY - spDragStartY;
-    spDragMoved = Math.sqrt(dx * dx + dy * dy);
-    const rect = document.getElementById('sp-outer').getBoundingClientRect();
-    spImgTx = spDragStartTx + dx;
-    spImgTy = spDragStartTy + dy;
-    spClampTranslation(rect.width, rect.height);
-    spApplyTransform();
-  });
-  document.addEventListener('mouseup', function(e) {
-    // Marker-drag release: if the marker actually moved (>5 px), commit the
-    // new 0–1 coords to the model, persist via spSaveSurveyField, and re-render
-    // so all derived UI (schedule rows, active fault highlight) catches up.
-    // A drag that didn't pass the threshold falls through to the click handler
-    // on the marker, which restores the original behaviour (remove / open).
-    if (spDragItem) {
-      if (spDragItem.moved) {
-        var frac = spEventToFraction(e);
-        var survey = spCurrentSurvey();
-        if (spDragItem.type === 'pin') {
-          var pins = survey.siteImagePins || [];
-          var pin = pins[spDragItem.key];
-          if (pin) {
-            pin.x = frac.x;
-            pin.y = frac.y;
-            spSaveSurveyField('siteImagePins', pins);
-          }
-        } else {
-          var faults = survey.siteFaultMarkers || [];
-          var fault = faults.find(function(f) { return f.id === spDragItem.key; });
-          if (fault) {
-            fault.x = frac.x;
-            fault.y = frac.y;
-            spSaveSurveyField('siteFaultMarkers', faults);
-          }
-        }
-        spRenderAnnotations();
-      }
-      spDragItem = null;
-      document.getElementById('sp-outer').style.cursor = 'crosshair';
-      return;
-    }
-    if (!spIsDragging) return;
-    spIsDragging = false;
-    document.getElementById('sp-outer').style.cursor = 'crosshair';
-  });
-
-  // Touch pinch-to-zoom.
-  let lastTouchDist = null;
-  outer.addEventListener('touchstart', function(e) {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      lastTouchDist = Math.sqrt(dx * dx + dy * dy);
-    }
-  }, { passive: true });
-  outer.addEventListener('touchmove', function(e) {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (lastTouchDist) {
-        const factor = dist / lastTouchDist;
-        const rect = outer.getBoundingClientRect();
-        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
-        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
-        const newScale = Math.max(1, Math.min(6, spImgScale * factor));
-        const sc = newScale / spImgScale;
-        spImgTx = cx - (cx - spImgTx) * sc;
-        spImgTy = cy - (cy - spImgTy) * sc;
-        spImgScale = newScale;
-        spClampTranslation(rect.width, rect.height);
-        spApplyTransform();
-      }
-      lastTouchDist = dist;
-    }
-  }, { passive: false });
-  outer.addEventListener('touchend', function() { lastTouchDist = null; });
-
-  // Click / tap on the SVG to place a pin or fault marker. SVG is the click
-  // target so coordinates land inside image space; the per-pin/per-fault
-  // groups stopPropagation in their own click handlers so they don't add new
-  // markers when an existing one is tapped.
-  const svg = document.getElementById('sp-svg');
-  svg.addEventListener('click', spHandleImageClick);
-  svg.addEventListener('touchend', function(e) {
-    if (e.changedTouches.length === 1 && spDragMoved < 8) {
-      const t = e.changedTouches[0];
-      spHandleImageClick({ clientX: t.clientX, clientY: t.clientY, target: e.target });
-    }
-  });
-}
-
-// ── Click handler — adds a building pin (identify mode) or a fault
-//    marker (fault mode). Ignored on drags and on clicks landing on an
-//    existing marker (those have their own handlers).
-function spHandleImageClick(e) {
-  if (spIsDragging || spDragMoved > 5) return;
-
-  // Drag-finished click landing on the SVG background (not on a marker):
-  // suppress placement AND consume the one-shot flag, otherwise a marker
-  // drag released over empty space would drop a phantom pin/fault and
-  // leave the flag stuck for the next click. Not in the spec — needed
-  // because the click event after a marker drag fires on the common
-  // ancestor (the SVG), which would otherwise reach this handler.
-  if (spDragJustMoved) { spDragJustMoved = false; return; }
-
-  // Re-centre branch: convert the click pixel back to a geographic coordinate
-  // via Mercator, persist as the new centre, reset CSS zoom, and re-fetch the
-  // tile. Runs before the existing-marker check so a re-centre click can land
-  // anywhere — including on top of a pin — and still re-centre. Locals are
-  // `rc`-prefixed so `var` hoisting doesn't collide with the `const survey`
-  // declared further down for the normal pin/fault placement path.
-  if (spRecentreMode) {
-    var rcSurvey = spCurrentSurvey();
-    var centreLat = parseFloat(document.getElementById('sp-lat').value);
-    var centreLng = parseFloat(document.getElementById('sp-lng').value);
-    var zoom = rcSurvey.siteImageZoom || 18;
-    var innerEl = document.getElementById('sp-inner');
-    var rectEl = innerEl.getBoundingClientRect();
-    // spImgScale folds the CSS-side zoom into the click coordinate so a
-    // zoomed-in re-centre still lands at the correct world pixel.
-    var px = (e.clientX - rectEl.left) / spImgScale;
-    var py = (e.clientY - rectEl.top) / spImgScale;
-    var newCoords = spPixelToLatLng(px, py, centreLat, centreLng, zoom, spImgNatW, spImgNatH);
-    document.getElementById('sp-lat').value = newCoords.lat.toFixed(6);
-    document.getElementById('sp-lng').value = newCoords.lng.toFixed(6);
-    spSaveSurveyField('siteLat', String(newCoords.lat.toFixed(6)));
-    spSaveSurveyField('siteLng', String(newCoords.lng.toFixed(6)));
-    spRecentreMode = false;
-    var btn = document.getElementById('sp-recentre-btn');
-    if (btn) {
-      btn.style.background = 'transparent';
-      btn.style.color = '#434244';
-      btn.style.borderColor = '#d4d4d0';
-    }
-    var hint = document.getElementById('sp-recentre-hint');
-    if (hint) hint.style.display = 'none';
-    spResetZoom();
-    spLoadSatellite();
-    return;
-  }
-
-  if (e.target && (e.target.closest && (e.target.closest('[data-sp-pin]') || e.target.closest('[data-sp-fault]')))) return;
-
-  const inner = document.getElementById('sp-inner');
-  const rect = inner.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / rect.width;
-  const y = (e.clientY - rect.top) / rect.height;
-  if (x < 0 || x > 1 || y < 0 || y > 1) return;
-
-  const survey = spCurrentSurvey();
-
-  if (spActiveMode === 'identify') {
-    const pins = (survey.siteImagePins || []).slice();
-    const buildings = survey.buildings || [];
-    const nextIdx = pins.length;
-    if (nextIdx >= buildings.length) return;
-    pins.push({ buildingIndex: nextIdx, label: 'B' + (nextIdx + 1), x: x, y: y });
-    spSaveSurveyField('siteImagePins', pins);
-  } else {
-    spFaultCounter++;
-    const id = 'f' + spFaultCounter;
-    const faults = (survey.siteFaultMarkers || []).slice();
-    faults.push({
-      id: id, number: spFaultCounter, x: x, y: y,
-      severity: '', faultType: '', location: '',
-      description: '', recommendation: '',
-      dbDesc: false, dbRec: false
-    });
-    spSaveSurveyField('siteFaultMarkers', faults);
-    spActiveFaultId = id;
-  }
-
-  spRenderAnnotations();
-  if (spActiveMode === 'fault') spOpenFaultPanel(spActiveFaultId);
-}
-
-// ── Mode toggle ──
+// ── Mode toggle. The instruction strapline below the map reads from this so
+// every mode change updates both the active pill and the user's prompt copy.
 function spSetMode(mode) {
   spActiveMode = mode;
   document.getElementById('sp-mode-id').className =
@@ -4272,102 +4041,8 @@ function spSetMode(mode) {
   document.getElementById('sp-mode-fault').className =
     'sp-mode-btn' + (mode === 'fault' ? ' active' : '');
   document.getElementById('sp-instruction').textContent = mode === 'identify'
-    ? 'Click the image to place a building marker. Drag a marker to reposition it. Click a placed marker to remove it.'
-    : 'Click the image to place a fault marker. Drag a marker to reposition it. Click a placed marker to edit it.';
-}
-
-// ── SVG annotation rendering ──
-function spRenderAnnotations() {
-  const svg = document.getElementById('sp-svg');
-  if (!svg) return;
-  svg.innerHTML = '';
-  const ns = 'http://www.w3.org/2000/svg';
-  const survey = spCurrentSurvey();
-  const vw = spImgNatW, vh = spImgNatH;
-
-  // Building pins.
-  (survey.siteImagePins || []).forEach(function(pin, i) {
-    const cx = pin.x * vw, cy = pin.y * vh;
-    const g = document.createElementNS(ns, 'g');
-    g.setAttribute('data-sp-pin', i);
-    g.style.cursor = 'grab';
-    const circle = document.createElementNS(ns, 'circle');
-    circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
-    circle.setAttribute('r', 17); circle.setAttribute('fill', '#F7901E');
-    circle.setAttribute('stroke', 'white'); circle.setAttribute('stroke-width', 2.5);
-    const text = document.createElementNS(ns, 'text');
-    text.setAttribute('x', cx); text.setAttribute('y', cy + 5);
-    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', 'white');
-    text.setAttribute('font-size', '11'); text.setAttribute('font-weight', 'bold');
-    text.setAttribute('font-family', 'Helvetica Neue, sans-serif');
-    text.textContent = pin.label;
-    g.appendChild(circle); g.appendChild(text);
-    g.addEventListener('mousedown', function(e) {
-      e.stopPropagation();
-      spDragJustMoved = false;
-      spDragItem = {
-        type: 'pin', key: i,
-        startClientX: e.clientX, startClientY: e.clientY,
-        moved: false
-      };
-    });
-    g.addEventListener('click', function(e) {
-      // Drag-finished click: suppress the remove action AND consume the flag
-      // so the next genuine click (no drag) removes the pin normally.
-      if (spDragJustMoved) { spDragJustMoved = false; return; }
-      e.stopPropagation();
-      const pins = (spCurrentSurvey().siteImagePins || []).slice();
-      pins.splice(i, 1);
-      pins.forEach(function(p, j) { p.buildingIndex = j; p.label = 'B' + (j + 1); });
-      spSaveSurveyField('siteImagePins', pins);
-      spRenderAnnotations();
-    });
-    svg.appendChild(g);
-  });
-
-  // Fault markers.
-  (survey.siteFaultMarkers || []).forEach(function(fault) {
-    const cx = fault.x * vw, cy = fault.y * vh;
-    const col = FAULT_SEV_COLORS[fault.severity] || FAULT_SEV_COLORS[''];
-    const isActive = fault.id === spActiveFaultId;
-    const g = document.createElementNS(ns, 'g');
-    g.setAttribute('data-sp-fault', fault.id);
-    g.style.cursor = 'grab';
-    const circle = document.createElementNS(ns, 'circle');
-    circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
-    circle.setAttribute('r', 15); circle.setAttribute('fill', col);
-    circle.setAttribute('stroke', isActive ? 'white' : 'rgba(255,255,255,0.55)');
-    circle.setAttribute('stroke-width', isActive ? 3 : 2);
-    const text = document.createElementNS(ns, 'text');
-    text.setAttribute('x', cx); text.setAttribute('y', cy + 4);
-    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', 'white');
-    text.setAttribute('font-size', '10'); text.setAttribute('font-weight', 'bold');
-    text.setAttribute('font-family', 'Helvetica Neue, sans-serif');
-    text.textContent = 'F' + fault.number;
-    g.appendChild(circle); g.appendChild(text);
-    g.addEventListener('mousedown', function(e) {
-      e.stopPropagation();
-      spDragJustMoved = false;
-      var faultId = fault.id;
-      spDragItem = {
-        type: 'fault', key: faultId,
-        startClientX: e.clientX, startClientY: e.clientY,
-        moved: false
-      };
-    });
-    g.addEventListener('click', function(e) {
-      // Drag-finished click: suppress the open-fault-panel action AND consume
-      // the flag so the next genuine click (no drag) opens the panel normally.
-      if (spDragJustMoved) { spDragJustMoved = false; return; }
-      e.stopPropagation();
-      spActiveFaultId = fault.id;
-      spRenderAnnotations();
-      spOpenFaultPanel(fault.id);
-    });
-    svg.appendChild(g);
-  });
-
-  spRenderSchedule();
+    ? 'Click the map to place a building marker. Drag to reposition. Click a marker to remove it.'
+    : 'Click the map to place a fault marker. Drag to reposition. Click a marker to edit it.';
 }
 
 // ── Fault panel ──
@@ -4403,7 +4078,7 @@ function spOpenFaultPanel(id) {
 function spCloseFaultPanel() {
   document.getElementById('sp-fault-panel').style.display = 'none';
   spActiveFaultId = null;
-  spRenderAnnotations();
+  spRenderMarkers();
 }
 
 function spSetSeverity(sev) {
@@ -4413,7 +4088,7 @@ function spSetSeverity(sev) {
     document.getElementById('sp-sev-' + s).className =
       'sp-sev-btn' + (s === sev ? ' sev-' + sev : '');
   });
-  spRenderAnnotations();
+  spRenderMarkers();
 }
 
 function spSelectFaultType(type) {
@@ -4507,7 +4182,7 @@ function spDeleteFault() {
   spActiveFaultId = null;
   spSaveSurveyField('siteFaultMarkers', faults);
   document.getElementById('sp-fault-panel').style.display = 'none';
-  spRenderAnnotations();
+  spRenderMarkers();
 }
 
 function spUpdateFault(id, field, value) {
@@ -4547,7 +4222,7 @@ function spRenderSchedule() {
       + (fault.location || '-') + '</span>';
     row.addEventListener('click', function() {
       spActiveFaultId = fault.id;
-      spRenderAnnotations();
+      spRenderMarkers();
       spOpenFaultPanel(fault.id);
     });
     rows.appendChild(row);
@@ -4557,38 +4232,27 @@ function spRenderSchedule() {
 // ── Session restore — called after currentSiteImage + currentBuildings
 //    have been populated by the survey-load path. Re-attaches an uploaded
 //    image data URL synchronously, or re-fetches the satellite tile.
+// Restore the Site Plan area from the loaded survey. Called from
+// goToNewSurvey + editCurrent after currentSiteImage has been populated.
+// Upload mode rebuilds the L.imageOverlay on a Simple-CRS map; map mode
+// re-fetches the Esri tile layer at the last persisted centre + zoom.
 function spRestoreImageState() {
-  const survey = spCurrentSurvey();
+  var survey = spCurrentSurvey();
   if (!survey) return;
-  // Always sync the zoom readout, even if no image is restored, so the
-  // +/- buttons start at the right level for a fresh "Load satellite" click.
-  const zoomEl = document.getElementById('sp-zoom-label');
-  if (zoomEl) zoomEl.textContent = survey.siteImageZoom || 18;
-  // Reset transient UI state so a previous session's open fault panel /
-  // active marker / zoom-and-pan doesn't leak into the new one.
-  spActiveFaultId = null;
-  spResetZoom();
-  const panel = document.getElementById('sp-fault-panel');
-  if (panel) panel.style.display = 'none';
-  // No source set → leave the image area hidden.
-  if (!survey.siteImageSource) {
-    const area = document.getElementById('sp-image-area');
-    if (area) area.style.display = 'none';
-    return;
-  }
+  if (survey.siteLat) document.getElementById('sp-lat').value = survey.siteLat;
+  if (survey.siteLng) document.getElementById('sp-lng').value = survey.siteLng;
+  spFaultCounter = (survey.siteFaultMarkers || []).length;
   if (survey.siteImageSource === 'upload' && survey.siteImageData) {
-    const img = document.getElementById('sp-img');
-    img.onload = function() {
-      spImgNatW = img.naturalWidth || 1920;
-      spImgNatH = img.naturalHeight || 1080;
-      document.getElementById('sp-svg').setAttribute('viewBox', '0 0 ' + spImgNatW + ' ' + spImgNatH);
-      spShowImageArea();
-      spFaultCounter = (survey.siteFaultMarkers || []).length;
-    };
-    img.src = survey.siteImageData;
-  } else if (survey.siteImageSource === 'satellite' && survey.siteLat && survey.siteLng) {
-    spFaultCounter = (survey.siteFaultMarkers || []).length;
-    spLoadSatellite();
+    document.getElementById('sp-image-area').style.display = 'block';
+    spBuildMap(null, null, 'simple', survey.siteImageData);
+  } else if (survey.siteImageSource === 'map') {
+    var centre = survey.siteMapCentreLat != null
+      ? [survey.siteMapCentreLat, survey.siteMapCentreLng]
+      : [parseFloat(survey.siteLat) || 54.5,
+         parseFloat(survey.siteLng) || -3.0];
+    var zoom = survey.siteMapZoom || 18;
+    document.getElementById('sp-image-area').style.display = 'block';
+    spBuildMap(centre, zoom, 'geographic', null);
   }
 }
 
@@ -4643,6 +4307,18 @@ document.addEventListener('click', function(e) {
   document.querySelectorAll('.field-info-icon.tip-visible')
     .forEach(el => el.classList.remove('tip-visible'));
 });
+
+// Leaflet measures the container at construction; if the Site Plan <details>
+// is closed when spBuildMap runs, the map ends up zero-sized. Re-measure on
+// every open so the tiles paint correctly the moment the section expands.
+var spDetails = document.getElementById('section-site-plan');
+if (spDetails) {
+  spDetails.addEventListener('toggle', function() {
+    if (spDetails.open && spMap) {
+      setTimeout(function() { spMap.invalidateSize(); }, 80);
+    }
+  });
+}
 
 document.addEventListener('DOMContentLoaded', () => { renderSurveyList(); });
 </script>
