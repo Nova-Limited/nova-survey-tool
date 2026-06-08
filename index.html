@@ -1345,6 +1345,10 @@ main { padding-bottom: env(safe-area-inset-bottom); }
             <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
               <button type="button" id="sp-mode-id" class="sp-mode-btn active" onclick="spSetMode('identify')">Identify buildings</button>
               <button type="button" id="sp-mode-fault" class="sp-mode-btn" onclick="spSetMode('fault')">Mark faults</button>
+              <button type="button" id="sp-recentre-btn" onclick="spToggleRecentre()"
+                style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 12px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;display:none;align-items:center;gap:6px;">
+                Re-centre
+              </button>
               <button type="button" id="sp-reset-zoom" onclick="spResetZoom()"
                 style="display:none;margin-left:auto;font-size:12px;border:1px solid #d4d4d0;border-radius:6px;background:transparent;cursor:pointer;padding:0 10px;height:28px;color:#666;font-family:inherit;">
                 Reset zoom
@@ -1359,7 +1363,12 @@ main { padding-bottom: env(safe-area-inset-bottom); }
             </div>
 
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:6px;">
-              <p id="sp-instruction" style="font-size:12px;color:#888;margin:0;"></p>
+              <div>
+                <p id="sp-instruction" style="font-size:12px;color:#888;margin:0;"></p>
+                <p id="sp-recentre-hint" style="font-size:12px;color:#F7901E;margin:0;display:none;">
+                  Click anywhere on the image to re-centre on that point.
+                </p>
+              </div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <span style="font-size:11px;color:#aaa;">Severity:</span>
                 <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block;"></span>Critical</span>
@@ -3732,6 +3741,7 @@ let spActiveFaultId = null;
 let spFaultCounter = 0;
 let spImgNatW = 640;
 let spImgNatH = 400;
+let spRecentreMode = false;
 
 // ── Survey-state accessors — bridge the SP module to the existing
 //    collect/save cycle. spCurrentSurvey returns a merged view (lat/lng
@@ -3772,6 +3782,62 @@ function spFmtSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ── Re-centre: pixel-to-lat/lng via Web-Mercator world coords ──
+// Given a pixel (px,py) inside an image of size imgW×imgH that's centred on
+// (centreLat,centreLng) at Google's tile zoom level, return the geographic
+// coordinates of that pixel. World pixel coordinates at zoom z fit the whole
+// globe in 256·2^z pixels; the image is a 640×400 cutout centred on
+// (centreLat,centreLng), so a pixel offset from the image centre is the
+// same pixel offset in world space.
+function spPixelToLatLng(px, py, centreLat, centreLng, zoom, imgW, imgH) {
+  var scale = Math.pow(2, zoom) * 256;
+  var sinLat = Math.sin(centreLat * Math.PI / 180);
+  sinLat = Math.max(-0.9999, Math.min(0.9999, sinLat));
+  var centreWorldX = (centreLng + 180) / 360 * scale;
+  var centreWorldY = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
+  var targetWorldX = centreWorldX + (px - imgW / 2);
+  var targetWorldY = centreWorldY + (py - imgH / 2);
+  var lng = targetWorldX / scale * 360 - 180;
+  var latRad = Math.atan(Math.sinh((0.5 - targetWorldY / scale) * 2 * Math.PI));
+  var lat = latRad * 180 / Math.PI;
+  return { lat: lat, lng: lng };
+}
+
+// Toggle the Re-centre pill on/off by user click on the button itself.
+function spToggleRecentre() {
+  spRecentreMode = !spRecentreMode;
+  var btn = document.getElementById('sp-recentre-btn');
+  var hint = document.getElementById('sp-recentre-hint');
+  if (spRecentreMode) {
+    btn.style.background = '#F7901E';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#F7901E';
+    hint.style.display = 'block';
+    document.getElementById('sp-outer').style.cursor = 'crosshair';
+  } else {
+    btn.style.background = 'transparent';
+    btn.style.color = '#434244';
+    btn.style.borderColor = '#d4d4d0';
+    hint.style.display = 'none';
+    document.getElementById('sp-outer').style.cursor = 'crosshair';
+  }
+}
+
+// Programmatic activation — used after a geocoded image load so the user is
+// nudged to click their exact building rather than the geocoder's best guess.
+function spActivateRecentreMode() {
+  spRecentreMode = true;
+  var btn = document.getElementById('sp-recentre-btn');
+  if (btn) {
+    btn.style.display = 'inline-flex';
+    btn.style.background = '#F7901E';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#F7901E';
+  }
+  var hint = document.getElementById('sp-recentre-hint');
+  if (hint) hint.style.display = 'block';
 }
 
 // ── Image loading ──
@@ -3831,7 +3897,15 @@ function spFindFromAddress() {
       document.getElementById('sp-lng').value = data.lng.toFixed(6);
       spSaveSurveyField('siteLat', String(data.lat.toFixed(6)));
       spSaveSurveyField('siteLng', String(data.lng.toFixed(6)));
+      // Geocoded loads default to a wider view (z=16) so users can see the
+      // wider site context and re-centre on their exact building.
+      spSaveSurveyField('siteImageZoom', 16);
+      document.getElementById('sp-zoom-label').textContent = '16';
       spLoadSatellite();
+      // Prime re-centre mode: every geocoded load lands with the Re-centre
+      // pill active + orange hint visible. First click on the image fixes
+      // the centre and deactivates the mode automatically.
+      spActivateRecentreMode();
     })
     .catch(function() {
       alert('Geocoding request failed. Check connection.');
@@ -3884,6 +3958,10 @@ function spShowImageArea() {
   img.style.display = 'block';
   svg.style.display = 'block';
   document.getElementById('sp-image-area').style.display = 'block';
+  // Re-centre is available whenever the image is visible, so the user can
+  // nudge the centre at any time (not just immediately after a geocoded load).
+  var rcBtn = document.getElementById('sp-recentre-btn');
+  if (rcBtn) rcBtn.style.display = 'inline-flex';
   spResetZoom();
   spSetMode('identify');
   spRenderAnnotations();
@@ -4017,6 +4095,43 @@ function spInitInteraction() {
 //    existing marker (those have their own handlers).
 function spHandleImageClick(e) {
   if (spIsDragging || spDragMoved > 5) return;
+
+  // Re-centre branch: convert the click pixel back to a geographic coordinate
+  // via Mercator, persist as the new centre, reset CSS zoom, and re-fetch the
+  // tile. Runs before the existing-marker check so a re-centre click can land
+  // anywhere — including on top of a pin — and still re-centre. Locals are
+  // `rc`-prefixed so `var` hoisting doesn't collide with the `const survey`
+  // declared further down for the normal pin/fault placement path.
+  if (spRecentreMode) {
+    var rcSurvey = spCurrentSurvey();
+    var centreLat = parseFloat(document.getElementById('sp-lat').value);
+    var centreLng = parseFloat(document.getElementById('sp-lng').value);
+    var zoom = rcSurvey.siteImageZoom || 18;
+    var innerEl = document.getElementById('sp-inner');
+    var rectEl = innerEl.getBoundingClientRect();
+    // spImgScale folds the CSS-side zoom into the click coordinate so a
+    // zoomed-in re-centre still lands at the correct world pixel.
+    var px = (e.clientX - rectEl.left) / spImgScale;
+    var py = (e.clientY - rectEl.top) / spImgScale;
+    var newCoords = spPixelToLatLng(px, py, centreLat, centreLng, zoom, spImgNatW, spImgNatH);
+    document.getElementById('sp-lat').value = newCoords.lat.toFixed(6);
+    document.getElementById('sp-lng').value = newCoords.lng.toFixed(6);
+    spSaveSurveyField('siteLat', String(newCoords.lat.toFixed(6)));
+    spSaveSurveyField('siteLng', String(newCoords.lng.toFixed(6)));
+    spRecentreMode = false;
+    var btn = document.getElementById('sp-recentre-btn');
+    if (btn) {
+      btn.style.background = 'transparent';
+      btn.style.color = '#434244';
+      btn.style.borderColor = '#d4d4d0';
+    }
+    var hint = document.getElementById('sp-recentre-hint');
+    if (hint) hint.style.display = 'none';
+    spResetZoom();
+    spLoadSatellite();
+    return;
+  }
+
   if (e.target && (e.target.closest && (e.target.closest('[data-sp-pin]') || e.target.closest('[data-sp-fault]')))) return;
 
   const inner = document.getElementById('sp-inner');
