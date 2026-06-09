@@ -1193,7 +1193,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
    PRINT — A4 layout, force backgrounds, page-break between sections
    ============================================================ */
 @media print {
-  @page { size: 210mm 297mm; margin: 18mm 18mm; }
+  @page { size: 297mm 210mm; margin: 16mm; }
   html, body { background: white !important; }
   .topbar, .form-actions, .report-actions, .view-header, .no-print { display: none !important; }
   .view { display: none !important; }
@@ -1204,9 +1204,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     padding: 0 0 12mm 0 !important;
   }
   .cover {
-    min-height: 255mm !important;
+    min-height: 178mm !important;
     padding: 0 !important;
-    justify-content: space-between !important;
     page-break-after: always !important;
     break-after: page !important;
   }
@@ -1223,6 +1222,26 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     color-adjust: exact !important;
   }
   a { color: inherit; text-decoration: none; }
+
+  /* Force the wide-page two-column layouts regardless of how the
+     print engine measures page width */
+  .cover-body      { grid-template-columns: 1.4fr 1fr !important; }
+  .r-grid          { grid-template-columns: 2fr 1fr !important; }
+  .defect-card-grid { grid-template-columns: 2fr 1fr !important; }
+
+  /* Annotated site-plan figure: bound it so it fits one landscape
+     page whatever the photo's aspect, keeping markers aligned by
+     sizing the wrap to the image */
+  .r-sp-figure { max-width: 200mm; }
+  .r-sp-figure-wrap { display: inline-block; max-width: 100%; }
+  .r-sp-figure-wrap img {
+    width: auto; height: auto;
+    max-width: 100%; max-height: 150mm;
+  }
+
+  /* Fault photos sitting in the card's right column print larger,
+     one per row */
+  .defect-card-side .r-sp-fault-photo { max-width: 100%; }
 }
 </style>
 </head>
@@ -3260,9 +3279,9 @@ function renderSitePlan(s, num) {
             (fault.location    ? '<span class="eyebrow-small">Location</span><p>'           + escapeHtml(fault.location)       + '</p>' : '') +
             (fault.description ? '<span class="eyebrow-small">Observation</span><p>'        + escapeHtml(fault.description)    + '</p>' : '') +
             (fault.recommendation ? '<span class="eyebrow-small">Recommended action</span><p>' + escapeHtml(fault.recommendation) + '</p>' : '') +
-            photosHtml +
             (refSrc ? '<span class="r-sp-ref-badge">' + escapeHtml(refSrc) + '</span>' : '') +
           '</div>' +
+          (photosHtml ? '<div class="defect-card-side">' + photosHtml + '</div>' : '') +
         '</div>' +
       '</article>';
   });
