@@ -1792,6 +1792,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
       <div class="form-actions">
         <button class="btn btn-primary" onclick="editCurrent()">Edit</button>
         <button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>
+        <button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>
+        <span id="sync-at-status" style="font-size:13px;color:#666;margin-left:10px;align-self:center;"></span>
         <button class="btn btn-danger" onclick="deleteCurrent()" style="margin-left:auto;">Delete</button>
       </div>
     </div>
@@ -2382,6 +2384,136 @@ function goToReportCurrent() {
   reportSurveyId = currentSurveyId;
   renderReport(currentSurveyId);
   showView('report');
+}
+
+// Save the current survey to Airtable via the Worker's /save-survey endpoint.
+// Field-by-field map of the data the Surveys table expects, plus a JSON
+// snapshot of the full survey with base64 photo bytes stripped (the snapshot
+// field is for forward-compatibility — any field not in the map below still
+// round-trips through the snapshot). Auth lives on the Worker; this file
+// never sees the Airtable token.
+async function syncSurveyToAirtable() {
+  const btn = document.getElementById('sync-at-btn');
+  const statusEl = document.getElementById('sync-at-status');
+  if (!btn || !statusEl) return;
+  if (!currentSurveyId) {
+    statusEl.style.color = '#c44';
+    statusEl.textContent = 'No survey loaded.';
+    return;
+  }
+  const s = loadSurveys().find(x => x.id === currentSurveyId);
+  if (!s) {
+    statusEl.style.color = '#c44';
+    statusEl.textContent = 'Survey not found.';
+    return;
+  }
+  // Same reference string the report cover prints (refDisplay).
+  const surveyId = 'NOV-' + s.id;
+
+  // Typed field map, by Airtable field ID. Only populated values are pushed;
+  // blank strings are skipped so the upsert doesn't blat valid Airtable data
+  // with an empty string from an unfilled form input.
+  const fields = {};
+  const put = function(key, v) {
+    if (v == null) return;
+    if (typeof v === 'string' && v.trim() === '') return;
+    fields[key] = v;
+  };
+  const ec = s.endClient      || {};
+  const mc = s.mainContractor || {};
+  const st = s.site           || {};
+  const vi = s.visit          || {};
+
+  put('fldmSKMithJSvqkeO', vi.surveyorName);
+  put('fld8EX9GClWXPn4Kl', vi.date);
+  const engType = s.engagementType === 'subcontracted' ? 'Sub-contracted'
+                : s.engagementType === 'direct'        ? 'Direct'
+                : '';
+  put('fldXh9phnU7St0aKT', engType);
+  put('fldJUMNlyvbnqzh84', ec.company);
+  put('fldbscMipxc9rpGc7', ec.contactName);
+  put('fldChWYjv9KWgfua0', ec.contactTitle);
+  put('fld7ggN1ACfvNMHz0', ec.email);
+  put('fldcHCV1DemvOMp7J', ec.telephone);
+  put('fldyn30uz5n5JfgMf', st.contactName);
+  put('fld7br4cbED4LiEk4', st.contactTelephone);
+  put('fldgUi7rPeBbQHptJ', vi.worksDescription);
+
+  // Indicative roof area — sum of slope areas across all buildings. Only sent
+  // when the geometry has enough fields to compute a real total.
+  const buildings = Array.isArray(s.buildings) ? s.buildings : [];
+  const roofTot = surveyTotalRoofArea(buildings);
+  if (roofTot != null && Number.isFinite(roofTot)) {
+    fields['fld87eG2Ln0JgWyOV'] = Math.round(roofTot);
+  }
+
+  // Notes — a readable fault schedule, one line per fault, sorted by number:
+  //   "F1 [Cut edge corrosion] [POOR] — North elevation; description; rec"
+  const faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
+  if (faults.length) {
+    const lines = faults.slice().sort(function(a, b) {
+      return (Number(a.number) || 0) - (Number(b.number) || 0);
+    }).map(function(f) {
+      const typeLabel = (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'Defect';
+      const sev = (f.severity || '').toUpperCase();
+      const head = ['F' + (f.number || '?'), '[' + typeLabel + ']'];
+      if (sev) head.push('[' + sev + ']');
+      let line = head.join(' ');
+      const tail = [];
+      if (f.location)       tail.push(f.location);
+      if (f.description)    tail.push(f.description);
+      if (f.recommendation) tail.push(f.recommendation);
+      if (tail.length) line += ' — ' + tail.join('; ');
+      return line;
+    });
+    put('fldkAPwVoeVh6xr8o', lines.join('\n'));
+  }
+
+  // Main Contractor block — only when sub-contracted.
+  if (s.engagementType === 'subcontracted') {
+    put('fldFXJLD9Ebx1HgOp', mc.company);
+    put('fld8vlyUdpgCk3Wxz', mc.contactName);
+    put('fldd9YqnrhaWVwAIF', mc.contactTitle);
+    put('fldqpEvYcuJaiTdg8', mc.email);
+    put('fldbDxVR3GySRXH8R', mc.telephone);
+    put('fldPxN1PC2Ec11wIf', mc.reference);
+  }
+
+  // Snapshot — deep-clone the survey, then strip the base64 image bytes so the
+  // payload stays well under Airtable's long-text-cell limit (100k chars).
+  // The siteImageData drone JPEG and each fault.photos[] are wiped to empty.
+  const clone = JSON.parse(JSON.stringify(s));
+  if (clone.siteImageData) clone.siteImageData = '';
+  if (Array.isArray(clone.siteFaultMarkers)) {
+    clone.siteFaultMarkers.forEach(function(f) { f.photos = []; });
+  }
+  const snapshot = JSON.stringify(clone);
+
+  btn.disabled = true;
+  statusEl.style.color = '#666';
+  statusEl.textContent = 'Saving…';
+  try {
+    const resp = await fetch('https://nova-ch-proxy.jamie-b41.workers.dev/save-survey', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ surveyId: surveyId, fields: fields, snapshot: snapshot })
+    });
+    const data = await resp.json().catch(function() { return {}; });
+    if (resp.ok && data && data.ok) {
+      statusEl.style.color = '#15803d';
+      statusEl.textContent = 'Saved to Airtable ✓';
+    } else {
+      statusEl.style.color = '#c44';
+      statusEl.textContent = 'Save failed — try again';
+      console.warn('save-survey failed:', resp.status, data);
+    }
+  } catch (e) {
+    statusEl.style.color = '#c44';
+    statusEl.textContent = 'Save failed — try again';
+    console.warn('save-survey threw:', e);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function backToDetail() {
