@@ -691,7 +691,6 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   gap: 3rem;
   min-height: 92vh;
 }
-@media print { .cover { min-height: 100vh; } }
 
 .cover-top {
   display: flex;
@@ -1202,15 +1201,15 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .container, .container.wide { padding: 0 !important; max-width: none !important; }
   .report { box-shadow: none !important; border-radius: 0 !important; }
   .report-section {
-    padding: 0 0 14mm 0 !important;
-    page-break-after: always;
-    break-after: page;
+    padding: 0 0 12mm 0 !important;
   }
-  .report-section:last-of-type {
-    page-break-after: auto;
-    break-after: auto;
+  .cover {
+    min-height: 255mm !important;
+    padding: 0 !important;
+    justify-content: space-between !important;
+    page-break-after: always !important;
+    break-after: page !important;
   }
-  .cover { min-height: 0 !important; }
   .defect-card, .summary-card, .info-grid, .recommendation-stats, .cover-metrics {
     page-break-inside: avoid;
     break-inside: avoid;
@@ -2891,7 +2890,10 @@ function renderReport(id) {
 
   let html = '<div class="report">';
   html += renderCover(s, defects, sevCounts, clientLine, visitDateStr, refDisplay, overallRating, recommendation);
-  html += renderExecSummary(s, overallRating, nextNum());
+  // Suppress empty / placeholder sections — only render exec summary, findings
+  // and recommendation when the survey actually has the data they describe.
+  // nextNum() lives INSIDE each guard so the on-page numbering stays gapless.
+  if (s['f-executive-summary']) html += renderExecSummary(s, overallRating, nextNum());
   html += renderSiteInfo(s, nextNum());
   if (buildings.length) html += renderRoofGeometry(buildings, nextNum());
   const hasSitePlan =
@@ -2900,8 +2902,8 @@ function renderReport(id) {
     (Array.isArray(s.siteImagePins) && s.siteImagePins.length);
   if (hasSitePlan) html += renderSitePlan(s, nextNum());
   if (defects.length) html += renderDefectsSchedule(defects, nextNum());
-  html += renderFindingsAtAGlance(defects, sevCounts, costCounts, nextNum());
-  html += renderRecommendationSection(s, recommendation, totalCost, overallRating, nextNum());
+  if (defects.length) html += renderFindingsAtAGlance(defects, sevCounts, costCounts, nextNum());
+  if (s['f-recommendation'] || s['f-next-steps']) html += renderRecommendationSection(s, recommendation, totalCost, overallRating, nextNum());
   html += renderCta(s, defects, recommendation, nextNum());
   html += renderBrandFooter();
   html += '</div>';
