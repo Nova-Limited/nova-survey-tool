@@ -303,9 +303,23 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   color: #666;
   margin-top: 6px;
 }
+.r-sp-fault-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.r-sp-fault-photo {
+  max-width: 48%;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid #d4d4d0;
+}
 @media print {
   .r-sp-figure { page-break-inside: avoid; break-inside: avoid; }
   .r-sp-fault-card { page-break-inside: avoid; break-inside: avoid; }
+  .r-sp-fault-photo { max-width: 48%; }
+  .r-sp-fault-photos { page-break-inside: avoid; break-inside: avoid; }
 }
 
 /* ── Site Plan section ──
@@ -1503,6 +1517,15 @@ main { padding-bottom: env(safe-area-inset-bottom); }
               <button type="button" class="sp-refresh-link" id="sp-rec-refresh" onclick="spRefreshRec()">Reset to standard wording</button>
             </div>
 
+            <div class="field" style="margin-bottom:14px;">
+              <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Photos</label>
+              <div id="sp-fault-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
+              <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;">
+                Add photo
+                <input type="file" id="sp-fault-photo-input" accept="image/*" style="display:none;" onchange="spAddFaultPhoto(this)">
+              </label>
+            </div>
+
             <button type="button" onclick="spDeleteFault()"
               style="font-size:12px;color:#dc2626;background:transparent;border:none;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:4px;">
               Remove this fault
@@ -2384,7 +2407,11 @@ function collectFormData() {
   out.siteMapCentreLng = currentSiteImage.siteMapCentreLng;
   out.siteMapZoom      = currentSiteImage.siteMapZoom;
   out.siteImagePins    = (currentSiteImage.siteImagePins    || []).map(p => ({ ...p }));
-  out.siteFaultMarkers = (currentSiteImage.siteFaultMarkers || []).map(f => ({ ...f }));
+  // Deep-clone the photos array so a later mutation to a fault doesn't bleed
+  // back into a survey already written to localStorage. Base64 data URLs are
+  // strings, so slice() is enough — we're cloning the list, not the bytes.
+  out.siteFaultMarkers = (currentSiteImage.siteFaultMarkers || [])
+    .map(f => ({ ...f, photos: Array.isArray(f.photos) ? f.photos.slice() : [] }));
   return out;
 }
 function populateForm(data) {
@@ -3207,6 +3234,17 @@ function renderSitePlan(s, num) {
     const typeLabel = FAULT_LABELS[fault.faultType] || fault.faultType || 'Defect';
     const refSrc = (FAULT_DB[fault.faultType] && FAULT_DB[fault.faultType].ref) || '';
     const num = 'F' + (fault.number || '?');
+    // Photos: base64 JPEG data URLs captured via the fault panel. Rendered
+    // directly into the card so the printed PDF carries them inline (no
+    // external requests on print).
+    let photosHtml = '';
+    if (Array.isArray(fault.photos) && fault.photos.length) {
+      photosHtml += '<div class="r-sp-fault-photos">';
+      fault.photos.forEach(function(src) {
+        photosHtml += '<img class="r-sp-fault-photo" src="' + src + '" alt="Fault photo">';
+      });
+      photosHtml += '</div>';
+    }
     cardsHtml +=
       '<article class="defect-card r-sp-fault-card" style="border-left:4px solid ' + meta.color + ';">' +
         '<div class="defect-card-top">' +
@@ -3220,6 +3258,7 @@ function renderSitePlan(s, num) {
             (fault.location    ? '<span class="eyebrow-small">Location</span><p>'           + escapeHtml(fault.location)       + '</p>' : '') +
             (fault.description ? '<span class="eyebrow-small">Observation</span><p>'        + escapeHtml(fault.description)    + '</p>' : '') +
             (fault.recommendation ? '<span class="eyebrow-small">Recommended action</span><p>' + escapeHtml(fault.recommendation) + '</p>' : '') +
+            photosHtml +
             (refSrc ? '<span class="r-sp-ref-badge">' + escapeHtml(refSrc) + '</span>' : '') +
           '</div>' +
         '</div>' +
@@ -4204,7 +4243,8 @@ function spHandleMapClick(lat, lng) {
       id: id, number: spFaultCounter, lat: lat, lng: lng,
       severity: '', faultType: '', location: '',
       description: '', recommendation: '',
-      dbDesc: false, dbRec: false
+      dbDesc: false, dbRec: false,
+      photos: []
     });
     spSaveSurveyField('siteFaultMarkers', faults);
     spActiveFaultId = id;
@@ -4334,6 +4374,7 @@ function spOpenFaultPanel(id) {
   } else {
     document.getElementById('sp-fault-ref').style.display = 'none';
   }
+  spRenderFaultPhotos();
   document.getElementById('sp-fault-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -4445,6 +4486,86 @@ function spDeleteFault() {
   spSaveSurveyField('siteFaultMarkers', faults);
   document.getElementById('sp-fault-panel').style.display = 'none';
   spRenderMarkers();
+}
+
+// ── Fault photos ──
+// Per-fault image capture for the site plan. Photos are stored as base64
+// JPEG data URLs on fault.photos[]; persistence rides the existing
+// spSaveSurveyField → draft autosave path. accept="image/*" with no capture
+// attribute lets iPad show both the camera roll and direct capture.
+function spAddFaultPhoto(input) {
+  if (!spActiveFaultId) return;
+  var files = Array.prototype.slice.call(input.files || []);
+  if (!files.length) return;
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) {
+    return f.id === spActiveFaultId;
+  });
+  if (!fault) return;
+  if (!Array.isArray(fault.photos)) fault.photos = [];
+  files.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var maxW = 1280;
+        var w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        var cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        fault.photos.push(cv.toDataURL('image/jpeg', 0.7));
+        spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+        spRenderFaultPhotos();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function spRemoveFaultPhoto(idx) {
+  if (!spActiveFaultId) return;
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) {
+    return f.id === spActiveFaultId;
+  });
+  if (!fault || !Array.isArray(fault.photos)) return;
+  fault.photos.splice(idx, 1);
+  spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+  spRenderFaultPhotos();
+}
+
+function spRenderFaultPhotos() {
+  var container = document.getElementById('sp-fault-photos');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!spActiveFaultId) return;
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) {
+    return f.id === spActiveFaultId;
+  });
+  if (!fault || !Array.isArray(fault.photos)) return;
+  fault.photos.forEach(function(src, i) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;width:64px;height:64px;'
+      + 'border-radius:6px;overflow:hidden;border:1px solid #d4d4d0;';
+    var im = document.createElement('img');
+    im.src = src;
+    im.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    var rm = document.createElement('button');
+    rm.type = 'button';
+    rm.textContent = '×';
+    rm.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;'
+      + 'height:18px;border-radius:50%;border:none;'
+      + 'background:rgba(0,0,0,0.6);color:#fff;font-size:13px;'
+      + 'line-height:1;cursor:pointer;padding:0;';
+    rm.onclick = function() { spRemoveFaultPhoto(i); };
+    wrap.appendChild(im);
+    wrap.appendChild(rm);
+    container.appendChild(wrap);
+  });
 }
 
 function spUpdateFault(id, field, value) {
