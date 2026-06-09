@@ -1395,6 +1395,30 @@ main { padding-bottom: env(safe-area-inset-bottom); }
               <label for="f-visit-brief">Works description / brief</label>
               <textarea id="f-visit-brief" rows="3" placeholder="What we were asked to survey and report on."></textarea>
             </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-visit-appointment">Appointment time</label>
+                <select id="f-visit-appointment">
+                  <option value="">Select…</option>
+                  <option>Early (pre 9am)</option>
+                  <option>Morning</option>
+                  <option>Afternoon</option>
+                  <option>Late afternoon</option>
+                  <option>Flexible</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f-visit-weather">Weather conditions</label>
+                <select id="f-visit-weather">
+                  <option value="">Select…</option>
+                  <option>Dry / clear</option>
+                  <option>Overcast</option>
+                  <option>Light rain / showers</option>
+                  <option>Heavy rain</option>
+                  <option>High wind</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </details>
@@ -1861,6 +1885,8 @@ const FIELD_MAP = [
   { id: 'f-visit-date',              type: 'text',     path: 'visit.date' },
   { id: 'f-visit-surveyor',          type: 'text',     path: 'visit.surveyorName',      dflt: 'Jamie Gibbs' },
   { id: 'f-visit-brief',             type: 'textarea', path: 'visit.worksDescription' },
+  { id: 'f-visit-appointment',       type: 'text',     path: 'visit.appointmentTime' },
+  { id: 'f-visit-weather',           type: 'text',     path: 'visit.weather' },
 
   // Site Plan — lat/lng live on form inputs and persist via the standard
   // FIELD_MAP collect/populate cycle. The image, pins and fault markers live
@@ -2921,6 +2947,8 @@ function renderDetailBlocks(s) {
   siteInfoRows.push(['Date of visit', vi.date ? fmtDate(vi.date) : '']);
   siteInfoRows.push(['Surveyor', vi.surveyorName]);
   siteInfoRows.push(['Works description', vi.worksDescription]);
+  siteInfoRows.push(['Appointment time', vi.appointmentTime]);
+  siteInfoRows.push(['Weather conditions', vi.weather]);
 
   const blocks = [
     ['Site Info', siteInfoRows],
@@ -3209,9 +3237,11 @@ function renderSiteInfo(s, num) {
   if (siteRows.length) blocks.push(['Site', siteRows]);
 
   const visitRows = [
-    ['Date of visit',  vi.date ? fmtDate(vi.date) : ''],
-    ['Surveyor',       vi.surveyorName],
-    ['Works brief',    vi.worksDescription]
+    ['Date of visit',      vi.date ? fmtDate(vi.date) : ''],
+    ['Surveyor',           vi.surveyorName],
+    ['Works brief',        vi.worksDescription],
+    ['Appointment time',   vi.appointmentTime],
+    ['Weather conditions', vi.weather]
   ].filter(([, v]) => v != null && String(v).trim() !== '');
   if (visitRows.length) blocks.push(['Visit', visitRows]);
 
