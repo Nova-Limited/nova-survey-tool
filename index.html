@@ -1789,13 +1789,9 @@ main { padding-bottom: env(safe-area-inset-bottom); }
         <div class="meta" id="detail-meta"></div>
       </div>
       <div id="detail-body"></div>
-      <div class="form-actions">
-        <button class="btn btn-primary" onclick="editCurrent()">Edit</button>
-        <button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>
-        <button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>
-        <span id="sync-at-status" style="font-size:13px;color:#666;margin-left:10px;align-self:center;"></span>
-        <button class="btn btn-danger" onclick="deleteCurrent()" style="margin-left:auto;">Delete</button>
-      </div>
+      <!-- Action bar is populated by renderSurveyDetail() so the Save-to-Airtable
+           button is guaranteed to be present whenever the detail view shows. -->
+      <div class="form-actions" id="detail-actions"></div>
     </div>
   </section>
 
@@ -2880,6 +2876,19 @@ function renderSurveyDetail(s) {
     s.id + ' · visit ' + (vi.date ? fmtDate(vi.date) : '—') +
     ' · last updated ' + fmtDate(s.updatedAt);
   document.getElementById('detail-body').innerHTML = renderDetailBlocks(s);
+  // Rebuild the action bar each detail-view load so the Save-to-Airtable
+  // button is guaranteed to render. Edit / Generate Report / Save / Delete
+  // are kept on the LEFT; the status span sits between Save and Delete so
+  // it stays readable next to its trigger.
+  const actions = document.getElementById('detail-actions');
+  if (actions) {
+    actions.innerHTML =
+      '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
+      '<button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>' +
+      '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
+      '<span id="sync-at-status" style="font-size:13px;color:#666;margin-left:10px;align-self:center;"></span>' +
+      '<button class="btn btn-danger" onclick="deleteCurrent()" style="margin-left:auto;">Delete</button>';
+  }
 }
 function renderDetailBlocks(s) {
   const ec = s.endClient || {};
