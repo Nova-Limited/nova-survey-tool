@@ -2165,6 +2165,29 @@ function loadSurveys() {
   } catch(e) { console.error('Survey load failed:', e); return []; }
 }
 function saveSurveys(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+function saveSurveysSafe(arr) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    return true;
+  } catch (e) {
+    const ind = document.getElementById('draft-indicator');
+    if (ind) ind.textContent = 'Storage full — tap Save to Airtable now to back up';
+    try { showToast('Device storage is full. Tap Save to Airtable to back up this survey.', 'err'); } catch (_) {}
+    return false;
+  }
+}
+
+// Persist in-progress edits of an already-saved survey back into its
+// record, so edits survive battery loss or leaving the screen, not just
+// an explicit Save Survey.
+function persistCurrentEdit() {
+  if (currentSurveyId === null) return false;
+  const surveys = loadSurveys();
+  const idx = surveys.findIndex(x => x.id === currentSurveyId);
+  if (idx === -1) return false;
+  surveys[idx] = { ...surveys[idx], ...collectFormData(), updatedAt: new Date().toISOString() };
+  return saveSurveysSafe(surveys);
+}
 function loadDraft() {
   try {
     const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
@@ -2633,11 +2656,13 @@ function addDefect() {
     const firstInput = last.querySelector('input, textarea, select');
     if (firstInput) firstInput.focus();
   }
+  if (currentSurveyId !== null) persistCurrentEdit();
 }
 function removeDefect(idx) {
   if (!confirm('Remove this defect?')) return;
   currentDefects.splice(idx, 1);
   renderDefects();
+  if (currentSurveyId !== null) persistCurrentEdit();
 }
 function renderDefects(focusIdx) {
   const list = document.getElementById('defects-list');
@@ -2830,7 +2855,7 @@ function saveSurvey() {
     surveys.push(saved);
   }
 
-  saveSurveys(surveys);
+  if (!saveSurveysSafe(surveys)) return;  // storage full: keep user on form, data in memory, warning shown
   clearDraft();
   stopAutoSave();
   currentSurveyId = saved.id;
@@ -2850,11 +2875,18 @@ function saveSurvey() {
 function startAutoSave() {
   stopAutoSave();
   autosaveTimer = setInterval(() => {
-    if (currentSurveyId !== null) return;
+    const ind = document.getElementById('draft-indicator');
+    if (currentSurveyId !== null) {
+      // Editing a saved survey: persist changes back into the record.
+      if (persistCurrentEdit() && ind) {
+        ind.textContent = 'Saved · ' + new Date().toLocaleTimeString('en-GB');
+      }
+      return;
+    }
+    // New survey: autosave to the draft as before.
     const data = collectFormData();
     if (!surveyHasContent(data)) return;
-    saveDraft(data);
-    const ind = document.getElementById('draft-indicator');
+    try { saveDraft(data); } catch (_) { /* non-fatal */ }
     if (ind) ind.textContent = 'Draft auto-saved · ' + new Date().toLocaleTimeString('en-GB');
   }, AUTOSAVE_MS);
 }
@@ -4227,11 +4259,16 @@ function spSaveSurveyField(key, value) {
   } else if (key in currentSiteImage) {
     currentSiteImage[key] = value;
   }
-  // Mirror the autosave behaviour: only write the draft when we're not
-  // editing a persisted survey (currentSurveyId !== null).
-  if (currentSurveyId === null) {
-    try { saveDraft(collectFormData()); } catch (_) { /* non-fatal */ }
-  }
+  // Persist immediately so a fault is safe the moment it is logged:
+  // to the draft for a new survey, or back into the saved record when
+  // editing an existing one.
+  try {
+    if (currentSurveyId === null) {
+      saveDraft(collectFormData());
+    } else {
+      persistCurrentEdit();
+    }
+  } catch (_) { /* non-fatal */ }
 }
 
 // ── Helpers ──
