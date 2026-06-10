@@ -2171,7 +2171,7 @@ function saveSurveysSafe(arr) {
     return true;
   } catch (e) {
     const ind = document.getElementById('draft-indicator');
-    if (ind) ind.textContent = 'Storage full — tap Save to Airtable now to back up';
+    if (ind) ind.textContent = 'Storage full, tap Save to Airtable now to back up';
     try { showToast('Device storage is full. Tap Save to Airtable to back up this survey.', 'err'); } catch (_) {}
     return false;
   }
