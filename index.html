@@ -96,7 +96,14 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .btn-danger { background: transparent; color: var(--err); border: 1px solid var(--rule); }
 .btn-danger:hover { border-color: var(--err); background: var(--err-bg); }
 .btn-big { width: 100%; min-height: 64px; font-size: 1.05rem; }
-.btn:disabled { opacity: 0.55; cursor: wait; }
+.btn:disabled {
+  background: #858386; color: white; border-color: #858386; opacity: 1; cursor: wait;
+}
+.btn.btn-failed,
+.btn.btn-failed:disabled {
+  background: white; color: #b3261e; border: 1px solid #b3261e;
+}
+.btn.btn-failed:hover { background: white; color: #b3261e; }
 .link-btn {
   background: none; border: none; color: var(--ink);
   font-weight: 600; cursor: pointer; padding: 0.5rem 0.25rem; min-height: 44px; font-size: 0.95rem;
@@ -2215,6 +2222,158 @@ const FAULT_SEV_COLORS = {
 // (CSS variables aren't reachable inside an SVG used as inline markup like this).
 // Reused by every Worker fetch (Save to Airtable, geocode, /surveys, etc).
 const WORKER_BASE = 'https://nova-ch-proxy.jamie-b41.workers.dev';
+
+// ---- Photo storage helpers (R2 via Worker) ----
+// Photos live on R2 under surveys/{NOV-id}/{ts}-{rand}.jpg. Locally we
+// keep a small thumbnail in the base64 field, plus the R2 key. The
+// renderers prefer the key. When offline, we keep the full-resolution
+// base64 locally and flip pendingUpload so a later online save can
+// upload and downgrade the local copy to a thumbnail.
+
+function novaSurveyIdFor(s) {
+  if (!s || typeof s.id !== 'string' || !s.id) return '';
+  return 'NOV-' + s.id;
+}
+
+// Normalise a fault.photos[] entry to the object shape. Legacy entries
+// are bare base64 strings; new entries are { data, key, pendingUpload }.
+function normalisePhotoEntry(p) {
+  if (typeof p === 'string') return { data: p, key: '', pendingUpload: false };
+  if (p && typeof p === 'object') {
+    return {
+      data:          typeof p.data === 'string' ? p.data : '',
+      key:           typeof p.key === 'string' ? p.key : '',
+      pendingUpload: !!p.pendingUpload
+    };
+  }
+  return { data: '', key: '', pendingUpload: false };
+}
+
+// Prefer the R2 URL when a key is stored, else the local base64, else null.
+function imgSrcFor(slot) {
+  if (!slot) return null;
+  if (typeof slot === 'string') return slot || null;
+  if (slot.key)  return WORKER_BASE + '/photo/' + slot.key;
+  if (slot.data) return slot.data;
+  return null;
+}
+
+function siteImageSrcFor(survey) {
+  if (!survey) return null;
+  if (survey.siteImageKey)  return WORKER_BASE + '/photo/' + survey.siteImageKey;
+  if (survey.siteImageData) return survey.siteImageData;
+  return null;
+}
+
+function faultImageSrcFor(fault) {
+  if (!fault) return null;
+  if (fault.faultImageKey) return WORKER_BASE + '/photo/' + fault.faultImageKey;
+  if (fault.faultImage)    return fault.faultImage;
+  return null;
+}
+
+// Downscale a base64 JPEG to a small thumbnail for local storage.
+function makeThumbnail(dataUrl, maxW, quality) {
+  if (typeof maxW !== 'number')    maxW    = 480;
+  if (typeof quality !== 'number') quality = 0.6;
+  return new Promise(function(resolve) {
+    if (!dataUrl) { resolve(''); return; }
+    var img = new Image();
+    img.onload = function() {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      var cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(cv.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = function() { resolve(''); };
+    img.src = dataUrl;
+  });
+}
+
+// Upload a base64 JPEG to R2 via the Worker. Resolves to a key string on
+// success, throws on any failure so the caller can fall back to the
+// pending-upload path.
+async function uploadPhotoToWorker(novaSurveyId, dataUrl) {
+  if (!novaSurveyId) throw new Error('survey id required');
+  if (typeof dataUrl !== 'string' || !dataUrl) throw new Error('dataUrl required');
+  var resp = await fetch(WORKER_BASE + '/upload-photo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ surveyId: novaSurveyId, dataUrl: dataUrl })
+  });
+  var data = await resp.json().catch(function() { return {}; });
+  if (!resp.ok || !data || !data.ok || typeof data.key !== 'string') {
+    throw new Error((data && data.error) || ('HTTP ' + resp.status));
+  }
+  return data.key;
+}
+
+// Walk the survey's image slots; anything with base64 but no key gets
+// uploaded; on success store the key and downgrade the local base64 to
+// a thumbnail. Mutates the passed survey in place. Returns { uploaded,
+// failed } counts. Silent on per-photo failures so a partial network
+// blip never blocks the save.
+async function ensurePhotosUploaded(survey, progressCb) {
+  var counts = { uploaded: 0, failed: 0 };
+  if (!survey) return counts;
+  var novaId = novaSurveyIdFor(survey);
+  if (!novaId) return counts;
+
+  var jobs = [];
+  if (survey.siteImageSource === 'upload' && survey.siteImageData && !survey.siteImageKey) {
+    jobs.push({ slot: 'site' });
+  }
+  var faults = Array.isArray(survey.siteFaultMarkers) ? survey.siteFaultMarkers : [];
+  faults.forEach(function(f, fi) {
+    if (f.faultImage && !f.faultImageKey) jobs.push({ slot: 'faultImage', faultIdx: fi });
+    if (Array.isArray(f.photos)) {
+      f.photos = f.photos.map(normalisePhotoEntry);
+      f.photos.forEach(function(p, pi) {
+        if (p.data && !p.key) jobs.push({ slot: 'photo', faultIdx: fi, photoIdx: pi });
+      });
+    }
+  });
+  if (!jobs.length) return counts;
+
+  for (var i = 0; i < jobs.length; i++) {
+    if (typeof progressCb === 'function') progressCb(i, jobs.length);
+    var job = jobs[i];
+    var fullData = '';
+    if (job.slot === 'site')       fullData = survey.siteImageData;
+    if (job.slot === 'faultImage') fullData = faults[job.faultIdx].faultImage;
+    if (job.slot === 'photo')      fullData = faults[job.faultIdx].photos[job.photoIdx].data;
+    if (!fullData) continue;
+    try {
+      var key = await uploadPhotoToWorker(novaId, fullData);
+      var thumb = await makeThumbnail(fullData);
+      if (job.slot === 'site') {
+        survey.siteImageKey  = key;
+        survey.siteImageData = thumb || fullData;
+      } else if (job.slot === 'faultImage') {
+        faults[job.faultIdx].faultImageKey = key;
+        faults[job.faultIdx].faultImage    = thumb || fullData;
+      } else if (job.slot === 'photo') {
+        faults[job.faultIdx].photos[job.photoIdx] = {
+          data: thumb || fullData,
+          key: key,
+          pendingUpload: false
+        };
+      }
+      counts.uploaded++;
+    } catch (e) {
+      // Mark pendingUpload so a later online save can retry. The local
+      // base64 stays at full size until the upload eventually succeeds.
+      if (job.slot === 'photo') {
+        faults[job.faultIdx].photos[job.photoIdx].pendingUpload = true;
+      }
+      counts.failed++;
+    }
+  }
+  if (typeof progressCb === 'function') progressCb(jobs.length, jobs.length);
+  return counts;
+}
 const CHEVRON_SVG = '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6l6 6-6 6M11 6l6 6-6 6" fill="none" stroke="#F7901E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
 // Inline brand-mark data URLs so the printed report carries no network.
@@ -2237,6 +2396,10 @@ function makeBlankSiteImage() {
   return {
     siteImageSource:  '',
     siteImageData:    '',
+    // R2 key when the full-resolution drone JPEG has been uploaded.
+    // Renderers prefer the key over siteImageData; siteImageData is
+    // downgraded to a local thumbnail once the upload succeeds.
+    siteImageKey:     '',
     siteImageW:       null,
     siteImageH:       null,
     siteMapCentreLat: null,
@@ -2314,6 +2477,8 @@ function saveSurveysSafe(arr) {
   } catch (e) {
     const ind = document.getElementById('draft-indicator');
     if (ind) ind.textContent = 'Storage full, tap Save to Airtable now to back up';
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) saveBtn.classList.add('btn-failed');
     try { showToast('Device storage is full. Tap Save to Airtable to back up this survey.', 'err'); } catch (_) {}
     return false;
   }
@@ -2793,24 +2958,45 @@ async function syncSurveyToAirtable() {
     put('fldPxN1PC2Ec11wIf', mc.reference);
   }
 
-  // Snapshot — deep-clone the survey, then strip the base64 image bytes so the
-  // payload stays well under Airtable's long-text-cell limit (100k chars).
-  // The siteImageData drone JPEG and each fault.photos[] are wiped to empty.
+  // Back up any not-yet-uploaded photos to R2 first. Mutates s in place;
+  // local persistence happens via saveSurveysSafe inside the helper path.
+  btn.disabled = true;
+  btn.classList.remove('btn-failed');
+  statusEl.style.color = '#666';
+  statusEl.textContent = 'Backing up photos…';
+  try {
+    await ensurePhotosUploaded(s, function(done, total) {
+      statusEl.textContent = total
+        ? 'Backing up photos… ' + done + ' of ' + total
+        : 'Backing up photos…';
+    });
+    // Persist the mutated survey (now carrying R2 keys + thumbnails).
+    const all = loadSurveys();
+    const idx = all.findIndex(x => x.id === s.id);
+    if (idx !== -1) { all[idx] = s; saveSurveysSafe(all); }
+  } catch (_) { /* per-photo failures are swallowed inside the helper */ }
+
+  // Snapshot: keep R2 keys (small strings), strip base64 image bytes so
+  // the payload stays well under Airtable's long-text-cell limit (100k).
   const clone = JSON.parse(JSON.stringify(s));
   if (clone.siteImageData) clone.siteImageData = '';
   if (Array.isArray(clone.siteFaultMarkers)) {
     clone.siteFaultMarkers.forEach(function(f) {
-      f.photos = [];
       f.faultImage = '';
+      if (Array.isArray(f.photos)) {
+        f.photos = f.photos.map(function(p) {
+          var n = normalisePhotoEntry(p);
+          return { data: '', key: n.key, pendingUpload: n.pendingUpload };
+        });
+      }
     });
   }
   const snapshot = JSON.stringify(clone);
 
-  btn.disabled = true;
   statusEl.style.color = '#666';
   statusEl.textContent = 'Saving…';
   try {
-    const resp = await fetch('https://nova-ch-proxy.jamie-b41.workers.dev/save-survey', {
+    const resp = await fetch(WORKER_BASE + '/save-survey', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ surveyId: surveyId, fields: fields, snapshot: snapshot })
@@ -2819,14 +3005,17 @@ async function syncSurveyToAirtable() {
     if (resp.ok && data && data.ok) {
       statusEl.style.color = '#15803d';
       statusEl.textContent = 'Saved to Airtable ✓';
+      btn.classList.remove('btn-failed');
     } else {
       statusEl.style.color = '#c44';
-      statusEl.textContent = 'Save failed — try again';
+      statusEl.textContent = 'Save failed, try again';
+      btn.classList.add('btn-failed');
       console.warn('save-survey failed:', resp.status, data);
     }
   } catch (e) {
     statusEl.style.color = '#c44';
-    statusEl.textContent = 'Save failed — try again';
+    statusEl.textContent = 'Save failed, try again';
+    btn.classList.add('btn-failed');
     console.warn('save-survey threw:', e);
   } finally {
     btn.disabled = false;
@@ -3011,6 +3200,20 @@ function saveSurvey() {
   clearDraft();
   stopAutoSave();
   currentSurveyId = saved.id;
+
+  // Fire-and-forget photo backup when online. Writes keys + thumbnails
+  // back into local storage so the next save preserves them. Failures
+  // are silent; the next online save retries any pending uploads.
+  if (navigator.onLine !== false) {
+    (async function() {
+      try {
+        await ensurePhotosUploaded(saved);
+        const all = loadSurveys();
+        const i = all.findIndex(x => x.id === saved.id);
+        if (i !== -1) { all[i] = saved; saveSurveysSafe(all); }
+      } catch (_) { /* silent */ }
+    })();
+  }
 
   const btn = document.getElementById('save-btn');
   if (btn) {
@@ -3247,7 +3450,7 @@ function renderReport(id) {
   html += renderSiteInfo(s, nextNum());
   if (buildings.length) html += renderRoofGeometry(buildings, nextNum());
   const hasSitePlan =
-    (s.siteImageSource === 'upload' && s.siteImageData) ||
+    (s.siteImageSource === 'upload' && siteImageSrcFor(s)) ||
     (Array.isArray(s.siteFaultMarkers) && s.siteFaultMarkers.length) ||
     (Array.isArray(s.siteImagePins) && s.siteImagePins.length);
   if (s.clientReportedIssues || s.siteContext) html += renderBackground(s, nextNum());
@@ -3553,7 +3756,8 @@ function renderSitePlan(s, num) {
   // Without the inversion, fault markers end up mirror-imaged vertically
   // relative to their on-screen Leaflet positions.
   let figureHtml = '';
-  const hasUpload = s.siteImageSource === 'upload' && s.siteImageData
+  const siteSrc = siteImageSrcFor(s);
+  const hasUpload = s.siteImageSource === 'upload' && siteSrc
     && Number(s.siteImageW) > 0 && Number(s.siteImageH) > 0;
   if (hasUpload) {
     const imgW = Number(s.siteImageW);
@@ -3579,7 +3783,7 @@ function renderSitePlan(s, num) {
     figureHtml =
       '<figure class="r-sp-figure">' +
         '<div class="r-sp-figure-wrap">' +
-          '<img src="' + s.siteImageData + '" alt="Annotated site plan">' +
+          '<img src="' + siteSrc + '" alt="Annotated site plan">' +
           markersHtml +
         '</div>' +
         '<figcaption class="r-sp-caption">Annotated site plan. Markers show identified building positions and defect locations.</figcaption>' +
@@ -3613,23 +3817,27 @@ function renderSitePlan(s, num) {
     const typeLabel = FAULT_LABELS[fault.faultType] || fault.faultType || 'Defect';
     const refSrc = (FAULT_DB[fault.faultType] && FAULT_DB[fault.faultType].ref) || '';
     const num = 'F' + (fault.number || '?');
-    // Photos: base64 JPEG data URLs captured via the fault panel. Rendered
-    // directly into the card so the printed PDF carries them inline (no
-    // external requests on print).
+    // Photos: prefer the R2 URL when a key is stored, fall back to the
+    // local thumbnail base64. The print rule on .r-sp-fault-photo applies
+    // either way.
     let photosHtml = '';
     if (Array.isArray(fault.photos) && fault.photos.length) {
-      photosHtml += '<div class="r-sp-fault-photos">';
-      fault.photos.forEach(function(src) {
-        photosHtml += '<img class="r-sp-fault-photo" src="' + src + '" alt="Fault photo">';
-      });
-      photosHtml += '</div>';
+      const photoSrcs = fault.photos.map(normalisePhotoEntry).map(imgSrcFor).filter(Boolean);
+      if (photoSrcs.length) {
+        photosHtml += '<div class="r-sp-fault-photos">';
+        photoSrcs.forEach(function(src) {
+          photosHtml += '<img class="r-sp-fault-photo" src="' + src + '" alt="Fault photo">';
+        });
+        photosHtml += '</div>';
+      }
     }
     // Off-plan figure: the fault carries its own image with a percentage-
     // positioned marker. Rendered at the TOP of the side column, above any
     // photos, captioned "Fault location".
     let offPlanFigureHtml = '';
     const isOffPlan = (fault.lat == null || fault.lng == null);
-    if (isOffPlan && fault.faultImage) {
+    const faultImgSrc = faultImageSrcFor(fault);
+    if (isOffPlan && faultImgSrc) {
       let markerHtml = '';
       if (fault.faultMarkerX != null && fault.faultMarkerY != null) {
         markerHtml = '<div class="r-sp-fault" style="left:' + Number(fault.faultMarkerX).toFixed(3) +
@@ -3639,7 +3847,7 @@ function renderSitePlan(s, num) {
       offPlanFigureHtml =
         '<figure class="r-sp-figure">' +
           '<div class="r-sp-figure-wrap">' +
-            '<img src="' + fault.faultImage + '" alt="Off-plan fault image">' +
+            '<img src="' + faultImgSrc + '" alt="Off-plan fault image">' +
             markerHtml +
           '</div>' +
           '<figcaption class="r-sp-caption">Fault location</figcaption>' +
@@ -4696,7 +4904,7 @@ function spNewFault(id, number, lat, lng) {
     photos: [],
     qtyCount: '', qtyWhat: '', qtyWhatOther: '',
     sizeEach: '', sizeUnit: '', sizeUnitOther: '',
-    faultImage: '', faultImageW: 0, faultImageH: 0,
+    faultImage: '', faultImageKey: '', faultImageW: 0, faultImageH: 0,
     faultMarkerX: null, faultMarkerY: null
   };
 }
@@ -4764,36 +4972,57 @@ function spUploadImage(input) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const srcImg = new Image();
-    srcImg.onload = function() {
+    srcImg.onload = async function() {
       const maxW = 1920;
       let w = srcImg.width, h = srcImg.height;
       if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
       const cv = document.createElement('canvas');
       cv.width = w; cv.height = h;
       cv.getContext('2d').drawImage(srcImg, 0, 0, w, h);
-      const dataUrl = cv.toDataURL('image/jpeg', 0.8);
-      const storedBytes = Math.round(dataUrl.length * 0.75);
+      const fullDataUrl = cv.toDataURL('image/jpeg', 0.8);
+      const storedBytes = Math.round(fullDataUrl.length * 0.75);
       const info = document.getElementById('sp-compress-info');
       info.textContent = 'Original: ' + spFmtSize(originalSize)
-        + ' — Stored: ' + spFmtSize(storedBytes)
+        + ', Stored: ' + spFmtSize(storedBytes)
         + ' (' + w + 'x' + h + 'px)';
       info.style.display = 'block';
-      spSaveSurveyField('siteImageData', dataUrl);
+      // Persist source + dimensions immediately so a refresh mid-upload
+      // still has a valid pointer. siteImageData starts as the full
+      // base64; the Worker upload below downgrades it to a thumbnail.
       spSaveSurveyField('siteImageSource', 'upload');
-      // Persist the post-compression image dimensions so the report renderer
-      // can re-project Leaflet CRS.Simple lat/lng marker coords onto a static
-      // <img> via percentage offsets without having to load the image first.
+      spSaveSurveyField('siteImageData', fullDataUrl);
+      spSaveSurveyField('siteImageKey', '');
       spSaveSurveyField('siteImageW', w);
       spSaveSurveyField('siteImageH', h);
       document.getElementById('sp-image-area').style.display = 'block';
       // Render the drone photo via L.imageOverlay on a Simple-CRS Leaflet map.
-      // Marker drag/click + the click-to-place flow are reused unchanged.
-      spBuildMap(null, null, 'simple', dataUrl);
+      spBuildMap(null, null, 'simple', fullDataUrl);
+      // Cloud upload + thumbnail downgrade. Offline: keep the full base64
+      // locally so the survey works without network; ensurePhotosUploaded
+      // retries on a later online save.
+      const novaId = novaSurveyIdFor(spActiveSurveyForUpload());
+      if (novaId && navigator.onLine !== false) {
+        try {
+          const key = await uploadPhotoToWorker(novaId, fullDataUrl);
+          const thumb = await makeThumbnail(fullDataUrl);
+          spSaveSurveyField('siteImageKey', key);
+          spSaveSurveyField('siteImageData', thumb || fullDataUrl);
+        } catch (e) { /* offline / cloud blip: keep full base64 locally */ }
+      }
     };
     srcImg.src = e.target.result;
   };
   reader.readAsDataURL(file);
   input.value = '';
+}
+
+// Helper for the upload paths: returns a survey-shaped object good enough
+// to derive the 'NOV-' + id used as the R2 prefix. New surveys haven't
+// been saved yet, so currentSurveyId may be null; in that case we use the
+// in-memory draft id placeholder. Returns null only when no id is known.
+function spActiveSurveyForUpload() {
+  if (currentSurveyId) return { id: currentSurveyId };
+  return null;
 }
 
 // ── Mode toggle. The instruction strapline below the map reads from this so
@@ -4987,16 +5216,35 @@ function spAddFaultPhoto(input) {
     var reader = new FileReader();
     reader.onload = function(e) {
       var img = new Image();
-      img.onload = function() {
+      img.onload = async function() {
         var maxW = 1280;
         var w = img.width, h = img.height;
         if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
         var cv = document.createElement('canvas');
         cv.width = w; cv.height = h;
         cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        fault.photos.push(cv.toDataURL('image/jpeg', 0.7));
+        var fullDataUrl = cv.toDataURL('image/jpeg', 0.7);
+        var entry = { data: fullDataUrl, key: '', pendingUpload: false };
+        fault.photos.push(entry);
         spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
         spRenderFaultPhotos();
+        var novaId = novaSurveyIdFor(spActiveSurveyForUpload());
+        if (novaId && navigator.onLine !== false) {
+          try {
+            var key = await uploadPhotoToWorker(novaId, fullDataUrl);
+            var thumb = await makeThumbnail(fullDataUrl);
+            entry.key  = key;
+            entry.data = thumb || fullDataUrl;
+            spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+            spRenderFaultPhotos();
+          } catch (e) {
+            entry.pendingUpload = true;
+            spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+          }
+        } else {
+          entry.pendingUpload = true;
+          spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+        }
       };
       img.src = e.target.result;
     };
@@ -5027,7 +5275,10 @@ function spRenderFaultPhotos() {
     return f.id === spActiveFaultId;
   });
   if (!fault || !Array.isArray(fault.photos)) return;
-  fault.photos.forEach(function(src, i) {
+  fault.photos.forEach(function(p, i) {
+    var entry = normalisePhotoEntry(p);
+    var src = imgSrcFor(entry);
+    if (!src) return;
     var wrap = document.createElement('div');
     wrap.style.cssText = 'position:relative;width:64px;height:64px;'
       + 'border-radius:6px;overflow:hidden;border:1px solid #d4d4d0;';
@@ -5160,20 +5411,34 @@ function spAddFaultImage(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var img = new Image();
-    img.onload = function() {
+    img.onload = async function() {
       var maxW = 1280;
       var w = img.width, h = img.height;
       if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
       var cv = document.createElement('canvas');
       cv.width = w; cv.height = h;
       cv.getContext('2d').drawImage(img, 0, 0, w, h);
-      fault.faultImage = cv.toDataURL('image/jpeg', 0.7);
+      var fullDataUrl = cv.toDataURL('image/jpeg', 0.7);
+      fault.faultImage = fullDataUrl;
+      fault.faultImageKey = '';
       fault.faultImageW = w;
       fault.faultImageH = h;
       fault.faultMarkerX = null;
       fault.faultMarkerY = null;
       spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
       spRenderFaultImagePanel(fault);
+      // Cloud upload + thumbnail downgrade. Offline: keep the full base64.
+      var novaId = novaSurveyIdFor(spActiveSurveyForUpload());
+      if (novaId && navigator.onLine !== false) {
+        try {
+          var key = await uploadPhotoToWorker(novaId, fullDataUrl);
+          var thumb = await makeThumbnail(fullDataUrl);
+          fault.faultImageKey = key;
+          fault.faultImage    = thumb || fullDataUrl;
+          spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+          spRenderFaultImagePanel(fault);
+        } catch (e) { /* offline / cloud blip: keep full base64 locally */ }
+      }
     };
     img.src = e.target.result;
   };
@@ -5189,6 +5454,7 @@ function spClearFaultImage() {
   });
   if (!fault) return;
   fault.faultImage = '';
+  fault.faultImageKey = '';
   fault.faultImageW = 0;
   fault.faultImageH = 0;
   fault.faultMarkerX = null;
@@ -5223,7 +5489,8 @@ function spRenderFaultImagePanel(fault) {
   var img     = document.getElementById('sp-fault-image-img');
   var wrap    = document.getElementById('sp-fault-image-wrap');
   if (!empty || !loaded || !img || !wrap) return;
-  if (!fault.faultImage) {
+  var src = faultImageSrcFor(fault);
+  if (!src) {
     empty.style.display = 'block';
     loaded.style.display = 'none';
     img.src = '';
@@ -5231,7 +5498,7 @@ function spRenderFaultImagePanel(fault) {
   }
   empty.style.display = 'none';
   loaded.style.display = 'block';
-  img.src = fault.faultImage;
+  img.src = src;
   // Strip any previous marker overlay then re-render at the stored coords.
   var prev = wrap.querySelector('.sp-fault-image-marker');
   if (prev) prev.parentNode.removeChild(prev);
@@ -5306,13 +5573,14 @@ function spRestoreImageState() {
   spFaultCounter = (survey.siteFaultMarkers || []).length;
   var notice = document.getElementById('sp-missing-image-notice');
   if (notice) notice.style.display = 'none';
-  if (survey.siteImageSource === 'upload' && survey.siteImageData) {
+  var siteSrc = siteImageSrcFor(survey);
+  if (survey.siteImageSource === 'upload' && siteSrc) {
     document.getElementById('sp-image-area').style.display = 'block';
-    spBuildMap(null, null, 'simple', survey.siteImageData);
-  } else if (survey.siteImageSource === 'upload' && !survey.siteImageData) {
-    // Snapshot intentionally strips the base64 drone image before upload,
-    // so an imported survey arrives with siteImageSource='upload' but no
-    // bytes. Flag it; the existing upload control stays available below.
+    spBuildMap(null, null, 'simple', siteSrc);
+  } else if (survey.siteImageSource === 'upload') {
+    // Upload-mode but neither key nor base64. Happens when an Airtable
+    // snapshot from before the R2 migration is imported. Flag it; the
+    // existing upload control stays available below for a fresh re-upload.
     if (notice) notice.style.display = 'block';
   } else if (survey.siteImageSource === 'map') {
     var centre = survey.siteMapCentreLat != null
@@ -5327,6 +5595,9 @@ function spRestoreImageState() {
 
 // ---- Wiring ----
 document.addEventListener('input', (e) => {
+  // Any input clears the transient red 'failed save' state on action buttons,
+  // returning them to normal orange / dark so the user knows we are ready to try again.
+  document.querySelectorAll('.btn.btn-failed').forEach(b => b.classList.remove('btn-failed'));
   const t = e.target;
   if (!t || !t.dataset) {
     if (t && t.id === 'f-asb-register-seen') updateConditionals();
