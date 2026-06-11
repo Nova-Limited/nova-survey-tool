@@ -475,36 +475,12 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   border-radius: 6px; font-size: 0.92rem; color: var(--muted);
 }
 
-/* DEFECT EDIT BLOCKS (form) */
+/* .defects-empty is reused by the buildings list empty state. */
 .defects-empty {
   background: var(--light); border: 1px dashed var(--rule); border-radius: 6px;
   padding: 1.25rem; text-align: center; color: var(--muted); font-size: 0.92rem;
   margin-top: 1rem;
 }
-.defect {
-  background: white; border: 1px solid var(--rule); border-radius: 6px;
-  margin-top: 0.9rem; overflow: hidden;
-}
-.defect > summary {
-  list-style: none; cursor: pointer; padding: 0.85rem 1rem;
-  display: flex; align-items: center; gap: 0.75rem; user-select: none;
-}
-.defect > summary::-webkit-details-marker { display: none; }
-.defect-num {
-  flex: 0 0 auto; min-width: 1.7rem; height: 1.7rem;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--dark); color: white; border-radius: 999px;
-  font-size: 0.78rem; font-weight: 700;
-}
-.defect-title-display { flex: 1; font-weight: 700; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
-.defect-title-display.placeholder { color: var(--muted); font-weight: 500; font-style: italic; }
-.defect > summary::after { content: '+'; color: var(--muted); font-size: 1.4rem; line-height: 1; }
-.defect[open] > summary::after { content: '−'; }
-.defect-body { padding: 0.25rem 1rem 1rem; border-top: 1px solid var(--rule); }
-.defect-footer {
-  display: flex; justify-content: flex-end; padding: 0.5rem 1rem 1rem; border-top: 1px solid var(--rule);
-}
-.add-defect-row { margin-top: 1.25rem; }
 
 /* BUILDING + SLOPE BLOCKS (form editing) */
 .section-hint { font-size: 0.85rem; color: var(--muted); margin: 0.4rem 0 0; }
@@ -631,22 +607,6 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .detail-row .v { font-weight: 500; text-align: right; word-break: break-word; color: var(--ink); }
 .detail-row .v.empty { color: var(--muted); font-style: italic; font-weight: 400; }
 .detail-notes { white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55; padding: 0.5rem 0; color: var(--ink-2); }
-.detail-defects { margin-top: 1rem; }
-.detail-defect {
-  background: white; border: 1px solid var(--rule); border-left: 4px solid var(--rule);
-  border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 0.65rem;
-}
-.detail-defect.sev-critical { border-left-color: var(--sev-critical); }
-.detail-defect.sev-high     { border-left-color: var(--sev-high); }
-.detail-defect.sev-medium   { border-left-color: var(--sev-medium); }
-.detail-defect.sev-low      { border-left-color: var(--sev-low); }
-.detail-defect.sev-note     { border-left-color: var(--sev-note); }
-.detail-defect-head { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.detail-defect-head strong { font-size: 0.95rem; color: var(--ink); }
-.detail-defect-meta { font-size: 0.78rem; color: var(--muted); }
-.detail-defect p { margin: 0.35rem 0; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; color: var(--ink-2); }
-.detail-defect .kv { font-size: 0.82rem; color: var(--muted); }
-.detail-defect .kv strong { color: var(--ink); font-weight: 700; }
 
 /* TOAST */
 #toast {
@@ -1787,19 +1747,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
         </div>
       </details>
 
-      <details class="section" id="section-c" open>
-        <summary>Section C — Condition Assessment</summary>
-        <div class="section-body">
-          <p style="font-size:0.85rem;color:var(--muted);margin:0.5rem 0 0;">Add one entry per observed defect. Each can be collapsed once filled in.</p>
-          <div id="defects-list"></div>
-          <div class="add-defect-row">
-            <button type="button" class="btn btn-ghost" onclick="addDefect()">+ Add Defect</button>
-          </div>
-        </div>
-      </details>
-
       <details class="section" id="section-d">
-        <summary>Section D — Access &amp; Safety</summary>
+        <summary>Section C — Access &amp; Safety</summary>
         <div class="section-body">
           <div class="field">
             <label for="f-eaves-access">Eaves access</label>
@@ -1834,7 +1783,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
       </details>
 
       <details class="section" id="section-e">
-        <summary>Section E — Asbestos</summary>
+        <summary>Section D — Asbestos</summary>
         <div class="section-body">
           <div class="field">
             <label for="f-asb-contains">Roof contains asbestos</label>
@@ -1866,7 +1815,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
       </details>
 
       <details class="section" id="section-f">
-        <summary>Section F — Summary &amp; Conclusions</summary>
+        <summary>Section E — Summary &amp; Conclusions</summary>
         <div class="section-body">
           <div class="field-row">
             <div class="field">
@@ -1983,7 +1932,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 <script>
 // ============================================================
 // Nova Survey Tool — single-file, localStorage-backed.
-// Schema: top-level form fields + defects array.
+// Schema: top-level form fields + buildings + site plan faults.
 // ============================================================
 
 const STORAGE_KEY = 'nova_surveys_v1';
@@ -2078,11 +2027,11 @@ function setPath(obj, path, value) {
   cur[parts[parts.length - 1]] = value;
 }
 
-const DEFECT_FIELDS = ['title', 'location', 'description', 'severity',
-                       'photoUrls', 'recommendedAction', 'costBand', 'priority'];
+// SEVERITY_OPTIONS / COST_BAND_OPTIONS are retained because they drive the
+// report's Findings at a Glance tables. Section C defects were retired in
+// favour of site-plan faults, so DEFECT_FIELDS / PRIORITY_OPTIONS are gone.
 const SEVERITY_OPTIONS = ['Critical', 'High', 'Medium', 'Low', 'Note Only'];
 const COST_BAND_OPTIONS = ['Under £1k', '£1k-£5k', '£5k-£20k', '£20k-£50k', '£50k+', 'TBC'];
-const PRIORITY_OPTIONS = ['Immediate', 'Within 6 months', 'Within 12 months', 'Within 5 years', 'Monitor'];
 
 // Roof geometry
 const PITCH_OPTIONS = ['Pitched', 'Mono-pitch', 'Lean-to', 'Flat'];
@@ -2216,7 +2165,6 @@ const CHEVRON_SVG = '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 
 
 // ---- State ----
 let currentSurveyId = null;
-let currentDefects = [];
 let currentBuildings = [];
 // Site-plan image + annotation state. Lat/lng live on DOM inputs (via FIELD_MAP
 // just like every other Section A field); everything else hangs off here.
@@ -2352,7 +2300,6 @@ function updateEngagementVisibility() {
 // "empty" so a freshly-opened form doesn't trip an auto-save on its defaults. */
 function surveyHasContent(data) {
   if (!data) return false;
-  if (Array.isArray(data.defects) && data.defects.length) return true;
   if (Array.isArray(data.buildings) && data.buildings.length) return true;
   for (const f of FIELD_MAP) {
     const v = getPath(data, f.path);
@@ -2444,7 +2391,6 @@ function goHome() {
 
 async function goToNewSurvey() {
   currentSurveyId = null;
-  currentDefects = [];
   currentBuildings = [];
   currentSiteImage = makeBlankSiteImage();
   resetForm();
@@ -2465,7 +2411,6 @@ async function goToNewSurvey() {
 
   if (useDraft) {
     populateForm(draft);
-    currentDefects = Array.isArray(draft.defects) ? draft.defects.slice() : [];
     currentBuildings = Array.isArray(draft.buildings)
       ? draft.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(s => ({ ...s })) }))
       : [];
@@ -2489,7 +2434,6 @@ async function goToNewSurvey() {
   document.getElementById('form-title').textContent = 'New condition survey';
   document.getElementById('form-meta').textContent = '';
   document.getElementById('f-ref-readout').textContent = '— assigned on save —';
-  renderDefects();
   renderBuildings();
   spRestoreImageState();
   updateConditionals();
@@ -2512,7 +2456,6 @@ function editCurrent() {
   if (!s) { showToast('Survey not found', 'err'); goHome(); return; }
   resetForm();
   populateForm(s);
-  currentDefects = Array.isArray(s.defects) ? s.defects.map(d => ({ ...d })) : [];
   currentBuildings = Array.isArray(s.buildings)
     ? s.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(sl => ({ ...sl })) }))
     : [];
@@ -2530,7 +2473,6 @@ function editCurrent() {
   document.getElementById('form-title').textContent = 'Edit survey';
   document.getElementById('form-meta').textContent = s.id + ' · created ' + fmtDate(s.createdAt);
   document.getElementById('f-ref-readout').textContent = s.id;
-  renderDefects();
   renderBuildings();
   spRestoreImageState();
   updateConditionals();
@@ -2723,7 +2665,9 @@ function collectFormData() {
     }
     setPath(out, f.path, v);
   }
-  out.defects = currentDefects.map(d => ({ ...d }));
+  // Section C defects retired; faults are now the only defect system. The
+  // key is kept so the saved-survey / Airtable snapshot shape stays stable.
+  out.defects = [];
   out.buildings = currentBuildings.map(b => ({
     ...b,
     slopes: (b.slopes || []).map(s => ({ ...s }))
@@ -2769,7 +2713,7 @@ function resetForm() {
   document.querySelectorAll('.field input, .field select, .field textarea').forEach(el => el.classList.remove('error'));
   if (window.matchMedia('(max-width: 767px)').matches) {
     document.querySelectorAll('#view-form .section').forEach(s => {
-      s.open = (s.id === 'section-a' || s.id === 'section-c');
+      s.open = (s.id === 'section-a' || s.id === 'section-site-plan');
     });
   } else {
     document.querySelectorAll('#view-form .section').forEach(s => { s.open = true; });
@@ -2777,84 +2721,8 @@ function resetForm() {
   updateEngagementVisibility();
 }
 
-// ---- Defects (form editing) ----
-function makeBlankDefect() {
-  const d = {};
-  for (const k of DEFECT_FIELDS) d[k] = '';
-  return d;
-}
-function addDefect() {
-  currentDefects.push(makeBlankDefect());
-  renderDefects(currentDefects.length - 1);
-  const list = document.getElementById('defects-list');
-  const last = list.lastElementChild;
-  if (last && last.tagName === 'DETAILS') {
-    last.open = true;
-    const firstInput = last.querySelector('input, textarea, select');
-    if (firstInput) firstInput.focus();
-  }
-  if (currentSurveyId !== null) persistCurrentEdit();
-}
-function removeDefect(idx) {
-  if (!confirm('Remove this defect?')) return;
-  currentDefects.splice(idx, 1);
-  renderDefects();
-  if (currentSurveyId !== null) persistCurrentEdit();
-}
-function renderDefects(focusIdx) {
-  const list = document.getElementById('defects-list');
-  if (!list) return;
-  if (currentDefects.length === 0) {
-    list.innerHTML = '<div class="defects-empty">No defects recorded yet. Tap <strong>+ Add Defect</strong> to start.</div>';
-    return;
-  }
-  list.innerHTML = currentDefects.map((d, i) => {
-    const sevClass = severityClass(d.severity);
-    const sevPill = d.severity ? '<span class="pill ' + sevClass + '">' + escapeHtml(d.severity) + '</span>' : '';
-    const titleEl = d.title
-      ? '<span class="defect-title-display">' + escapeHtml(d.title) + '</span>'
-      : '<span class="defect-title-display placeholder">New defect — fill in details below</span>';
-    return '<details class="defect" data-defect-idx="' + i + '">' +
-      '<summary>' +
-        '<span class="defect-num">' + (i + 1) + '</span>' +
-        titleEl + sevPill +
-      '</summary>' +
-      '<div class="defect-body">' +
-        '<div class="field"><label>Defect title</label>' +
-          '<input type="text" data-defect-idx="' + i + '" data-defect-field="title" value="' + attr(d.title) + '" placeholder="e.g. Sheet corrosion at gutter line"></div>' +
-        '<div class="field"><label>Location</label>' +
-          '<input type="text" data-defect-idx="' + i + '" data-defect-field="location" value="' + attr(d.location) + '" placeholder="e.g. North elevation, bay 3"></div>' +
-        '<div class="field"><label>Description</label>' +
-          '<textarea data-defect-idx="' + i + '" data-defect-field="description" rows="3" placeholder="What was observed.">' + escapeHtml(d.description || '') + '</textarea></div>' +
-        '<div class="field-row">' +
-          '<div class="field"><label>Severity</label>' + selectHtml(SEVERITY_OPTIONS, d.severity, i, 'severity') + '</div>' +
-          '<div class="field"><label>Priority</label>' + selectHtml(PRIORITY_OPTIONS, d.priority, i, 'priority') + '</div>' +
-        '</div>' +
-        '<div class="field"><label>Photo URLs</label>' +
-          '<textarea data-defect-idx="' + i + '" data-defect-field="photoUrls" rows="3" placeholder="One URL per line.">' + escapeHtml(d.photoUrls || '') + '</textarea></div>' +
-        '<div class="field"><label>Recommended action</label>' +
-          '<textarea data-defect-idx="' + i + '" data-defect-field="recommendedAction" rows="3" placeholder="What to do about this.">' + escapeHtml(d.recommendedAction || '') + '</textarea></div>' +
-        '<div class="field"><label>Indicative cost band</label>' + selectHtml(COST_BAND_OPTIONS, d.costBand, i, 'costBand') + '</div>' +
-      '</div>' +
-      '<div class="defect-footer">' +
-        '<button type="button" class="btn btn-danger" onclick="removeDefect(' + i + ')">Remove defect</button>' +
-      '</div>' +
-    '</details>';
-  }).join('');
-  if (typeof focusIdx === 'number') {
-    const el = list.querySelector('details[data-defect-idx="' + focusIdx + '"]');
-    if (el) el.open = true;
-  }
-}
-function selectHtml(options, current, idx, field) {
-  let html = '<select data-defect-idx="' + idx + '" data-defect-field="' + field + '">';
-  html += '<option value="">—</option>';
-  for (const o of options) {
-    html += '<option' + (o === current ? ' selected' : '') + '>' + escapeHtml(o) + '</option>';
-  }
-  html += '</select>';
-  return html;
-}
+// severityClass is retained because renderFindingsAtAGlance maps the
+// Section C severity vocabulary to its pill class names.
 function severityClass(sev) {
   switch (sev) {
     case 'Critical':  return 'pill-critical';
@@ -2863,40 +2731,6 @@ function severityClass(sev) {
     case 'Low':       return 'pill-low';
     case 'Note Only': return 'pill-note';
     default:          return 'pill-draft';
-  }
-}
-function severitySectionClass(sev) {
-  switch (sev) {
-    case 'Critical':  return 'sev-critical';
-    case 'High':      return 'sev-high';
-    case 'Medium':    return 'sev-medium';
-    case 'Low':       return 'sev-low';
-    case 'Note Only': return 'sev-note';
-    default:          return '';
-  }
-}
-function onDefectInput(e) {
-  const t = e.target;
-  if (!t.dataset || t.dataset.defectIdx == null) return;
-  const idx = Number(t.dataset.defectIdx);
-  const field = t.dataset.defectField;
-  if (!DEFECT_FIELDS.includes(field)) return;
-  if (!currentDefects[idx]) return;
-  currentDefects[idx][field] = t.value;
-  if (field === 'title' || field === 'severity') {
-    const details = t.closest('details.defect');
-    if (!details) return;
-    const sevClass = severityClass(currentDefects[idx].severity);
-    const sevPill = currentDefects[idx].severity
-      ? '<span class="pill ' + sevClass + '">' + escapeHtml(currentDefects[idx].severity) + '</span>' : '';
-    const title = currentDefects[idx].title;
-    const titleHtml = title
-      ? '<span class="defect-title-display">' + escapeHtml(title) + '</span>'
-      : '<span class="defect-title-display placeholder">New defect — fill in details below</span>';
-    const summary = details.querySelector('summary');
-    if (summary) {
-      summary.innerHTML = '<span class="defect-num">' + (idx + 1) + '</span>' + titleHtml + sevPill;
-    }
   }
 }
 
@@ -3046,10 +2880,10 @@ function renderSurveyList() {
     const client = escapeHtml(ec.company || ec.contactName || '(no client name)');
     const site = escapeHtml(firstLine(st.address) || '(no site address)');
     const visit = vi.date ? fmtDate(vi.date) : fmtDate(s.createdAt);
-    const defectCount = Array.isArray(s.defects) ? s.defects.length : 0;
+    const faultCount = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.length : 0;
     const rating = s['f-overall-rating'] || '';
     const meta = [
-      defectCount + ' defect' + (defectCount === 1 ? '' : 's'),
+      faultCount + ' fault' + (faultCount === 1 ? '' : 's'),
       rating ? 'rating: ' + rating : null
     ].filter(Boolean).join(' · ');
     return '<button class="survey-card" onclick="goToSurvey(\'' + s.id + '\')">' +
@@ -3189,38 +3023,13 @@ function renderDetailBlocks(s) {
     '</div>';
     html += '</div>';
   }
-  const defects = Array.isArray(s.defects) ? s.defects : [];
-  html += '<div class="detail-block" style="margin-top:1rem;"><h3>Defects (' + defects.length + ')</h3>';
-  if (!defects.length) {
-    html += '<div class="detail-row"><span class="k">No defects recorded.</span></div>';
-  } else {
-    html += '<div class="detail-defects">';
-    defects.forEach((d, i) => {
-      const sc = severitySectionClass(d.severity);
-      const sp = d.severity ? '<span class="pill ' + severityClass(d.severity) + '">' + escapeHtml(d.severity) + '</span>' : '';
-      html += '<div class="detail-defect ' + sc + '">' +
-        '<div class="detail-defect-head">' +
-          '<strong>' + (i + 1) + '. ' + escapeHtml(d.title || '(untitled)') + '</strong>' + sp +
-        '</div>' +
-        (d.location ? '<div class="detail-defect-meta">' + escapeHtml(d.location) + '</div>' : '') +
-        (d.description ? '<p>' + escapeHtml(d.description) + '</p>' : '') +
-        (d.recommendedAction ? '<div class="kv"><strong>Recommended:</strong> ' + escapeHtml(d.recommendedAction) + '</div>' : '') +
-        '<div class="kv" style="margin-top:0.35rem;">' +
-          (d.costBand ? '<strong>Cost:</strong> ' + escapeHtml(d.costBand) + ' &nbsp; ' : '') +
-          (d.priority ? '<strong>Priority:</strong> ' + escapeHtml(d.priority) : '') +
-        '</div>' +
-      '</div>';
-    });
-    html += '</div>';
-  }
-  html += '</div>';
   return html;
 }
 
 // ============================================================
 // REPORT VIEW — Nova proposal aesthetic
 // Sections in order: Cover · Executive Summary · Site Info ·
-// Defects Schedule · Findings at a Glance · Recommendation ·
+// Background · Site Plan · Findings at a Glance · Recommendation ·
 // CTA · Brand Footer
 // ============================================================
 function renderReport(id) {
@@ -3228,12 +3037,12 @@ function renderReport(id) {
   const body = document.getElementById('report-body');
   if (!s) { body.innerHTML = '<p>Survey not found.</p>'; return; }
 
-  const defects = Array.isArray(s.defects) ? s.defects : [];
+  // Section C defects retired; legacy populated arrays on old surveys are
+  // ignored so neither the Defects Schedule nor Findings at a Glance fire.
+  const defects = [];
   const sevCounts = { 'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0, 'Note Only': 0 };
-  for (const d of defects) if (d.severity && sevCounts[d.severity] != null) sevCounts[d.severity]++;
   const costCounts = {};
   for (const o of COST_BAND_OPTIONS) costCounts[o] = 0;
-  for (const d of defects) if (d.costBand && costCounts[d.costBand] != null) costCounts[d.costBand]++;
 
   const ec             = s.endClient || {};
   const clientLine     = (ec.company || ec.contactName || '').trim();
@@ -3264,7 +3073,6 @@ function renderReport(id) {
     (Array.isArray(s.siteImagePins) && s.siteImagePins.length);
   if (s.clientReportedIssues || s.siteContext) html += renderBackground(s, nextNum());
   if (hasSitePlan) html += renderSitePlan(s, nextNum());
-  if (defects.length) html += renderDefectsSchedule(defects, nextNum());
   if (defects.length) html += renderFindingsAtAGlance(defects, sevCounts, costCounts, nextNum());
   if (s['f-recommendation'] || s['f-next-steps']) html += renderRecommendationSection(s, recommendation, totalCost, overallRating, nextNum());
   html += renderCta(s, defects, recommendation, nextNum());
@@ -3274,14 +3082,12 @@ function renderReport(id) {
 }
 
 function renderCover(s, defects, sevCounts, clientLine, dateStr, ref, rating, recommendation) {
-  // Cover totals combine Section C defects with Site Plan fault markers so a
-  // photo-only survey (no Section C entries) still shows the real workload on
-  // the cover. Mapping Section C 'Critical' + site-plan 'critical' keeps the
-  // metric meaningful across both data shapes.
+  // Cover totals are sourced from site-plan faults only — Section C is
+  // retired. The defects / sevCounts args are still here to keep the
+  // signature stable for any caller that hasn't migrated.
   const sitePlanFaults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
-  const sitePlanCritical = sitePlanFaults.filter(function(f) { return f.severity === 'critical'; }).length;
-  const defectCount = defects.length + sitePlanFaults.length;
-  const criticalCount = (sevCounts.Critical || 0) + sitePlanCritical;
+  const defectCount = sitePlanFaults.length;
+  const criticalCount = sitePlanFaults.filter(function(f) { return f.severity === 'critical'; }).length;
   // Three short declarative clauses, period-separated, in the proposal style.
   const titleClauses = [];
   if (clientLine) titleClauses.push(clientLine);
@@ -3514,9 +3320,9 @@ function renderRoofGeometry(buildings, num) {
 }
 
 // Site Plan section — annotated drone image (upload mode only) plus a
-// schedule of site-plan faults that mirrors the Defects Schedule card layout.
-// Mounted between Roof Geometry and Defects Schedule in renderReport, gated
-// on having either an uploaded image or at least one marker.
+// schedule of site-plan faults in fault-card layout. Mounted after Roof
+// Geometry in renderReport, gated on having either an uploaded image or
+// at least one marker.
 // "Background" section: what the client reported and what was found on
 // site. Rendered immediately before the Site Plan. The private surveyor
 // notes are intentionally NOT included anywhere in the report.
@@ -3707,56 +3513,6 @@ function renderSitePlan(s, num) {
   return html;
 }
 
-function renderDefectsSchedule(defects, num) {
-  let cardsHtml = '';
-  defects.forEach((d, i) => {
-    const sc = severitySectionClass(d.severity);
-    const num = 'D-' + String(i + 1).padStart(2, '0');
-    const sevBadge = d.severity
-      ? '<span class="severity-badge ' + sc + '">' + escapeHtml(d.severity) + '</span>'
-      : '';
-    cardsHtml += '<article class="defect-card ' + sc + '">' +
-      '<div class="defect-card-top">' +
-        '<span class="defect-pill">' + num + '</span>' +
-        '<h3 class="defect-card-title">' + escapeHtml(d.title || 'Untitled defect') + '</h3>' +
-        sevBadge +
-      '</div>' +
-      '<div class="defect-card-grid">' +
-        '<div class="defect-card-main">' +
-          (d.location ? '<span class="eyebrow-small">Location</span><p>' + escapeHtml(d.location) + '</p>' : '') +
-          (d.description ? '<span class="eyebrow-small">Observation</span><p>' + escapeHtml(d.description) + '</p>' : '') +
-          (d.recommendedAction ? '<span class="eyebrow-small">Recommended action</span><p>' + escapeHtml(d.recommendedAction) + '</p>' : '') +
-        '</div>' +
-        '<div class="defect-card-side">' +
-          (d.costBand ? '<div class="metric"><div class="metric-small-label">Cost band</div><div class="metric-small-value">' + escapeHtml(d.costBand) + '</div></div>' : '') +
-          (d.priority ? '<div class="metric"><div class="metric-small-label">Priority</div><div class="metric-small-value">' + escapeHtml(d.priority) + '</div></div>' : '') +
-        '</div>' +
-      '</div>' +
-      renderDefectPhotos(d.photoUrls) +
-    '</article>';
-  });
-
-  return '' +
-  '<section class="report-section section-light">' +
-    '<span class="eyebrow">' + num + ' · Defects Schedule</span>' +
-    '<h2 class="r-title">' + CHEVRON_SVG + '<span>What we found.</span></h2>' +
-    '<div class="r-body" style="margin-bottom:0.5rem;"><p>' + defects.length + ' defect' + (defects.length === 1 ? '' : 's') + ' recorded during the visit. Each is described below with the recommended action and indicative cost band.</p></div>' +
-    cardsHtml +
-  '</section>';
-}
-
-function renderDefectPhotos(photoUrlsRaw) {
-  if (!photoUrlsRaw) return '';
-  const urls = String(photoUrlsRaw).split(/\r?\n/).map(u => u.trim()).filter(Boolean);
-  if (!urls.length) return '';
-  let html = '<div class="defect-photos">';
-  for (const u of urls) {
-    html += '<img src="' + escapeHtml(u) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
-  }
-  html += '</div>';
-  return html;
-}
-
 function renderFindingsAtAGlance(defects, sevCounts, costCounts, num) {
   let html = '';
   html += '<section class="report-section section-light-tone">';
@@ -3827,7 +3583,10 @@ function renderRecommendationSection(s, recommendation, totalCost, rating, num) 
 function renderCta(s, defects, recommendation, num) {
   const ec = s.endClient || {};
   const clientName = (ec.company || ec.contactName || '').trim();
-  const defectCount = defects.length;
+  // Section C is retired; defectCount now reflects logged faults so the
+  // CTA copy stays consistent with the cover's combined count.
+  const faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
+  const defectCount = faults.length;
   let headline;
   if (defectCount > 0 && recommendation && recommendation !== 'TBC') {
     headline = defectCount + ' defect' + (defectCount === 1 ? '' : 's') + ' identified.<br><span class="accent">' + escapeHtml(recommendation) + '.</span>';
@@ -5330,7 +5089,6 @@ document.addEventListener('input', (e) => {
     return;
   }
   if (t.dataset.buildingField || t.dataset.slopeField) { onBuildingInput(e); return; }
-  if (t.dataset.defectIdx != null) { onDefectInput(e); return; }
   if (t.dataset.uppercase) {
     const pos = t.selectionStart;
     const v = t.value.toUpperCase();
@@ -5349,7 +5107,6 @@ document.addEventListener('change', (e) => {
     return;
   }
   if (t.dataset.buildingField || t.dataset.slopeField) { onBuildingInput(e); return; }
-  if (t.dataset.defectIdx != null) { onDefectInput(e); return; }
   if (t.id === 'f-asb-register-seen') updateConditionals();
   if (t.id === 'f-engagement-type') updateEngagementVisibility();
 });
