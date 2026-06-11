@@ -364,6 +364,48 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   margin-top: 4px;
   display: none;
 }
+.sp-fault-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: 1px solid #d4d4d0;
+  background: #fff;
+  font-size: 12px;
+  font-family: inherit;
+  color: #434244;
+  cursor: pointer;
+}
+.sp-fault-chip:hover { border-color: #F7901E; }
+.sp-fault-chip-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.sp-fault-chip-suffix {
+  font-size: 11px;
+  color: #888;
+}
+.sp-fault-image-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 10px;
+  font-family: 'Helvetica Neue', sans-serif;
+  pointer-events: none;
+  z-index: 2;
+}
 .sp-ref-badge {
   display: inline-flex;
   align-items: center;
@@ -1395,6 +1437,14 @@ main { padding-bottom: env(safe-area-inset-bottom); }
               <label for="f-visit-brief">Works description / brief</label>
               <textarea id="f-visit-brief" rows="3" placeholder="What we were asked to survey and report on."></textarea>
             </div>
+            <div class="field">
+              <label for="f-client-issues">What the client reports</label>
+              <textarea id="f-client-issues" rows="3" placeholder="What the client says is wrong, from the desktop discussion before the visit, e.g. the gutter is overflowing during heavy rain."></textarea>
+            </div>
+            <div class="field">
+              <label for="f-site-context">Site context</label>
+              <textarea id="f-site-context" rows="3" placeholder="The arrangement on site, e.g. the building is occupied, the faults have developed over time, one leak shows scarring internally through a light fitting."></textarea>
+            </div>
             <div class="field-row">
               <div class="field">
                 <label for="f-visit-appointment">Appointment time</label>
@@ -1470,6 +1520,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
             <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
               <button type="button" id="sp-mode-id" class="sp-mode-btn active" onclick="spSetMode('identify')">Identify buildings</button>
               <button type="button" id="sp-mode-fault" class="sp-mode-btn" onclick="spSetMode('fault')">Mark faults</button>
+              <button type="button" id="sp-add-offplan" class="sp-mode-btn" onclick="spAddFaultOffPlan()">Add fault off plan</button>
             </div>
             <div id="sp-map" style="width:100%;height:440px;border-radius:8px;border:1px solid #d4d4d0;"></div>
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:6px;">
@@ -1482,6 +1533,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
                 <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;"></span>Monitor</span>
               </div>
             </div>
+            <div id="sp-fault-chips" style="display:none;margin-top:10px;flex-wrap:wrap;gap:6px;"></div>
           </div>
 
           <!-- Fault detail panel (hidden until a fault is active) -->
@@ -1540,6 +1592,56 @@ main { padding-bottom: env(safe-area-inset-bottom); }
             </div>
 
             <div class="field" style="margin-bottom:12px;">
+              <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Extent</label>
+              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;">
+                <div style="flex:0 0 auto;">
+                  <label for="sp-fault-qty-count" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">How many</label>
+                  <input type="number" id="sp-fault-qty-count" min="0" step="any" oninput="spFaultExtentChange('qtyCount', this.value)" style="width:90px;">
+                </div>
+                <div style="flex:1 1 140px;">
+                  <label for="sp-fault-qty-what" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Of what</label>
+                  <select id="sp-fault-qty-what" onchange="spFaultExtentChange('qtyWhat', this.value)" style="width:100%;">
+                    <option value="">Select...</option>
+                    <option>Laps</option>
+                    <option>Sheets</option>
+                    <option>Tiles / slates</option>
+                    <option>Fixings</option>
+                    <option>Panels</option>
+                    <option>Rooflights</option>
+                    <option>Area</option>
+                    <option>Each</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div id="sp-fault-qty-what-other-wrap" style="flex:1 1 140px;display:none;">
+                  <label for="sp-fault-qty-what-other" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Specify</label>
+                  <input type="text" id="sp-fault-qty-what-other" oninput="spFaultExtentChange('qtyWhatOther', this.value)" style="width:100%;">
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;">
+                <div style="flex:0 0 auto;">
+                  <label for="sp-fault-size-each" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Size each</label>
+                  <input type="number" id="sp-fault-size-each" min="0" step="any" oninput="spFaultExtentChange('sizeEach', this.value)" style="width:90px;">
+                </div>
+                <div style="flex:1 1 140px;">
+                  <label for="sp-fault-size-unit" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Unit</label>
+                  <select id="sp-fault-size-unit" onchange="spFaultExtentChange('sizeUnit', this.value)" style="width:100%;">
+                    <option value="">Select...</option>
+                    <option>Lin m</option>
+                    <option>Sq m</option>
+                    <option>m</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div id="sp-fault-size-unit-other-wrap" style="flex:1 1 140px;display:none;">
+                  <label for="sp-fault-size-unit-other" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Specify</label>
+                  <input type="text" id="sp-fault-size-unit-other" oninput="spFaultExtentChange('sizeUnitOther', this.value)" style="width:100%;">
+                </div>
+              </div>
+              <div id="sp-fault-total" style="display:none;font-size:12px;color:#434244;font-weight:600;"></div>
+            </div>
+
+            <div class="field" style="margin-bottom:12px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                 <label style="font-size:12px;color:#666;margin:0;">Condition description</label>
                 <span id="sp-desc-autotag" class="sp-auto-tag" style="display:none;">auto-populated — edit as needed</span>
@@ -1566,6 +1668,30 @@ main { padding-bottom: env(safe-area-inset-bottom); }
                 Add photo
                 <input type="file" id="sp-fault-photo-input" accept="image/*" style="display:none;" onchange="spAddFaultPhoto(this)">
               </label>
+            </div>
+
+            <div class="field" id="sp-fault-image-block" style="margin-bottom:14px;display:none;">
+              <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Fault image</label>
+              <div id="sp-fault-image-empty">
+                <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;">
+                  Upload image
+                  <input type="file" id="sp-fault-image-input" accept="image/*" style="display:none;" onchange="spAddFaultImage(this)">
+                </label>
+                <p style="font-size:11px;color:#888;margin:6px 0 0 0;">Used when the fault is out of shot of the main site image.</p>
+              </div>
+              <div id="sp-fault-image-loaded" style="display:none;">
+                <p style="font-size:11px;color:#888;margin:0 0 6px 0;">Tap the image to mark the fault location.</p>
+                <div id="sp-fault-image-wrap" style="position:relative;width:100%;cursor:crosshair;" onclick="spOnFaultImageClick(event)">
+                  <img id="sp-fault-image-img" src="" alt="Fault image" style="display:block;width:100%;height:auto;border-radius:8px;border:1px solid #d4d4d0;">
+                </div>
+                <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                  <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;">
+                    Replace image
+                    <input type="file" id="sp-fault-image-replace" accept="image/*" style="display:none;" onchange="spAddFaultImage(this)">
+                  </label>
+                  <button type="button" onclick="spClearFaultImage()" style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;">Clear image</button>
+                </div>
+              </div>
             </div>
 
             <button type="button" onclick="spDeleteFault()"
@@ -1793,6 +1919,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
             <label for="f-next-steps">Next steps</label>
             <textarea id="f-next-steps" rows="4" placeholder="What happens after this report — programmed works, further surveys, quotes to follow, decisions needed."></textarea>
           </div>
+          <div class="field">
+            <label for="f-surveyor-notes">Surveyor notes (private)</label>
+            <p style="font-size:11px;color:#888;margin:0 0 0.35rem 0;">For your eyes only. Never appears in the client report.</p>
+            <textarea id="f-surveyor-notes" rows="4" placeholder="Vehicle access, roof access, ways to do the work, anything to remember back at the office."></textarea>
+          </div>
         </div>
       </details>
 
@@ -1885,6 +2016,8 @@ const FIELD_MAP = [
   { id: 'f-visit-date',              type: 'text',     path: 'visit.date' },
   { id: 'f-visit-surveyor',          type: 'text',     path: 'visit.surveyorName',      dflt: 'Jamie Gibbs' },
   { id: 'f-visit-brief',             type: 'textarea', path: 'visit.worksDescription' },
+  { id: 'f-client-issues',           type: 'textarea', path: 'clientReportedIssues' },
+  { id: 'f-site-context',            type: 'textarea', path: 'siteContext' },
   { id: 'f-visit-appointment',       type: 'text',     path: 'visit.appointmentTime' },
   { id: 'f-visit-weather',           type: 'text',     path: 'visit.weather' },
 
@@ -1919,7 +2052,8 @@ const FIELD_MAP = [
   { id: 'f-executive-summary',  type: 'textarea', path: 'f-executive-summary' },
   { id: 'f-total-cost-band',    type: 'text',     path: 'f-total-cost-band' },
   { id: 'f-recommendation',     type: 'text',     path: 'f-recommendation' },
-  { id: 'f-next-steps',         type: 'textarea', path: 'f-next-steps' }
+  { id: 'f-next-steps',         type: 'textarea', path: 'f-next-steps' },
+  { id: 'f-surveyor-notes',     type: 'textarea', path: 'surveyorNotes' }
 ];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -2530,7 +2664,10 @@ async function syncSurveyToAirtable() {
   const clone = JSON.parse(JSON.stringify(s));
   if (clone.siteImageData) clone.siteImageData = '';
   if (Array.isArray(clone.siteFaultMarkers)) {
-    clone.siteFaultMarkers.forEach(function(f) { f.photos = []; });
+    clone.siteFaultMarkers.forEach(function(f) {
+      f.photos = [];
+      f.faultImage = '';
+    });
   }
   const snapshot = JSON.stringify(clone);
 
@@ -2979,6 +3116,8 @@ function renderDetailBlocks(s) {
   siteInfoRows.push(['Date of visit', vi.date ? fmtDate(vi.date) : '']);
   siteInfoRows.push(['Surveyor', vi.surveyorName]);
   siteInfoRows.push(['Works description', vi.worksDescription]);
+  if (s.clientReportedIssues) siteInfoRows.push(['Client reports', s.clientReportedIssues]);
+  if (s.siteContext) siteInfoRows.push(['Site context', s.siteContext]);
   siteInfoRows.push(['Appointment time', vi.appointmentTime]);
   siteInfoRows.push(['Weather conditions', vi.weather]);
 
@@ -3028,6 +3167,9 @@ function renderDetailBlocks(s) {
   }
   if (s['f-next-steps']) {
     html += '<div class="detail-block" style="margin-top:1rem;"><h3>Next steps</h3><div class="detail-notes">' + escapeHtml(s['f-next-steps']) + '</div></div>';
+  }
+  if (s.surveyorNotes) {
+    html += '<div class="detail-block" style="margin-top:1rem;"><h3>Surveyor notes (private)</h3><div class="detail-notes">' + escapeHtml(s.surveyorNotes) + '</div></div>';
   }
   const buildings = Array.isArray(s.buildings) ? s.buildings : [];
   if (buildings.length) {
@@ -3120,6 +3262,7 @@ function renderReport(id) {
     (s.siteImageSource === 'upload' && s.siteImageData) ||
     (Array.isArray(s.siteFaultMarkers) && s.siteFaultMarkers.length) ||
     (Array.isArray(s.siteImagePins) && s.siteImagePins.length);
+  if (s.clientReportedIssues || s.siteContext) html += renderBackground(s, nextNum());
   if (hasSitePlan) html += renderSitePlan(s, nextNum());
   if (defects.length) html += renderDefectsSchedule(defects, nextNum());
   if (defects.length) html += renderFindingsAtAGlance(defects, sevCounts, costCounts, nextNum());
@@ -3374,6 +3517,33 @@ function renderRoofGeometry(buildings, num) {
 // schedule of site-plan faults that mirrors the Defects Schedule card layout.
 // Mounted between Roof Geometry and Defects Schedule in renderReport, gated
 // on having either an uploaded image or at least one marker.
+// "Background" section: what the client reported and what was found on
+// site. Rendered immediately before the Site Plan. The private surveyor
+// notes are intentionally NOT included anywhere in the report.
+function renderBackground(s, num) {
+  const client  = s.clientReportedIssues || '';
+  const context = s.siteContext || '';
+  if (!client && !context) return '';
+  let html = '<section class="report-section section-light">';
+  html += '<span class="eyebrow">' + num + ' · Background</span>';
+  html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>What we were told, and what we walked into.</span></h2>';
+  html += '<div class="r-body" style="margin-bottom:0.75rem;"><p>The survey was framed by the client\'s reported issues and the conditions found on site. Our observations and remedials respond directly to both.</p></div>';
+  if (client) {
+    html += '<div class="r-body" style="margin-bottom:0.75rem;">' +
+      '<span class="eyebrow-small">Reported by the client</span>' +
+      '<p>' + escapeHtml(client).replace(/\n/g, '<br>') + '</p>' +
+      '</div>';
+  }
+  if (context) {
+    html += '<div class="r-body">' +
+      '<span class="eyebrow-small">Site context</span>' +
+      '<p>' + escapeHtml(context).replace(/\n/g, '<br>') + '</p>' +
+      '</div>';
+  }
+  html += '</section>';
+  return html;
+}
+
 function renderSitePlan(s, num) {
   const pins   = Array.isArray(s.siteImagePins) ? s.siteImagePins : [];
   const faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
@@ -3469,6 +3639,31 @@ function renderSitePlan(s, num) {
       });
       photosHtml += '</div>';
     }
+    // Off-plan figure: the fault carries its own image with a percentage-
+    // positioned marker. Rendered at the TOP of the side column, above any
+    // photos, captioned "Fault location".
+    let offPlanFigureHtml = '';
+    const isOffPlan = (fault.lat == null || fault.lng == null);
+    if (isOffPlan && fault.faultImage) {
+      let markerHtml = '';
+      if (fault.faultMarkerX != null && fault.faultMarkerY != null) {
+        markerHtml = '<div class="r-sp-fault" style="left:' + Number(fault.faultMarkerX).toFixed(3) +
+          '%;top:' + Number(fault.faultMarkerY).toFixed(3) + '%;background:' + meta.color + ';">F' +
+          escapeHtml(String(fault.number || '')) + '</div>';
+      }
+      offPlanFigureHtml =
+        '<figure class="r-sp-figure">' +
+          '<div class="r-sp-figure-wrap">' +
+            '<img src="' + fault.faultImage + '" alt="Off-plan fault image">' +
+            markerHtml +
+          '</div>' +
+          '<figcaption class="r-sp-caption">Fault location</figcaption>' +
+        '</figure>';
+    }
+    const extentLine = formatFaultExtent(fault);
+    const sideHtml = (offPlanFigureHtml || photosHtml)
+      ? '<div class="defect-card-side">' + offPlanFigureHtml + photosHtml + '</div>'
+      : '';
     cardsHtml +=
       '<article class="defect-card r-sp-fault-card" style="border-left:4px solid ' + meta.color + ';">' +
         '<div class="defect-card-top">' +
@@ -3480,11 +3675,12 @@ function renderSitePlan(s, num) {
         '<div class="defect-card-grid">' +
           '<div class="defect-card-main">' +
             (fault.location    ? '<span class="eyebrow-small">Location</span><p>'           + escapeHtml(fault.location)       + '</p>' : '') +
+            (extentLine        ? '<span class="eyebrow-small">Extent</span><p>'             + escapeHtml(extentLine)           + '</p>' : '') +
             (fault.description ? '<span class="eyebrow-small">Observation</span><p>'        + escapeHtml(fault.description)    + '</p>' : '') +
             (fault.recommendation ? '<span class="eyebrow-small">Recommended action</span><p>' + escapeHtml(fault.recommendation) + '</p>' : '') +
             (refSrc ? '<span class="r-sp-ref-badge">' + escapeHtml(refSrc) + '</span>' : '') +
           '</div>' +
-          (photosHtml ? '<div class="defect-card-side">' + photosHtml + '</div>' : '') +
+          sideHtml +
         '</div>' +
       '</article>';
   });
@@ -4446,7 +4642,43 @@ function spRenderMarkers() {
     spFaultLayer.addLayer(m);
   });
 
+  spRenderFaultChips();
   spRenderSchedule();
+}
+
+// Chip row beneath the map: one chip per fault in number order, severity-
+// coloured dot, "(off plan)" suffix for faults with no map coords. The chip
+// is the only way to reopen an off-plan fault, so this must render whenever
+// any faults exist.
+function spRenderFaultChips() {
+  var container = document.getElementById('sp-fault-chips');
+  if (!container) return;
+  var survey = spCurrentSurvey();
+  var faults = (survey.siteFaultMarkers || []).slice().sort(function(a, b) {
+    return (Number(a.number) || 0) - (Number(b.number) || 0);
+  });
+  if (!faults.length) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+  container.style.display = 'flex';
+  container.innerHTML = '';
+  faults.forEach(function(f) {
+    var col = FAULT_SEV_COLORS[f.severity] || FAULT_SEV_COLORS[''];
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sp-fault-chip';
+    var offPlan = (f.lat == null || f.lng == null);
+    btn.innerHTML = '<span class="sp-fault-chip-dot" style="background:' + col + ';"></span>' +
+      'F' + (f.number || '?') +
+      (offPlan ? '<span class="sp-fault-chip-suffix">(off plan)</span>' : '');
+    btn.addEventListener('click', function() {
+      spActiveFaultId = f.id;
+      spOpenFaultPanel(f.id);
+    });
+    container.appendChild(btn);
+  });
 }
 
 // Map click → place pin or fault. Building pins are capped at the count of
@@ -4468,18 +4700,42 @@ function spHandleMapClick(lat, lng) {
     spFaultCounter++;
     var id = 'f' + spFaultCounter;
     var faults = survey.siteFaultMarkers || [];
-    faults.push({
-      id: id, number: spFaultCounter, lat: lat, lng: lng,
-      severity: '', faultType: '', location: '',
-      description: '', recommendation: '',
-      dbDesc: false, dbRec: false,
-      photos: []
-    });
+    faults.push(spNewFault(id, spFaultCounter, lat, lng));
     spSaveSurveyField('siteFaultMarkers', faults);
     spActiveFaultId = id;
     spRenderMarkers();
     spOpenFaultPanel(id);
   }
+}
+
+// Shared default-fault factory so the map-click path and the off-plan path
+// produce identical shapes. Off-plan callers pass null for lat/lng.
+function spNewFault(id, number, lat, lng) {
+  return {
+    id: id, number: number, lat: lat, lng: lng,
+    severity: '', faultType: '', location: '',
+    description: '', recommendation: '',
+    dbDesc: false, dbRec: false,
+    photos: [],
+    qtyCount: '', qtyWhat: '', qtyWhatOther: '',
+    sizeEach: '', sizeUnit: '', sizeUnitOther: '',
+    faultImage: '', faultImageW: 0, faultImageH: 0,
+    faultMarkerX: null, faultMarkerY: null
+  };
+}
+
+// Off-plan fault: same shape, no map coords, carries its own image with a
+// marker tapped onto it. Re-opened only via the chip row below the map.
+function spAddFaultOffPlan() {
+  var survey = spCurrentSurvey();
+  spFaultCounter++;
+  var id = 'f' + spFaultCounter;
+  var faults = survey.siteFaultMarkers || [];
+  faults.push(spNewFault(id, spFaultCounter, null, null));
+  spSaveSurveyField('siteFaultMarkers', faults);
+  spActiveFaultId = id;
+  spRenderMarkers();
+  spOpenFaultPanel(id);
 }
 
 // Geocode the site address (Section A textarea) via the Worker's /geocode
@@ -4591,6 +4847,15 @@ function spOpenFaultPanel(id) {
     document.getElementById('sp-sev-' + s).className =
       'sp-sev-btn' + (fault.severity === s ? ' sev-' + s : '');
   });
+  document.getElementById('sp-fault-qty-count').value      = fault.qtyCount || '';
+  document.getElementById('sp-fault-qty-what').value       = fault.qtyWhat  || '';
+  document.getElementById('sp-fault-qty-what-other').value = fault.qtyWhatOther || '';
+  document.getElementById('sp-fault-qty-what-other-wrap').style.display = (fault.qtyWhat === 'Other') ? 'block' : 'none';
+  document.getElementById('sp-fault-size-each').value       = fault.sizeEach     || '';
+  document.getElementById('sp-fault-size-unit').value       = fault.sizeUnit     || '';
+  document.getElementById('sp-fault-size-unit-other').value = fault.sizeUnitOther || '';
+  document.getElementById('sp-fault-size-unit-other-wrap').style.display = (fault.sizeUnit === 'Other') ? 'block' : 'none';
+  spRenderFaultTotal();
   const hasDb = fault.faultType && FAULT_DB[fault.faultType];
   document.getElementById('sp-desc-autotag').style.display = fault.dbDesc ? 'inline' : 'none';
   document.getElementById('sp-rec-autotag').style.display = fault.dbRec ? 'inline' : 'none';
@@ -4604,6 +4869,11 @@ function spOpenFaultPanel(id) {
     document.getElementById('sp-fault-ref').style.display = 'none';
   }
   spRenderFaultPhotos();
+  // Off-plan fault image block only shown when the fault has no map coords.
+  const isOffPlan = (fault.lat == null || fault.lng == null);
+  const imgBlock = document.getElementById('sp-fault-image-block');
+  if (imgBlock) imgBlock.style.display = isOffPlan ? 'block' : 'none';
+  if (isOffPlan) spRenderFaultImagePanel(fault);
   document.getElementById('sp-fault-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -4621,6 +4891,10 @@ function spSetSeverity(sev) {
       'sp-sev-btn' + (s === sev ? ' sev-' + sev : '');
   });
   spRenderMarkers();
+  // Off-plan fault: refresh the panel marker so its colour tracks severity.
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === spActiveFaultId; });
+  if (fault && (fault.lat == null || fault.lng == null)) spRenderFaultImagePanel(fault);
 }
 
 function spSelectFaultType(type) {
@@ -4795,6 +5069,186 @@ function spRenderFaultPhotos() {
     wrap.appendChild(rm);
     container.appendChild(wrap);
   });
+}
+
+// ── Fault extent (count + size) ──
+// Persist each extent field as it changes and refresh the live total line.
+// qtyWhat / sizeUnit "Other" toggles the matching free-text input.
+function spFaultExtentChange(field, value) {
+  if (!spActiveFaultId) return;
+  spUpdateFault(spActiveFaultId, field, value);
+  if (field === 'qtyWhat') {
+    document.getElementById('sp-fault-qty-what-other-wrap').style.display = (value === 'Other') ? 'block' : 'none';
+    if (value !== 'Other') {
+      document.getElementById('sp-fault-qty-what-other').value = '';
+      spUpdateFault(spActiveFaultId, 'qtyWhatOther', '');
+    }
+  }
+  if (field === 'sizeUnit') {
+    document.getElementById('sp-fault-size-unit-other-wrap').style.display = (value === 'Other') ? 'block' : 'none';
+    if (value !== 'Other') {
+      document.getElementById('sp-fault-size-unit-other').value = '';
+      spUpdateFault(spActiveFaultId, 'sizeUnitOther', '');
+    }
+  }
+  spRenderFaultTotal();
+}
+
+// Trim trailing zeros from a decimal: "78.00" -> "78", "26.5" -> "26.5".
+function spFmtNum(n) {
+  if (!Number.isFinite(n)) return '';
+  var s = (Math.round(n * 1000) / 1000).toString();
+  return s;
+}
+
+// Shared formatter used by the panel total line, the report card, and the
+// detail view so wording stays identical.
+//   count + size: "3 Laps at 26 Lin m each, 78 Lin m total"
+//   count only:   "3 Laps"
+//   size only:    "26 Lin m"
+//   neither:      ""
+function formatFaultExtent(fault) {
+  if (!fault) return '';
+  var count = (fault.qtyCount === '' || fault.qtyCount == null) ? null : Number(fault.qtyCount);
+  if (count != null && !Number.isFinite(count)) count = null;
+  var what  = fault.qtyWhat === 'Other' ? (fault.qtyWhatOther || '') : (fault.qtyWhat || '');
+  var size  = (fault.sizeEach === '' || fault.sizeEach == null) ? null : Number(fault.sizeEach);
+  if (size != null && !Number.isFinite(size)) size = null;
+  var unit  = fault.sizeUnit === 'Other' ? (fault.sizeUnitOther || '') : (fault.sizeUnit || '');
+  var hasCount = (count != null);
+  var hasSize  = (size  != null);
+  if (hasCount && hasSize) {
+    var total = count * size;
+    var unitLabel = unit || '';
+    var sizePart  = spFmtNum(size) + (unit ? ' ' + unit : '');
+    var totalPart = spFmtNum(total) + (unitLabel ? ' ' + unitLabel : '') + ' total';
+    var head = spFmtNum(count) + (what ? ' ' + what : '');
+    return head + ' at ' + sizePart + ' each, ' + totalPart;
+  }
+  if (hasCount) {
+    return spFmtNum(count) + (what ? ' ' + what : '');
+  }
+  if (hasSize) {
+    return spFmtNum(size) + (unit ? ' ' + unit : '');
+  }
+  return '';
+}
+
+function spRenderFaultTotal() {
+  var el = document.getElementById('sp-fault-total');
+  if (!el || !spActiveFaultId) return;
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === spActiveFaultId; });
+  if (!fault) { el.style.display = 'none'; return; }
+  var line = formatFaultExtent(fault);
+  if (!line) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.style.display = 'block';
+  el.textContent = 'Total: ' + line;
+}
+
+// ── Off-plan fault image ──
+// Same resize pipeline as spAddFaultPhoto (FileReader, Image, canvas, max
+// width 1280, JPEG 0.7) but writes to fault.faultImage + dimensions and
+// clears any previous marker coords because the new image has its own
+// coordinate space.
+function spAddFaultImage(input) {
+  if (!spActiveFaultId) return;
+  var files = Array.prototype.slice.call(input.files || []);
+  if (!files.length) return;
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) {
+    return f.id === spActiveFaultId;
+  });
+  if (!fault) return;
+  var file = files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var maxW = 1280;
+      var w = img.width, h = img.height;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      var cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      fault.faultImage = cv.toDataURL('image/jpeg', 0.7);
+      fault.faultImageW = w;
+      fault.faultImageH = h;
+      fault.faultMarkerX = null;
+      fault.faultMarkerY = null;
+      spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+      spRenderFaultImagePanel(fault);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function spClearFaultImage() {
+  if (!spActiveFaultId) return;
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) {
+    return f.id === spActiveFaultId;
+  });
+  if (!fault) return;
+  fault.faultImage = '';
+  fault.faultImageW = 0;
+  fault.faultImageH = 0;
+  fault.faultMarkerX = null;
+  fault.faultMarkerY = null;
+  spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+  spRenderFaultImagePanel(fault);
+}
+
+function spOnFaultImageClick(ev) {
+  if (!spActiveFaultId) return;
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) {
+    return f.id === spActiveFaultId;
+  });
+  if (!fault || !fault.faultImage) return;
+  var wrap = document.getElementById('sp-fault-image-wrap');
+  if (!wrap) return;
+  var rect = wrap.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+  var x = ((ev.clientX - rect.left) / rect.width)  * 100;
+  var y = ((ev.clientY - rect.top)  / rect.height) * 100;
+  fault.faultMarkerX = Math.max(0, Math.min(100, x));
+  fault.faultMarkerY = Math.max(0, Math.min(100, y));
+  spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
+  spRenderFaultImagePanel(fault);
+  spRenderFaultChips();
+}
+
+function spRenderFaultImagePanel(fault) {
+  var empty   = document.getElementById('sp-fault-image-empty');
+  var loaded  = document.getElementById('sp-fault-image-loaded');
+  var img     = document.getElementById('sp-fault-image-img');
+  var wrap    = document.getElementById('sp-fault-image-wrap');
+  if (!empty || !loaded || !img || !wrap) return;
+  if (!fault.faultImage) {
+    empty.style.display = 'block';
+    loaded.style.display = 'none';
+    img.src = '';
+    return;
+  }
+  empty.style.display = 'none';
+  loaded.style.display = 'block';
+  img.src = fault.faultImage;
+  // Strip any previous marker overlay then re-render at the stored coords.
+  var prev = wrap.querySelector('.sp-fault-image-marker');
+  if (prev) prev.parentNode.removeChild(prev);
+  if (fault.faultMarkerX != null && fault.faultMarkerY != null) {
+    var col = FAULT_SEV_COLORS[fault.severity] || FAULT_SEV_COLORS[''];
+    var marker = document.createElement('div');
+    marker.className = 'sp-fault-image-marker';
+    marker.style.background = col;
+    marker.style.left = fault.faultMarkerX.toFixed(3) + '%';
+    marker.style.top  = fault.faultMarkerY.toFixed(3) + '%';
+    marker.textContent = 'F' + (fault.number || '?');
+    wrap.appendChild(marker);
+  }
 }
 
 function spUpdateFault(id, field, value) {
