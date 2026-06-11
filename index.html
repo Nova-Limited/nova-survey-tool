@@ -1306,8 +1306,9 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   <!-- HOME -->
   <section id="view-home" class="view active">
     <div class="container">
-      <div class="home-cta">
+      <div class="home-cta" style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-primary btn-big" onclick="goToNewSurvey()">+ New Survey</button>
+        <button class="btn btn-ghost" onclick="openAirtableLoadModal()">Load from Airtable</button>
       </div>
       <h2 class="section-title">Saved surveys</h2>
       <div id="survey-list" class="survey-list"></div>
@@ -1523,6 +1524,13 @@ main { padding-bottom: env(safe-area-inset-bottom); }
           </div>
 
           <p id="sp-compress-info" class="sp-compress-info"></p>
+
+          <!-- Shown only after an Airtable import when the original drone image
+               was stripped from the snapshot. The upload control remains
+               available beneath, so the surveyor can re-upload if needed. -->
+          <div id="sp-missing-image-notice" style="display:none;margin:8px 0;padding:10px 12px;border-radius:8px;background:#fff8e6;border:1px solid #f7c948;color:#7a4f00;font-size:12px;line-height:1.5;">
+            Site image not transferred. Photos stay on the device that captured them. Re-upload if needed.
+          </div>
 
           <!-- Map area (hidden until the user loads a tile layer or uploads). -->
           <div id="sp-image-area" style="display:none;">
@@ -2205,6 +2213,8 @@ const FAULT_SEV_COLORS = {
 // Inline chevron SVG — used as the gold marker beside every report section title.
 // Stroke uses the literal #F7901E so it survives the brand-token rename safely
 // (CSS variables aren't reachable inside an SVG used as inline markup like this).
+// Reused by every Worker fetch (Save to Airtable, geocode, /surveys, etc).
+const WORKER_BASE = 'https://nova-ch-proxy.jamie-b41.workers.dev';
 const CHEVRON_SVG = '<span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6l6 6-6 6M11 6l6 6-6 6" fill="none" stroke="#F7901E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
 // Inline brand-mark data URLs so the printed report carries no network.
@@ -2411,17 +2421,150 @@ function showChoiceModal({ title, body, primaryLabel, secondaryLabel }) {
   });
 }
 
+// ---- Load from Airtable (cross-device transfer) ----
+// Lists every survey in the Airtable Surveys table via the Worker's
+// /surveys endpoint, lets the user pick one, fetches the full Tool
+// Snapshot via /load-survey, parses it back into a survey object, and
+// upserts it into local storage so editing / autosaving / re-saving to
+// Airtable all behave identically to a locally-authored survey.
+function openAirtableLoadModal() {
+  var existing = document.getElementById('airtable-load-modal');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'airtable-load-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+  var panel = document.createElement('div');
+  panel.style.cssText = 'background:white;border-radius:10px;max-width:560px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 48px rgba(0,0,0,0.25);';
+  panel.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e1e5ec;">' +
+      '<div style="font-weight:700;font-size:1rem;color:#434244;">Load from Airtable</div>' +
+      '<button type="button" id="atl-close" style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 12px;height:28px;font-size:12px;cursor:pointer;font-family:inherit;color:#434244;">Close</button>' +
+    '</div>' +
+    '<div id="atl-body" style="padding:16px 18px;overflow-y:auto;">' +
+      '<p style="margin:0;color:#888;font-size:13px;">Loading surveys…</p>' +
+    '</div>';
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  var close = function() {
+    document.removeEventListener('keydown', onKey);
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  };
+  var onKey = function(e) { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+  document.getElementById('atl-close').addEventListener('click', close);
+
+  var body = document.getElementById('atl-body');
+  fetch(WORKER_BASE + '/surveys')
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (!data || !data.ok || !Array.isArray(data.surveys)) {
+        throw new Error('Unexpected response');
+      }
+      if (!data.surveys.length) {
+        body.innerHTML = '<p style="margin:0;color:#888;font-size:13px;">No surveys found in Airtable.</p>';
+        return;
+      }
+      body.innerHTML = '';
+      data.surveys.forEach(function(rec) {
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.style.cssText = 'display:block;width:100%;text-align:left;background:white;border:1px solid #e1e5ec;border-radius:8px;padding:12px 14px;margin-bottom:8px;font-family:inherit;cursor:pointer;color:#434244;';
+        row.onmouseenter = function() { row.style.borderColor = '#F7901E'; };
+        row.onmouseleave = function() { row.style.borderColor = '#e1e5ec'; };
+        var onsite = rec.onsiteDate ? fmtDate(rec.onsiteDate) : '';
+        var created = rec.createdTime ? fmtDate(rec.createdTime) : '';
+        var metaParts = [];
+        if (onsite)  metaParts.push('Onsite ' + onsite);
+        if (created) metaParts.push('Saved ' + created);
+        var meta = metaParts.join(' · ');
+        row.innerHTML =
+          '<div style="font-weight:700;font-size:0.92rem;color:#F7901E;letter-spacing:0.04em;">' + escapeHtml(rec.surveyId || '(no id)') + '</div>' +
+          '<div style="font-weight:600;font-size:0.95rem;margin-top:2px;">' + escapeHtml(rec.client || '(no client)') + '</div>' +
+          (meta ? '<div style="font-size:0.8rem;color:#888;margin-top:2px;">' + escapeHtml(meta) + '</div>' : '');
+        row.addEventListener('click', function() {
+          close();
+          importSurveyFromAirtable(rec.surveyId);
+        });
+        body.appendChild(row);
+      });
+    })
+    .catch(function(err) {
+      body.innerHTML = '<p style="margin:0;color:#c44;font-size:13px;">Could not reach Airtable. Check your connection and try again.</p>' +
+        '<p style="margin:6px 0 0 0;color:#888;font-size:11px;">' + escapeHtml(String((err && err.message) || err)) + '</p>';
+    });
+}
+
+// Resolve a Worker surveyId (e.g. NOV-SURV-2026-003) back into a local
+// survey record. The snapshot stripped its base64 images on upload, so
+// every renderer must tolerate their absence; see spRestoreImageState
+// for the upload-mode missing-image notice.
+async function importSurveyFromAirtable(surveyId) {
+  if (!surveyId) return;
+  try {
+    const resp = await fetch(WORKER_BASE + '/load-survey?id=' + encodeURIComponent(surveyId));
+    const data = await resp.json().catch(function() { return {}; });
+    if (resp.status === 404) {
+      showToast('Survey not found in Airtable', 'err');
+      return;
+    }
+    if (resp.status === 409) {
+      showToast(data.error || 'No snapshot stored for this survey', 'err');
+      return;
+    }
+    if (!resp.ok || !data || !data.ok || typeof data.snapshot !== 'string') {
+      showToast('Could not load survey from Airtable', 'err');
+      return;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(data.snapshot);
+    } catch (e) {
+      showToast('Could not read survey snapshot, file is malformed', 'err');
+      return;
+    }
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.id !== 'string') {
+      showToast('Survey snapshot is missing an id', 'err');
+      return;
+    }
+    const surveys = loadSurveys();
+    const existingIdx = surveys.findIndex(s => s && s.id === parsed.id);
+    if (existingIdx !== -1) {
+      const ok = confirm('A local copy of ' + parsed.id + ' exists. Replace it with the Airtable copy?');
+      if (!ok) return;
+      surveys[existingIdx] = parsed;
+    } else {
+      surveys.push(parsed);
+    }
+    if (!saveSurveysSafe(surveys)) return;
+    renderSurveyList();
+    showToast('Loaded ' + parsed.id + ' from Airtable', 'ok');
+    goToSurvey(parsed.id);
+  } catch (e) {
+    showToast('Could not reach Airtable. Check your connection.', 'err');
+  }
+}
+
+// Globally unique survey ID: 'SURV-' + year + '-' + 5-char random suffix.
+// Suffix uses an unambiguous alphabet (no 0/O/1/I/L) so handwritten or
+// dictated references stay legible. Old sequential ids (e.g. SURV-2026-003)
+// stay valid; only newly created surveys take this format.
+const SURVEY_ID_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 function nextSurveyId() {
   const year = new Date().getFullYear();
-  const prefix = 'SURV-' + year + '-';
-  let max = 0;
-  for (const s of loadSurveys()) {
-    if (typeof s.id === 'string' && s.id.startsWith(prefix)) {
-      const n = parseInt(s.id.slice(prefix.length), 10);
-      if (!isNaN(n) && n > max) max = n;
-    }
+  const bytes = new Uint8Array(5);
+  crypto.getRandomValues(bytes);
+  let suffix = '';
+  for (let i = 0; i < 5; i++) {
+    suffix += SURVEY_ID_ALPHABET[bytes[i] % SURVEY_ID_ALPHABET.length];
   }
-  return prefix + String(max + 1).padStart(3, '0');
+  return 'SURV-' + year + '-' + suffix;
 }
 
 // ---- View routing ----
@@ -5161,9 +5304,16 @@ function spRestoreImageState() {
   if (survey.siteLat) document.getElementById('sp-lat').value = survey.siteLat;
   if (survey.siteLng) document.getElementById('sp-lng').value = survey.siteLng;
   spFaultCounter = (survey.siteFaultMarkers || []).length;
+  var notice = document.getElementById('sp-missing-image-notice');
+  if (notice) notice.style.display = 'none';
   if (survey.siteImageSource === 'upload' && survey.siteImageData) {
     document.getElementById('sp-image-area').style.display = 'block';
     spBuildMap(null, null, 'simple', survey.siteImageData);
+  } else if (survey.siteImageSource === 'upload' && !survey.siteImageData) {
+    // Snapshot intentionally strips the base64 drone image before upload,
+    // so an imported survey arrives with siteImageSource='upload' but no
+    // bytes. Flag it; the existing upload control stays available below.
+    if (notice) notice.style.display = 'block';
   } else if (survey.siteImageSource === 'map') {
     var centre = survey.siteMapCentreLat != null
       ? [survey.siteMapCentreLat, survey.siteMapCentreLng]
