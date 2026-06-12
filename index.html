@@ -405,6 +405,85 @@
   color: var(--ink);
 }
 
+/* ============================================================
+   SECTION 4c — Site Information + Background. Site info is two
+   side-by-side panels (SITE left, VISIT right) each 128mm wide
+   with a 9mm gutter; rows are label-over-value. Background sits
+   beneath as sub-headed paragraphs; the whole section is
+   break-inside: avoid so it moves as one unit if it cannot fit.
+   ============================================================ */
+.report .info-blocks {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 9mm;
+  margin: 0;
+}
+.report .info-block {
+  flex: 0 0 128mm;
+  width: 128mm;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .info-block-title {
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin: 0 0 2mm 0;
+  padding-bottom: 1.5mm;
+  border-bottom: 0.5pt solid var(--rule);
+}
+.report .info-block-rows {
+  display: block;
+}
+.report .info-block-rows > div {
+  margin-bottom: 3mm;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .info-block-rows > div:last-child {
+  margin-bottom: 0;
+}
+.report .info-block .info-item-eyebrow {
+  display: block;
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 0.8mm;
+}
+.report .info-block .info-item-val {
+  font-size: 10pt;
+  line-height: 14.5pt;
+  color: var(--ink);
+  font-weight: 600;
+  white-space: pre-wrap;
+}
+/* Background section: whole section moves as one unit if it can't fit. */
+.report section.report-section:has(> .r-bg-block) {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-bg-block {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  margin: 0 0 5mm;
+}
+.report .r-bg-block:last-child { margin-bottom: 0; }
+.report .r-bg-heading {
+  font-size: 10pt;
+  font-weight: bold;
+  color: var(--ink);
+  margin: 0 0 1.5mm;
+}
+.report .r-body p {
+  widows: 2;
+  orphans: 2;
+}
+
 /* Clip section backgrounds to the page content area so they cannot
    overpaint the Paged.js margin-box footer band. Paged.js does NOT add
    overflow:hidden to .pagedjs_page_content; without this, a section
