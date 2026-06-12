@@ -368,6 +368,43 @@
   letter-spacing: 0;
 }
 
+/* ============================================================
+   SECTION 4b — Executive Summary metric cards. One horizontal
+   row of three equal-width 84mm cards beneath the body copy.
+   Never stacked, never split across pages.
+   ============================================================ */
+.report .r-metric-row {
+  display: flex;
+  flex-direction: row;
+  gap: 6.5mm;
+  margin-top: 8mm;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-metric-card {
+  flex: 0 0 84mm;
+  width: 84mm;
+  border-top: 1pt solid var(--orange);
+  padding: 4mm 0 0 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-metric-card .metric-label {
+  display: block;
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 2mm;
+}
+.report .r-metric-card .metric-value-text {
+  font-size: 16pt;
+  font-weight: bold;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
 /* Clip section backgrounds to the page content area so they cannot
    overpaint the Paged.js margin-box footer band. Paged.js does NOT add
    overflow:hidden to .pagedjs_page_content; without this, a section
@@ -4121,22 +4158,22 @@ function renderExecSummary(s, rating, num) {
   const lifePostWorks = s['f-remaining-life-postworks'];
   const hasAsStands  = (lifeAsStands  !== '' && lifeAsStands  != null);
   const hasPostWorks = (lifePostWorks !== '' && lifePostWorks != null);
-  // Three metric blocks: condition today (text), life as it stands, life
-  // with recommended works. Missing values drop their block cleanly so
-  // the aside never renders a hollow figure.
-  let asideHtml = '';
+  // Three condition metrics laid out as a horizontal row of equal cards
+  // beneath the body copy (Section 4b). Each card has a 1pt orange top
+  // border, 4mm padding, 16pt bold value. Missing values drop their card.
+  let metricRowHtml = '';
   if (s['f-overall-rating'] || hasAsStands || hasPostWorks) {
-    asideHtml = '<aside class="r-aside-metric">';
+    metricRowHtml = '<div class="r-metric-row">';
     if (s['f-overall-rating']) {
-      asideHtml += '<div class="metric"><div class="metric-label">Condition today</div><div class="metric-value-text">' + escapeHtml(rating) + '</div></div>';
+      metricRowHtml += '<div class="r-metric-card"><div class="metric-label">Condition today</div><div class="metric-value-text">' + escapeHtml(rating) + '</div></div>';
     }
     if (hasAsStands) {
-      asideHtml += '<div class="metric" style="margin-top:1.5rem;"><div class="metric-label">Life as it stands</div><div class="metric-value-text">' + escapeHtml(String(lifeAsStands)) + ' year' + (Number(lifeAsStands) === 1 ? '' : 's') + '</div></div>';
+      metricRowHtml += '<div class="r-metric-card"><div class="metric-label">Life as it stands</div><div class="metric-value-text">' + escapeHtml(String(lifeAsStands)) + ' year' + (Number(lifeAsStands) === 1 ? '' : 's') + '</div></div>';
     }
     if (hasPostWorks) {
-      asideHtml += '<div class="metric" style="margin-top:1.5rem;"><div class="metric-label">Life with recommended works</div><div class="metric-value-text">' + escapeHtml(String(lifePostWorks)) + ' year' + (Number(lifePostWorks) === 1 ? '' : 's') + '</div></div>';
+      metricRowHtml += '<div class="r-metric-card"><div class="metric-label">Life with recommended works</div><div class="metric-value-text">' + escapeHtml(String(lifePostWorks)) + ' year' + (Number(lifePostWorks) === 1 ? '' : 's') + '</div></div>';
     }
-    asideHtml += '</aside>';
+    metricRowHtml += '</div>';
   }
   const bodyHtml = summary
     ? '<div class="r-body">' + escapeHtml(summary).split(/\n{2,}/).map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>').join('') + '</div>'
@@ -4146,10 +4183,8 @@ function renderExecSummary(s, rating, num) {
   '<section class="report-section section-light">' +
     '<span class="eyebrow">' + num + ' · Executive Summary</span>' +
     '<h2 class="r-title">' + CHEVRON_SVG + '<span>The picture at a glance.</span></h2>' +
-    '<div class="r-grid">' +
-      '<div>' + bodyHtml + '</div>' +
-      asideHtml +
-    '</div>' +
+    bodyHtml +
+    metricRowHtml +
   '</section>';
 }
 
