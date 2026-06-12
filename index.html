@@ -1262,18 +1262,47 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   break-after: avoid;
 }
 
-/* Off-plan fault callout, sits below the site plan figure / chips so
-   every fault has context before the detail cards. */
-.r-sp-offplan {
-  margin-top: 0.6rem;
-  font-size: 0.85rem;
-  color: var(--ink-2);
-  text-align: center;
-  line-height: 1.4;
+/* Fault index — one compact row per fault below the master overview.
+   Replaces the chip row + "Not shown on plan" callout. */
+.r-sp-index {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px 16px;
+  margin-top: 8mm;
 }
-.r-sp-offplan-label {
-  font-weight: 800; color: var(--ink);
-  letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.78rem;
+.r-sp-index.r-sp-index-2col { grid-template-columns: 1fr 1fr; }
+.r-sp-idx-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-bottom: 1px solid #ececec;
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+.r-sp-idx-row:last-child { border-bottom: none; }
+.r-sp-idx-pill {
+  background: #F7901E; color: #fff;
+  font-weight: 800; font-size: 0.66rem; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 4px; min-width: 28px; text-align: center;
+}
+.r-sp-idx-title {
+  font-weight: 700; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.r-sp-idx-sev {
+  color: #fff; font-weight: 800;
+  font-size: 0.62rem; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 999px;
+}
+.r-sp-idx-loc {
+  color: var(--muted); font-size: 0.72rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 30ch; text-align: right;
+}
+.r-sp-idx-flag {
+  color: #888; font-style: italic;
 }
 
 /* ============================================================
@@ -1429,7 +1458,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .r-sp-figure-wrap { display: inline-block; max-width: 100%; }
   .r-sp-figure-wrap img {
     width: auto; height: auto;
-    max-width: 100%; max-height: 95mm;
+    max-width: 100%; max-height: 70mm;
   }
   .r-sp-page-unit .r-sp-sev-row {
     justify-content: center;
@@ -1494,12 +1523,16 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     page-break-after: avoid !important;
     break-after: avoid !important;
   }
+  /* Photo strip: balanced 2-up grid. When a card's media breaks to its
+     own page the strip fills the page width with two large photos per
+     row instead of a small left-aligned stack. */
   .r-sp-fault-photos {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    align-items: flex-start !important;
-    gap: 4mm !important;
-    margin-top: 4mm !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    align-items: center !important;
+    justify-items: center !important;
+    gap: 5mm !important;
+    margin-top: 5mm !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
@@ -1509,11 +1542,15 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     width: auto !important;
     height: auto !important;
     max-width: 100% !important;
-    max-height: 60mm !important;
+    max-height: 90mm !important;
     margin: 0 !important;
-    flex: 0 0 auto !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+  /* Single-photo cards: drop the 2-up grid back to one column so the
+     lone image isn't squeezed into a half-width cell. */
+  .r-sp-fault-photos:has(> .r-sp-fault-photo:only-child) {
+    grid-template-columns: 1fr !important;
   }
 
   /* Site information cards: each block (End Client / Site / Visit)
@@ -1751,6 +1788,10 @@ main { padding-bottom: env(safe-area-inset-bottom); }
               style="background:#F7901E;color:#fff;border:none;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
               Show satellite map
             </button>
+            <button type="button" id="sp-fetch-sat-btn" onclick="spFetchSatelliteView()"
+              style="background:transparent;color:#434244;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
+              Fetch satellite view
+            </button>
             <label style="background:transparent;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;color:#434244;">
               Upload drone image
               <input type="file" id="sp-upload-input" accept="image/*" style="display:none;" onchange="spUploadImage(this)">
@@ -1803,6 +1844,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
                 <button type="button" class="sp-sev-btn" id="sp-sev-fair"     onclick="spSetSeverity('fair')">Fair</button>
                 <button type="button" class="sp-sev-btn" id="sp-sev-monitor"  onclick="spSetSeverity('monitor')">Monitor</button>
               </div>
+            </div>
+
+            <div class="field" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" id="sp-fault-unlocatable" onchange="spFaultUnlocatableChange(this.checked)" style="margin:0;width:auto;min-height:0;">
+              <label for="sp-fault-unlocatable" style="font-size:12px;color:#666;margin:0;cursor:pointer;">Cannot be located on overview (internal / not visible from above)</label>
             </div>
 
             <div class="field" style="margin-bottom:12px;">
@@ -4076,15 +4122,14 @@ function renderSitePlan(s, num) {
     return (Number(a.number) || 0) - (Number(b.number) || 0);
   });
 
-  // 1. Annotated figure (upload mode only).
+  // 1. Master overview figure — every locatable fault drops a marker.
   // Markers are stored in Leaflet CRS.Simple where the bounds are
-  // [[0,0],[h,w]] — meaning lat increases UPWARD (image top = lat h,
-  // image bottom = lat 0). To re-project onto a static <img> (where CSS
-  // top:0 is visual top), the y axis must be inverted:
-  //   topPct = ((h - lat) / h) * 100
-  //   leftPct = (lng / w) * 100
-  // Without the inversion, fault markers end up mirror-imaged vertically
-  // relative to their on-screen Leaflet positions.
+  // [[0,0],[h,w]] (lat increases UPWARD, image top = lat h). To project
+  // onto a static <img> (CSS top:0 = visual top), the y axis is inverted:
+  //   topPct = ((h - lat) / h) * 100,  leftPct = (lng / w) * 100.
+  // Unlocatable faults (fault.unlocatable === true) are intentionally
+  // not marked on the overview; they show up in the fault index below
+  // flagged as "internal / not visible from above" instead.
   let figureHtml = '';
   const siteSrc = siteImageSrcFor(s);
   const hasUpload = s.siteImageSource === 'upload' && siteSrc
@@ -4102,6 +4147,7 @@ function renderSitePlan(s, num) {
         escapeHtml(String(pin.label || 'B?')) + '</div>';
     });
     sortedFaults.forEach(function(fault) {
+      if (fault.unlocatable) return;
       if (fault.lat == null || fault.lng == null) return;
       const meta = sevMeta[fault.severity] || sevMeta[''];
       const leftPct = (Number(fault.lng) / imgW) * 100;
@@ -4113,45 +4159,45 @@ function renderSitePlan(s, num) {
     figureHtml =
       '<figure class="r-sp-figure">' +
         '<div class="r-sp-figure-wrap">' +
-          '<img src="' + siteSrc + '" alt="Annotated site plan">' +
+          '<img src="' + siteSrc + '" alt="Site overview">' +
           markersHtml +
         '</div>' +
-        '<figcaption class="r-sp-caption">Annotated site plan. Markers show identified building positions and defect locations.</figcaption>' +
+        '<figcaption class="r-sp-caption">Site overview. Severity-coloured markers identify every fault visible from above.</figcaption>' +
       '</figure>';
   }
 
-  // 2. Faults by severity — compact chip row, only severities that have a hit.
-  let summaryHtml = '';
-  if (faults.length) {
-    const sevCounts = { critical: 0, poor: 0, fair: 0, monitor: 0 };
-    faults.forEach(function(f) {
-      const k = f.severity;
-      if (sevCounts[k] != null) sevCounts[k]++;
-    });
-    const chips = ['critical', 'poor', 'fair', 'monitor'].map(function(sev) {
-      if (!sevCounts[sev]) return '';
-      const meta = sevMeta[sev];
-      return '<span class="r-sp-sev-chip" style="border-color:' + meta.color + ';">' +
-        '<span class="r-sp-sev-dot" style="background:' + meta.color + ';"></span>' +
-        escapeHtml(meta.label) + ': ' + sevCounts[sev] +
-        '</span>';
-    }).filter(Boolean).join('');
-    if (chips) summaryHtml = '<div class="r-sp-sev-row">' + chips + '</div>';
-  }
-
-  // Off-plan listing: faults without a plan marker are called out by ref
-  // and title under the figure so every fault has context before its
-  // detail card appears further down.
-  let offPlanListHtml = '';
-  const offPlanFaults = sortedFaults.filter(function(f) { return f.lat == null || f.lng == null; });
-  if (offPlanFaults.length) {
-    const items = offPlanFaults.map(function(f) {
-      return 'F' + (f.number || '?') + ', ' + resolveFaultTitle(f);
-    });
-    offPlanListHtml = '<div class="r-sp-offplan">' +
-      '<span class="r-sp-offplan-label">Not shown on plan:</span> ' +
-      escapeHtml(items.join('; ')) +
-      '</div>';
+  // 2. Fault index — every fault gets a row (badge, title, severity chip,
+  // location or "internal / not visible from above"). Two-column layout
+  // kicks in at >12 entries so the index stays compact rather than
+  // running half the page. Replaces both the old severity chip row and
+  // the "Not shown on plan" callout.
+  let indexHtml = '';
+  if (sortedFaults.length) {
+    // Spec floor: two-column at >12 faults. We also flip to two-column at
+    // >8 because a single-column index of 9+ rows otherwise breaks the
+    // "always one page" promise; staying single-col when it fits keeps
+    // small surveys readable.
+    const useTwoCol = sortedFaults.length > 8;
+    const rows = sortedFaults.map(function(fault) {
+      const meta  = sevMeta[fault.severity] || sevMeta[''];
+      const num   = 'F' + (fault.number || '?');
+      const title = resolveFaultTitle(fault);
+      let locText;
+      if (fault.unlocatable) {
+        locText = '<span class="r-sp-idx-flag">Internal, not visible from above</span>';
+      } else if (fault.lat == null || fault.lng == null) {
+        locText = '<span class="r-sp-idx-flag">Not yet placed on overview</span>';
+      } else {
+        locText = escapeHtml((fault.location || '').trim());
+      }
+      return '<div class="r-sp-idx-row">' +
+        '<span class="r-sp-idx-pill">' + escapeHtml(num) + '</span>' +
+        '<span class="r-sp-idx-title">' + escapeHtml(title) + '</span>' +
+        '<span class="r-sp-idx-sev" style="background:' + meta.color + ';">' + escapeHtml(meta.label) + '</span>' +
+        '<span class="r-sp-idx-loc">' + locText + '</span>' +
+        '</div>';
+    }).join('');
+    indexHtml = '<div class="r-sp-index' + (useTwoCol ? ' r-sp-index-2col' : '') + '">' + rows + '</div>';
   }
 
   // 3. Fault schedule cards — mirrors .defect-card markup so the visual
@@ -4249,9 +4295,8 @@ function renderSitePlan(s, num) {
     leadCopy += 'Building positions are shown on the annotated image.';
   }
   if (leadCopy) html += '<div class="r-body" style="margin-bottom:0.5rem;"><p>' + leadCopy + '</p></div>';
-  if (figureHtml)     html += figureHtml;
-  if (summaryHtml)    html += summaryHtml;
-  if (offPlanListHtml) html += offPlanListHtml;
+  if (figureHtml) html += figureHtml;
+  if (indexHtml)  html += indexHtml;
   html += '</div>';
   if (cardsHtml)   html += cardsHtml;
   html += '</section>';
@@ -5014,6 +5059,69 @@ function spLoadSatellite() {
   spBuildMap(centre, zoom, 'geographic', null);
 }
 
+// Fetch a master satellite tile from the Worker and store it as the
+// survey overview, exactly as if the surveyor had uploaded a drone
+// frame: same upload→R2→thumbnail downgrade pipeline so the image
+// rides into the report inline. Requires sp-lat / sp-lng to be set.
+async function spFetchSatelliteView() {
+  var latStr = (document.getElementById('sp-lat').value || '').trim();
+  var lngStr = (document.getElementById('sp-lng').value || '').trim();
+  var lat = parseFloat(latStr);
+  var lng = parseFloat(lngStr);
+  if (isNaN(lat) || isNaN(lng)) {
+    showToast('Set lat and lng first (use Find on map).', 'err');
+    return;
+  }
+  var btn = document.getElementById('sp-fetch-sat-btn');
+  if (btn) { btn.textContent = 'Fetching...'; btn.disabled = true; }
+  try {
+    var u = WORKER_BASE + '/site-image?lat=' + encodeURIComponent(lat)
+          + '&lng=' + encodeURIComponent(lng) + '&zoom=19';
+    var resp = await fetch(u);
+    if (!resp.ok) {
+      var data = await resp.json().catch(function() { return {}; });
+      throw new Error(data.detail || data.error || ('HTTP ' + resp.status));
+    }
+    var blob = await resp.blob();
+    var dataUrl = await new Promise(function(resolve, reject) {
+      var r = new FileReader();
+      r.onload = function() { resolve(r.result); };
+      r.onerror = function() { reject(new Error('FileReader failed')); };
+      r.readAsDataURL(blob);
+    });
+    var dims = await new Promise(function(resolve, reject) {
+      var im = new Image();
+      im.onload = function() { resolve({ w: im.naturalWidth, h: im.naturalHeight }); };
+      im.onerror = function() { reject(new Error('image decode failed')); };
+      im.src = dataUrl;
+    });
+    // Store as if it were an upload, so the existing CRS.Simple flow,
+    // markers and report renderer all work with no further changes.
+    spSaveSurveyField('siteImageSource', 'upload');
+    spSaveSurveyField('siteImageData',   dataUrl);
+    spSaveSurveyField('siteImageKey',    '');
+    spSaveSurveyField('siteImageW',      dims.w);
+    spSaveSurveyField('siteImageH',      dims.h);
+    document.getElementById('sp-image-area').style.display = 'block';
+    spBuildMap(null, null, 'simple', dataUrl);
+    // Background R2 upload + thumbnail downgrade, same as drone upload path.
+    var novaId = novaSurveyIdFor(spActiveSurveyForUpload());
+    if (novaId && navigator.onLine !== false) {
+      try {
+        var key = await uploadPhotoToWorker(novaId, dataUrl);
+        var thumb = await makeThumbnail(dataUrl);
+        spSaveSurveyField('siteImageKey',  key);
+        spSaveSurveyField('siteImageData', thumb || dataUrl);
+      } catch (e) { /* offline or cloud blip; full data stays local */ }
+    }
+    showToast('Satellite view loaded', 'ok');
+  } catch (e) {
+    showToast('Could not fetch satellite view: ' + (e.message || e), 'err');
+  } finally {
+    if (btn) { btn.textContent = 'Fetch satellite view'; btn.disabled = false; }
+  }
+}
+
 // Build (or rebuild) the Leaflet map. mode = 'geographic' wires Esri imagery
 // + WGS84; mode = 'simple' uses L.CRS.Simple to render a drone-photo overlay
 // without geographic projection.
@@ -5237,7 +5345,12 @@ function spNewFault(id, number, lat, lng) {
     qtyCount: '', qtyWhat: '', qtyWhatOther: '',
     sizeEach: '', sizeUnit: '', sizeUnitOther: '',
     faultImage: '', faultImageKey: '', faultImageW: 0, faultImageH: 0,
-    faultMarkerX: null, faultMarkerY: null
+    faultMarkerX: null, faultMarkerY: null,
+    // When true the fault is logged but cannot be placed on the master
+    // overview (interior, hidden under structure, etc). The report shows
+    // it in the fault index flagged as "internal / not visible from
+    // above" rather than dropping a marker on the image.
+    unlocatable: false
   };
 }
 
@@ -5385,6 +5498,7 @@ function spOpenFaultPanel(id) {
     document.getElementById('sp-sev-' + s).className =
       'sp-sev-btn' + (fault.severity === s ? ' sev-' + s : '');
   });
+  document.getElementById('sp-fault-unlocatable').checked = !!fault.unlocatable;
   document.getElementById('sp-fault-qty-count').value      = fault.qtyCount || '';
   document.getElementById('sp-fault-qty-what').value       = fault.qtyWhat  || '';
   document.getElementById('sp-fault-qty-what-other').value = fault.qtyWhatOther || '';
@@ -5490,6 +5604,15 @@ function spFaultFieldChange(field, value) {
   spUpdateFault(spActiveFaultId, field, value);
   if (field === 'description') spUpdateFault(spActiveFaultId, 'dbDesc', false);
   if (field === 'recommendation') spUpdateFault(spActiveFaultId, 'dbRec', false);
+}
+
+// Unlocatable flag: when true the fault still gets a record but no
+// marker on the overview, and the report renders it in the fault index
+// with an "internal / not visible from above" tag instead.
+function spFaultUnlocatableChange(checked) {
+  if (!spActiveFaultId) return;
+  spUpdateFault(spActiveFaultId, 'unlocatable', !!checked);
+  spRenderFaultChips();
 }
 
 function spRefreshDesc() {
