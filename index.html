@@ -530,18 +530,20 @@
   display: inline-block;
   position: relative;
   max-width: 200mm;
-  max-height: 110mm;
+  max-height: 100mm;
 }
 .report .r-sp-figure-wrap img {
   display: block;
   max-width: 200mm;
-  max-height: 110mm;
+  max-height: 100mm;
   width: auto;
   height: auto;
   object-fit: contain;
 }
-/* Section 7 check 9 remediation (Option 1): when the index is two-column
-   the figure tightens to 90mm so image + index can share one page. */
+/* Section 7 check 9 remediation. Single-column case (≤8 faults) caps
+   at 100mm so a typical 3-6 fault survey lands image + index on one
+   page. Two-column case (9+ faults) tightens to 90mm; index then
+   moves to its own page via the page-break-before rule below. */
 .report .r-sp-page-unit-2col .r-sp-figure-wrap,
 .report .r-sp-page-unit-2col .r-sp-figure-wrap img {
   max-height: 90mm;
@@ -549,13 +551,11 @@
 .report .r-sp-index {
   display: block;
   margin-top: 3mm;
-  /* Section 7 check 9 remediation: the index ALWAYS opens on a fresh
-     page so it cannot be split mid-list. Paged.js does not reliably
-     honour break-inside: avoid on grid/column-flow children, so the
-     deterministic rule wins. Image is alone on the site-plan page,
-     index whole on the page that follows. */
-  page-break-before: always;
-  break-before: page;
+  /* Fit-first: the index is its own atomic block — break-inside avoid
+     keeps it whole. When it fits alongside the image (single-column,
+     typical 3-6 fault survey), the .r-sp-page-unit break-inside avoid
+     keeps them on one page. When it overflows, the index moves whole
+     to the following page. */
   page-break-inside: avoid;
   break-inside: avoid;
 }
@@ -563,6 +563,12 @@
   column-count: 2;
   column-gap: 6mm;
   column-fill: balance;
+  /* Two-column ALWAYS starts on a fresh page: Paged.js does not honour
+     break-inside avoid reliably on column-flow children, so we make
+     the fallback deterministic for 9+ faults. The single-column case
+     above relies on natural fit-first behaviour. */
+  page-break-before: always;
+  break-before: page;
 }
 .report .r-sp-index .r-sp-idx-row {
   break-inside: avoid;
