@@ -3951,7 +3951,7 @@ async function syncSurveyToAirtable() {
       if (f.location)       tail.push(f.location);
       if (f.description)    tail.push(f.description);
       if (f.recommendation) tail.push(f.recommendation);
-      if (tail.length) line += ' — ' + tail.join('; ');
+      if (tail.length) line += ' - ' + tail.join('; ');
       return line;
     });
     put('fldkAPwVoeVh6xr8o', lines.join('\n'));
@@ -4672,12 +4672,12 @@ function renderRoofGeometry(buildings, num) {
     const rowFor = (s, refLabel, areaLabel) => {
       const sl = calcSlopeLength(s);
       const a  = calcSlopeArea(s);
-      const ridgePart = s.pitch === 'Flat' ? '—'
-        : ((s.eaves !== '' && s.eaves != null ? s.eaves : '—') + ' → ' + (s.ridge !== '' && s.ridge != null ? s.ridge : '—'));
-      const lxs = ((s.length !== '' && s.length != null ? s.length : '—') + ' × ' + (s.span !== '' && s.span != null ? s.span : '—'));
+      const ridgePart = s.pitch === 'Flat' ? '-'
+        : ((s.eaves !== '' && s.eaves != null ? s.eaves : '-') + ' to ' + (s.ridge !== '' && s.ridge != null ? s.ridge : '-'));
+      const lxs = ((s.length !== '' && s.length != null ? s.length : '-') + ' x ' + (s.span !== '' && s.span != null ? s.span : '-'));
       let row = '<tr>' +
         '<td>' + escapeHtml(refLabel) + '</td>' +
-        '<td>' + escapeHtml(s.pitch || '—') + '</td>' +
+        '<td>' + escapeHtml(s.pitch || '-') + '</td>' +
         '<td class="num">' + escapeHtml(lxs) + '</td>' +
         '<td class="num">' + escapeHtml(ridgePart) + '</td>' +
         '<td class="num">' + fmtSlopeLengthDisp(sl) + '</td>' +
@@ -4693,9 +4693,9 @@ function renderRoofGeometry(buildings, num) {
       const s0 = b.slopes[0];
       const a  = calcSlopeArea(s0);
       const areaLabel = (a == null)
-        ? '—'
-        : fmtAreaDisp(a) + '  × ' + b.slopeCount + ' = ' + fmtAreaDisp(tot);
-      html += rowFor(s0, '×' + b.slopeCount + ' equal', areaLabel);
+        ? '-'
+        : fmtAreaDisp(a) + '  x ' + b.slopeCount + ' = ' + fmtAreaDisp(tot);
+      html += rowFor(s0, 'x' + b.slopeCount + ' equal', areaLabel);
     } else {
       b.slopes.forEach(s2 => { html += rowFor(s2, s2.id, fmtAreaDisp(calcSlopeArea(s2))); });
     }
