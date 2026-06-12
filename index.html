@@ -1261,18 +1261,42 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .report-section {
     padding: 0 0 12mm 0 !important;
   }
+  /* COVER: lock to one landscape page (printable area is 297-32 x 210-32 =
+     265 x 178mm). Flex column distributes top/body/footer within the box;
+     break-inside:avoid keeps the whole thing on a single page. */
   .cover {
-    min-height: 178mm !important;
+    height: 178mm !important;
+    min-height: 0 !important;
+    max-height: 178mm !important;
     padding: 0 !important;
+    margin: 0 !important;
     page-break-after: always !important;
     break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+  }
+  .cover > .cover-top,
+  .cover > .cover-footer { flex: 0 0 auto; }
+  .cover > .cover-body {
+    flex: 1 1 auto;
+    align-items: center;
+    margin: 0 !important;
   }
   .defect-card, .summary-card, .info-grid, .recommendation-stats, .cover-metrics {
     page-break-inside: avoid;
     break-inside: avoid;
   }
-  .r-title { page-break-after: avoid; break-after: avoid; }
-  /* Force exact background/colour fidelity in print — required for dark
+  /* Section headers travel with their content: eyebrow stays with the title,
+     title stays with the first body block, so no orphaned 01 EXECUTIVE
+     SUMMARY at the foot of a page. */
+  .eyebrow { page-break-after: avoid !important; break-after: avoid !important; }
+  .r-title { page-break-after: avoid !important; break-after: avoid !important; }
+  /* Force exact background/colour fidelity in print, required for dark
      sections and severity badges to render correctly. */
   * {
     -webkit-print-color-adjust: exact !important;
@@ -1287,19 +1311,51 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .r-grid          { grid-template-columns: 2fr 1fr !important; }
   .defect-card-grid { grid-template-columns: 2fr 1fr !important; }
 
-  /* Annotated site-plan figure: bound it so it fits one landscape
-     page whatever the photo's aspect, keeping markers aligned by
-     sizing the wrap to the image */
-  .r-sp-figure { max-width: 200mm; }
+  /* SITE PLAN: header + intro + figure + caption + chips travel as one
+     page unit; image scales to command the page width up to 150mm tall. */
+  .r-sp-page-unit {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .r-sp-figure {
+    text-align: center;
+    max-width: 100%;
+    margin: 0 auto 6mm auto !important;
+  }
   .r-sp-figure-wrap { display: inline-block; max-width: 100%; }
   .r-sp-figure-wrap img {
     width: auto; height: auto;
     max-width: 100%; max-height: 150mm;
   }
+  /* Severity chips row beneath the figure */
+  .r-sp-page-unit .r-sp-sev-row {
+    justify-content: center;
+    margin-top: 4mm;
+  }
 
-  /* Fault photos sitting in the card's right column print larger,
-     one per row */
-  .defect-card-side .r-sp-fault-photo { max-width: 100%; }
+  /* FAULT CARD PHOTOS: stack vertically in the side column, each capped
+     to 80mm so two photos never need their own page. Break-inside:avoid
+     on the photo itself (not on the card or the photo wrapper) lets the
+     renderer break the card between text blocks or between photos
+     without splitting an image. */
+  .r-sp-fault-card { page-break-inside: auto !important; break-inside: auto !important; }
+  .r-sp-fault-photos {
+    display: block !important;
+    margin-top: 4mm !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  .defect-card-side .r-sp-fault-photo,
+  .r-sp-fault-photo {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 80mm !important;
+    margin: 0 0 4mm 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 }
 </style>
 </head>
@@ -3732,6 +3788,37 @@ function renderBackground(s, num) {
   return html;
 }
 
+// Report title for a fault card. Type "Other" never surfaces as the
+// heading: a user-entered title wins, then the location (cleaned to
+// sentence case with no trailing full stop), then a numbered default.
+// Applied in the report only; the form keeps the raw "Other" label.
+function resolveFaultTitle(fault) {
+  if (!fault) return 'Defect';
+  const number = (fault.number != null && fault.number !== '') ? fault.number : '?';
+  const fallback = 'Defect F' + number;
+  if (fault.title && String(fault.title).trim()) {
+    return String(fault.title).trim();
+  }
+  if (fault.faultType && fault.faultType !== 'other') {
+    return FAULT_LABELS[fault.faultType] || fault.faultType || fallback;
+  }
+  // faultType is 'other' (or missing): prefer Location over the type label.
+  if (fault.location && String(fault.location).trim()) {
+    return sentenceCaseTrim(fault.location);
+  }
+  return fallback;
+}
+
+// Trim, strip a trailing full stop / question / exclamation, uppercase
+// the first letter. Keeps existing internal casing (proper nouns, bay
+// references like "B3") untouched.
+function sentenceCaseTrim(s) {
+  if (s == null) return '';
+  let t = String(s).trim().replace(/[.!?]+$/, '').trim();
+  if (!t) return '';
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 function renderSitePlan(s, num) {
   const pins   = Array.isArray(s.siteImagePins) ? s.siteImagePins : [];
   const faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
@@ -3814,7 +3901,7 @@ function renderSitePlan(s, num) {
   let cardsHtml = '';
   sortedFaults.forEach(function(fault) {
     const meta = sevMeta[fault.severity] || sevMeta[''];
-    const typeLabel = FAULT_LABELS[fault.faultType] || fault.faultType || 'Defect';
+    const typeLabel = resolveFaultTitle(fault);
     const refSrc = (FAULT_DB[fault.faultType] && FAULT_DB[fault.faultType].ref) || '';
     const num = 'F' + (fault.number || '?');
     // Photos: prefer the R2 URL when a key is stored, fall back to the
@@ -3878,8 +3965,11 @@ function renderSitePlan(s, num) {
       '</article>';
   });
 
-  // Section frame + lead-in copy. Lead line counts whatever the survey has.
+  // Section frame + lead-in copy. The header, intro, figure, caption and
+  // severity chips travel as one page unit via .r-sp-page-unit; the fault
+  // cards then flow naturally onto subsequent pages.
   let html = '<section class="report-section section-light">';
+  html += '<div class="r-sp-page-unit">';
   html += '<span class="eyebrow">' + num + ' · Site Plan</span>';
   html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>The site, marked up.</span></h2>';
   const leadParts = [];
@@ -3895,6 +3985,7 @@ function renderSitePlan(s, num) {
   if (leadCopy) html += '<div class="r-body" style="margin-bottom:0.5rem;"><p>' + leadCopy + '</p></div>';
   if (figureHtml)  html += figureHtml;
   if (summaryHtml) html += summaryHtml;
+  html += '</div>';
   if (cardsHtml)   html += cardsHtml;
   html += '</section>';
   return html;
