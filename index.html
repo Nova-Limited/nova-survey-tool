@@ -119,6 +119,95 @@
   overflow: hidden;
 }
 
+/* ============================================================
+   SECTION 3 — Type scale tokens. Scoped to .report so the
+   interactive form UI is untouched. Values are point-precise
+   per spec and override earlier .eyebrow / .r-title / .r-body
+   etc. rules during report rendering and print.
+   ============================================================ */
+.report .eyebrow {
+  font-size: 8pt;
+  font-weight: bold;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 6mm;
+}
+.report .r-title,
+.report .section-light .r-title,
+.report .section-light-tone .r-title {
+  font-size: 24pt;
+  font-weight: bold;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0 0 6mm;
+}
+.report .section-dark .r-title { color: var(--orange); }
+.report .r-standfirst,
+.report .r-body > p:first-child {
+  font-size: 11pt;
+  line-height: 16pt;
+  color: var(--ink);
+  max-width: 170mm;
+  margin: 0 0 4mm;
+}
+.report .r-body {
+  font-size: 10pt;
+  line-height: 15pt;
+  color: var(--ink);
+  max-width: 170mm;
+}
+.report .r-body p { margin: 0 0 3mm; }
+.report .r-body p:last-child { margin-bottom: 0; }
+.report .section-dark .r-body { color: rgba(255,255,255,0.82); }
+.report .field-label,
+.report .info-block .info-item-eyebrow,
+.report .info-block-title {
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 1.5mm;
+}
+.report .field-value,
+.report .info-block .info-item-val {
+  font-size: 10pt;
+  line-height: 14.5pt;
+  color: var(--ink);
+  font-weight: 600;
+}
+.report .metric .metric-label {
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 1.5mm;
+}
+.report .metric .metric-value {
+  font-size: 28pt;
+  font-weight: bold;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.report .metric .metric-value-text {
+  font-size: 16pt;
+  font-weight: bold;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.report .r-sp-caption,
+.report .caption {
+  font-size: 8pt;
+  font-style: italic;
+  color: var(--grey-mid);
+  margin-top: 2mm;
+}
+
 /* Clip section backgrounds to the page content area so they cannot
    overpaint the Paged.js margin-box footer band. Paged.js does NOT add
    overflow:hidden to .pagedjs_page_content; without this, a section
