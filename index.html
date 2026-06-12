@@ -143,6 +143,14 @@
   color: var(--ink);
   margin: 0 0 6mm;
 }
+.report .r-sp-page-unit .r-title {
+  /* Tighter title margin inside the site-plan page-unit so the
+     image + index reliably fit a single page in single-column mode. */
+  margin: 0 0 3mm;
+}
+.report .r-sp-page-unit .r-body {
+  margin-bottom: 3mm !important;
+}
 .report .section-dark .r-title { color: var(--orange); }
 .report .r-standfirst,
 .report .r-body > p:first-child {
@@ -492,8 +500,18 @@
    .r-sp-page-unit. Two-column index kicks in above 8 faults.
    ============================================================ */
 .report .r-sp-page-unit {
+  /* Single-column (≤8 faults): keep image + index together as one
+     unit. The page-unit-2col override below clears this so the 2-col
+     index can take its own page. */
   page-break-inside: avoid;
   break-inside: avoid;
+}
+.report .r-sp-page-unit-2col {
+  /* 2-col layout: index moves to its own page (see .r-sp-index-2col
+     page-break-before: always below). The unit no longer needs to
+     stay together as a whole. */
+  page-break-inside: auto;
+  break-inside: auto;
 }
 .report .r-sp-figure {
   margin: 2mm 0 0;
@@ -516,15 +534,34 @@
   height: auto;
   object-fit: contain;
 }
+/* Section 7 check 9 remediation (Option 1): when the index is two-column
+   the figure tightens to 90mm so image + index can share one page. */
+.report .r-sp-page-unit-2col .r-sp-figure-wrap,
+.report .r-sp-page-unit-2col .r-sp-figure-wrap img {
+  max-height: 90mm;
+}
 .report .r-sp-index {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
+  display: block;
   margin-top: 3mm;
+  /* Section 7 check 9 remediation: the index ALWAYS opens on a fresh
+     page so it cannot be split mid-list. Paged.js does not reliably
+     honour break-inside: avoid on grid/column-flow children, so the
+     deterministic rule wins. Image is alone on the site-plan page,
+     index whole on the page that follows. */
+  page-break-before: always;
+  break-before: page;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 .report .r-sp-index.r-sp-index-2col {
-  grid-template-columns: 1fr 1fr;
+  column-count: 2;
   column-gap: 6mm;
+  column-fill: balance;
+}
+.report .r-sp-index .r-sp-idx-row {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
 }
 .report .r-sp-idx-row {
   display: grid;
@@ -744,6 +781,30 @@
   color: var(--grey-mid);
   font-style: italic;
   margin-top: 2mm;
+}
+
+/* Section 4e continuation card. Same border + severity bar as the
+   parent card but with no header — just an "F[n] continued" label and
+   the overflow photo rows. Each row is its own break-inside unit. */
+.report .r-fc.r-fc-cont {
+  padding: 5mm 7mm 7mm 9.5mm;
+  margin: -4mm 0 6mm;  /* tuck up close to the parent card */
+}
+.report .r-fc-cont-label {
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--grey-mid);
+  margin: 0 0 3mm;
+}
+.report .r-fc-cont .r-fc-photos {
+  margin: 0 0 3mm;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-fc-cont .r-fc-photos:last-child {
+  margin-bottom: 0;
 }
 
 /* ============================================================
@@ -2156,14 +2217,13 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .eyebrow { page-break-after: avoid !important; break-after: avoid !important; }
   .r-title { page-break-after: avoid !important; break-after: avoid !important; }
 
-  /* ---- SITE PLAN: header + intro + figure + caption + chips travel as
-     one page unit that always opens a fresh page. Image cap 115mm leaves
-     room for the header, intro, caption and chip row inside 178mm. */
+  /* ---- SITE PLAN: header + intro + figure + caption travel together
+     on a fresh page. break-inside avoid is delegated to the figure and
+     the index individually so the index can move WHOLE to the next
+     page when it cannot share the site-plan page (Section 7 check 9). */
   .r-sp-page-unit {
     page-break-before: always !important;
     break-before: page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
   }
   .r-sp-figure {
     text-align: center;
@@ -4916,6 +4976,11 @@ function renderSitePlan(s, num) {
     }).join('');
     indexHtml = '<div class="r-sp-index' + (useTwoCol ? ' r-sp-index-2col' : '') + '">' + rows + '</div>';
   }
+  // Pass the 2-col flag up to the page-unit wrapper so the figure can
+  // tighten its max-height (Section 7 check 9 remediation: 90mm in 2-col,
+  // 110mm in single-column).
+  const pageUnitClass = 'r-sp-page-unit'
+    + (sortedFaults.length > 8 ? ' r-sp-page-unit-2col' : '');
 
   // 3. Fault schedule cards — mirrors .defect-card markup so the visual
   // language matches Section C exactly. Left border tints by severity.
@@ -4979,24 +5044,40 @@ function renderSitePlan(s, num) {
     };
     const showLocation = !!fault.location && _norm(fault.location) !== _norm(typeLabel);
 
-    // Photo cells — 2-up grid (Section 4e). Lone photo renders as a
-    // single 118mm-wide cell centred via the grid.
-    let photoCellsHtml = '';
-    let photoCount = 0;
+    // Photo cells. Lone photo renders centred; 2-up otherwise. Section
+    // 4e fragmentation: the head-unit + first 2-up row is one
+    // unbreakable unit; overflow rows go into a continuation card with
+    // its own border + severity bar and an "F[n] continued" label.
+    const cellHtmlList = [];
+    if (offPlanFigureHtml) {
+      cellHtmlList.push('<div class="r-fc-photo r-fc-photo-offplan">' + offPlanFigureHtml + '</div>');
+    }
     if (Array.isArray(fault.photos) && fault.photos.length) {
       const photoSrcs = fault.photos.map(normalisePhotoEntry).map(imgSrcFor).filter(Boolean);
-      photoCount = photoSrcs.length;
       photoSrcs.forEach(function(src){
-        photoCellsHtml += '<div class="r-fc-photo"><img src="' + src + '" alt="Fault photo"></div>';
+        cellHtmlList.push('<div class="r-fc-photo"><img src="' + src + '" alt="Fault photo"></div>');
       });
     }
-    if (offPlanFigureHtml) {
-      // Off-plan reference image rides at the head of the photos row.
-      photoCellsHtml = '<div class="r-fc-photo r-fc-photo-offplan">' + offPlanFigureHtml + '</div>' + photoCellsHtml;
-      photoCount += 1;
+
+    // Group cells into rows of 2. First row stays with the head-unit;
+    // overflow rows render in a continuation card.
+    const photoRows = [];
+    for (let pi = 0; pi < cellHtmlList.length; pi += 2) {
+      photoRows.push(cellHtmlList.slice(pi, pi + 2));
     }
-    const photosBlock = photoCellsHtml
-      ? '<div class="r-fc-photos r-fc-photos-' + (photoCount === 1 ? 'one' : 'multi') + '">' + photoCellsHtml + '</div>'
+    const firstRow = photoRows.shift();
+    const overflowRows = photoRows;
+
+    const wrapRow = function(cells, rowClass){
+      const cls = (cells.length === 1) ? 'r-fc-photos r-fc-photos-one' : 'r-fc-photos';
+      return '<div class="' + cls + (rowClass ? ' ' + rowClass : '') + '">' + cells.join('') + '</div>';
+    };
+    const headPhotosHtml = firstRow ? wrapRow(firstRow) : '';
+    const continuationHtml = overflowRows.length
+      ? '<article class="r-fc r-fc-cont r-fc-' + (fault.severity || 'unrated') + '" style="--sev:' + meta.color + ';">' +
+          '<div class="r-fc-cont-label">F' + escapeHtml(String(fault.number || '?')) + ' continued</div>' +
+          overflowRows.map(function(row){ return wrapRow(row); }).join('') +
+        '</article>'
       : '';
 
     cardsHtml +=
@@ -5022,16 +5103,17 @@ function renderSitePlan(s, num) {
             ? '<div class="r-fc-rec"><span class="field-label">Recommended action</span><div class="field-value">' + escapeHtml(fault.recommendation) + '</div></div>'
             : '') +
           (refSrc ? '<span class="r-fc-ref-badge">' + escapeHtml(refSrc) + '</span>' : '') +
+          headPhotosHtml +
         '</div>' +
-        photosBlock +
-      '</article>';
+      '</article>' +
+      continuationHtml;
   });
 
   // Section frame + lead-in copy. The header, intro, figure, caption and
   // severity chips travel as one page unit via .r-sp-page-unit; the fault
   // cards then flow naturally onto subsequent pages.
   let html = '<section class="report-section section-light">';
-  html += '<div class="r-sp-page-unit">';
+  html += '<div class="' + pageUnitClass + '">';
   html += '<span class="eyebrow">' + num + ' · Site Plan</span>';
   html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>The site, marked up.</span></h2>';
   const leadParts = [];
