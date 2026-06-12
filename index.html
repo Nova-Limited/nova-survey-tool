@@ -48,6 +48,85 @@
   --sev-monitor-bg:  #e6f1eb;
 }
 
+/* ============================================================
+   SECTION 2 — Page master. Paged.js paginates against these rules
+   and emits the margin-box footer on every default page. Cover and
+   back use named pages whose margin boxes are explicitly suppressed.
+   Literal hex used inside @page because some renderers don't resolve
+   custom properties through page-margin contexts.
+   ============================================================ */
+@page {
+  size: 297mm 210mm;
+  margin: 16mm 16mm 20mm 16mm;
+  @bottom-left {
+    content: "The truth from above";
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8pt;
+    font-weight: bold;
+    color: #434244;
+    border-top: 0.5pt solid #F7901E;
+    padding-top: 3mm;
+    vertical-align: top;
+  }
+  @bottom-center {
+    content: string(surveyref);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8pt;
+    color: #9a9a9c;
+    border-top: 0.5pt solid #F7901E;
+    padding-top: 3mm;
+    vertical-align: top;
+    text-align: center;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8pt;
+    color: #9a9a9c;
+    border-top: 0.5pt solid #F7901E;
+    padding-top: 3mm;
+    vertical-align: top;
+    text-align: right;
+  }
+}
+@page cover {
+  size: 297mm 210mm;
+  margin: 0;
+  @bottom-left   { content: none; }
+  @bottom-center { content: none; }
+  @bottom-right  { content: none; }
+}
+@page back {
+  size: 297mm 210mm;
+  margin: 0;
+  @bottom-left   { content: none; }
+  @bottom-center { content: none; }
+  @bottom-right  { content: none; }
+}
+/* Named-page assignment. The first content page following the cover
+   starts the default @page master automatically. */
+.report-section.cover { page: cover; }
+.brand-footer         { page: back; }
+
+/* String capture for the survey ref. The renderer injects a hidden
+   element carrying the ref; CSS string-set captures it for the footer
+   margin box on every subsequent page. */
+.ref-string-source {
+  string-set: surveyref content();
+  position: absolute;
+  left: -9999px;
+  width: 0; height: 0;
+  overflow: hidden;
+}
+
+/* Clip section backgrounds to the page content area so they cannot
+   overpaint the Paged.js margin-box footer band. Paged.js does NOT add
+   overflow:hidden to .pagedjs_page_content; without this, a section
+   whose background ends close to the page break draws over the footer. */
+.pagedjs_pagebox > .pagedjs_area > .pagedjs_page_content {
+  overflow: hidden;
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
 body {
@@ -1309,7 +1388,9 @@ main { padding-bottom: env(safe-area-inset-bottom); }
    PRINT — A4 layout, force backgrounds, page-break between sections
    ============================================================ */
 @media print {
-  @page { size: 297mm 210mm; margin: 16mm; }
+  /* @page master is defined at the top level so Paged.js sees it; the
+     legacy in-block @page { size; margin } here would override the
+     Section 2 page master with default margin boxes off. */
   html, body { background: white !important; }
   .topbar, .form-actions, .report-actions, .view-header, .no-print { display: none !important; }
   .view { display: none !important; }
@@ -3790,6 +3871,10 @@ function renderCover(s, clientLine, dateStr, ref, rating, recommendation) {
 
   return '' +
   '<section class="report-section section-dark cover">' +
+    // CSS string-set captures the ref into a named string used by the
+    // footer margin box on subsequent pages. Sits inside the cover so
+    // it shares @page cover and does not force an empty default page.
+    '<span class="ref-string-source" aria-hidden="true">' + escapeHtml(ref) + '</span>' +
     // Watermark bleeds off the bottom-right corner: roughly 55% of cover
     // width, translated 25% beyond each edge. Behind all cover text.
     '<img class="cover-watermark" src="' + NOVA_MARK_LG + '" alt="" aria-hidden="true" style="width:55%;right:0;bottom:0;transform:translate(25%,25%);">' +
