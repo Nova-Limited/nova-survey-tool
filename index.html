@@ -530,13 +530,15 @@
   display: grid;
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
-  gap: 3mm;
-  padding: 2mm 0;
+  gap: 2mm;
+  padding: 1mm 0;
   border-bottom: 0.5pt solid var(--rule);
-  font-size: 9pt;
+  font-size: 8.5pt;
   color: var(--ink);
-  page-break-inside: avoid;
-  break-inside: avoid;
+  /* No break-inside on the row — the parent .r-sp-page-unit already
+     wraps everything in a break-inside: avoid block, and Paged.js will
+     respect the unit boundary. Per-row avoids interfere with how the
+     2-column grid flows. */
 }
 .report .r-sp-idx-row:last-child { border-bottom: 0.5pt solid var(--rule); }
 .report .r-sp-idx-pill {
