@@ -208,6 +208,166 @@
   margin-top: 2mm;
 }
 
+/* ============================================================
+   SECTION 4a — Cover. Full-bleed dark, exactly one page.
+   Every block placed by mm-precise absolute position so the
+   layout doesn't collapse under fragmentation.
+   ============================================================ */
+.report .cover {
+  position: relative;
+  width: 297mm;
+  height: 210mm;
+  min-height: 0;
+  max-height: 210mm;
+  padding: 0;
+  margin: 0;
+  background: var(--ink);
+  color: white;
+  overflow: hidden;
+  display: block;
+  page-break-after: always;
+  break-after: page;
+}
+.report .cover-top {
+  position: absolute;
+  top: 16mm;
+  left: 16mm;
+  right: 16mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0;
+  flex-wrap: nowrap;
+}
+.report .cover-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 3mm;
+}
+.report .cover-lockup img {
+  height: 10mm;
+  width: auto;
+  display: block;
+}
+.report .cover-wordmark {
+  font-size: 22pt;
+  font-weight: bold;
+  letter-spacing: -0.025em;
+  color: var(--orange);
+  line-height: 1;
+}
+.report .cover-meta {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+  align-items: flex-end;
+  letter-spacing: 0.14em;
+}
+.report .cover-meta-prepared {
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  font-weight: bold;
+  font-size: 8pt;
+  letter-spacing: 0.14em;
+}
+.report .cover-meta-prepared strong {
+  color: white;
+  font-weight: bold;
+  margin-left: 2mm;
+}
+.report .ref-badge {
+  display: inline-block;
+  padding: 1.5mm 3mm;
+  border: 1pt solid var(--orange);
+  border-radius: 1mm;
+  color: var(--orange);
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  font-size: 9pt;
+  text-transform: uppercase;
+}
+.report .cover-body {
+  position: absolute;
+  top: 80mm;
+  left: 16mm;
+  right: 16mm;
+  height: 90mm;
+  display: block;
+}
+.report .cover-lead {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 150mm;
+}
+.report .cover-title {
+  margin: 0;
+  font-size: 30pt;
+  line-height: 36pt;
+  font-weight: bold;
+  letter-spacing: -0.02em;
+  color: white;
+}
+.report .cover-title .accent { color: var(--orange); }
+.report .cover-metrics {
+  /* 211mm from left of page minus 16mm of .cover-body left offset = 195mm
+     into .cover-body. Width 70mm. Top aligned with headline (top:0). */
+  position: absolute;
+  top: 0;
+  left: 195mm;
+  width: 70mm;
+  display: block;
+}
+.report .cover-metrics .metric { margin: 0 0 10mm 0; }
+.report .cover-metrics .metric:last-child { margin-bottom: 0; }
+.report .cover-metrics .metric-label {
+  display: block;
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 1mm;
+}
+.report .cover-metrics .metric-value {
+  font-size: 28pt;
+  font-weight: bold;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: white;
+}
+.report .cover-metrics .metric-value-text {
+  font-size: 20pt;
+  font-weight: bold;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  color: white;
+}
+.report .cover-footer {
+  position: absolute;
+  top: 178mm;
+  left: 16mm;
+  right: 16mm;
+  border-top: 0.5pt solid rgba(255,255,255,0.45);
+  padding-top: 3mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0;
+}
+.report .cover-tagline {
+  font-weight: bold;
+  font-size: 9pt;
+  color: white;
+  letter-spacing: 0;
+}
+.report .cover-footer > div:last-child {
+  font-size: 8pt;
+  color: var(--grey-mid);
+  letter-spacing: 0;
+}
+
 /* Clip section backgrounds to the page content area so they cannot
    overpaint the Paged.js margin-box footer band. Paged.js does NOT add
    overflow:hidden to .pagedjs_page_content; without this, a section
@@ -1500,54 +1660,9 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   }
   a { color: inherit; text-decoration: none; }
 
-  /* ---- COVER: one landscape page (printable area 265 x 178mm). Every
-     cover child is absolutely positioned against the relatively-positioned
-     .cover, so the flex/grid layout failures that left the middle row
-     collapsed (the screen rules' display:flex was still leaking through
-     under print fragmentation) cannot recur. */
-  .cover {
-    position: relative !important;
-    height: 178mm !important;
-    max-height: 178mm !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden !important;
-    display: block !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  .cover > .cover-top {
-    position: absolute !important;
-    top: 0 !important; left: 16mm !important; right: 16mm !important;
-    margin: 0 !important;
-  }
-  .cover > .cover-body {
-    position: absolute !important;
-    top: 28mm !important; bottom: 30mm !important;
-    left: 16mm !important; right: 16mm !important;
-    margin: 0 !important;
-    display: grid !important;
-    grid-template-columns: 1.4fr 1fr !important;
-    gap: 2.5rem !important;
-    align-content: center !important;
-  }
-  .cover > .cover-footer {
-    position: absolute !important;
-    bottom: 0 !important; left: 16mm !important; right: 16mm !important;
-    margin: 0 !important;
-    padding-top: 4mm !important;
-    border-top: 1px solid rgba(255,255,255,0.18);
-  }
-  .cover-metrics {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 1rem 1.5rem !important;
-  }
-  .cover-title { font-size: 44px !important; }
-  .metric-value { font-size: 56px !important; }
+  /* Legacy cover @media print block retired — Section 4a's .report-scoped
+     rules above this @media block are the new authority for cover layout
+     (full-bleed @page cover, mm-precise absolute positioning). */
 
   /* ---- BACK PAGE: brand-footer pinned to one landscape page using the
      same absolute approach. The registered-details line was stranding
