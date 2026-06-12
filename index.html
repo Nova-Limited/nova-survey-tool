@@ -733,6 +733,58 @@
   margin-top: 2mm;
 }
 
+/* ============================================================
+   SECTION 4f — Findings at a glance + Recommendation. Severity
+   counts as horizontal bars (24mm label / 10mm count / bar
+   proportional to count in severity colour, max 180mm), 1pt
+   --rule separators, bold total row. Recommendation body +
+   two-card cost/timescale metric row in the 4b style.
+   ============================================================ */
+.report .r-fg-bars {
+  display: block;
+  margin: 4mm 0 0;
+}
+.report .r-fg-row {
+  display: grid;
+  grid-template-columns: 24mm 10mm 180mm;
+  align-items: center;
+  gap: 2mm;
+  padding: 2mm 0;
+  border-bottom: 0.5pt solid var(--rule);
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-fg-row.r-fg-total {
+  border-bottom: none;
+  border-top: 1pt solid var(--ink);
+  margin-top: 1mm;
+}
+.report .r-fg-label {
+  font-size: 10pt;
+  color: var(--ink);
+  font-weight: 600;
+}
+.report .r-fg-total .r-fg-label { font-weight: bold; }
+.report .r-fg-count {
+  font-size: 10pt;
+  font-weight: bold;
+  color: var(--ink);
+  text-align: right;
+}
+.report .r-fg-bar-wrap {
+  display: block;
+  width: 100%;
+  height: 5mm;
+  background: transparent;
+  position: relative;
+}
+.report .r-fg-bar {
+  display: block;
+  height: 5mm;
+  border-radius: 0.5mm;
+  min-width: 0;
+}
+
 /* Clip section backgrounds to the page content area so they cannot
    overpaint the Paged.js margin-box footer band. Paged.js does NOT add
    overflow:hidden to .pagedjs_page_content; without this, a section
@@ -5005,6 +5057,10 @@ function renderFindingsAtAGlance(s, num) {
     return html;
   }
 
+  // Section 4f: severity counts rendered as horizontal bars. Each row
+  // is label (24mm) + count (10mm bold) + proportional bar (max 180mm)
+  // in the severity colour, separated by 1pt --rule lines, with a bold
+  // total row.
   const sevOrder = ['critical', 'poor', 'fair', 'monitor'];
   const sevMeta = {
     critical: { label: 'Critical', color: '#dc2626' },
@@ -5016,23 +5072,24 @@ function renderFindingsAtAGlance(s, num) {
   for (const f of faults) {
     if (sevCounts[f.severity] != null) sevCounts[f.severity]++;
   }
+  const maxCount = Math.max(1, ...sevOrder.map(function(s){ return sevCounts[s]; }));
 
-  html += '<div class="summary-tables">';
-  html += '<div class="summary-card">';
-  html += '<span class="summary-eyebrow">Faults by severity</span><table>';
+  html += '<div class="r-fg-bars">';
   for (const sev of sevOrder) {
     const meta = sevMeta[sev];
     const cnt  = sevCounts[sev];
-    html += '<tr>' +
-      '<td><span class="severity-badge" style="background:' + meta.color + ';color:white;">' + escapeHtml(meta.label) + '</span></td>' +
-      '<td class="count' + (cnt === 0 ? ' zero' : '') + '">' + cnt + '</td>' +
-    '</tr>';
+    const pct  = (cnt / maxCount) * 100;
+    html += '<div class="r-fg-row">' +
+      '<span class="r-fg-label">' + escapeHtml(meta.label) + '</span>' +
+      '<span class="r-fg-count">' + cnt + '</span>' +
+      '<span class="r-fg-bar-wrap"><span class="r-fg-bar" style="width:' + pct.toFixed(2) + '%;background:' + meta.color + ';"></span></span>' +
+      '</div>';
   }
-  html += '<tr class="total"><td><strong>Total</strong></td><td class="count">' + faults.length + '</td></tr>';
-  html += '</table></div>';
-  // Total extent recorded block was for the estimating layer, not the
-  // client report. The data is still captured per fault and rides into
-  // the snapshot for downstream use; it just doesn't render here.
+  html += '<div class="r-fg-row r-fg-total">' +
+    '<span class="r-fg-label">Total</span>' +
+    '<span class="r-fg-count">' + faults.length + '</span>' +
+    '<span class="r-fg-bar-wrap"></span>' +
+    '</div>';
   html += '</div>';
 
   html += '</section>';
@@ -5047,23 +5104,44 @@ function renderRecommendationSection(s, recommendation, totalCost, rating, num) 
   const hasPostWorks = (lifePostWorks !== '' && lifePostWorks != null);
   const yrs = (v) => 'year' + (Number(v) === 1 ? '' : 's');
 
-  let html = '<section class="report-section section-dark">';
+  let html = '<section class="report-section section-light">';
   html += '<span class="eyebrow">' + num + ' · Recommendation</span>';
-  html += '<h1 class="recommendation-headline">' + escapeHtml(recommendation) + '.</h1>';
-  html += '<div class="r-body">';
-  // Trajectory copy: condition today, life as it stands, life with the
-  // recommended works completed. Each clause omits cleanly when the
-  // backing value is absent.
+  html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>' + escapeHtml(recommendation) + '.</span></h2>';
+
+  // Trajectory body text — same clauses, now in standard r-body so the
+  // type scale tokens apply.
   const traj = [];
   if (s['f-overall-rating']) traj.push('Overall condition is rated <strong>' + escapeHtml(rating) + '</strong>.');
   if (hasAsStands)  traj.push('As it stands, the estimated remaining life is <strong>' + escapeHtml(String(lifeAsStands))  + ' ' + yrs(lifeAsStands)  + '</strong>.');
   if (hasPostWorks) traj.push('With the recommended works completed, <strong>' + escapeHtml(String(lifePostWorks)) + ' ' + yrs(lifePostWorks) + '</strong>.');
-  if (totalCost && totalCost !== 'TBC') traj.push('Total indicative cost band: <strong>' + escapeHtml(totalCost) + '</strong>.');
+  html += '<div class="r-body">';
   if (traj.length) html += '<p>' + traj.join(' ') + '</p>';
   if (nextSteps) {
-    html += '<p style="margin-top:1.5rem;"><span class="eyebrow" style="margin-bottom:0.5rem;display:block;">Next steps</span>' + escapeHtml(nextSteps).replace(/\n/g, '<br>') + '</p>';
+    html += '<p><span class="eyebrow" style="display:block;margin-bottom:1mm;">Next steps</span>' + escapeHtml(nextSteps).replace(/\n/g, '<br>') + '</p>';
   }
   html += '</div>';
+
+  // Cost band + timescale as two metric cards in the 4b style.
+  // Timescale uses the post-works lifespan ("X years"), the value the
+  // surveyor signs up to deliver once the works complete; falls back to
+  // life-as-stands if post-works is absent.
+  const cards = [];
+  if (totalCost && totalCost !== 'TBC') {
+    cards.push({ label: 'Indicative cost band', value: totalCost });
+  }
+  if (hasPostWorks) {
+    cards.push({ label: 'Timescale after works', value: lifePostWorks + ' ' + yrs(lifePostWorks) });
+  } else if (hasAsStands) {
+    cards.push({ label: 'Remaining life as stands', value: lifeAsStands + ' ' + yrs(lifeAsStands) });
+  }
+  if (cards.length) {
+    html += '<div class="r-metric-row">';
+    cards.forEach(function(c){
+      html += '<div class="r-metric-card"><div class="metric-label">' + escapeHtml(c.label) + '</div><div class="metric-value-text">' + escapeHtml(c.value) + '</div></div>';
+    });
+    html += '</div>';
+  }
+
   html += '</section>';
   return html;
 }
