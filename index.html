@@ -5147,8 +5147,14 @@ function renderRecommendationSection(s, recommendation, totalCost, rating, num) 
 }
 
 function renderCta(s, recommendation, num) {
-  const ec = s.endClient || {};
-  const clientName = (ec.company || ec.contactName || '').trim();
+  // Section 4g: the closing paragraph names the site, never the End
+  // Client company. The site short name uses the same derivation as
+  // the cover headline. When that returns nothing (site address line
+  // missing the recognised building / town tokens), the address line
+  // itself is the fallback — never the End Client field.
+  const siteShortName = deriveSiteShortName(s);
+  const siteAddr = (s && s.site && s.site.address || '').replace(/\s+/g, ' ').trim();
+  const siteName = siteShortName || siteAddr;
   const faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
   const defectCount = faults.length;
   let headline;
@@ -5159,9 +5165,9 @@ function renderCta(s, recommendation, num) {
   } else {
     headline = 'Survey complete.<br><span class="accent">Ready for next steps.</span>';
   }
-  const bodyText = clientName
-    ? 'We\'ve laid out what we found at ' + clientName + ' and what we recommend. The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you\'re ready.'
-    : 'We\'ve laid out the findings and what we recommend. The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you\'re ready.';
+  const bodyText = siteName
+    ? 'We have laid out what we found at ' + siteName + ' and what we recommend. The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you are ready.'
+    : 'We have laid out the findings and what we recommend. The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you are ready.';
 
   return '' +
   '<section class="report-section section-dark">' +
