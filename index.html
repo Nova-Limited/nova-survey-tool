@@ -254,7 +254,6 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   font-weight: bold;
   font-family: 'Helvetica Neue', sans-serif;
   border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
   border-radius: 50%;
   pointer-events: none;
   white-space: nowrap;
@@ -1247,6 +1246,36 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   white-space: pre-wrap;
 }
 
+/* Background section: promoted sub-block headings (Reported by client,
+   Site context) so each statement reads as a header + body, not a
+   small-caps eyebrow buried in prose. */
+.r-bg-block {
+  margin: 0 0 1.25rem;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.r-bg-block:last-child { margin-bottom: 0; }
+.r-bg-heading {
+  font-size: 1.05rem; font-weight: 800; letter-spacing: -0.005em;
+  color: var(--ink); margin: 0 0 0.35rem 0; line-height: 1.25;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+/* Off-plan fault callout, sits below the site plan figure / chips so
+   every fault has context before the detail cards. */
+.r-sp-offplan {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  text-align: center;
+  line-height: 1.4;
+}
+.r-sp-offplan-label {
+  font-weight: 800; color: var(--ink);
+  letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.78rem;
+}
+
 /* ============================================================
    PRINT — A4 layout, force backgrounds, page-break between sections
    ============================================================ */
@@ -1258,7 +1287,10 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   #view-report.active { display: block !important; }
   .container, .container.wide { padding: 0 !important; max-width: none !important; }
   .report { box-shadow: none !important; border-radius: 0 !important; }
-  .report-section { padding: 0 0 12mm 0 !important; }
+  /* Tighter section bottom-padding now that several blocks have been
+     removed; sections still need separation but the old 12mm left huge
+     trails of dead space on every page. */
+  .report-section { padding: 0 0 8mm 0 !important; }
 
   /* Force exact background/colour fidelity in print, required for dark
      sections and severity badges to render correctly. */
@@ -1290,13 +1322,13 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   }
   .cover > .cover-top {
     position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important;
+    top: 0 !important; left: 16mm !important; right: 16mm !important;
     margin: 0 !important;
   }
   .cover > .cover-body {
     position: absolute !important;
     top: 28mm !important; bottom: 30mm !important;
-    left: 0 !important; right: 0 !important;
+    left: 16mm !important; right: 16mm !important;
     margin: 0 !important;
     display: grid !important;
     grid-template-columns: 1.4fr 1fr !important;
@@ -1305,7 +1337,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   }
   .cover > .cover-footer {
     position: absolute !important;
-    bottom: 0 !important; left: 0 !important; right: 0 !important;
+    bottom: 0 !important; left: 16mm !important; right: 16mm !important;
     margin: 0 !important;
     padding-top: 4mm !important;
     border-top: 1px solid rgba(255,255,255,0.18);
@@ -1337,24 +1369,26 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+  /* Back-page elements respect the same 16mm safety inset from every
+     edge of the dark block. */
   .brand-footer .ft-lockup {
     position: absolute !important;
-    top: 16mm !important; left: 16mm !important;
+    top: 16mm !important; left: 16mm !important; right: 16mm !important;
     margin: 0 !important;
   }
   .brand-footer .ft-tagline {
     position: absolute !important;
-    bottom: 36mm !important; left: 16mm !important;
+    bottom: 40mm !important; left: 16mm !important; right: 16mm !important;
     margin: 0 !important;
   }
   .brand-footer .ft-line {
     position: absolute !important;
-    bottom: 24mm !important; left: 16mm !important;
+    bottom: 28mm !important; left: 16mm !important; right: 16mm !important;
     margin: 0 !important;
   }
   .brand-footer .ft-line-small {
     position: absolute !important;
-    bottom: 14mm !important; left: 16mm !important;
+    bottom: 16mm !important; left: 16mm !important; right: 16mm !important;
     margin: 0 !important;
   }
 
@@ -1426,10 +1460,16 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     page-break-inside: avoid;
     break-inside: avoid;
   }
+  /* Tighter card so two-or-three cards pack per page when the text is
+     short. break-inside:avoid keeps each card whole; the next card
+     simply flows below if there's room. */
   .defect-card {
-    padding: 8mm 10mm !important;
-    margin-top: 6mm !important;
+    padding: 5mm 8mm !important;
+    margin-top: 4mm !important;
   }
+  .defect-card-top { margin-bottom: 3mm !important; }
+  .defect-card-main p { margin: 0.1rem 0 0.4rem 0 !important; line-height: 1.35 !important; }
+  .defect-card-main .eyebrow-small { margin-top: 0.2rem !important; }
   .defect-card-grid {
     display: block !important;
     grid-template-columns: none !important;
@@ -2081,8 +2121,12 @@ main { padding-bottom: env(safe-area-inset-bottom); }
               </select>
             </div>
             <div class="field">
-              <label for="f-remaining-life">Estimated remaining life (years)</label>
-              <input type="number" id="f-remaining-life" min="0" inputmode="numeric">
+              <label for="f-remaining-life-asstands">Remaining life as it stands (years)</label>
+              <input type="number" id="f-remaining-life-asstands" min="0" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label for="f-remaining-life-postworks">Remaining life with recommended works (years)</label>
+              <input type="number" id="f-remaining-life-postworks" min="0" inputmode="numeric">
             </div>
           </div>
           <div class="field">
@@ -2248,7 +2292,8 @@ const FIELD_MAP = [
 
   // Section F (flat)
   { id: 'f-overall-rating',     type: 'text',     path: 'f-overall-rating' },
-  { id: 'f-remaining-life',     type: 'number',   path: 'f-remaining-life' },
+  { id: 'f-remaining-life-asstands',  type: 'number', path: 'f-remaining-life-asstands' },
+  { id: 'f-remaining-life-postworks', type: 'number', path: 'f-remaining-life-postworks' },
   { id: 'f-executive-summary',  type: 'textarea', path: 'f-executive-summary' },
   { id: 'f-total-cost-band',    type: 'text',     path: 'f-total-cost-band' },
   { id: 'f-recommendation',     type: 'text',     path: 'f-recommendation' },
@@ -2606,8 +2651,29 @@ let reportSurveyId = null;
 // f-* keys; new schema nests them under endClient / mainContractor / site /
 // visit. We detect the old shape by the absence of `engagementType` and
 // rewrite the survey in place, then save it back so the next load is clean.
+// Legacy single-life-field migration: the form used to capture one
+// "Estimated remaining life (years)" value; it now captures both
+// "as it stands" and "with recommended works". An old survey carrying
+// just the single value rolls forward into the post-works slot, leaving
+// the surveyor to fill in as-stands at the next edit. Idempotent.
+function migrateRemainingLife(s) {
+  if (!s || typeof s !== 'object') return false;
+  if (!('f-remaining-life' in s)) return false;
+  const legacy = s['f-remaining-life'];
+  const postEmpty = (s['f-remaining-life-postworks'] === '' || s['f-remaining-life-postworks'] == null);
+  if (postEmpty && legacy !== '' && legacy != null) {
+    s['f-remaining-life-postworks'] = legacy;
+  }
+  delete s['f-remaining-life'];
+  return true;
+}
+
 function migrateSurveyIfNeeded(s) {
-  if (!s || s.engagementType) return { survey: s, migrated: false };
+  // Remaining-life migration runs on EVERY survey shape (independent of
+  // whether the older Section A migration applies), so a survey saved
+  // under the new schema still gets the legacy life field promoted.
+  const lifeMigrated = migrateRemainingLife(s);
+  if (!s || s.engagementType) return { survey: s, migrated: lifeMigrated };
   const hasOldField = (
     'f-client-name' in s || 'f-client-company' in s || 'f-site-address' in s ||
     'f-postcode' in s || 'f-telephone' in s || 'f-visit-date' in s ||
@@ -3105,6 +3171,14 @@ async function syncSurveyToAirtable() {
   put('fld7br4cbED4LiEk4', st.contactTelephone);
   put('fldgUi7rPeBbQHptJ', vi.worksDescription);
 
+  // Remaining life: two whole-number fields. Numbers go straight in;
+  // empty values are skipped by put() so we never overwrite a populated
+  // Airtable record with a blank.
+  const lifeAsStands  = s['f-remaining-life-asstands'];
+  const lifePostWorks = s['f-remaining-life-postworks'];
+  if (lifeAsStands  !== '' && lifeAsStands  != null && Number.isFinite(Number(lifeAsStands)))  fields['fldgE59AVWqu29UAM'] = Number(lifeAsStands);
+  if (lifePostWorks !== '' && lifePostWorks != null && Number.isFinite(Number(lifePostWorks))) fields['fld3Cxef6UnQi7CcT'] = Number(lifePostWorks);
+
   // Indicative roof area — sum of slope areas across all buildings. Only sent
   // when the geometry has enough fields to compute a real total.
   const buildings = Array.isArray(s.buildings) ? s.buildings : [];
@@ -3550,7 +3624,8 @@ function renderDetailBlocks(s) {
     ]],
     ['Summary', [
       ['Overall condition rating', s['f-overall-rating']],
-      ['Remaining life (years)', s['f-remaining-life']],
+      ['Remaining life as it stands (years)', s['f-remaining-life-asstands']],
+      ['Remaining life with recommended works (years)', s['f-remaining-life-postworks']],
       ['Total indicative cost band', s['f-total-cost-band']],
       ['Recommendation', s['f-recommendation']]
     ]]
@@ -3654,13 +3729,17 @@ function renderCover(s, clientLine, dateStr, ref, rating, recommendation) {
   const sitePlanFaults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
   const defectCount = sitePlanFaults.length;
   const criticalCount = sitePlanFaults.filter(function(f) { return f.severity === 'critical'; }).length;
-  // Three short declarative clauses, period-separated, in the proposal style.
+  // Site-led headline: "<Site short name>. N defects identified. <Recommendation>."
+  // The recommendation lives in the headline now, so it's stripped from
+  // the metric grid below to avoid repeating it verbatim. The client
+  // company name is also kept out of the cover entirely.
+  const siteShortName = deriveSiteShortName(s);
   const titleClauses = [];
-  if (clientLine) titleClauses.push(clientLine);
+  if (siteShortName) titleClauses.push(siteShortName);
   titleClauses.push(defectCount > 0
-    ? defectCount + ' defect' + (defectCount === 1 ? '' : 's') + ' identified'
+    ? spellSmallNumber(defectCount) + ' defect' + (defectCount === 1 ? '' : 's') + ' identified'
     : 'Site condition survey');
-  if (s['f-overall-rating']) titleClauses.push(rating + ' condition');
+  if (recommendation && recommendation !== 'TBC') titleClauses.push(recommendation);
   const titleText = titleClauses.map(escapeHtml).join('. ') + '.';
 
   return '' +
@@ -3692,10 +3771,6 @@ function renderCover(s, clientLine, dateStr, ref, rating, recommendation) {
           '<div class="metric-label">Rating</div>' +
           '<div class="metric-value-text">' + escapeHtml(rating) + '</div>' +
         '</div>' +
-        '<div class="metric">' +
-          '<div class="metric-label">Recommendation</div>' +
-          '<div class="metric-value-text">' + escapeHtml(recommendation) + '</div>' +
-        '</div>' +
       '</div>' +
     '</div>' +
     '<div class="cover-footer">' +
@@ -3707,15 +3782,24 @@ function renderCover(s, clientLine, dateStr, ref, rating, recommendation) {
 
 function renderExecSummary(s, rating, num) {
   const summary = s['f-executive-summary'];
-  const remaining = s['f-remaining-life'];
+  const lifeAsStands = s['f-remaining-life-asstands'];
+  const lifePostWorks = s['f-remaining-life-postworks'];
+  const hasAsStands  = (lifeAsStands  !== '' && lifeAsStands  != null);
+  const hasPostWorks = (lifePostWorks !== '' && lifePostWorks != null);
+  // Three metric blocks: condition today (text), life as it stands, life
+  // with recommended works. Missing values drop their block cleanly so
+  // the aside never renders a hollow figure.
   let asideHtml = '';
-  if (s['f-overall-rating'] || (remaining !== '' && remaining != null)) {
+  if (s['f-overall-rating'] || hasAsStands || hasPostWorks) {
     asideHtml = '<aside class="r-aside-metric">';
     if (s['f-overall-rating']) {
-      asideHtml += '<div class="metric"><div class="metric-label">Overall rating</div><div class="metric-value-text">' + escapeHtml(rating) + '</div></div>';
+      asideHtml += '<div class="metric"><div class="metric-label">Condition today</div><div class="metric-value-text">' + escapeHtml(rating) + '</div></div>';
     }
-    if (remaining !== '' && remaining != null) {
-      asideHtml += '<div class="metric" style="margin-top:1.5rem;"><div class="metric-label">Remaining life</div><div class="metric-value-text">' + escapeHtml(String(remaining)) + ' years</div></div>';
+    if (hasAsStands) {
+      asideHtml += '<div class="metric" style="margin-top:1.5rem;"><div class="metric-label">Life as it stands</div><div class="metric-value-text">' + escapeHtml(String(lifeAsStands)) + ' year' + (Number(lifeAsStands) === 1 ? '' : 's') + '</div></div>';
+    }
+    if (hasPostWorks) {
+      asideHtml += '<div class="metric" style="margin-top:1.5rem;"><div class="metric-label">Life with recommended works</div><div class="metric-value-text">' + escapeHtml(String(lifePostWorks)) + ' year' + (Number(lifePostWorks) === 1 ? '' : 's') + '</div></div>';
     }
     asideHtml += '</aside>';
   }
@@ -3741,29 +3825,22 @@ function renderSiteInfo(s, num) {
   const vi = s.visit || {};
   const isSub = s.engagementType === 'subcontracted';
 
-  // "Engaged by" line — surfaces the relationship the report was prepared under.
-  let engagedBy;
-  if (isSub) {
-    const mcName = mc.company || mc.contactName || 'main contractor';
-    const ecName = ec.company || ec.contactName || 'end client';
-    engagedBy = mcName + ' on behalf of ' + ecName;
-  } else {
-    const ecName = ec.company || ec.contactName || 'end client';
-    engagedBy = 'Direct from ' + ecName;
-  }
-
-  // Build info-blocks for the populated subsections only.
+  // ENGAGED BY block was internal Nova plumbing and is dropped from the
+  // client-facing report. End Client + Main Contractor blocks only
+  // render when the engagement was sub-contracted (so two parties are
+  // actually distinct); on a direct engagement the company is already
+  // present in the snapshot / Airtable record and would just duplicate.
   const blocks = [];
 
-  const ecRows = [
-    ['Company',   ec.company],
-    ['Contact',   ec.contactName + (ec.contactTitle ? '\n' + ec.contactTitle : '')],
-    ['Email',     ec.email],
-    ['Telephone', ec.telephone]
-  ].filter(([, v]) => v != null && String(v).trim() !== '');
-  if (ecRows.length) blocks.push(['End Client', ecRows]);
-
   if (isSub) {
+    const ecRows = [
+      ['Company',   ec.company],
+      ['Contact',   ec.contactName + (ec.contactTitle ? '\n' + ec.contactTitle : '')],
+      ['Email',     ec.email],
+      ['Telephone', ec.telephone]
+    ].filter(([, v]) => v != null && String(v).trim() !== '');
+    if (ecRows.length) blocks.push(['End Client', ecRows]);
+
     const mcRows = [
       ['Company',         mc.company],
       ['Contact',         mc.contactName + (mc.contactTitle ? '\n' + mc.contactTitle : '')],
@@ -3798,10 +3875,6 @@ function renderSiteInfo(s, num) {
   let html = '<section class="report-section section-light-tone">';
   html += '<span class="eyebrow">' + num + ' · Site Information</span>';
   html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>The site.</span></h2>';
-  html += '<div class="engaged-by">' +
-    '<span class="engaged-eyebrow">Engaged by</span>' +
-    '<div class="engaged-text">' + escapeHtml(engagedBy) + '</div>' +
-  '</div>';
 
   if (blocks.length) {
     html += '<div class="info-blocks">';
@@ -3902,17 +3975,20 @@ function renderBackground(s, num) {
   let html = '<section class="report-section section-light">';
   html += '<span class="eyebrow">' + num + ' · Background</span>';
   html += '<h2 class="r-title">' + CHEVRON_SVG + '<span>What we were told, and what we walked into.</span></h2>';
-  html += '<div class="r-body" style="margin-bottom:0.75rem;"><p>The survey was framed by the client\'s reported issues and the conditions found on site. Our observations and remedials respond directly to both.</p></div>';
+  // The filler "the survey was framed by..." intro was empty calories;
+  // dropped so each statement reads as a clear claim, not preamble.
+  // "Reported by the client" and "Site context" promoted to proper
+  // headed blocks (h3) rather than small-caps eyebrows.
   if (client) {
-    html += '<div class="r-body" style="margin-bottom:0.75rem;">' +
-      '<span class="eyebrow-small">Reported by the client</span>' +
-      '<p>' + escapeHtml(client).replace(/\n/g, '<br>') + '</p>' +
+    html += '<div class="r-bg-block">' +
+      '<h3 class="r-bg-heading">Reported by the client</h3>' +
+      '<div class="r-body"><p>' + escapeHtml(client).replace(/\n/g, '<br>') + '</p></div>' +
       '</div>';
   }
   if (context) {
-    html += '<div class="r-body">' +
-      '<span class="eyebrow-small">Site context</span>' +
-      '<p>' + escapeHtml(context).replace(/\n/g, '<br>') + '</p>' +
+    html += '<div class="r-bg-block">' +
+      '<h3 class="r-bg-heading">Site context</h3>' +
+      '<div class="r-body"><p>' + escapeHtml(context).replace(/\n/g, '<br>') + '</p></div>' +
       '</div>';
   }
   html += '</section>';
@@ -3938,6 +4014,42 @@ function resolveFaultTitle(fault) {
     return sentenceCaseTrim(fault.location);
   }
   return fallback;
+}
+
+// Compact site label for the cover headline. "Building, Town" when both
+// can be pulled out of the site address, else just the recognisable
+// building name, else the first comma chunk. Tuned for UK address shapes:
+// "Royal exchange Concierge , Attlee House Ashdown Road Kingston Upon
+// Thames Surrey." → "Attlee House, Kingston".
+function deriveSiteShortName(s) {
+  const addr = ((s && s.site && s.site.address) || '').replace(/\s+/g, ' ').trim();
+  if (!addr) return '';
+  // Building name: a Capitalised phrase followed by a building keyword.
+  const BUILDING_RE = /\b[A-Z][a-zA-Z'\-]+(?:\s+[A-Z][a-zA-Z'\-]+)*\s+(?:House|Building|Centre|Center|Hall|Court|Mill|Park|Yard|Place|Lodge|Wharf|Works|Mews|Tower)\b/;
+  // Town: take the first capitalised word that appears AFTER a road-type
+  // keyword (Road, Lane, etc.), so we skip street and building tokens.
+  const ROAD_RE = /\b(?:Road|Lane|Street|Avenue|Way|Drive|Close|Crescent|Square|Terrace|Walk|Hill|Mount|Boulevard|Embankment|Esplanade|Gardens|Grove)\b/i;
+  const m = addr.match(BUILDING_RE);
+  const building = m ? m[0].trim() : '';
+  let town = '';
+  const parts = addr.split(ROAD_RE);
+  if (parts.length > 1) {
+    const tail = parts[parts.length - 1];
+    const tm = tail.match(/\b([A-Z][a-z]+)\b/);
+    if (tm) town = tm[1];
+  }
+  if (building && town) return building + ', ' + town;
+  if (building) return building;
+  if (town) return town;
+  return (addr.split(',')[0] || addr.split('\n')[0] || '').trim();
+}
+
+// Word form of a defect count for the cover headline: "Three defects",
+// not "3 defects". Falls back to digits above 12 so the line stays tight.
+function spellSmallNumber(n) {
+  const W = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve'];
+  if (Number.isInteger(n) && n >= 0 && n <= 12) return W[n];
+  return String(n);
 }
 
 // Trim, strip a trailing full stop / question / exclamation, uppercase
@@ -4027,13 +4139,36 @@ function renderSitePlan(s, num) {
     if (chips) summaryHtml = '<div class="r-sp-sev-row">' + chips + '</div>';
   }
 
+  // Off-plan listing: faults without a plan marker are called out by ref
+  // and title under the figure so every fault has context before its
+  // detail card appears further down.
+  let offPlanListHtml = '';
+  const offPlanFaults = sortedFaults.filter(function(f) { return f.lat == null || f.lng == null; });
+  if (offPlanFaults.length) {
+    const items = offPlanFaults.map(function(f) {
+      return 'F' + (f.number || '?') + ', ' + resolveFaultTitle(f);
+    });
+    offPlanListHtml = '<div class="r-sp-offplan">' +
+      '<span class="r-sp-offplan-label">Not shown on plan:</span> ' +
+      escapeHtml(items.join('; ')) +
+      '</div>';
+  }
+
   // 3. Fault schedule cards — mirrors .defect-card markup so the visual
   // language matches Section C exactly. Left border tints by severity.
   let cardsHtml = '';
   sortedFaults.forEach(function(fault) {
     const meta = sevMeta[fault.severity] || sevMeta[''];
     const typeLabel = resolveFaultTitle(fault);
-    const refSrc = (FAULT_DB[fault.faultType] && FAULT_DB[fault.faultType].ref) || '';
+    // Trade guidance citation chip only renders when both the observation
+    // and the recommended action are still the standard FAULT_DB text
+    // (tracked by fault.dbDesc / fault.dbRec flags, which flip false the
+    // moment the surveyor edits either). Prevents claiming a citation
+    // for wording that's been rewritten.
+    const citationSafe = !!(fault.dbDesc && fault.dbRec);
+    const refSrc = citationSafe
+      ? ((FAULT_DB[fault.faultType] && FAULT_DB[fault.faultType].ref) || '')
+      : '';
     const num = 'F' + (fault.number || '?');
     // Photos: prefer the R2 URL when a key is stored, fall back to the
     // local thumbnail base64. The print rule on .r-sp-fault-photo applies
@@ -4114,8 +4249,9 @@ function renderSitePlan(s, num) {
     leadCopy += 'Building positions are shown on the annotated image.';
   }
   if (leadCopy) html += '<div class="r-body" style="margin-bottom:0.5rem;"><p>' + leadCopy + '</p></div>';
-  if (figureHtml)  html += figureHtml;
-  if (summaryHtml) html += summaryHtml;
+  if (figureHtml)     html += figureHtml;
+  if (summaryHtml)    html += summaryHtml;
+  if (offPlanListHtml) html += offPlanListHtml;
   html += '</div>';
   if (cardsHtml)   html += cardsHtml;
   html += '</section>';
@@ -4164,43 +4300,9 @@ function renderFindingsAtAGlance(s, num) {
   }
   html += '<tr class="total"><td><strong>Total</strong></td><td class="count">' + faults.length + '</td></tr>';
   html += '</table></div>';
-
-  // Aggregate extents by unit, preserving the order units first appear.
-  //   count + size + unit → adds (count × size) under unit (e.g. "Lin m")
-  //   size + unit only    → adds size under unit
-  //   count + what only   → adds count under what (e.g. "Fixings")
-  const unitTotals = {};
-  const unitOrder = [];
-  const addUnit = (unit, amount) => {
-    if (!unit || !Number.isFinite(amount) || amount <= 0) return;
-    if (unitTotals[unit] == null) { unitTotals[unit] = 0; unitOrder.push(unit); }
-    unitTotals[unit] += amount;
-  };
-  for (const f of faults) {
-    const count = (f.qtyCount === '' || f.qtyCount == null) ? null : Number(f.qtyCount);
-    const size  = (f.sizeEach === '' || f.sizeEach == null) ? null : Number(f.sizeEach);
-    const what  = f.qtyWhat === 'Other' ? (f.qtyWhatOther || '') : (f.qtyWhat || '');
-    const unit  = f.sizeUnit === 'Other' ? (f.sizeUnitOther || '') : (f.sizeUnit || '');
-    const hasCount = (count != null && Number.isFinite(count));
-    const hasSize  = (size  != null && Number.isFinite(size));
-    if (hasCount && hasSize && unit) {
-      addUnit(unit, count * size);
-    } else if (hasSize && unit) {
-      addUnit(unit, size);
-    } else if (hasCount && what) {
-      addUnit(what, count);
-    }
-  }
-
-  html += '<div class="summary-card">';
-  html += '<span class="summary-eyebrow">Total extent recorded</span>';
-  if (unitOrder.length) {
-    const parts = unitOrder.map(u => spFmtNum(unitTotals[u]) + ' ' + u);
-    html += '<p style="margin:0.5rem 0 0 0;font-size:1rem;color:#434244;">' + escapeHtml(parts.join(', ')) + '</p>';
-  } else {
-    html += '<p style="margin:0.5rem 0 0 0;font-size:0.95rem;color:#888;">Extents to be confirmed.</p>';
-  }
-  html += '</div>';
+  // Total extent recorded block was for the estimating layer, not the
+  // client report. The data is still captured per fault and rides into
+  // the snapshot for downstream use; it just doesn't render here.
   html += '</div>';
 
   html += '</section>';
@@ -4209,17 +4311,25 @@ function renderFindingsAtAGlance(s, num) {
 
 function renderRecommendationSection(s, recommendation, totalCost, rating, num) {
   const nextSteps = s['f-next-steps'];
-  const remaining = s['f-remaining-life'];
+  const lifeAsStands  = s['f-remaining-life-asstands'];
+  const lifePostWorks = s['f-remaining-life-postworks'];
+  const hasAsStands  = (lifeAsStands  !== '' && lifeAsStands  != null);
+  const hasPostWorks = (lifePostWorks !== '' && lifePostWorks != null);
+  const yrs = (v) => 'year' + (Number(v) === 1 ? '' : 's');
 
   let html = '<section class="report-section section-dark">';
   html += '<span class="eyebrow">' + num + ' · Recommendation</span>';
   html += '<h1 class="recommendation-headline">' + escapeHtml(recommendation) + '.</h1>';
   html += '<div class="r-body">';
-  const intro = [];
-  if (s['f-overall-rating']) intro.push('Overall condition is rated <strong>' + escapeHtml(rating) + '</strong>.');
-  if (totalCost && totalCost !== 'TBC') intro.push('Total indicative cost band: <strong>' + escapeHtml(totalCost) + '</strong>.');
-  if (remaining !== '' && remaining != null) intro.push('Estimated remaining life with current programme: <strong>' + escapeHtml(String(remaining)) + ' year' + (remaining === 1 ? '' : 's') + '</strong>.');
-  if (intro.length) html += '<p>' + intro.join(' ') + '</p>';
+  // Trajectory copy: condition today, life as it stands, life with the
+  // recommended works completed. Each clause omits cleanly when the
+  // backing value is absent.
+  const traj = [];
+  if (s['f-overall-rating']) traj.push('Overall condition is rated <strong>' + escapeHtml(rating) + '</strong>.');
+  if (hasAsStands)  traj.push('As it stands, the estimated remaining life is <strong>' + escapeHtml(String(lifeAsStands))  + ' ' + yrs(lifeAsStands)  + '</strong>.');
+  if (hasPostWorks) traj.push('With the recommended works completed, <strong>' + escapeHtml(String(lifePostWorks)) + ' ' + yrs(lifePostWorks) + '</strong>.');
+  if (totalCost && totalCost !== 'TBC') traj.push('Total indicative cost band: <strong>' + escapeHtml(totalCost) + '</strong>.');
+  if (traj.length) html += '<p>' + traj.join(' ') + '</p>';
   if (nextSteps) {
     html += '<p style="margin-top:1.5rem;"><span class="eyebrow" style="margin-bottom:0.5rem;display:block;">Next steps</span>' + escapeHtml(nextSteps).replace(/\n/g, '<br>') + '</p>';
   }
