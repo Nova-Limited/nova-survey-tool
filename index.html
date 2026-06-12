@@ -564,6 +564,175 @@
   color: var(--grey-mid); font-style: italic;
 }
 
+/* ============================================================
+   SECTION 4e — Fault cards. Full content width, 4mm radius,
+   0.5pt --rule border, 2.5mm left severity bar, 7mm padding.
+   Header (F-badge 8mm, title 14pt, severity pill); LOCATION +
+   EXTENT side by side 118mm cols; OBSERVATION + RECOMMENDED
+   ACTION full width. Photos 2-up 118mm x 78mm fixed cells.
+   Lone photo: one 118mm cell, grid-centred. Captions caption-styled.
+   ============================================================ */
+.report .r-fc {
+  position: relative;
+  width: 100%;
+  border: 0.5pt solid var(--rule);
+  border-radius: 4mm;
+  padding: 7mm 7mm 7mm 9.5mm; /* 7mm + 2.5mm severity bar = 9.5mm left */
+  margin: 0 0 6mm;
+  background: #fff;
+  overflow: hidden;
+  page-break-inside: auto;
+  break-inside: auto;
+}
+.report .r-fc::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 2.5mm;
+  background: var(--sev, var(--orange));
+}
+.report .r-fc-head-unit {
+  /* Header through RECOMMENDED ACTION + first photo row must travel as
+     one unbreakable unit (Section 4e). Photo grid handles its own
+     pagination across rows for cards with overflow photos. */
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-fc-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 4mm;
+  margin: 0 0 5mm;
+}
+.report .r-fc-badge {
+  flex: 0 0 8mm;
+  width: 8mm;
+  height: 8mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 9pt;
+  border-radius: 1mm;
+  letter-spacing: 0;
+}
+.report .r-fc-title {
+  flex: 1;
+  margin: 0;
+  font-size: 14pt;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.report .r-fc-sev-pill {
+  flex: 0 0 auto;
+  color: #fff;
+  font-weight: bold;
+  font-size: 8pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1.5mm 3mm;
+  border-radius: 99mm;
+  align-self: center;
+}
+.report .r-fc-meta {
+  display: flex;
+  flex-direction: row;
+  gap: 5mm;
+  margin: 0 0 5mm;
+}
+.report .r-fc-loc,
+.report .r-fc-ext {
+  flex: 0 0 118mm;
+  width: 118mm;
+}
+.report .r-fc-loc.r-fc-empty,
+.report .r-fc-ext.r-fc-empty {
+  /* Empty slot keeps the side-by-side layout symmetric even when
+     LOCATION is suppressed; styling is invisible. */
+  visibility: hidden;
+}
+.report .r-fc-obs,
+.report .r-fc-rec {
+  margin: 0 0 5mm;
+}
+.report .r-fc-rec:last-child { margin-bottom: 0; }
+.report .r-fc .field-label {
+  display: block;
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 1.5mm;
+}
+.report .r-fc .field-value {
+  font-size: 10pt;
+  line-height: 14.5pt;
+  color: var(--ink);
+  font-weight: 600;
+  white-space: pre-wrap;
+}
+.report .r-fc-photos {
+  display: grid;
+  grid-template-columns: 118mm 118mm;
+  gap: 5mm;
+  margin: 5mm 0 0;
+  justify-content: start;
+}
+.report .r-fc-photos-one {
+  grid-template-columns: 118mm;
+  justify-content: center;
+}
+.report .r-fc-photo {
+  width: 118mm;
+  height: 78mm;
+  overflow: hidden;
+  border-radius: 2mm;
+  background: var(--rule);
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-fc-photo img {
+  display: block;
+  width: 118mm;
+  height: 78mm;
+  object-fit: cover;
+}
+.report .r-fc-photo.r-fc-photo-offplan {
+  /* Off-plan reference image (carries its own marker overlay) keeps
+     its full markup including the .r-sp-figure-wrap positioning. */
+  height: auto;
+  background: transparent;
+}
+.report .r-fc-photo.r-fc-photo-offplan .r-sp-figure {
+  margin: 0;
+}
+.report .r-fc-photo.r-fc-photo-offplan .r-sp-figure-wrap {
+  width: 118mm;
+  height: 78mm;
+  max-width: 118mm;
+  max-height: 78mm;
+  display: block;
+  position: relative;
+}
+.report .r-fc-photo.r-fc-photo-offplan .r-sp-figure-wrap img {
+  width: 118mm;
+  height: 78mm;
+  max-width: 118mm;
+  max-height: 78mm;
+  object-fit: cover;
+}
+.report .r-fc-ref-badge {
+  display: inline-block;
+  font-size: 7.5pt;
+  color: var(--grey-mid);
+  font-style: italic;
+  margin-top: 2mm;
+}
+
 /* Clip section backgrounds to the page content area so they cannot
    overpaint the Paged.js margin-box footer band. Paged.js does NOT add
    overflow:hidden to .pagedjs_page_content; without this, a section
@@ -4736,27 +4905,60 @@ function renderSitePlan(s, num) {
         '</figure>';
     }
     const extentLine = formatFaultExtent(fault);
-    const sideHtml = (offPlanFigureHtml || photosHtml)
-      ? '<div class="defect-card-side">' + offPlanFigureHtml + photosHtml + '</div>'
+
+    // Section 4e: suppress the LOCATION row when its text matches the
+    // fault title (case-insensitive, trimmed, trailing punctuation
+    // stripped) — the card title already conveys the same information.
+    const _norm = function(s){
+      return String(s || '').trim().toLowerCase().replace(/[.,;:!?\s]+$/g, '');
+    };
+    const showLocation = !!fault.location && _norm(fault.location) !== _norm(typeLabel);
+
+    // Photo cells — 2-up grid (Section 4e). Lone photo renders as a
+    // single 118mm-wide cell centred via the grid.
+    let photoCellsHtml = '';
+    let photoCount = 0;
+    if (Array.isArray(fault.photos) && fault.photos.length) {
+      const photoSrcs = fault.photos.map(normalisePhotoEntry).map(imgSrcFor).filter(Boolean);
+      photoCount = photoSrcs.length;
+      photoSrcs.forEach(function(src){
+        photoCellsHtml += '<div class="r-fc-photo"><img src="' + src + '" alt="Fault photo"></div>';
+      });
+    }
+    if (offPlanFigureHtml) {
+      // Off-plan reference image rides at the head of the photos row.
+      photoCellsHtml = '<div class="r-fc-photo r-fc-photo-offplan">' + offPlanFigureHtml + '</div>' + photoCellsHtml;
+      photoCount += 1;
+    }
+    const photosBlock = photoCellsHtml
+      ? '<div class="r-fc-photos r-fc-photos-' + (photoCount === 1 ? 'one' : 'multi') + '">' + photoCellsHtml + '</div>'
       : '';
+
     cardsHtml +=
-      '<article class="defect-card r-sp-fault-card" style="border-left:4px solid ' + meta.color + ';">' +
-        '<div class="defect-card-top">' +
-          '<span class="defect-pill">' + escapeHtml(num) + '</span>' +
-          '<h3 class="defect-card-title">' + escapeHtml(typeLabel) + '</h3>' +
-          '<span class="severity-badge" style="background:' + meta.color + ';color:white;">' +
-            escapeHtml(meta.label) + '</span>' +
-        '</div>' +
-        '<div class="defect-card-grid">' +
-          '<div class="defect-card-main">' +
-            (fault.location    ? '<span class="eyebrow-small">Location</span><p>'           + escapeHtml(fault.location)       + '</p>' : '') +
-            (extentLine        ? '<span class="eyebrow-small">Extent</span><p>'             + escapeHtml(extentLine)           + '</p>' : '') +
-            (fault.description ? '<span class="eyebrow-small">Observation</span><p>'        + escapeHtml(fault.description)    + '</p>' : '') +
-            (fault.recommendation ? '<span class="eyebrow-small">Recommended action</span><p>' + escapeHtml(fault.recommendation) + '</p>' : '') +
-            (refSrc ? '<span class="r-sp-ref-badge">' + escapeHtml(refSrc) + '</span>' : '') +
+      '<article class="r-fc r-fc-' + (fault.severity || 'unrated') + '" style="--sev:' + meta.color + ';">' +
+        '<div class="r-fc-head-unit">' +
+          '<div class="r-fc-header">' +
+            '<span class="r-fc-badge" style="background:' + meta.color + ';">' + escapeHtml(num) + '</span>' +
+            '<h3 class="r-fc-title">' + escapeHtml(typeLabel) + '</h3>' +
+            '<span class="r-fc-sev-pill" style="background:' + meta.color + ';">' + escapeHtml(meta.label) + '</span>' +
           '</div>' +
-          sideHtml +
+          '<div class="r-fc-meta">' +
+            (showLocation
+              ? '<div class="r-fc-loc"><span class="field-label">Location</span><div class="field-value">' + escapeHtml(fault.location) + '</div></div>'
+              : '<div class="r-fc-loc r-fc-empty"></div>') +
+            (extentLine
+              ? '<div class="r-fc-ext"><span class="field-label">Extent</span><div class="field-value">' + escapeHtml(extentLine) + '</div></div>'
+              : '<div class="r-fc-ext r-fc-empty"></div>') +
+          '</div>' +
+          (fault.description
+            ? '<div class="r-fc-obs"><span class="field-label">Observation</span><div class="field-value">' + escapeHtml(fault.description) + '</div></div>'
+            : '') +
+          (fault.recommendation
+            ? '<div class="r-fc-rec"><span class="field-label">Recommended action</span><div class="field-value">' + escapeHtml(fault.recommendation) + '</div></div>'
+            : '') +
+          (refSrc ? '<span class="r-fc-ref-badge">' + escapeHtml(refSrc) + '</span>' : '') +
         '</div>' +
+        photosBlock +
       '</article>';
   });
 
