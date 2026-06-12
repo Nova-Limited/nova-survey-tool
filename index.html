@@ -1258,55 +1258,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   #view-report.active { display: block !important; }
   .container, .container.wide { padding: 0 !important; max-width: none !important; }
   .report { box-shadow: none !important; border-radius: 0 !important; }
-  .report-section {
-    padding: 0 0 12mm 0 !important;
-  }
-  /* COVER: lock to one landscape page (printable area 265 x 178mm). A
-     3-row CSS grid (auto / 1fr / auto) is more reliable in print than
-     flex space-between, which sometimes lets children stack from the top
-     when one child has intrinsic size from a nested grid. Watermark is
-     position:absolute so it sits outside the grid flow. */
-  .cover {
-    height: 178mm !important;
-    min-height: 0 !important;
-    max-height: 178mm !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    display: grid !important;
-    grid-template-rows: auto 1fr auto !important;
-    grid-template-columns: 100% !important;
-    gap: 0 !important;
-    overflow: hidden !important;
-  }
-  .cover > .cover-top    { grid-row: 1; }
-  .cover > .cover-body   {
-    grid-row: 2;
-    min-height: 0;
-    margin: 0 !important;
-    align-content: center !important;
-    align-self: stretch;
-  }
-  .cover > .cover-footer {
-    grid-row: 3;
-    padding-top: 4mm !important;
-    margin: 0 !important;
-  }
-  .cover-metrics { gap: 1rem 1.5rem !important; }
-  .cover-title { font-size: 44px !important; }
-  .metric-value { font-size: 56px !important; }
-  .defect-card, .summary-card, .info-grid, .recommendation-stats, .cover-metrics {
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-  /* Section headers travel with their content: eyebrow stays with the title,
-     title stays with the first body block, so no orphaned 01 EXECUTIVE
-     SUMMARY at the foot of a page. */
-  .eyebrow { page-break-after: avoid !important; break-after: avoid !important; }
-  .r-title { page-break-after: avoid !important; break-after: avoid !important; }
+  .report-section { padding: 0 0 12mm 0 !important; }
+
   /* Force exact background/colour fidelity in print, required for dark
      sections and severity badges to render correctly. */
   * {
@@ -1316,20 +1269,123 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   }
   a { color: inherit; text-decoration: none; }
 
-  /* Force the wide-page two-column layouts regardless of how the
-     print engine measures page width */
-  .cover-body      { grid-template-columns: 1.4fr 1fr !important; }
-  .r-grid          { grid-template-columns: 2fr 1fr !important; }
-  .defect-card-grid { grid-template-columns: 2fr 1fr !important; }
+  /* ---- COVER: one landscape page (printable area 265 x 178mm). Every
+     cover child is absolutely positioned against the relatively-positioned
+     .cover, so the flex/grid layout failures that left the middle row
+     collapsed (the screen rules' display:flex was still leaking through
+     under print fragmentation) cannot recur. */
+  .cover {
+    position: relative !important;
+    height: 178mm !important;
+    max-height: 178mm !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    display: block !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .cover > .cover-top {
+    position: absolute !important;
+    top: 0 !important; left: 0 !important; right: 0 !important;
+    margin: 0 !important;
+  }
+  .cover > .cover-body {
+    position: absolute !important;
+    top: 28mm !important; bottom: 30mm !important;
+    left: 0 !important; right: 0 !important;
+    margin: 0 !important;
+    display: grid !important;
+    grid-template-columns: 1.4fr 1fr !important;
+    gap: 2.5rem !important;
+    align-content: center !important;
+  }
+  .cover > .cover-footer {
+    position: absolute !important;
+    bottom: 0 !important; left: 0 !important; right: 0 !important;
+    margin: 0 !important;
+    padding-top: 4mm !important;
+    border-top: 1px solid rgba(255,255,255,0.18);
+  }
+  .cover-metrics {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1rem 1.5rem !important;
+  }
+  .cover-title { font-size: 44px !important; }
+  .metric-value { font-size: 56px !important; }
 
-  /* SITE PLAN: header + intro + figure + caption + chips travel as one
-     page unit that always opens a fresh page. Image cap 115mm leaves
+  /* ---- BACK PAGE: brand-footer pinned to one landscape page using the
+     same absolute approach. The registered-details line was stranding
+     to a trailing page because the footer's content flowed without a
+     height cap; absolute children inside a fixed-height container can't
+     overflow onto a new page. */
+  .brand-footer {
+    position: relative !important;
+    height: 178mm !important;
+    max-height: 178mm !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    display: block !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .brand-footer .ft-lockup {
+    position: absolute !important;
+    top: 16mm !important; left: 16mm !important;
+    margin: 0 !important;
+  }
+  .brand-footer .ft-tagline {
+    position: absolute !important;
+    bottom: 36mm !important; left: 16mm !important;
+    margin: 0 !important;
+  }
+  .brand-footer .ft-line {
+    position: absolute !important;
+    bottom: 24mm !important; left: 16mm !important;
+    margin: 0 !important;
+  }
+  .brand-footer .ft-line-small {
+    position: absolute !important;
+    bottom: 14mm !important; left: 16mm !important;
+    margin: 0 !important;
+  }
+
+  /* ---- DENSITY: drop the 62ch screen cap so body text fills the
+     available column on landscape. Combined with the wider grid below,
+     pages stop reading as a narrow left column. */
+  .r-body  { max-width: none !important; }
+  .cta-body { max-width: none !important; }
+
+  /* Section two-column layouts: keep grid balance friendly to landscape. */
+  .r-grid          { grid-template-columns: 2fr 1fr !important; gap: 3rem !important; }
+
+  /* Site information cards: force two-column landscape layout. Headless
+     print engines sometimes measure printable width below the screen
+     media-query breakpoint (700px) and would otherwise drop to one
+     column, leaving half the page empty. */
+  .info-blocks { grid-template-columns: 1fr 1fr !important; gap: 1rem 2rem !important; }
+
+  /* Section eyebrow + r-title travel with their first content block so
+     "01 EXECUTIVE SUMMARY" never sits alone at the foot of a page. */
+  .eyebrow { page-break-after: avoid !important; break-after: avoid !important; }
+  .r-title { page-break-after: avoid !important; break-after: avoid !important; }
+
+  /* ---- SITE PLAN: header + intro + figure + caption + chips travel as
+     one page unit that always opens a fresh page. Image cap 115mm leaves
      room for the header, intro, caption and chip row inside 178mm. */
   .r-sp-page-unit {
-    page-break-before: page;
-    break-before: page;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   .r-sp-figure {
     text-align: center;
@@ -1339,34 +1395,73 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .r-sp-figure-wrap { display: inline-block; max-width: 100%; }
   .r-sp-figure-wrap img {
     width: auto; height: auto;
-    max-width: 100%; max-height: 115mm;
+    max-width: 100%; max-height: 95mm;
   }
-  /* Severity chips row beneath the figure */
   .r-sp-page-unit .r-sp-sev-row {
     justify-content: center;
     margin-top: 4mm;
   }
 
-  /* FAULT CARD HEADER: the F badge + title + severity pill must not be
-     left at the foot of a page with the body overleaf. break-after:avoid
-     on the header row pulls the first label/value block in the body
-     onto the same page. */
+  /* Off-plan fault figures live inside fault cards, where the photo
+     strip rule already caps content at 70mm. The shared .r-sp-figure
+     class would otherwise hand them the bigger 95mm cap from the site
+     plan section and push them onto their own page. */
+  .defect-card-side .r-sp-figure {
+    text-align: left !important;
+    max-width: 100% !important;
+    margin: 4mm 0 0 0 !important;
+  }
+  .defect-card-side .r-sp-figure-wrap { display: block; max-width: 70mm; }
+  .defect-card-side .r-sp-figure-wrap img { max-height: 70mm !important; }
+
+  /* ---- FAULT CARDS: drop the right-hand photo column entirely; text
+     spans the full card width, photos render as a horizontal strip
+     beneath. Cards that fit a page stay together via break-inside:avoid.
+     When a card genuinely exceeds a page, the only legal break point is
+     between the text block (defect-card-main) and the photo strip,
+     because break-after:avoid on .defect-card-top forbids stranding the
+     header and break-inside:avoid on .r-sp-fault-photos forbids
+     splitting the strip itself. */
+  .defect-card, .summary-card, .info-grid, .recommendation-stats {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .defect-card {
+    padding: 8mm 10mm !important;
+    margin-top: 6mm !important;
+  }
+  .defect-card-grid {
+    display: block !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+  }
+  .defect-card-main {
+    width: 100% !important;
+    max-width: none !important;
+  }
+  .defect-card-side {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    /* When a card holds both an off-plan figure and a photo strip
+       (as on F3), keep both inside one media block so the card breaks
+       just once, between the text and the media. */
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
   .defect-card-top {
     page-break-after: avoid !important;
     break-after: avoid !important;
   }
-
-  /* FAULT CARD PHOTOS: stack vertically in the side column, each capped
-     to 70mm so two photos never need their own page. Break-inside:avoid
-     on the photo itself (not on the card or the photo wrapper) lets the
-     renderer break the card between text blocks or between photos
-     without splitting an image. */
-  .r-sp-fault-card { page-break-inside: auto !important; break-inside: auto !important; }
   .r-sp-fault-photos {
-    display: block !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    gap: 4mm !important;
     margin-top: 4mm !important;
-    page-break-inside: auto !important;
-    break-inside: auto !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   .defect-card-side .r-sp-fault-photo,
   .r-sp-fault-photo {
@@ -1374,11 +1469,24 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     width: auto !important;
     height: auto !important;
     max-width: 100% !important;
-    max-height: 70mm !important;
-    margin: 0 0 4mm 0 !important;
+    max-height: 60mm !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+
+  /* Site information cards: each block (End Client / Site / Visit)
+     stays whole so its rows don't strand on a following page. */
+  .info-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Background section sub-blocks (Reported by client / Site context)
+     each travel as one unit so a short sub-block doesn't end up alone
+     on a follow-on page. */
+  .section-light > .r-body { page-break-inside: avoid; break-inside: avoid; }
 }
 </style>
 </head>
