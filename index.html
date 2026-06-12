@@ -1261,9 +1261,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .report-section {
     padding: 0 0 12mm 0 !important;
   }
-  /* COVER: lock to one landscape page (printable area is 297-32 x 210-32 =
-     265 x 178mm). Flex column distributes top/body/footer within the box;
-     break-inside:avoid keeps the whole thing on a single page. */
+  /* COVER: lock to one landscape page (printable area 265 x 178mm). A
+     3-row CSS grid (auto / 1fr / auto) is more reliable in print than
+     flex space-between, which sometimes lets children stack from the top
+     when one child has intrinsic size from a nested grid. Watermark is
+     position:absolute so it sits outside the grid flow. */
   .cover {
     height: 178mm !important;
     min-height: 0 !important;
@@ -1274,19 +1276,28 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
+    display: grid !important;
+    grid-template-rows: auto 1fr auto !important;
+    grid-template-columns: 100% !important;
     gap: 0 !important;
     overflow: hidden !important;
   }
-  .cover > .cover-top,
-  .cover > .cover-footer { flex: 0 0 auto; }
-  .cover > .cover-body {
-    flex: 1 1 auto;
-    align-items: center;
+  .cover > .cover-top    { grid-row: 1; }
+  .cover > .cover-body   {
+    grid-row: 2;
+    min-height: 0;
+    margin: 0 !important;
+    align-content: center !important;
+    align-self: stretch;
+  }
+  .cover > .cover-footer {
+    grid-row: 3;
+    padding-top: 4mm !important;
     margin: 0 !important;
   }
+  .cover-metrics { gap: 1rem 1.5rem !important; }
+  .cover-title { font-size: 44px !important; }
+  .metric-value { font-size: 56px !important; }
   .defect-card, .summary-card, .info-grid, .recommendation-stats, .cover-metrics {
     page-break-inside: avoid;
     break-inside: avoid;
@@ -1312,8 +1323,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .defect-card-grid { grid-template-columns: 2fr 1fr !important; }
 
   /* SITE PLAN: header + intro + figure + caption + chips travel as one
-     page unit; image scales to command the page width up to 150mm tall. */
+     page unit that always opens a fresh page. Image cap 115mm leaves
+     room for the header, intro, caption and chip row inside 178mm. */
   .r-sp-page-unit {
+    page-break-before: page;
+    break-before: page;
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -1325,7 +1339,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .r-sp-figure-wrap { display: inline-block; max-width: 100%; }
   .r-sp-figure-wrap img {
     width: auto; height: auto;
-    max-width: 100%; max-height: 150mm;
+    max-width: 100%; max-height: 115mm;
   }
   /* Severity chips row beneath the figure */
   .r-sp-page-unit .r-sp-sev-row {
@@ -1333,8 +1347,17 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     margin-top: 4mm;
   }
 
+  /* FAULT CARD HEADER: the F badge + title + severity pill must not be
+     left at the foot of a page with the body overleaf. break-after:avoid
+     on the header row pulls the first label/value block in the body
+     onto the same page. */
+  .defect-card-top {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
   /* FAULT CARD PHOTOS: stack vertically in the side column, each capped
-     to 80mm so two photos never need their own page. Break-inside:avoid
+     to 70mm so two photos never need their own page. Break-inside:avoid
      on the photo itself (not on the card or the photo wrapper) lets the
      renderer break the card between text blocks or between photos
      without splitting an image. */
@@ -1351,7 +1374,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     width: auto !important;
     height: auto !important;
     max-width: 100% !important;
-    max-height: 80mm !important;
+    max-height: 70mm !important;
     margin: 0 0 4mm 0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
