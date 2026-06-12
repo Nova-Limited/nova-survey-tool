@@ -484,6 +484,86 @@
   orphans: 2;
 }
 
+/* ============================================================
+   SECTION 4d — Site Plan + fault index. Title, one-line intro,
+   overhead image centred (max 110mm tall × 200mm wide), caption,
+   then fault index rows full content width with 1pt --rule
+   separators. Image and index travel as one unbreakable unit via
+   .r-sp-page-unit. Two-column index kicks in above 8 faults.
+   ============================================================ */
+.report .r-sp-page-unit {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-sp-figure {
+  margin: 2mm 0 0;
+  padding: 0;
+  text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-sp-figure-wrap {
+  display: inline-block;
+  position: relative;
+  max-width: 200mm;
+  max-height: 110mm;
+}
+.report .r-sp-figure-wrap img {
+  display: block;
+  max-width: 200mm;
+  max-height: 110mm;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.report .r-sp-index {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 3mm;
+}
+.report .r-sp-index.r-sp-index-2col {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 6mm;
+}
+.report .r-sp-idx-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 3mm;
+  padding: 2mm 0;
+  border-bottom: 0.5pt solid var(--rule);
+  font-size: 9pt;
+  color: var(--ink);
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.report .r-sp-idx-row:last-child { border-bottom: 0.5pt solid var(--rule); }
+.report .r-sp-idx-pill {
+  background: var(--orange); color: #fff;
+  font-weight: bold; font-size: 8pt; letter-spacing: 0.04em;
+  padding: 1mm 2mm; border-radius: 1mm;
+  min-width: 7mm; text-align: center;
+}
+.report .r-sp-idx-title {
+  font-weight: bold; color: var(--ink); font-size: 9pt;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.report .r-sp-idx-sev {
+  color: #fff; font-weight: bold;
+  font-size: 7pt; letter-spacing: 0.06em;
+  padding: 1mm 2.5mm; border-radius: 99mm;
+  text-transform: uppercase;
+}
+.report .r-sp-idx-loc {
+  color: var(--grey-mid); font-size: 8pt;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 60mm; text-align: right;
+}
+.report .r-sp-idx-flag {
+  color: var(--grey-mid); font-style: italic;
+}
+
 /* Clip section backgrounds to the page content area so they cannot
    overpaint the Paged.js margin-box footer band. Paged.js does NOT add
    overflow:hidden to .pagedjs_page_content; without this, a section
