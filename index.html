@@ -583,8 +583,11 @@
   margin: 0 0 6mm;
   background: #fff;
   overflow: hidden;
-  page-break-inside: auto;
-  break-inside: auto;
+  /* Whole-card avoid keeps header attached to its text and first photo
+     row. When a card overflows a page, Paged.js breaks anyway — the
+     overflowed photos appear at the top of the next page. */
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 .report .r-fc::before {
   content: "";
@@ -605,6 +608,14 @@
   align-items: flex-start;
   gap: 4mm;
   margin: 0 0 5mm;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+.report .r-fc-meta,
+.report .r-fc-obs,
+.report .r-fc-rec {
+  page-break-before: avoid;
+  break-before: avoid;
 }
 .report .r-fc-badge {
   flex: 0 0 8mm;
