@@ -14,15 +14,21 @@
   crossorigin=""></script>
 <style>
 :root {
-  --dark:   #434244;
-  --gold:   #F7901E;
-  --ink:    #434244;
+  /* Section 1d brand tokens. */
+  --ink:       #434244;
+  --orange:    #F7901E;
+  --green:     #1a7a4a;
+  --grey-mid:  #9a9a9c;
+  --rule:      #e4e4e6;
+
+  /* Aliases kept so legacy rules in the form UI still resolve — every value
+     points at the brand token, never at a literal. */
+  --dark:   var(--ink);
+  --gold:   var(--orange);
   --ink-2:  #5f5e60;
-  --muted:  #858386;
+  --muted:  var(--grey-mid);
   --light:  #f4f6f9;
   --paper:  #ffffff;
-  --green:  #1a7a4a;
-  --rule:   #e1e5ec;
 
   /* Auxiliary tokens kept for state backgrounds — these are UI-functional,
      not part of the brand palette per se. */
@@ -31,24 +37,21 @@
   --err:        #c44;
   --err-bg:     #fbeaea;
 
-  /* Severity palette — used for defect cards / pills / badges. Tuned to read
-     against the proposal aesthetic without shouting. */
-  --sev-critical:    #c44;
+  /* Severity palette — single source of truth (matches FAULT_SEV_COLORS). */
+  --sev-critical:    #dc2626;
   --sev-critical-bg: #fbeaea;
-  --sev-high:        #b85c00;
-  --sev-high-bg:     #fff1de;
-  --sev-medium:      #8a6d00;
-  --sev-medium-bg:   #fef9c3;
-  --sev-low:         #1f4ea1;
-  --sev-low-bg:      #e0ecff;
-  --sev-note:        #5f5e60;
-  --sev-note-bg:     #ececec;
+  --sev-poor:        #F7901E;
+  --sev-poor-bg:     #fff1de;
+  --sev-fair:        #eab308;
+  --sev-fair-bg:     #fef9c3;
+  --sev-monitor:     #16a34a;
+  --sev-monitor-bg:  #e6f1eb;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
 body {
-  font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
@@ -252,7 +255,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   justify-content: center;
   color: white;
   font-weight: bold;
-  font-family: 'Helvetica Neue', sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   border: 2px solid white;
   border-radius: 50%;
   pointer-events: none;
@@ -408,7 +411,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   color: #fff;
   font-weight: bold;
   font-size: 10px;
-  font-family: 'Helvetica Neue', sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   pointer-events: none;
   z-index: 2;
 }
@@ -574,10 +577,9 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
 }
 .pill-critical { background: var(--sev-critical-bg); color: var(--sev-critical); }
-.pill-high     { background: var(--sev-high-bg);     color: var(--sev-high); }
-.pill-medium   { background: var(--sev-medium-bg);   color: var(--sev-medium); }
-.pill-low      { background: var(--sev-low-bg);      color: var(--sev-low); }
-.pill-note     { background: var(--sev-note-bg);     color: var(--sev-note); }
+.pill-poor     { background: var(--sev-poor-bg);     color: var(--sev-poor); }
+.pill-fair     { background: var(--sev-fair-bg);     color: var(--sev-fair); }
+.pill-monitor  { background: var(--sev-monitor-bg);  color: var(--sev-monitor); }
 .pill-draft    { background: var(--light); color: var(--muted); }
 
 /* FORM ACTIONS */
@@ -894,10 +896,9 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 }
 @media (min-width: 768px) { .defect-card { padding: 1.75rem 2rem; } }
 .defect-card.sev-critical { border-left-color: var(--sev-critical); }
-.defect-card.sev-high     { border-left-color: var(--sev-high); }
-.defect-card.sev-medium   { border-left-color: var(--sev-medium); }
-.defect-card.sev-low      { border-left-color: var(--sev-low); }
-.defect-card.sev-note     { border-left-color: var(--sev-note); }
+.defect-card.sev-poor     { border-left-color: var(--sev-poor); }
+.defect-card.sev-fair     { border-left-color: var(--sev-fair); }
+.defect-card.sev-monitor  { border-left-color: var(--sev-monitor); }
 
 .defect-card-top {
   display: flex;
@@ -935,10 +936,9 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   text-transform: uppercase;
 }
 .severity-badge.sev-critical { background: var(--sev-critical-bg); color: var(--sev-critical); }
-.severity-badge.sev-high     { background: var(--sev-high-bg);     color: var(--sev-high); }
-.severity-badge.sev-medium   { background: var(--sev-medium-bg);   color: var(--sev-medium); }
-.severity-badge.sev-low      { background: var(--sev-low-bg);      color: var(--sev-low); }
-.severity-badge.sev-note     { background: var(--sev-note-bg);     color: var(--sev-note); }
+.severity-badge.sev-poor     { background: var(--sev-poor-bg);     color: var(--sev-poor); }
+.severity-badge.sev-fair     { background: var(--sev-fair-bg);     color: var(--sev-fair); }
+.severity-badge.sev-monitor  { background: var(--sev-monitor-bg);  color: var(--sev-monitor); }
 
 .defect-card-grid {
   display: grid;
@@ -5192,7 +5192,7 @@ function spPinIcon(label) {
       + 'background:#F7901E;border:2px solid white;display:flex;'
       + 'align-items:center;justify-content:center;color:white;'
       + 'font-size:12px;font-weight:bold;'
-      + 'font-family:Helvetica Neue,sans-serif;'
+      + 'font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;'
       + 'box-shadow:0 1px 4px rgba(0,0,0,0.45);">' + label + '</div>',
     iconSize: [28, 28],
     iconAnchor: [14, 14]
@@ -5206,7 +5206,7 @@ function spFaultIcon(number, severity) {
       + 'background:' + col + ';border:2px solid white;display:flex;'
       + 'align-items:center;justify-content:center;color:white;'
       + 'font-size:10px;font-weight:bold;'
-      + 'font-family:Helvetica Neue,sans-serif;'
+      + 'font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;'
       + 'box-shadow:0 1px 4px rgba(0,0,0,0.45);">F' + number + '</div>',
     iconSize: [24, 24],
     iconAnchor: [12, 12]
@@ -6113,7 +6113,68 @@ if (spDetails) {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => { renderSurveyList(); });
+// Print mode — the report is paginated by Paged.js only in this mode, and
+// only after the report has been rendered into the DOM. The interactive
+// form UI never sees Paged.js. Triggered by the URL flag ?print=1 and a
+// pre-set window._novaPrintSurveyId (set by the harness or the in-app
+// "Export PDF" handler before navigation).
+function enterPrintMode(surveyId) {
+  if (!surveyId) return;
+  // 1. Render the report HTML into #report-body. Form UI is still mounted
+  //    at this point but will be stripped before Paged.js loads.
+  reportSurveyId = surveyId;
+  currentSurveyId = surveyId;
+  renderReport(surveyId);
+  // Activate the report view so its .view CSS resolves to display:block —
+  // Paged.js measures source content via its computed dimensions, and a
+  // display:none subtree paginates to zero-height empty pages.
+  showView('report');
+
+  // 2. Strip everything except #view-report so Paged.js paginates the
+  //    report DOM in isolation. We remove rather than display:none because
+  //    the polyfill walks document.body and we want a clean tree.
+  ['view-home','view-form','view-detail','modal-overlay','toast'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  });
+  document.querySelectorAll('.topbar, .no-print').forEach(function(el){
+    if (el.parentNode) el.parentNode.removeChild(el);
+  });
+  document.body.classList.add('print-mode');
+
+  // 3. Ensure all images are loaded before pagination — Paged.js measures
+  //    intrinsic sizes during flow and fault photos must be ready first.
+  var imgPromises = Array.from(document.images).map(function(i){
+    return i.complete ? Promise.resolve() : new Promise(function(r){ i.onload = r; i.onerror = r; });
+  });
+  Promise.all(imgPromises).then(function(){
+    // 4. Load the vendored Paged.js polyfill. It auto-paginates document.body
+    //    on its own DOMContentLoaded handler — since DOMContentLoaded already
+    //    fired, the polyfill triggers immediately on script execution.
+    var s = document.createElement('script');
+    s.src = 'assets/paged.polyfill.js';
+    s.onload = function(){
+      // The polyfill exposes window.PagedPolyfill once loaded. Hook the
+      // rendered event so the harness can wait for completion.
+      if (window.PagedPolyfill && window.PagedPolyfill.on) {
+        window.PagedPolyfill.on('rendered', function(){
+          window._novaPagedRendered = true;
+          document.body.classList.add('paged-rendered');
+        });
+      }
+    };
+    document.head.appendChild(s);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('print') === '1' && window._novaPrintSurveyId) {
+    enterPrintMode(window._novaPrintSurveyId);
+    return;
+  }
+  renderSurveyList();
+});
 </script>
 </body>
 </html>
