@@ -3350,10 +3350,17 @@ async function loadRateCard() {
   }
 }
 
-// Offline list: the cached rate-card items (the pricing engines' read surface).
+// Config rows live in the SAME Master Line Items table at sort >= 900, below the
+// real rate-card items. They are NOT priceable lines — keep them out of the
+// pricing surface and parse them into structured config (getRateConfig).
+const RATE_CONFIG_SORT_MIN = 900;
+function _isConfigRow(it) { return !!(it && typeof it.sort === 'number' && it.sort >= RATE_CONFIG_SORT_MIN); }
+
+// Offline list: the PRICEABLE rate-card items only (sort < 900). The pricing
+// engines read this; config rows are excluded so they can never be priced.
 function rateCardItems() {
   const c = getCachedRateCard();
-  return c ? c.items : [];
+  return c ? c.items.filter((it) => !_isConfigRow(it)) : [];
 }
 
 // name (lower-cased, trimmed) -> item, for the pricing engines' lookups.
@@ -3365,11 +3372,44 @@ function rateCardIndex() {
   return idx;
 }
 
+// The config rows (sort >= 900) cached alongside the rate card.
+function rateConfigRows() {
+  const c = getCachedRateCard();
+  return c ? c.items.filter(_isConfigRow) : [];
+}
+
+// Labour/subsistence config -> read from the Default Labour Cost Per Unit field
+// (item.labour). Floors -> 'Floor: <system>' rows, £/m² in Default Materials
+// Cost Per Unit (item.materials). NOTE: margin (35%) and contingency (4%) are
+// deliberately NOT here — they stay as literals in the Line Items formulas.
+const RATE_CONFIG_LABOUR_KEYS = {
+  'operative day rate': 'operativeDayRate',
+  'standstill day rate': 'standstillDayRate',
+  'food allowance per night': 'foodPerNight',
+  'accommodation allowance per night': 'accommodationPerNight',
+  'nights per working week': 'nightsPerWeek'
+};
+
+// Parse cached config rows into { labour:{...}, floorsPerM2:{system -> £/m²} }.
+function getRateConfig() {
+  const labour = {}, floorsPerM2 = {};
+  for (const it of rateConfigRows()) {
+    const name = String(it.name || '').trim();
+    const key = RATE_CONFIG_LABOUR_KEYS[name.toLowerCase()];
+    if (key && typeof it.labour === 'number') { labour[key] = it.labour; continue; }
+    if (/^floor:/i.test(name) && typeof it.materials === 'number') {
+      floorsPerM2[name.replace(/^floor:\s*/i, '').trim()] = it.materials;
+    }
+  }
+  return { labour, floorsPerM2 };
+}
+
 // Expose for console use and the step-1 verification harness.
 if (typeof window !== 'undefined') {
   window.NovaRateCard = {
-    RATE_CARD_KEY, getCachedRateCard, cacheRateCard,
-    fetchRateCard, loadRateCard, rateCardItems, rateCardIndex
+    RATE_CARD_KEY, RATE_CONFIG_SORT_MIN, getCachedRateCard, cacheRateCard,
+    fetchRateCard, loadRateCard, rateCardItems, rateCardIndex,
+    rateConfigRows, getRateConfig
   };
 }
 // === NOVA RATE CARD (costing layer step 1) — END ===
@@ -3556,9 +3596,13 @@ if (typeof window !== 'undefined') {
 // This reproduces every worked example (lone job -> £990; ten tasks over two
 // days -> 2 x £990; plant longer than crew -> standstill follows plant).
 const DEFAULT_FLOOR_CONFIG = {
-  crewDayLabour:     640,   // 2 x £320/day — confirmed in session; Airtable home PENDING
-  standstillPerDay:  350,   // overridden from rate card 'Standstill' when cached
-  timeWeights:       {},    // task-type -> fraction of a crew-day; Jamie sets in Airtable
+  crewSize:          2,     // operatives per crew (two-man crew) — crew-day = crewSize x operativeDayRate
+  operativeDayRate:  320,   // £/operative/day — read from Airtable 'Operative Day Rate' config row
+  standstillPerDay:  350,   // read from Airtable 'Standstill Day Rate' config row
+  foodPerNight:      30,    // 'Food Allowance Per Night'
+  accommodationPerNight: 100, // 'Accommodation Allowance Per Night'
+  nightsPerWeek:     4,     // 'Nights Per Working Week'
+  timeWeights:       {},    // task-type -> fraction of a crew-day; Jamie sets in Airtable (NOT seeded yet)
   defaultTaskWeight: 0.25   // fallback for an un-weighted task (surfaced, not silent)
 };
 
@@ -3567,8 +3611,15 @@ const DEFAULT_FLOOR_CONFIG = {
 function loadFloorConfig(overrides) {
   const cfg = Object.assign({ timeWeights: {} }, DEFAULT_FLOOR_CONFIG, overrides || {});
   cfg.timeWeights = Object.assign({}, DEFAULT_FLOOR_CONFIG.timeWeights, (overrides && overrides.timeWeights) || {});
-  const ss = (typeof rateCardIndex === 'function') ? rateCardIndex().get('standstill') : null;
-  if (ss && typeof ss.materials === 'number') cfg.standstillPerDay = ss.materials;
+  // Read labour rates from the Airtable config rows (Operative / Standstill day
+  // rate, subsistence); fall back to the confirmed-in-session literals offline.
+  const rc = (typeof getRateConfig === 'function') ? getRateConfig().labour : {};
+  ['operativeDayRate', 'standstillDayRate', 'foodPerNight', 'accommodationPerNight', 'nightsPerWeek']
+    .forEach((k) => { if (typeof rc[k] === 'number') cfg[k === 'standstillDayRate' ? 'standstillPerDay' : k] = rc[k]; });
+  // crew-day labour = operatives x operative day rate (unless explicitly overridden).
+  if (!(overrides && typeof overrides.crewDayLabour === 'number')) {
+    cfg.crewDayLabour = cfg.crewSize * cfg.operativeDayRate;
+  }
   return cfg;
 }
 
@@ -3686,7 +3737,8 @@ if (typeof window !== 'undefined') {
 // Severity 'block' stops issue; 'warn' surfaces but does not. canIssue is true
 // only when no 'block' flag fires.
 const DEFAULT_SANITY_CONFIG = {
-  floorPerM2BySystem: {},   // system -> min £/m² (e.g. {'metal-pitched':40}); PENDING Jamie/Airtable
+  floorPerM2BySystem: {},   // system -> £/m² — populated from the Airtable 'Floor:' config rows
+  floorMaterialPct: 0.85,   // works-mode: flag when element £/m² < floor x this ("materially below")
   outlierFactor: 10,        // a single priced line > factor x median of the rest is "out of band"
   blockOnBelowThreshold: true,
   blockOnExtentNoCost: true,
@@ -3694,7 +3746,9 @@ const DEFAULT_SANITY_CONFIG = {
 };
 function loadSanityConfig(overrides) {
   const cfg = Object.assign({}, DEFAULT_SANITY_CONFIG, overrides || {});
-  cfg.floorPerM2BySystem = Object.assign({}, DEFAULT_SANITY_CONFIG.floorPerM2BySystem, (overrides && overrides.floorPerM2BySystem) || {});
+  // Per-m² floors come from the Airtable 'Floor: <system>' config rows.
+  const fromCard = (typeof getRateConfig === 'function') ? getRateConfig().floorsPerM2 : {};
+  cfg.floorPerM2BySystem = Object.assign({}, DEFAULT_SANITY_CONFIG.floorPerM2BySystem, fromCard, (overrides && overrides.floorPerM2BySystem) || {});
   return cfg;
 }
 function _median(nums) {
@@ -3798,11 +3852,15 @@ if (typeof window !== 'undefined') {
 
 // measurement key -> element line(s). basis: 'area'(m²) | 'length'(lin m) | 'count'.
 const WORKS_ELEMENT_MAP = {
-  roofAreaM2:   { label: 'Roof strip & re-sheet', lines: [
+  roofAreaM2:   { label: 'Roof strip & re-sheet', system: 'Metal Composite Re-roof',
+    systemConfirm: 'system drives the £/m² sanity floor — default assumes Composite Re-roof; set per spec',
+    lines: [
     { item: 'Strip', basis: 'area' },
     { item: 'Composite Panel', basis: 'area', tradeConfirm: 'Composite Panel vs Single Skin + Insulation per spec/thickness' },
     { item: 'Main Fix', basis: 'area' } ] },
-  wallAreaM2:   { label: 'Wall re-clad', lines: [
+  wallAreaM2:   { label: 'Wall re-clad', system: 'Wall Composite replacing Metal',
+    systemConfirm: 'system drives the £/m² sanity floor — default assumes Composite replacing Metal; set per spec',
+    lines: [
     { item: 'Wall Composite', basis: 'area', tradeConfirm: 'panel thickness per spec' } ] },
   gutterLinM:   { label: 'Gutter renewal', lines: [
     { item: 'Trimline Gutter', basis: 'length', tradeConfirm: 'Trimline / Insulated / Liner per spec; add Outlets + Downpipes' } ] },
@@ -3877,7 +3935,7 @@ function generateWorksSchedule(measurements, opts) {
   const meas = measurements || {};
   const cfg = (opts && opts.config) || loadWorksConfig();
   const idx = (opts && opts.rcIndex) || (typeof rateCardIndex === 'function' ? rateCardIndex() : new Map());
-  const out = { elementLines: [], standingChecklist: [], pending: [], flags: [],
+  const out = { elements: [], elementLines: [], standingChecklist: [], pending: [], flags: [],
     materialsCost: 0, labourCost: 0,
     materialsContingency: 0, materialsMargin: 0, materialsTotal: 0,
     labourContingency: 0, labourMargin: 0, labourTotal: 0, totalToClient: 0 };
@@ -3886,6 +3944,12 @@ function generateWorksSchedule(measurements, opts) {
     const qty = Number(meas[key]) || 0;
     if (qty <= 0) return;
     const grp = WORKS_ELEMENT_MAP[key];
+    // one element per measurement group; areaM2 set only for the m²-measured
+    // systems (roof/wall) that carry a £/m² sanity floor.
+    const elem = { key, label: grp.label, system: grp.system || null,
+      areaM2: grp.system ? qty : null, lines: [],
+      materialsCost: 0, labourCost: 0, totalToClient: 0 };
+    if (grp.systemConfirm) elem.systemConfirm = grp.systemConfirm;
     grp.lines.forEach((spec) => {
       const it = idx.get(String(spec.item || '').trim().toLowerCase());
       const matPer = it && typeof it.materials === 'number' ? it.materials : 0;
@@ -3895,11 +3959,15 @@ function generateWorksSchedule(measurements, opts) {
         unit: it ? it.unit : '' }, p);
       if (spec.tradeConfirm) line.tradeConfirm = spec.tradeConfirm;
       if (!it) { line.note = 'rate-card item not found: "' + spec.item + '"'; out.pending.push('element-item:' + spec.item); }
+      elem.lines.push(line);
       out.elementLines.push(line);
+      elem.materialsCost += p.materialsCost; elem.labourCost += p.labourCost; elem.totalToClient += p.totalToClient;
       out.materialsCost += p.materialsCost; out.materialsContingency += p.materialsContingency; out.materialsMargin += p.materialsMargin; out.materialsTotal += p.materialsTotal;
       out.labourCost += p.labourCost; out.labourContingency += p.labourContingency; out.labourMargin += p.labourMargin; out.labourTotal += p.labourTotal;
       out.totalToClient += p.totalToClient;
     });
+    elem.perM2 = (elem.areaM2 > 0) ? elem.totalToClient / elem.areaM2 : null;
+    out.elements.push(elem);
   });
 
   // standing-elements checklist — prompts; qty is a surveyor input, so unpriced here.
@@ -3926,9 +3994,44 @@ function generateWorksSchedule(measurements, opts) {
   return out;
 }
 
+// Works-mode per-m² sanity check (brief / config): for each roof/wall element,
+// divide its client £/m² by the element m² and compare against the matching
+// 'Floor: <system>' figure from the Airtable config rows. Flag (WARN only —
+// never blocks, never alters the quote) when materially below the floor.
+//
+// CAVEAT (flagged for Jamie): the seeded floors are TOTAL-JOB fully-loaded £/m²
+// (materials + labour + scaffold + waste), but an element total here excludes
+// the JOB-LEVEL standing items (scaffold/waste/access are priced separately once
+// the surveyor confirms quantities). So a per-element comparison reads low and
+// will flag a normal job until prelims are included — confirm whether this check
+// should run per-element (as written) or on the whole works total incl. priced
+// standing items. Tolerance is configurable (sanity config floorMaterialPct).
+function worksFloorSanity(worksSchedule, opts) {
+  const cfg = (opts && opts.config) || loadSanityConfig();
+  const tol = (typeof cfg.floorMaterialPct === 'number') ? cfg.floorMaterialPct : 0.85;
+  const flags = [];
+  ((worksSchedule && worksSchedule.elements) || []).forEach((el) => {
+    if (!el.system || !(el.areaM2 > 0) || !(el.totalToClient > 0)) return;
+    const floor = cfg.floorPerM2BySystem[el.system];
+    if (typeof floor !== 'number') {
+      flags.push({ code: 'works_floor_unknown', severity: 'warn', element: el.label,
+        message: 'No £/m² floor configured for system "' + el.system + '"' });
+      return;
+    }
+    const perM2 = el.totalToClient / el.areaM2;
+    if (perM2 < floor * tol) {
+      flags.push({ code: 'works_floor_low', severity: 'warn', element: el.label,
+        perM2: Math.round(perM2), floor: floor,
+        message: el.label + ': £' + Math.round(perM2) + '/m² is materially below the £' + floor +
+          '/m² floor for ' + el.system + ' — likely a missed or mispriced item' });
+    }
+  });
+  return { flags, warnings: flags, canIssue: true };   // warn only, never blocks
+}
+
 if (typeof window !== 'undefined') {
   window.NovaWorksPricing = { WORKS_ELEMENT_MAP, STANDING_ELEMENTS_CHECKLIST, DEFAULT_WORKS_CONFIG,
-    loadWorksConfig, priceStream, priceLine, generateWorksSchedule };
+    loadWorksConfig, priceStream, priceLine, generateWorksSchedule, worksFloorSanity };
 }
 // === NOVA WORKS PRICING (costing layer step 6) — END ===
 
