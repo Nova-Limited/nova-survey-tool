@@ -3293,6 +3293,645 @@ const FAULT_SEV_COLORS = {
 // Reused by every Worker fetch (Save to Airtable, geocode, /surveys, etc).
 const WORKER_BASE = 'https://nova-ch-proxy.jamie-b41.workers.dev';
 
+// === NOVA RATE CARD (costing layer step 1) — BEGIN ===
+// Reads the 54-item Master Line Items rate card from Airtable via the Worker
+// (/rate-card) and caches it in localStorage. Option C: rates live in Airtable,
+// the tool caches them so a roof with no signal can still price. The pricing
+// engines (later steps) read the cache through rateCardItems()/rateCardIndex();
+// they never hardcode a rate. This block is pure (fetch + localStorage + JSON)
+// and is extracted verbatim by the step-1 test harness — keep it self-contained.
+const RATE_CARD_KEY = 'nova_rate_card_v1';
+
+// Read the cached rate card, or null if nothing cached yet. Tolerant of a
+// malformed cache (returns null rather than throwing) so pricing can fall back.
+function getCachedRateCard() {
+  try {
+    const raw = localStorage.getItem(RATE_CARD_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    if (!c || !Array.isArray(c.items)) return null;
+    return c;
+  } catch (e) { return null; }
+}
+
+// Persist a {fetchedAt, count, items} payload to the cache.
+function cacheRateCard(payload) {
+  const toStore = {
+    fetchedAt: payload && payload.fetchedAt ? payload.fetchedAt : new Date().toISOString(),
+    count:     Array.isArray(payload && payload.items) ? payload.items.length : 0,
+    items:     Array.isArray(payload && payload.items) ? payload.items : []
+  };
+  localStorage.setItem(RATE_CARD_KEY, JSON.stringify(toStore));
+  return toStore;
+}
+
+// Fetch the rate card from the Worker and refresh the cache. Throws on network
+// error or an unexpected response, so callers can fall back to the cache.
+async function fetchRateCard() {
+  const r = await fetch(WORKER_BASE + '/rate-card');
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  if (!data || !data.ok || !Array.isArray(data.items)) {
+    throw new Error('Unexpected /rate-card response');
+  }
+  return cacheRateCard(data);
+}
+
+// Online-first with offline fallback: try the Worker, and on any failure use
+// the cached card. Returns the {fetchedAt, count, items} payload, or null when
+// offline with no cache yet. Sets .stale=true when served from cache.
+async function loadRateCard() {
+  try {
+    const fresh = await fetchRateCard();
+    return Object.assign({ stale: false }, fresh);
+  } catch (e) {
+    const cached = getCachedRateCard();
+    return cached ? Object.assign({ stale: true }, cached) : null;
+  }
+}
+
+// Offline list: the cached rate-card items (the pricing engines' read surface).
+function rateCardItems() {
+  const c = getCachedRateCard();
+  return c ? c.items : [];
+}
+
+// name (lower-cased, trimmed) -> item, for the pricing engines' lookups.
+function rateCardIndex() {
+  const idx = new Map();
+  for (const it of rateCardItems()) {
+    if (it && it.name) idx.set(String(it.name).trim().toLowerCase(), it);
+  }
+  return idx;
+}
+
+// Expose for console use and the step-1 verification harness.
+if (typeof window !== 'undefined') {
+  window.NovaRateCard = {
+    RATE_CARD_KEY, getCachedRateCard, cacheRateCard,
+    fetchRateCard, loadRateCard, rateCardItems, rateCardIndex
+  };
+}
+// === NOVA RATE CARD (costing layer step 1) — END ===
+
+// === NOVA REPAIR PRICING (costing layer step 2) — BEGIN ===
+// Repair mode (Tier 1): turn a saved survey's faults into a client-facing
+// priced schedule by mapping each fault to its rate-card lines (per the
+// signed-off Fault-to-Works Mapping), computing quantity from the captured
+// extent, and attaching job-level standing items once. Pure (no DOM); reads
+// rates through the cached rate card (rateCardIndex from step 1). The labour
+// floor, margin check and sanity flags are later steps — labour-only tasks and
+// ambiguous unit conversions are emitted flagged, not silently priced.
+//
+// FAULT_WORKS_MAP is the editable mapping table. mode:
+//   'priced' -> emits rate-card line(s); 'gap' -> rate-card has no line, route
+//   to manual estimator entry; 'flag' -> not priced, recommend + hand to client
+//   (drainage seam); 'manual' -> free-text estimator line.
+// A line { item, basis } pulls rate card 'item'; basis picks the quantity:
+//   'extent' = qtyCount x sizeEach (lin m / sq m), 'count' = qtyCount,
+//   'labour' = labour-only task (cost deferred to the step-3 labour floor).
+// tradeConfirm:true marks a row the mapping doc reserves for Jamie's sign-off
+// (item choice or a card-unit conversion), so it surfaces rather than mis-price.
+const FAULT_WORKS_MAP = {
+  'cut-edge-corrosion': { mode: 'gap',
+    note: 'Cut edge treatment has no rate-card line (card is metal-pitched). Manual estimator entry; labour floor wraps small areas.',
+    standing: ['Access'] },
+  'failed-lap-seal': { mode: 'priced',
+    lines: [ { item: 'Butyl Tape', basis: 'extent', tradeConfirm: 'card unit is Box (1 box = 288 lin m); qty shown in lin m, confirm box conversion' },
+             { item: 'Gun Grade', basis: 'extent' },
+             { item: null, basis: 'labour', task: 'lap reseal' } ],
+    standing: ['Access'] },
+  'fastener-failure': { mode: 'priced',
+    lines: [ { item: 'Main Fix', basis: 'extent', tradeConfirm: 'Main Fix per Sq m of area, or Stitchers/Bracket Fix per Box/100 — confirm which for this fault' } ],
+    standing: ['Access'] },
+  'sheet-damage': { mode: 'priced',
+    lines: [ { item: 'Strip', basis: 'extent' },
+             { item: 'Composite Panel', basis: 'extent', tradeConfirm: 'Single Skin or Composite Panel per build spec' },
+             { item: 'Main Fix', basis: 'extent' } ],
+    standing: ['Access', 'Waste'] },
+  'failed-flashing': { mode: 'priced',
+    lines: [ { item: 'Eave', basis: 'extent', tradeConfirm: 'pick the flashing subtype (Eave / Ridge / Barge / Cap) — not captured by the fault' } ],
+    standing: ['Access'] },
+  'failed-rooflight': { mode: 'priced',
+    lines: [ { item: 'Skylight', basis: 'extent' } ],
+    standing: ['Access'] },
+  'membrane-split': { mode: 'gap',
+    note: 'Single-ply patch / liquid repair — structured manual entry (areas x time), not a unit rate.',
+    standing: ['Access'] },
+  'failed-seam': { mode: 'gap',
+    note: 'Seam re-weld / liquid detail — structured manual entry (areas x time), not a unit rate.',
+    standing: ['Access'] },
+  'upstand-failure': { mode: 'priced',
+    lines: [ { item: 'Upstand', basis: 'extent' } ],
+    standing: ['Access'] },
+  'ponding-water': { mode: 'flag',
+    note: 'Ponding / water not discharging — FLAG ONLY. Recommend falls remediation; feeds the drainage seam (gutter calculator). Not priced here.' },
+  'blocked-outlet': { mode: 'priced',
+    lines: [ { item: null, basis: 'labour', task: 'clear / rod outlet' },
+             { item: 'Leafguards', basis: 'count' } ],
+    standing: ['Access'] },
+  'blocked-gutter': { mode: 'priced',
+    lines: [ { item: null, basis: 'labour', task: 'clear / rod / flush gutter' },
+             { item: 'Leafguards', basis: 'extent' } ],
+    standing: ['Access'] },
+  'gutter-failure': { mode: 'priced',
+    lines: [ { item: 'Gutter Liner', basis: 'extent', tradeConfirm: 'Gutter Liner, Trimline or Insulated Gutter per spec; add Outlets / Downpipes if renewed' } ],
+    standing: ['Access', 'Waste'] },
+  'parapet-gutter-lining': { mode: 'priced',
+    lines: [ { item: 'Gutter Liner', basis: 'extent', tradeConfirm: 'parapet/box gutter lining — confirm Gutter Liner vs bespoke fabrication' } ],
+    standing: ['Access'] },
+  'failed-patch-repair': { mode: 'manual',
+    note: 'Failed patch repair — depends what was patched; estimator enters the remedial line.' },
+  'other': { mode: 'manual', note: 'Building-specific — free-text manual line entry by estimator.' }
+};
+
+// Standing-item triggers -> the job-level rate-card line they attach (once).
+// Quantity is job-level (days / tonnes), not derivable from a fault, so these
+// emit with qty unknown for the estimator to confirm.
+const STANDING_ITEM_LINES = {
+  Access: { item: 'MEWP',          note: 'Default access; swap to Working Platform / Handrail / Haki per job.' },
+  Waste:  { item: 'General Waste', note: 'Tonnage confirmed at job level (asbestos routes to the Asbestos line).' }
+};
+
+// extent total + unit from a captured fault's Extent block.
+function faultExtent(f) {
+  const n = Number(f && f.qtyCount) || 0;
+  const each = Number(f && f.sizeEach) || 0;
+  if (each > 0) return { qty: n > 0 ? n * each : each, unit: (f.sizeUnit === 'Other' ? (f.sizeUnitOther || '') : f.sizeUnit) || '' };
+  const what = (f && f.qtyWhat === 'Other') ? (f.qtyWhatOther || '') : (f && f.qtyWhat) || '';
+  return { qty: n, unit: what || 'Each' };
+}
+
+// unit price of a rate-card item = materials + labour (both may be present).
+function rcUnitPrice(it) {
+  if (!it) return null;
+  const m = (typeof it.materials === 'number') ? it.materials : 0;
+  const l = (typeof it.labour === 'number') ? it.labour : 0;
+  return m + l;
+}
+
+// Build the repair-mode priced schedule from a saved survey.
+// rcIndex: name->item map (defaults to the cached rate card via rateCardIndex()).
+// Returns { lines, standing, flags, manual, gaps, unmapped, faultCount, total }.
+function generateRepairSchedule(survey, rcIndex) {
+  const idx = rcIndex || rateCardIndex();
+  const faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers : [];
+  const out = { lines: [], standing: [], flags: [], manual: [], gaps: [], unmapped: [], faultCount: faults.length, total: 0 };
+  const standingTriggers = new Set();
+  const faultLabel = (t) => (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[t]) || t || 'Defect';
+
+  faults.slice().sort((a, b) => (Number(a.number) || 0) - (Number(b.number) || 0)).forEach((f) => {
+    const ref = 'F' + (f.number != null ? f.number : '?');
+    const map = FAULT_WORKS_MAP[f.faultType];
+    if (!map) { out.unmapped.push({ ref, faultType: f.faultType || '(none)', label: faultLabel(f.faultType) }); return; }
+    (map.standing || []).forEach((s) => standingTriggers.add(s));
+    const ext = faultExtent(f);
+
+    if (map.mode === 'flag') { out.flags.push({ ref, label: faultLabel(f.faultType), note: map.note }); return; }
+    if (map.mode === 'manual') { out.manual.push({ ref, label: faultLabel(f.faultType), note: map.note, extent: ext }); return; }
+    if (map.mode === 'gap') { out.gaps.push({ ref, label: faultLabel(f.faultType), note: map.note, extent: ext }); return; }
+
+    // priced
+    (map.lines || []).forEach((spec) => {
+      if (spec.basis === 'labour') {
+        out.lines.push({ ref, faultLabel: faultLabel(f.faultType), kind: 'labour-task',
+          task: spec.task || 'labour', qty: ext.qty, unit: ext.unit,
+          cost: null, labourFloorPending: true });
+        return;
+      }
+      const qty = (spec.basis === 'count') ? (Number(f.qtyCount) || 0) : ext.qty;
+      const it = idx.get(String(spec.item || '').trim().toLowerCase());
+      const unitPrice = rcUnitPrice(it);
+      const cost = (it && unitPrice != null && qty) ? qty * unitPrice : null;
+      const line = { ref, faultLabel: faultLabel(f.faultType), kind: 'rate-line',
+        item: spec.item, found: !!it, unit: it ? it.unit : ext.unit,
+        qty, unitPrice, cost };
+      if (spec.tradeConfirm) line.tradeConfirm = spec.tradeConfirm;
+      if (!it) line.note = 'rate-card item not found: "' + spec.item + '"';
+      out.lines.push(line);
+      if (cost) out.total += cost;
+    });
+  });
+
+  // standing items attach once at job level
+  standingTriggers.forEach((trig) => {
+    const def = STANDING_ITEM_LINES[trig];
+    if (!def) { out.standing.push({ trigger: trig, found: false, note: 'no standing-item line mapped' }); return; }
+    const it = idx.get(String(def.item).trim().toLowerCase());
+    out.standing.push({ trigger: trig, item: def.item, found: !!it,
+      unit: it ? it.unit : '', unitPrice: rcUnitPrice(it), qty: null,
+      cost: null, needsQty: true, note: def.note });
+  });
+
+  return out;
+}
+
+if (typeof window !== 'undefined') {
+  window.NovaRepairPricing = { FAULT_WORKS_MAP, STANDING_ITEM_LINES, faultExtent, generateRepairSchedule };
+}
+// === NOVA REPAIR PRICING (costing layer step 2) — END ===
+
+// === NOVA LABOUR FLOOR (costing layer step 3) — BEGIN ===
+// Small-works protection: a per-m2/per-task price ignores the cost of simply
+// attending, so the floor works on whole crew-days, applied to the job ONCE.
+// Three passes (brief s3): (1) every task carries a labour-time weight (a
+// fraction of a crew-day); (2) sum the time and round UP to whole crew-days;
+// (3) floor the job once: labour follows crew-days, standstill takes the
+// greater of crew-days or plant-days. Pure mechanism — every figure comes from
+// `config`, nothing is hardcoded in the maths.
+//
+// CONFIG HOME (flagged): standstill is read from the rate card ('Standstill').
+// The crew-day labour (£640 = 2 x £320) and the per-task-type time weights have
+// no Airtable home yet — confirmed in session and carried here as defaults until
+// Jamie sets them in Airtable (a new config table, or lines on Master Line
+// Items). Time weights are a trade call (how long each task type takes); tasks
+// with no weight fall back to defaultTaskWeight and are reported in
+// `unweightedTasks` so they never silently mis-floor.
+//
+// FLOOR INTERPRETATION (confirm): brief s3.1 and s3.3 compose as —
+//   crewDays         = ceil(sum task time-weights)        (>=1 if any task)
+//   labourComponent  = max(summed task labour, crewDays x crewDayLabour)
+//   standstillCost   = max(crewDays, plantDays) x standstillPerDay
+//   labour+standstill= labourComponent + standstillCost ; materials on top.
+// This reproduces every worked example (lone job -> £990; ten tasks over two
+// days -> 2 x £990; plant longer than crew -> standstill follows plant).
+const DEFAULT_FLOOR_CONFIG = {
+  crewDayLabour:     640,   // 2 x £320/day — confirmed in session; Airtable home PENDING
+  standstillPerDay:  350,   // overridden from rate card 'Standstill' when cached
+  timeWeights:       {},    // task-type -> fraction of a crew-day; Jamie sets in Airtable
+  defaultTaskWeight: 0.25   // fallback for an un-weighted task (surfaced, not silent)
+};
+
+// Assemble the live floor config: standstill from the cached rate card, the
+// rest from defaults + any caller overrides. crewDayFloor is derived, not stored.
+function loadFloorConfig(overrides) {
+  const cfg = Object.assign({ timeWeights: {} }, DEFAULT_FLOOR_CONFIG, overrides || {});
+  cfg.timeWeights = Object.assign({}, DEFAULT_FLOOR_CONFIG.timeWeights, (overrides && overrides.timeWeights) || {});
+  const ss = (typeof rateCardIndex === 'function') ? rateCardIndex().get('standstill') : null;
+  if (ss && typeof ss.materials === 'number') cfg.standstillPerDay = ss.materials;
+  return cfg;
+}
+
+// Floor the whole job once. tasks: [{ task, timeWeight?, labourRate? }] — the
+// labour tasks from repair pricing plus any self-deliver labour. opts.plantDays
+// defaults to crewDays (plant and crew usually run together).
+function computeLabourFloor(tasks, opts) {
+  const list = Array.isArray(tasks) ? tasks : [];
+  const cfg = (opts && opts.config) || loadFloorConfig();
+  const weights = cfg.timeWeights || {};
+  const unweighted = [];
+
+  let summedTime = 0, summedTaskLabour = 0;
+  list.forEach((t) => {
+    let w;
+    if (typeof t.timeWeight === 'number') { w = t.timeWeight; }
+    else if (typeof weights[t.task] === 'number') { w = weights[t.task]; }
+    else { w = cfg.defaultTaskWeight; unweighted.push(t.task); }
+    summedTime += w;
+    if (typeof t.labourRate === 'number') summedTaskLabour += t.labourRate;
+  });
+
+  // round UP to whole crew-days; any labour at all means at least one day on site
+  let crewDays = Math.ceil(summedTime - 1e-9);
+  if (list.length && crewDays < 1) crewDays = 1;
+  const plantDays = (opts && typeof opts.plantDays === 'number') ? opts.plantDays : crewDays;
+  const standstillDays = Math.max(crewDays, plantDays);
+
+  const labourFloor      = crewDays * cfg.crewDayLabour;
+  const labourComponent  = Math.max(summedTaskLabour, labourFloor);
+  const standstillCost   = standstillDays * cfg.standstillPerDay;
+  const labourAndStandstill = labourComponent + standstillCost;
+
+  return {
+    crewDays, plantDays, standstillDays,
+    summedTime, summedTaskLabour,
+    crewDayLabour: cfg.crewDayLabour, standstillPerDay: cfg.standstillPerDay,
+    crewDayFloor: cfg.crewDayLabour + cfg.standstillPerDay,
+    labourFloor, labourComponent, standstillCost, labourAndStandstill,
+    flooredToCrewDays: summedTaskLabour < labourFloor,   // floor lifted the price
+    unweightedTasks: Array.from(new Set(unweighted))     // need an Airtable time weight
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.NovaLabourFloor = { DEFAULT_FLOOR_CONFIG, loadFloorConfig, computeLabourFloor };
+}
+// === NOVA LABOUR FLOOR (costing layer step 3) — END ===
+
+// === NOVA MARGIN CHECK (costing layer step 4) — BEGIN ===
+// Repair mode (Tier 1): the client price is a justified multiple over the subby
+// cost, so the risk is issuing below a healthy margin. The estimator enters the
+// budget/subby cost; the tool shows margin in cash and %, and flags if margin %
+// falls below the threshold before the quote can issue. Threshold is
+// config-driven (Airtable home PENDING — Jamie to confirm the number).
+const DEFAULT_MARGIN_CONFIG = {
+  minMarginPct: 30,   // repair-mode minimum GROSS margin % before issue — PENDING Jamie/Airtable
+  basis: 'price'      // margin % = (price - cost) / price (gross margin; Kingston 63%, Bridgwater 87%)
+};
+function loadMarginConfig(overrides) {
+  return Object.assign({}, DEFAULT_MARGIN_CONFIG, overrides || {});
+}
+
+// Assemble the repair-mode client price from the priced schedule + labour floor
+// + standing items. Standing qtys and plant-days are estimator inputs, so the
+// total is provisional until those are filled (everything outstanding is listed
+// in `pending`). No double-count: rate-card lines carry their own labour; the
+// labour floor covers only the self-deliver labour-only tasks.
+function assembleRepairClientPrice(schedule, floorResult) {
+  const s = schedule || {};
+  const rateLines = (typeof s.total === 'number') ? s.total : 0;
+  const labourAndStandstill = (floorResult && typeof floorResult.labourAndStandstill === 'number') ? floorResult.labourAndStandstill : 0;
+  let standing = 0;
+  const pending = [];
+  (s.standing || []).forEach((st) => {
+    if (typeof st.cost === 'number') standing += st.cost;
+    else pending.push('standing-qty:' + (st.item || st.trigger));
+  });
+  (floorResult && Array.isArray(floorResult.unweightedTasks) ? floorResult.unweightedTasks : []).forEach((t) => pending.push('time-weight:' + t));
+  (s.gaps || []).forEach((g) => pending.push('gap-line:' + g.ref));
+  (s.manual || []).forEach((m) => pending.push('manual-line:' + m.ref));
+  const total = rateLines + labourAndStandstill + standing;
+  return { rateLines, labourAndStandstill, standing, total, pending, provisional: pending.length > 0 };
+}
+
+// margin = client price - subby cost, in cash and %. Below-threshold blocks issue.
+function computeRepairMargin(clientPrice, subbyCost, opts) {
+  const cfg = (opts && opts.config) || loadMarginConfig();
+  const price = Number(clientPrice) || 0;
+  const hasCost = subbyCost !== null && subbyCost !== undefined && subbyCost !== '' && isFinite(Number(subbyCost));
+  const cost = hasCost ? Number(subbyCost) : null;
+  const marginCash = hasCost ? price - cost : null;
+  const marginPct = (hasCost && price > 0) ? (marginCash / price) * 100 : null;
+  const markupOnCostPct = (hasCost && cost > 0) ? (marginCash / cost) * 100 : null;
+  const belowThreshold = (marginPct !== null) ? marginPct < cfg.minMarginPct : false;
+  let issueBlock = null;
+  if (!hasCost) issueBlock = 'subby/budget cost not entered';
+  else if (belowThreshold) issueBlock = 'margin ' + (Math.round(marginPct * 10) / 10) + '% below threshold ' + cfg.minMarginPct + '%';
+  return {
+    clientPrice: price, subbyCost: cost, hasSubbyCost: hasCost,
+    marginCash, marginPct, markupOnCostPct,
+    threshold: cfg.minMarginPct, basis: cfg.basis,
+    belowThreshold, canIssue: hasCost && !belowThreshold, issueBlock
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.NovaMarginCheck = { DEFAULT_MARGIN_CONFIG, loadMarginConfig, assembleRepairClientPrice, computeRepairMargin };
+}
+// === NOVA MARGIN CHECK (costing layer step 4) — END ===
+
+// === NOVA SANITY FLAGS (costing layer step 5) — BEGIN ===
+// Deterministic layer-one checks run at finalisation, before issue. No AI: each
+// is simply true or not. Thresholds are config-driven (Airtable home PENDING).
+// Severity 'block' stops issue; 'warn' surfaces but does not. canIssue is true
+// only when no 'block' flag fires.
+const DEFAULT_SANITY_CONFIG = {
+  floorPerM2BySystem: {},   // system -> min £/m² (e.g. {'metal-pitched':40}); PENDING Jamie/Airtable
+  outlierFactor: 10,        // a single priced line > factor x median of the rest is "out of band"
+  blockOnBelowThreshold: true,
+  blockOnExtentNoCost: true,
+  blockOnMissingAccess: true
+};
+function loadSanityConfig(overrides) {
+  const cfg = Object.assign({}, DEFAULT_SANITY_CONFIG, overrides || {});
+  cfg.floorPerM2BySystem = Object.assign({}, DEFAULT_SANITY_CONFIG.floorPerM2BySystem, (overrides && overrides.floorPerM2BySystem) || {});
+  return cfg;
+}
+function _median(nums) {
+  const a = nums.filter((n) => typeof n === 'number' && isFinite(n)).slice().sort((x, y) => x - y);
+  if (!a.length) return null;
+  const mid = Math.floor(a.length / 2);
+  return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+}
+
+// schedule: from generateRepairSchedule. ctx: { marginResult, clientPrice,
+// system, areaM2, needsHeightAccess, config }.
+function runSanityFlags(schedule, ctx) {
+  const s = schedule || {};
+  const c = ctx || {};
+  const cfg = c.config || loadSanityConfig();
+  const flags = [];
+  const add = (code, severity, message, ref) => flags.push({ code, severity, message, ref: ref || null });
+  const r2 = (n) => Math.round(n * 100) / 100;
+
+  // 1) total below a per-m² floor for the system specified
+  const area = Number(c.areaM2) || 0;
+  const price = Number(c.clientPrice) || 0;
+  const floor = (c.system && cfg.floorPerM2BySystem) ? cfg.floorPerM2BySystem[c.system] : undefined;
+  if (typeof floor === 'number' && area > 0 && price > 0) {
+    const perM2 = price / area;
+    if (perM2 < floor) add('below_per_m2_floor', 'warn',
+      'Total £' + r2(price) + ' over ' + area + 'm² = £' + r2(perM2) + '/m², below the £' + floor + '/m² floor for ' + c.system);
+  }
+
+  // 2) a fault with extent captured but no cost attached
+  (s.lines || []).forEach((l) => {
+    if (l.kind === 'rate-line' && (Number(l.qty) > 0) && !l.cost) {
+      add('extent_no_cost', cfg.blockOnExtentNoCost ? 'block' : 'warn',
+        'Fault ' + l.ref + ' line "' + l.item + '" has extent but no cost' + (l.found ? '' : ' (rate-card item not found)'), l.ref);
+    }
+  });
+
+  // 3) access / MEWP line missing on a job that needs height access
+  const accessStanding = (s.standing || []).find((st) => st.trigger === 'Access');
+  const needsAccess = (c.needsHeightAccess === true) || !!accessStanding;
+  if (needsAccess && (!accessStanding || accessStanding.found !== true)) {
+    add('missing_access', cfg.blockOnMissingAccess ? 'block' : 'warn',
+      accessStanding ? 'Access needed but the access line is not in the rate card' : 'Job needs height access but no access line is present');
+  }
+
+  // 4) margin under threshold (an override quietly broke it)
+  const mr = c.marginResult;
+  if (mr && mr.belowThreshold) {
+    add('margin_below_threshold', cfg.blockOnBelowThreshold ? 'block' : 'warn',
+      'Margin ' + (mr.marginPct == null ? '?' : r2(mr.marginPct)) + '% is below the ' + mr.threshold + '% threshold');
+  }
+
+  // 5) a single line wildly out of band against the others
+  const costs = (s.lines || []).filter((l) => l.kind === 'rate-line' && typeof l.cost === 'number' && l.cost > 0).map((l) => l.cost);
+  if (costs.length >= 3) {
+    const med = _median(costs);
+    if (med && med > 0) {
+      (s.lines || []).forEach((l) => {
+        if (l.kind === 'rate-line' && typeof l.cost === 'number' && l.cost > cfg.outlierFactor * med) {
+          add('line_out_of_band', 'warn',
+            'Line ' + l.ref + ' "' + l.item + '" £' + r2(l.cost) + ' is >' + cfg.outlierFactor + 'x the median line (£' + r2(med) + ')', l.ref);
+        }
+      });
+    }
+  }
+
+  const blocking = flags.filter((f) => f.severity === 'block');
+  return { flags, blocking, warnings: flags.filter((f) => f.severity === 'warn'), canIssue: blocking.length === 0 };
+}
+
+if (typeof window !== 'undefined') {
+  window.NovaSanityFlags = { DEFAULT_SANITY_CONFIG, loadSanityConfig, runSanityFlags };
+}
+// === NOVA SANITY FLAGS (costing layer step 5) — END ===
+
+// === NOVA WORKS PRICING (costing layer step 6) — BEGIN ===
+// Works mode (Tier 2): a whole-roof project, priced bottom-up. The risk here is
+// completeness, not margin: survey measurements drive a full element schedule,
+// each element costs from the rate card, and a standing-elements checklist
+// prompts for the whole-job items a re-roof always carries so nothing is
+// forgotten. Margin (35%) + contingency (4%) come from the Quotations engine.
+// Pure mechanism; rates from the cached rate card (rateCardIndex from step 1).
+//
+// MAPPING + CHECKLIST ARE PLACEHOLDER/CONFIGURABLE (flagged): WORKS_ELEMENT_MAP
+// (measurement -> rate-card line) and STANDING_ELEMENTS_CHECKLIST contents/rates
+// are sensible defaults for Jamie to confirm in the consolidated config pass —
+// item choices carry tradeConfirm; welfare stays a 'clarification' until he
+// decides whether it carries its own rate. Nothing trade-specific is baked in.
+//
+// MARGIN/CONTINGENCY FORMULA — mirrors the LIVE Quotation Line Items formulas
+// exactly (pulled from the base 2026-06-18). Per line, materials and labour are
+// SEPARATE streams; for each, contingency (4%) and margin (35%) are BOTH taken
+// off the base cost INDEPENDENTLY (not compounded): a £100 line = 100 + 4 + 35 =
+// £139, NOT 100 x 1.04 x 1.35. Every one of the 11 columns rounds to whole
+// pounds. The 0.04 / 0.35 are HARDCODED in the Airtable formulas today — the
+// Quotation header's Margin Percent / Contingency Percent fields are NOT
+// referenced by them, so changing the header does not change the lines. Kept
+// literal here to agree with the base. If these ever become header/config-driven,
+// BOTH the Airtable formulas AND this module must change together. See
+// [[nova-costing-open-items]].
+
+// measurement key -> element line(s). basis: 'area'(m²) | 'length'(lin m) | 'count'.
+const WORKS_ELEMENT_MAP = {
+  roofAreaM2:   { label: 'Roof strip & re-sheet', lines: [
+    { item: 'Strip', basis: 'area' },
+    { item: 'Composite Panel', basis: 'area', tradeConfirm: 'Composite Panel vs Single Skin + Insulation per spec/thickness' },
+    { item: 'Main Fix', basis: 'area' } ] },
+  wallAreaM2:   { label: 'Wall re-clad', lines: [
+    { item: 'Wall Composite', basis: 'area', tradeConfirm: 'panel thickness per spec' } ] },
+  gutterLinM:   { label: 'Gutter renewal', lines: [
+    { item: 'Trimline Gutter', basis: 'length', tradeConfirm: 'Trimline / Insulated / Liner per spec; add Outlets + Downpipes' } ] },
+  rooflightM2:  { label: 'Rooflights', lines: [
+    { item: 'Skylight', basis: 'area' } ] },
+  flashingLinM: { label: 'Flashings', lines: [
+    { item: 'Eave', basis: 'length', tradeConfirm: 'flashing subtype mix (Eave/Ridge/Barge/Cap) not in a single measurement' } ] }
+};
+
+// Whole-job standing elements a re-roof always carries (brief s5). PLACEHOLDER:
+// confirm the list is complete; qty is a surveyor input (day/job level), so each
+// prompts rather than auto-quantifying. status: 'on-card' | 'gap' | 'clarification'.
+const STANDING_ELEMENTS_CHECKLIST = [
+  { key: 'access-mewp',      label: 'Access: MEWP / scissor / boom',  item: 'MEWP',           status: 'on-card' },
+  { key: 'access-platform',  label: 'Access: working platform',       item: 'Working Platform', status: 'on-card' },
+  { key: 'edge-protection',  label: 'Edge protection handrail',       item: 'Handrail',       status: 'on-card' },
+  { key: 'stair-tower',      label: 'Access: stair tower',            item: 'Haki Staircase', status: 'on-card' },
+  { key: 'scaffold',         label: 'Scaffold',                       item: null,             status: 'gap', note: 'no scaffold line on the rate card — add in Airtable (brief s5 gap)' },
+  { key: 'nets',             label: 'Fall arrest: man-safe nets',     item: 'Man Safe Nets',  status: 'on-card' },
+  { key: 'plant-telehandler',label: 'Plant: telehandler',            item: 'Telehandler',    status: 'on-card' },
+  { key: 'plant-crane',      label: 'Plant: crane',                   item: 'Crane',          status: 'on-card' },
+  { key: 'waste-general',    label: 'Waste: general',                 item: 'General Waste',  status: 'on-card' },
+  { key: 'waste-asbestos',   label: 'Waste: asbestos',                item: 'Asbestos',       status: 'on-card', note: 'rule: 1.5 t per 100 m² cement sheet' },
+  { key: 'supervision',      label: 'Supervision',                    item: 'Site Manager',   status: 'on-card' },
+  { key: 'ppe',              label: 'PPE',                            item: 'PPE',            status: 'on-card' },
+  { key: 'air-testing',      label: 'Asbestos air testing',           item: 'Airtesting',     status: 'on-card' },
+  { key: 'travel',           label: 'Travel',                         item: 'Travel',         status: 'on-card' },
+  { key: 'accommodation',    label: 'Accommodation (distant sites)',  item: 'Accommodation',  status: 'on-card' },
+  { key: 'welfare',          label: 'Welfare units',                  item: null,             status: 'clarification', note: 'PENDING Jamie: own rate or clarification item (Firecracker left it a clarification)' }
+];
+
+const DEFAULT_WORKS_CONFIG = {
+  // LITERAL to match the live Line Items formulas (hardcoded there; NOT driven by
+  // the Quotation header fields today — see the FORMULA note above).
+  contingency: 0.04,   // 4% off base cost, independent of margin
+  margin:      0.35    // 35% off base cost, independent of contingency
+};
+function loadWorksConfig(overrides) {
+  return Object.assign({}, DEFAULT_WORKS_CONFIG, overrides || {});
+}
+
+// Price one cost stream exactly as the Line Items formulas do: contingency and
+// margin are EACH taken off the (rounded) base cost, independently; each column
+// rounds to whole pounds. £100 -> { cost:100, contingency:4, margin:35, total:139 }.
+function priceStream(baseCost, rates) {
+  const cost = Math.round(Number(baseCost) || 0);
+  const contingency = Math.round(cost * rates.contingency);
+  const margin = Math.round(cost * rates.margin);
+  return { cost, contingency, margin, total: cost + contingency + margin };
+}
+
+// Full 11-column line pricing — materials stream + labour stream (each its own
+// contingency + margin) summed into Total to Client. Mirrors Quotation Line Items.
+function priceLine(quantity, matPerUnit, labPerUnit, rates) {
+  const q = Number(quantity) || 0;
+  const mats = priceStream(q * (Number(matPerUnit) || 0), rates);
+  const lab  = priceStream(q * (Number(labPerUnit) || 0), rates);
+  return {
+    quantity: q,
+    materialsCostPerUnit: Number(matPerUnit) || 0,
+    labourCostPerUnit:    Number(labPerUnit) || 0,
+    materialsCost: mats.cost, materialsContingency: mats.contingency, materialsMargin: mats.margin, materialsTotal: mats.total,
+    labourCost:    lab.cost,  labourContingency:    lab.contingency,  labourMargin:    lab.margin,  labourTotal:    lab.total,
+    totalToClient: mats.total + lab.total
+  };
+}
+
+// Build the works-mode bottom-up schedule from survey measurements.
+// measurements: { roofAreaM2, wallAreaM2, gutterLinM, rooflightM2, flashingLinM, ... }
+// opts: { config, rcIndex }.
+function generateWorksSchedule(measurements, opts) {
+  const meas = measurements || {};
+  const cfg = (opts && opts.config) || loadWorksConfig();
+  const idx = (opts && opts.rcIndex) || (typeof rateCardIndex === 'function' ? rateCardIndex() : new Map());
+  const out = { elementLines: [], standingChecklist: [], pending: [], flags: [],
+    materialsCost: 0, labourCost: 0,
+    materialsContingency: 0, materialsMargin: 0, materialsTotal: 0,
+    labourContingency: 0, labourMargin: 0, labourTotal: 0, totalToClient: 0 };
+
+  Object.keys(WORKS_ELEMENT_MAP).forEach((key) => {
+    const qty = Number(meas[key]) || 0;
+    if (qty <= 0) return;
+    const grp = WORKS_ELEMENT_MAP[key];
+    grp.lines.forEach((spec) => {
+      const it = idx.get(String(spec.item || '').trim().toLowerCase());
+      const matPer = it && typeof it.materials === 'number' ? it.materials : 0;
+      const labPer = it && typeof it.labour === 'number' ? it.labour : 0;
+      const p = priceLine(qty, matPer, labPer, cfg);   // the 11 Line-Items columns
+      const line = Object.assign({ element: grp.label, measurementKey: key, item: spec.item, found: !!it,
+        unit: it ? it.unit : '' }, p);
+      if (spec.tradeConfirm) line.tradeConfirm = spec.tradeConfirm;
+      if (!it) { line.note = 'rate-card item not found: "' + spec.item + '"'; out.pending.push('element-item:' + spec.item); }
+      out.elementLines.push(line);
+      out.materialsCost += p.materialsCost; out.materialsContingency += p.materialsContingency; out.materialsMargin += p.materialsMargin; out.materialsTotal += p.materialsTotal;
+      out.labourCost += p.labourCost; out.labourContingency += p.labourContingency; out.labourMargin += p.labourMargin; out.labourTotal += p.labourTotal;
+      out.totalToClient += p.totalToClient;
+    });
+  });
+
+  // standing-elements checklist — prompts; qty is a surveyor input, so unpriced here.
+  STANDING_ELEMENTS_CHECKLIST.forEach((se) => {
+    const it = se.item ? idx.get(String(se.item).trim().toLowerCase()) : null;
+    out.standingChecklist.push({ key: se.key, label: se.label, item: se.item || null,
+      status: se.status, found: !!it, unit: it ? it.unit : '',
+      ratePerUnit: it ? ((it.materials || 0) + (it.labour || 0)) : null,
+      qty: null, cost: null, needsConfirm: true, note: se.note || '' });
+    if (se.status === 'gap') out.pending.push('standing-gap:' + se.key);
+    if (se.status === 'clarification') out.pending.push('standing-clarification:' + se.key);
+  });
+
+  // Totals are the sum of the per-line columns (mirrors the base, which rounds
+  // each line's columns then sums). Element lines only — standing items are
+  // surveyor-confirmed and priced on write-back once their qty is set.
+  out.subtotalCost  = out.materialsCost + out.labourCost;
+  out.contingency   = out.materialsContingency + out.labourContingency;
+  out.margin        = out.materialsMargin + out.labourMargin;
+  out.contingencyRate = cfg.contingency;
+  out.marginRate      = cfg.margin;
+  out.clientTotal   = out.totalToClient;   // = Σ line Total to Client (matches Line Items)
+  out.provisional   = out.pending.length > 0;
+  return out;
+}
+
+if (typeof window !== 'undefined') {
+  window.NovaWorksPricing = { WORKS_ELEMENT_MAP, STANDING_ELEMENTS_CHECKLIST, DEFAULT_WORKS_CONFIG,
+    loadWorksConfig, priceStream, priceLine, generateWorksSchedule };
+}
+// === NOVA WORKS PRICING (costing layer step 6) — END ===
+
 // ---- Photo storage helpers (R2 via Worker) ----
 // Photos live on R2 under surveys/{NOV-id}/{ts}-{rand}.jpg. Locally we
 // keep a small thumbnail in the base64 field, plus the R2 key. The
