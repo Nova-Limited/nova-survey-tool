@@ -3994,39 +3994,70 @@ function generateWorksSchedule(measurements, opts) {
   return out;
 }
 
-// Works-mode per-m² sanity check (brief / config): for each roof/wall element,
-// divide its client £/m² by the element m² and compare against the matching
-// 'Floor: <system>' figure from the Airtable config rows. Flag (WARN only —
-// never blocks, never alters the quote) when materially below the floor.
+// Works-mode per-m² sanity check (Option 1 — whole-works, area-weighted). The
+// seeded floors are TOTAL-JOB fully-loaded £/m², so the like-for-like check is
+// the FULL works total (element lines + all priced standing items: scaffold,
+// waste, access, …) against the area-weighted sum of the relevant system floors:
+//     expectedMin = Σ (element area × that element's system floor)
+// e.g. mixed roof+wall = roofArea×roofFloor + wallArea×wallFloor. Flag (WARN
+// only — never blocks, never alters the quote) when the works total is
+// materially below expectedMin. Tolerance configurable (sanity floorMaterialPct).
 //
-// CAVEAT (flagged for Jamie): the seeded floors are TOTAL-JOB fully-loaded £/m²
-// (materials + labour + scaffold + waste), but an element total here excludes
-// the JOB-LEVEL standing items (scaffold/waste/access are priced separately once
-// the surveyor confirms quantities). So a per-element comparison reads low and
-// will flag a normal job until prelims are included — confirm whether this check
-// should run per-element (as written) or on the whole works total incl. priced
-// standing items. Tolerance is configurable (sanity config floorMaterialPct).
+// Standing items are surveyor-confirmed, so until they are priced the works
+// total is element-lines-only and would read low; in that case the check is
+// reported `provisional` and the low-flag is withheld (no false positive). Pass
+// opts.standingTotal once standing items are priced (or set their .cost in the
+// checklist) for the real comparison.
 function worksFloorSanity(worksSchedule, opts) {
   const cfg = (opts && opts.config) || loadSanityConfig();
   const tol = (typeof cfg.floorMaterialPct === 'number') ? cfg.floorMaterialPct : 0.85;
+  const elements = (worksSchedule && worksSchedule.elements) || [];
   const flags = [];
-  ((worksSchedule && worksSchedule.elements) || []).forEach((el) => {
-    if (!el.system || !(el.areaM2 > 0) || !(el.totalToClient > 0)) return;
+
+  // area-weighted expected minimum across the system-floored elements
+  let expectedMin = 0, totalArea = 0;
+  const breakdown = [];
+  elements.forEach((el) => {
+    if (!el.system || !(el.areaM2 > 0)) return;
     const floor = cfg.floorPerM2BySystem[el.system];
     if (typeof floor !== 'number') {
-      flags.push({ code: 'works_floor_unknown', severity: 'warn', element: el.label,
-        message: 'No £/m² floor configured for system "' + el.system + '"' });
+      flags.push({ code: 'works_floor_unknown', severity: 'warn',
+        message: 'No £/m² floor configured for system "' + el.system + '" — element excluded from the floor check' });
       return;
     }
-    const perM2 = el.totalToClient / el.areaM2;
-    if (perM2 < floor * tol) {
-      flags.push({ code: 'works_floor_low', severity: 'warn', element: el.label,
-        perM2: Math.round(perM2), floor: floor,
-        message: el.label + ': £' + Math.round(perM2) + '/m² is materially below the £' + floor +
-          '/m² floor for ' + el.system + ' — likely a missed or mispriced item' });
-    }
+    expectedMin += el.areaM2 * floor;
+    totalArea   += el.areaM2;
+    breakdown.push({ element: el.label, system: el.system, areaM2: el.areaM2, floor: floor, contribution: el.areaM2 * floor });
   });
-  return { flags, warnings: flags, canIssue: true };   // warn only, never blocks
+
+  // full works total = element lines + priced standing items
+  const elementTotal = (worksSchedule && typeof worksSchedule.clientTotal === 'number') ? worksSchedule.clientTotal : 0;
+  const standingTotal = (opts && typeof opts.standingTotal === 'number')
+    ? opts.standingTotal
+    : ((worksSchedule && worksSchedule.standingChecklist) || []).reduce((s, st) => s + (typeof st.cost === 'number' ? st.cost : 0), 0);
+  const worksTotal = elementTotal + standingTotal;
+  const standingPending = standingTotal === 0 &&
+    ((worksSchedule && worksSchedule.standingChecklist) || []).some((s) => s.needsConfirm);
+
+  const out = { flags, warnings: flags, canIssue: true,
+    expectedMin: Math.round(expectedMin), worksTotal: Math.round(worksTotal),
+    standingTotal: Math.round(standingTotal), totalArea: totalArea, breakdown: breakdown,
+    provisional: standingPending };
+
+  if (expectedMin > 0 && worksTotal > 0) {
+    if (standingPending) {
+      flags.push({ code: 'works_floor_provisional', severity: 'warn',
+        message: 'Standing items not yet priced — works-floor check withheld (element lines £' + Math.round(worksTotal) +
+          ' vs area-weighted floor £' + Math.round(expectedMin) + '); quantify scaffold/waste/access for a like-for-like check' });
+    } else if (worksTotal < expectedMin * tol) {
+      flags.push({ code: 'works_floor_low', severity: 'warn',
+        worksTotal: Math.round(worksTotal), expectedMin: Math.round(expectedMin),
+        message: 'Works total £' + Math.round(worksTotal) + ' is materially below the area-weighted floor £' +
+          Math.round(expectedMin) + ' (' + breakdown.map((b) => b.areaM2 + 'm²×£' + b.floor + ' ' + b.system).join(' + ') +
+          ') — likely a missed or mispriced item' });
+    }
+  }
+  return out;
 }
 
 if (typeof window !== 'undefined') {
