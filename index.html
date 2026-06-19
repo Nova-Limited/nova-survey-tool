@@ -3923,18 +3923,30 @@ function priceStream(baseCost, rates) {
 }
 
 // Full 11-column line pricing — materials stream + labour stream (each its own
-// contingency + margin) summed into Total to Client. Mirrors Quotation Line Items.
+// contingency + margin). Mirrors Quotation Line Items. CRITICAL: the base stores
+// every formula column at FULL precision (precision-0 is display-only), and its
+// Total to Client = {Materials Total} + {Labour Total} reads those FULL-precision
+// stream totals, summing then rounding ONCE at display. So Total to Client must
+// combine the full-precision streams BEFORE rounding — round(matBase×f + labBase×f)
+// — NOT sum the two already-rounded stream Totals (mats.total + lab.total), which
+// double-rounds and drifts £1 when the combined fraction crosses .5 (verified live
+// 2026-06-19: Composite Panel 78929.76+16190.72=95120.48→95120, not 78930+16191).
+// The displayed Materials/Labour Total columns still round per-stream (mats.total /
+// lab.total) to match the base's display of THOSE columns.
 function priceLine(quantity, matPerUnit, labPerUnit, rates) {
   const q = Number(quantity) || 0;
-  const mats = priceStream(q * (Number(matPerUnit) || 0), rates);
-  const lab  = priceStream(q * (Number(labPerUnit) || 0), rates);
+  const matBase = q * (Number(matPerUnit) || 0);
+  const labBase = q * (Number(labPerUnit) || 0);
+  const mats = priceStream(matBase, rates);
+  const lab  = priceStream(labBase, rates);
+  const f = 1 + rates.contingency + rates.margin;
   return {
     quantity: q,
     materialsCostPerUnit: Number(matPerUnit) || 0,
     labourCostPerUnit:    Number(labPerUnit) || 0,
     materialsCost: mats.cost, materialsContingency: mats.contingency, materialsMargin: mats.margin, materialsTotal: mats.total,
     labourCost:    lab.cost,  labourContingency:    lab.contingency,  labourMargin:    lab.margin,  labourTotal:    lab.total,
-    totalToClient: mats.total + lab.total
+    totalToClient: Math.round(matBase * f + labBase * f)   // combine full-precision streams, round once (mirrors base)
   };
 }
 
@@ -4456,12 +4468,13 @@ function computeRoundingReconciliation(schedule, opts) {
   const o = opts || {};
   const cfg = o.config || (typeof loadWorksConfig === 'function' ? loadWorksConfig() : { margin: 0.35, contingency: 0.04 });
   // Recompute each line Total from Quantity + per-unit costs via the SAME mirrored
-  // formula Airtable uses; their sum is the total the base will show.
+  // formula Airtable uses — combine the full-precision streams, round ONCE (NOT
+  // round-each-stream-then-sum, which drifts £1; see priceLine). Sum = base total.
+  const f = 1 + cfg.contingency + cfg.margin;
   let airtableTotal = 0;
   (schedule.elements || []).forEach((el) => (el.lines || []).forEach((ln) => {
     const q = Number(ln.quantity) || 0;
-    airtableTotal += priceStream(q * (Number(ln.materialsCostPerUnit) || 0), cfg).total
-                   + priceStream(q * (Number(ln.labourCostPerUnit) || 0), cfg).total;
+    airtableTotal += Math.round(q * (Number(ln.materialsCostPerUnit) || 0) * f + q * (Number(ln.labourCostPerUnit) || 0) * f);
   }));
   const toolTotal = Number(schedule.clientTotal) || 0;     // header Total to Client we would write
   const breakdownTotal = (Number(schedule.subtotalCost) || 0) + (Number(schedule.contingency) || 0) + (Number(schedule.margin) || 0);
