@@ -4175,8 +4175,16 @@ function buildWritePayload(schedule, meta, opts) {
   const totalArea = roofArea + wallArea;
   const pending = [];
 
-  // Header money — plain currency, tool-written. Reconciles to the schedule:
-  // base (materials + labour + disbursements) + contingency + margin = Total to Client.
+  // Header money — plain currency, tool-written, all WHOLE POUNDS, no pence.
+  // The billed Total to Client (Σ line Totals) is the authoritative "this was
+  // calculated" headline — never rounded or tidied (commercial-psychology rule:
+  // the price must look calculated, not round). Per-line rounding leaves a small
+  // £-residual between that headline and base + contingency + computed-margin; we
+  // absorb it into the MARGIN component so the client-facing breakdown ties to the
+  // headline EXACTLY. Contingency stays the exact computed figure (kept distinct
+  // for later priced-vs-actuals reconciliation); margin is the balancing figure.
+  const billed = schedule.clientTotal;
+  const presentedMargin = billed - schedule.subtotalCost - schedule.contingency;
   const header = { key: ref, fields: {
     ref: ref,
     projectName: m.projectName || ref,
@@ -4187,11 +4195,11 @@ function buildWritePayload(schedule, meta, opts) {
     materialsCost: schedule.materialsCost,
     labourCost: schedule.labourCost,
     disbursementsCost: 0,                    // standing/disbursement items deferred until priced
-    totalContingency: schedule.contingency,
-    totalMargin: schedule.margin,
+    totalContingency: schedule.contingency,  // exact (preserved for actuals reconciliation)
+    totalMargin: presentedMargin,            // balancing figure — absorbs the rounding residual
     projectTotalCost: schedule.subtotalCost, // base = materials + labour (+ disbursements)
-    totalToClient: schedule.clientTotal,
-    costPerM2: totalArea > 0 ? Math.round((schedule.clientTotal / totalArea) * 100) / 100 : 0
+    totalToClient: billed,                   // authoritative billed headline — never rounded
+    costPerM2: totalArea > 0 ? Math.round((billed / totalArea) * 100) / 100 : 0
   } };
 
   const elements = (schedule.elements || []).map((el, ei) => {
@@ -4232,6 +4240,7 @@ function buildWritePayload(schedule, meta, opts) {
 
   return {
     ref: ref, header: header, elements: elements,
+    marginPresentation: { computedMargin: schedule.margin, presentedMargin: presentedMargin, residualAbsorbed: presentedMargin - schedule.margin },
     deferredStandingItems: (schedule.standingChecklist || []).filter((s) => s.needsConfirm)
       .map((s) => ({ key: s.key, label: s.label, status: s.status, note: s.note || '' })),
     pending: pending,
@@ -4337,10 +4346,14 @@ function logDryRun(plan, payload, log) {
   plan.deletes.elements.forEach((d) => log('  • [DELETE orphan element] ' + d.key + '  (rec ' + d.recordId + ')'));
   if (payload.reconciliation) {
     const r = payload.reconciliation;
-    log('  §3 reconciliation: tool £' + r.toolTotal + ' vs base-recompute £' + r.airtableTotal + ' → drift £' + r.drift
-      + (r.reconciled ? '  ✓ reconciled — NO §3 line written' : '  → would WRITE §3 line £' + r.drift));
-    log('     breakdown Σ(cost+contingency+margin) £' + r.breakdownTotal + ' vs billed Total £' + r.toolTotal
-      + ' → residual £' + r.breakdownResidual + ' (base-inherent per-line rounding; not auto-reconciled)');
+    log('  §3 reconciliation (tool vs base-recompute): drift £' + r.drift
+      + (r.reconciled ? '  ✓ £0 — NO §3 line written' : '  → would WRITE §3 line £' + r.drift));
+  }
+  if (payload.marginPresentation) {
+    const mp = payload.marginPresentation;
+    log('  breakdown ties to billed headline: base £' + h.projectTotalCost + ' + contingency £' + h.totalContingency
+      + ' + margin £' + h.totalMargin + ' = £' + h.totalToClient
+      + '   (margin absorbs £' + mp.residualAbsorbed + ' rounding: computed £' + mp.computedMargin + ' → presented £' + mp.presentedMargin + '; contingency exact)');
   }
   if (payload.deferredStandingItems && payload.deferredStandingItems.length)
     log('  deferred (unpriced standing items, NOT written): ' + payload.deferredStandingItems.map((s) => s.key).join(', '));
