@@ -4066,6 +4066,366 @@ if (typeof window !== 'undefined') {
 }
 // === NOVA WORKS PRICING (costing layer step 6) — END ===
 
+// === NOVA WORKS WRITE-BACK (costing layer step 7) — BEGIN ===
+// Turn a priced works schedule (step 6) into the exact records the tool WOULD
+// push to the Quotations tables — header + elements + line items — and diff them
+// against what's already there so a re-price updates in place and never orphans
+// stale lines. TRANSPORT-AGNOSTIC and DRY-RUN BY DEFAULT: this block builds,
+// diffs, snapshots and LOGS the payload + plan; it performs NO Airtable writes
+// unless an executor is handed a live transport AND opts.dryRun === false. The
+// first real write is authorised by Jamie, one at a time — see
+// [[nova-costing-layer-build]].
+//
+// IDEMPOTENCY — diff-upsert on deterministic keys so re-pricing the same quote is
+// stable (no duplicate rows, stale rows removed):
+//   header  -> Quotation Reference (table primary)
+//   element -> Element ID = `<ref>-<elementCode>`         e.g. FIRECRACKER-001-ROOF
+//   line    -> Line ID    = `<elementId>-<itemSlug>`      e.g. ...-ROOF-COMPOSITE-PANEL
+// Same measurements -> same keys -> UPDATE in place; a measurement dropping out
+// (or an item removed from a group) leaves its key absent from the desired set
+// -> DELETE. So a re-price can never orphan a stale element/line.
+//
+// WHAT THE TOOL WRITES vs WHAT AIRTABLE COMPUTES: the header and element money
+// columns are plain currency, tool-written and reconciled to the schedule. The 11
+// Quotation Line Items money columns are Airtable FORMULAS — the tool writes only
+// Quantity + the two per-unit costs and the formulas recompute contingency/
+// margin/totals. Step 6 mirrors those formulas only to PREVIEW the total; the base
+// recomputes on write. Keep them in lock-step (see the step-6 FORMULA note). A
+// residual whole-pound gap between the previewed Total to Client and Airtable's
+// recomputed sum is reconciled by the §3 rounding line — that is the FIRST
+// authorised write, made on its own, not here.
+//
+// SAFETY: Status=Draft on the header (the only table with a Status field); a
+// pre-write local JSON snapshot of every row about to be touched; created-recId
+// capture so a failed write rolls itself back.
+
+// Field map — the single source of truth for table + field IDs (base
+// appGHNTIoF2d6KxnG). Verified against the live schema 2026-06-19.
+const WORKS_WB = {
+  base: 'appGHNTIoF2d6KxnG',
+  status: 'Draft',
+  header: { table: 'tblHwV66wvTFrJEmf', f: {
+    ref: 'fldkPHRV7XcMmh8a4', projectName: 'fldRBHsJUUWA5qLKu', worksDesc: 'fldaVZGuYMdlQBEev',
+    revision: 'fldIyh9wZ5vnZPbcO', status: 'fldVYdsfw0UBdX9W8',
+    marginPct: 'fldS27LsrHGNSlqc6', contingencyPct: 'fldwLXV6oyNYvA9tb',
+    roofArea: 'fldXdATTr8Bc7DLaW', wallArea: 'flddKf8uCgaBLSr5G',
+    materialsCost: 'fldZNnQ22DtTjijGX', labourCost: 'fld7eM72ao4VjNwA0', disbursementsCost: 'fldk6XA6lbruHqs5k',
+    totalContingency: 'fldYnLJF3qtJhJctf', totalMargin: 'fldFpGCvMMxwTxWXA',
+    projectTotalCost: 'fldfBEBigkcI8cG9Y', totalToClient: 'fld2Ncx0ZnrD5hLwD', costPerM2: 'fldkqoqowAAqy3zD3' } },
+  element: { table: 'tblLDDOBz0IDiqDaH', f: {
+    elementId: 'fld7AsRfxzI10UsLG', quotation: 'fld2JWGr5O5nttqeK', name: 'fldALqZzmKxT9lM4t',
+    number: 'fldjtZOlyVJiHnY1P', type: 'fldDrXalntVVXXBMX',
+    roofArea: 'fldYFC2Dmx8FSQ4Ix', wallArea: 'fldqTiiSk2vj4LsoD',
+    materialsCost: 'flda28OgXgsBKBaF9', labourCost: 'fldDTOJBnPRJl0aBE', totalToClient: 'fldr9IekSTSnaZwFV' } },
+  line: { table: 'tblyzONJWT03zGdh5', f: {
+    lineId: 'fld4MlEMTa1FdaGhy', element: 'fldEnYypXfaorWrsc', number: 'fldtGAaZHNLDKM2Rw',
+    section: 'fldjb9qWSkRBfvYCJ', costType: 'fldTxiznkl5i5nff8', item: 'fldacfhxqEKuQqrsl', spec: 'fldop1xJRruhCgVb3',
+    quantity: 'fldyivr8cnW8Woa5l', uom: 'fld1p7an09ffPE1im',
+    materialsCostPerUnit: 'fldzTvG9eO2PQrbJi', labourCostPerUnit: 'fldzKdtG3PoGqV9p3' } }
+};
+
+// measurement key -> stable element code + default Element Type. TYPE defaults are
+// PLACEHOLDER (flagged typeConfirm): the works schedule doesn't capture roof pitch
+// or carry gutter/rooflight/flashing element types, so these are sensible defaults
+// to confirm per spec. NOTE: 'Repair' is deliberately NOT here — that singleSelect
+// choice arrives with the Option-B repair formula edit, later (see the build note).
+const WORKS_ELEMENT_META = {
+  roofAreaM2:   { code: 'ROOF',   type: 'Pitched Roof',  typeConfirm: 'pitched vs flat not captured by survey — defaulted to Pitched Roof' },
+  wallAreaM2:   { code: 'WALL',   type: 'Wall Cladding' },
+  gutterLinM:   { code: 'GUTTER', type: 'Other',         typeConfirm: 'no dedicated gutter element type — using Other' },
+  rooflightM2:  { code: 'RLIGHT', type: 'Other',         typeConfirm: 'no dedicated rooflight element type — using Other' },
+  flashingLinM: { code: 'FLASH',  type: 'Other',         typeConfirm: 'no dedicated flashing element type — using Other' }
+};
+
+// Deterministic keys — UPPER-kebab so they read cleanly as record primaries.
+function wbSlug(s) { return String(s == null ? '' : s).trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+function wbElementId(ref, key) { const m = WORKS_ELEMENT_META[key]; return wbSlug(ref) + '-' + (m ? m.code : wbSlug(key)); }
+function wbLineId(elementId, item) { return elementId + '-' + wbSlug(item); }
+function wbNowIso() { try { return new Date().toISOString(); } catch (e) { return ''; } }
+
+// Build the desired record set the tool WOULD send, keyed by deterministic IDs,
+// money columns reconciled to the schedule. No Airtable record IDs yet (resolved
+// at execute time); parent links are symbolic (byKey) so create + update both work.
+// meta: { quotationReference (REQUIRED — the upsert key), projectName,
+//   worksDescription, measurements:{roofAreaM2,wallAreaM2} | roofAreaM2/wallAreaM2 }.
+// opts: { rcIndex, config }. Line Section/Cost Type/UOM come from the rate-card
+// item (rcIndex): the worker /rate-card already surfaces these as item.category
+// (the Section field), item.costType and item.unit — no worker change needed.
+function buildWritePayload(schedule, meta, opts) {
+  const o = opts || {};
+  const idx = o.rcIndex || (typeof rateCardIndex === 'function' ? rateCardIndex() : new Map());
+  const cfg = o.config || (typeof loadWorksConfig === 'function' ? loadWorksConfig() : { margin: 0.35, contingency: 0.04 });
+  const m = meta || {};
+  const ref = String(m.quotationReference || '').trim();
+  if (!ref) throw new Error('buildWritePayload: meta.quotationReference is required (the upsert key)');
+
+  const meas = m.measurements || {};
+  const roofArea = Number(m.roofAreaM2 != null ? m.roofAreaM2 : meas.roofAreaM2) || 0;
+  const wallArea = Number(m.wallAreaM2 != null ? m.wallAreaM2 : meas.wallAreaM2) || 0;
+  const totalArea = roofArea + wallArea;
+  const pending = [];
+
+  // Header money — plain currency, tool-written. Reconciles to the schedule:
+  // base (materials + labour + disbursements) + contingency + margin = Total to Client.
+  const header = { key: ref, fields: {
+    ref: ref,
+    projectName: m.projectName || ref,
+    worksDesc: m.worksDescription || '',
+    status: WORKS_WB.status,                 // Draft
+    roofArea: roofArea, wallArea: wallArea,
+    marginPct: cfg.margin, contingencyPct: cfg.contingency,
+    materialsCost: schedule.materialsCost,
+    labourCost: schedule.labourCost,
+    disbursementsCost: 0,                    // standing/disbursement items deferred until priced
+    totalContingency: schedule.contingency,
+    totalMargin: schedule.margin,
+    projectTotalCost: schedule.subtotalCost, // base = materials + labour (+ disbursements)
+    totalToClient: schedule.clientTotal,
+    costPerM2: totalArea > 0 ? Math.round((schedule.clientTotal / totalArea) * 100) / 100 : 0
+  } };
+
+  const elements = (schedule.elements || []).map((el, ei) => {
+    const em = WORKS_ELEMENT_META[el.key] || { code: wbSlug(el.key), type: 'Other', typeConfirm: 'unmapped measurement "' + el.key + '" — using Other' };
+    const elementId = wbElementId(ref, el.key);
+    const isWall = el.key === 'wallAreaM2';
+    const lines = (el.lines || []).map((ln, li) => {
+      const it = idx.get(String(ln.item || '').trim().toLowerCase());
+      // /rate-card emits the Section field as item.category; keep .section as a fallback.
+      const section = (it && (it.category || it.section)) || null;
+      const uom = (it && it.unit) || ln.unit || null;
+      if (!it) pending.push('line-item-not-on-rate-card:' + ln.item);
+      if (!section) pending.push('line-missing-section:' + ln.item);
+      return { key: wbLineId(elementId, ln.item), fields: {
+        lineId: wbLineId(elementId, ln.item),
+        number: li + 1,
+        section: section,
+        costType: (it && it.costType) || 'Materials & Labour',
+        item: ln.item,
+        quantity: ln.quantity,
+        uom: uom,
+        materialsCostPerUnit: ln.materialsCostPerUnit,
+        labourCostPerUnit: ln.labourCostPerUnit
+      }, meta: { found: !!it, tradeConfirm: ln.tradeConfirm || null } };
+    });
+    return { key: elementId, typeConfirm: em.typeConfirm || null, fields: {
+      elementId: elementId,
+      name: el.label,
+      number: ei + 1,
+      type: em.type,
+      roofArea: (!isWall && el.areaM2 > 0) ? el.areaM2 : null,
+      wallArea: (isWall && el.areaM2 > 0) ? el.areaM2 : null,
+      materialsCost: el.materialsCost,
+      labourCost: el.labourCost,
+      totalToClient: el.totalToClient
+    }, lines: lines };
+  });
+
+  return {
+    ref: ref, header: header, elements: elements,
+    deferredStandingItems: (schedule.standingChecklist || []).filter((s) => s.needsConfirm)
+      .map((s) => ({ key: s.key, label: s.label, status: s.status, note: s.note || '' })),
+    pending: pending,
+    provisional: !!schedule.provisional || pending.length > 0
+  };
+}
+
+function wbIndexByKey(arr) { const map = new Map(); (arr || []).forEach((r) => { if (r && r.key != null) map.set(r.key, r); }); return map; }
+
+// Diff the desired payload against what's already in Airtable -> an ordered op
+// plan. existing = { header: rec|null, elements: [rec], lines: [rec] }, each rec =
+// { id, key, revision? } (key = the deterministic primary value, read back from
+// Airtable). Ops: create | update | delete. Orphans (existing keys absent from the
+// desired set) -> delete; lines are deleted before their elements.
+function diffWritePlan(desired, existing) {
+  const ex = existing || {};
+  const exHeader = ex.header || null;
+  const exElements = wbIndexByKey(ex.elements);
+  const exLines = wbIndexByKey(ex.lines);
+
+  const curRev = exHeader ? (Number(exHeader.revision != null ? exHeader.revision : (exHeader.fields && exHeader.fields.revision)) || 0) : 0;
+  const plan = {
+    header: {
+      op: exHeader ? 'update' : 'create', key: desired.ref, recordId: exHeader ? exHeader.id : null,
+      revisionFrom: exHeader ? curRev : null, revisionTo: exHeader ? curRev + 1 : 1,
+      fields: Object.assign({}, desired.header.fields, { revision: exHeader ? curRev + 1 : 1 })
+    },
+    elements: [], lines: [], deletes: { lines: [], elements: [] }
+  };
+
+  const wantElements = new Set(), wantLines = new Set();
+  desired.elements.forEach((el) => {
+    wantElements.add(el.key);
+    const exEl = exElements.get(el.key);
+    plan.elements.push({ op: exEl ? 'update' : 'create', key: el.key, recordId: exEl ? exEl.id : null,
+      parent: { byKey: desired.ref }, typeConfirm: el.typeConfirm || null, fields: el.fields });
+    el.lines.forEach((ln) => {
+      wantLines.add(ln.key);
+      const exLn = exLines.get(ln.key);
+      plan.lines.push({ op: exLn ? 'update' : 'create', key: ln.key, recordId: exLn ? exLn.id : null,
+        parent: { byKey: el.key }, fields: ln.fields, meta: ln.meta });
+    });
+  });
+  (ex.lines || []).forEach((r) => { if (r && !wantLines.has(r.key)) plan.deletes.lines.push({ op: 'delete', key: r.key, recordId: r.id }); });
+  (ex.elements || []).forEach((r) => { if (r && !wantElements.has(r.key)) plan.deletes.elements.push({ op: 'delete', key: r.key, recordId: r.id }); });
+  return plan;
+}
+
+function wbPlanCounts(plan) {
+  const n = (a, op) => a.filter((x) => x.op === op).length;
+  return {
+    header: plan.header.op,
+    elementsCreate: n(plan.elements, 'create'), elementsUpdate: n(plan.elements, 'update'), elementsDelete: plan.deletes.elements.length,
+    linesCreate: n(plan.lines, 'create'), linesUpdate: n(plan.lines, 'update'), linesDelete: plan.deletes.lines.length
+  };
+}
+
+// Pre-write local JSON snapshot of every row about to be touched, so a botched
+// write can be reconstructed by hand. Stored under a per-ref localStorage key AND
+// returned for the caller to persist elsewhere. Taken BEFORE any write.
+function snapshotExisting(ref, existing) {
+  const snap = { ref: ref, takenAt: wbNowIso(), existing: {
+    header: (existing && existing.header) || null,
+    elements: (existing && existing.elements) || [],
+    lines: (existing && existing.lines) || []
+  } };
+  try { if (typeof localStorage !== 'undefined') localStorage.setItem('nova_writeback_snapshot_' + wbSlug(ref), JSON.stringify(snap)); } catch (e) {}
+  return snap;
+}
+
+// desired field-name object -> { fieldId: value }, dropping nulls.
+function wbMapFields(fmap, fields) {
+  const out = {};
+  Object.keys(fields).forEach((k) => { if (fmap[k] && fields[k] != null) out[fmap[k]] = fields[k]; });
+  return out;
+}
+
+// Human-readable dry-run log of the plan + payload.
+function logDryRun(plan, payload, log) {
+  const c = wbPlanCounts(plan), h = plan.header.fields;
+  log('── NOVA works write-back — DRY RUN (no Airtable writes) ──');
+  log('Quotation ' + plan.header.key + '  | header: ' + plan.header.op.toUpperCase()
+    + (plan.header.op === 'update' ? ' (Revision ' + plan.header.revisionFrom + ' → ' + plan.header.revisionTo + ')'
+                                   : ' (Revision ' + plan.header.revisionTo + ')')
+    + '  | Status=' + WORKS_WB.status);
+  log('  ops  elements +' + c.elementsCreate + ' ~' + c.elementsUpdate + ' -' + c.elementsDelete
+    + '   lines +' + c.linesCreate + ' ~' + c.linesUpdate + ' -' + c.linesDelete);
+  log('  header £  Materials ' + h.materialsCost + ' + Labour ' + h.labourCost + ' + Disb ' + h.disbursementsCost
+    + ' = Base ' + h.projectTotalCost + ' ; + Contingency ' + h.totalContingency + ' + Margin ' + h.totalMargin
+    + ' = Total to Client ' + h.totalToClient + '  (£/m² ' + h.costPerM2 + ')');
+  plan.elements.forEach((el) => {
+    log('  • [' + el.op + '] element ' + el.key + '  "' + el.fields.name + '"  type=' + el.fields.type
+      + (el.typeConfirm ? '  ⚠ ' + el.typeConfirm : '') + '  → client £' + el.fields.totalToClient);
+  });
+  plan.lines.forEach((ln) => {
+    const f = ln.fields;
+    log('     - [' + ln.op + '] line ' + ln.key + '  ' + f.item + ' (' + (f.section || '?') + ')  qty ' + f.quantity
+      + ' ' + (f.uom || '?') + '  mat £' + f.materialsCostPerUnit + '/u  lab £' + f.labourCostPerUnit + '/u'
+      + (ln.meta && !ln.meta.found ? '  ⚠ item not on rate card' : '')
+      + (ln.meta && ln.meta.tradeConfirm ? '  ⚠ ' + ln.meta.tradeConfirm : ''));
+  });
+  plan.deletes.lines.forEach((d) => log('     - [DELETE orphan line] ' + d.key + '  (rec ' + d.recordId + ')'));
+  plan.deletes.elements.forEach((d) => log('  • [DELETE orphan element] ' + d.key + '  (rec ' + d.recordId + ')'));
+  if (payload.deferredStandingItems && payload.deferredStandingItems.length)
+    log('  deferred (unpriced standing items, NOT written): ' + payload.deferredStandingItems.map((s) => s.key).join(', '));
+  if (payload.pending && payload.pending.length) log('  pending: ' + payload.pending.join(', '));
+  log('── end dry run — nothing written ──');
+}
+
+// Roll back a partial write by deleting everything we created, newest first.
+async function wbRollback(tx, created, log) {
+  const undone = [];
+  for (let i = created.length - 1; i >= 0; i--) {
+    const c = created[i];
+    try { await tx.remove(c.table, c.recordId); undone.push(c.recordId); }
+    catch (e) { log('rollback FAILED for ' + c.table + '/' + c.recordId + ': ' + (e && e.message || e)); }
+  }
+  return undone;
+}
+
+// Apply a plan via an INJECTED transport. DRY-RUN BY DEFAULT: with no transport,
+// or opts.dryRun !== false, NOTHING is written — the plan + payload are logged and
+// returned. Real mode requires BOTH a transport AND opts.dryRun === false (and,
+// per the build, explicit per-write authorisation from Jamie).
+// transport (real mode) implements:
+//   create(table, fieldsById) -> Promise<recordId>
+//   update(table, recordId, fieldsById) -> Promise<void>
+//   remove(table, recordId) -> Promise<void>
+//   link(table, recordId) -> the cell value Airtable wants for a record link
+// Order: snapshot -> header -> elements -> lines -> delete orphan lines -> delete
+// orphan elements. Created recIds are captured as we go; on ANY error we roll back
+// the creates (lines, elements, header — reverse order) and surface the snapshot.
+async function executeWritePlan(plan, payload, existing, opts) {
+  const o = opts || {};
+  const dryRun = o.dryRun !== false;             // default TRUE
+  const tx = o.transport || null;
+  const log = o.log || (typeof console !== 'undefined' ? console.log : function () {});
+  const ref = plan.header.key;
+  const snapshot = snapshotExisting(ref, existing);
+  const created = [];                            // {table, recordId, key} for rollback
+  const result = { ref: ref, dryRun: dryRun, wrote: false, counts: wbPlanCounts(plan),
+    snapshot: snapshot, created: created, plan: plan, payload: payload };
+
+  if (dryRun || !tx) {
+    logDryRun(plan, payload, log);
+    result.note = tx ? 'dry-run: transport supplied but opts.dryRun !== false — nothing written'
+                     : 'dry-run: no transport supplied — nothing written';
+    return result;
+  }
+
+  // ---- REAL MODE (reached only with transport + dryRun:false) ----
+  const F = WORKS_WB;
+  const elRec = {};                              // elementId -> recId
+  try {
+    let headerRec;
+    if (plan.header.op === 'create') {
+      headerRec = await tx.create(F.header.table, wbMapFields(F.header.f, plan.header.fields));
+      created.push({ table: F.header.table, recordId: headerRec, key: plan.header.key });
+    } else {
+      await tx.update(F.header.table, plan.header.recordId, wbMapFields(F.header.f, plan.header.fields));
+      headerRec = plan.header.recordId;
+    }
+    for (const el of plan.elements) {
+      const fields = Object.assign({}, el.fields, { quotation: tx.link(F.header.table, headerRec) });
+      if (el.op === 'create') {
+        const id = await tx.create(F.element.table, wbMapFields(F.element.f, fields));
+        elRec[el.key] = id; created.push({ table: F.element.table, recordId: id, key: el.key });
+      } else { await tx.update(F.element.table, el.recordId, wbMapFields(F.element.f, fields)); elRec[el.key] = el.recordId; }
+    }
+    for (const ln of plan.lines) {
+      const fields = Object.assign({}, ln.fields, { element: tx.link(F.element.table, elRec[ln.parent.byKey]) });
+      if (ln.op === 'create') {
+        const id = await tx.create(F.line.table, wbMapFields(F.line.f, fields));
+        created.push({ table: F.line.table, recordId: id, key: ln.key });
+      } else { await tx.update(F.line.table, ln.recordId, wbMapFields(F.line.f, fields)); }
+    }
+    for (const d of plan.deletes.lines) await tx.remove(F.line.table, d.recordId);
+    for (const d of plan.deletes.elements) await tx.remove(F.element.table, d.recordId);
+    result.wrote = true;
+    return result;
+  } catch (err) {
+    result.error = String(err && err.message || err);
+    result.rolledBack = await wbRollback(tx, created, log);
+    result.note = 'write FAILED — created records deleted; restore any updated rows from result.snapshot';
+    return result;
+  }
+}
+
+// One-call inspection entry point: build payload -> diff vs existing -> snapshot ->
+// log -> return the full plan. NEVER writes (no transport passed).
+async function dryRunWorksWriteBack(schedule, meta, existing, opts) {
+  const o = opts || {};
+  const payload = buildWritePayload(schedule, meta, o);
+  const plan = diffWritePlan(payload, existing);
+  return executeWritePlan(plan, payload, existing, { dryRun: true, log: o.log });
+}
+
+if (typeof window !== 'undefined') {
+  window.NovaWorksWriteBack = { WORKS_WB, WORKS_ELEMENT_META,
+    wbSlug, wbElementId, wbLineId, buildWritePayload, diffWritePlan, snapshotExisting,
+    logDryRun, executeWritePlan, dryRunWorksWriteBack };
+}
+// === NOVA WORKS WRITE-BACK (costing layer step 7) — END ===
+
 // ---- Photo storage helpers (R2 via Worker) ----
 // Photos live on R2 under surveys/{NOV-id}/{ts}-{rand}.jpg. Locally we
 // keep a small thumbnail in the base64 field, plus the R2 key. The
