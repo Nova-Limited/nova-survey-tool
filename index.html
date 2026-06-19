@@ -4511,6 +4511,118 @@ if (typeof window !== 'undefined') {
 }
 // === NOVA WORKS WRITE-BACK (costing layer step 7) — END ===
 
+// === NOVA REPAIR WRITE-BACK (costing layer step 7 — repair / Option B) — BEGIN ===
+// Repair mode (Tier 1) write-back. Option B is LIVE on the base (2026-06-19):
+// Quotation Elements carries a "Repair" Element Type, Quotation Line Items has a
+// lookup "Element Type (from Element)", and the four uplift formulas branch
+// IF({Element Type (from Element)} = "Repair", 0, {cost} × rate). So a repair
+// element's lines carry NO 4% / 35% uplift and Total to Client = Materials Cost +
+// Labour Cost, £-for-£ (verified on the base: £100 mat + £100 lab → £200 on a
+// Repair element vs £278 on a works element; works elements unaffected).
+//
+// The tool's whole job for repair is therefore: group the PRICED repair-schedule
+// lines (step 2, generateRepairSchedule) into one element PER FAULT with Element
+// Type = "Repair", write each line's Quantity + per-unit costs (materials/labour
+// split KEPT for actuals reconciliation), and let the base zero the uplift. This
+// is mechanically a works element with rates 0/0, so it reuses priceLine (at
+// REPAIR_RATES), the WORKS_WB field map, and the diff/snapshot/execute engine.
+// Header/element money carry zero contingency/margin; billed total = base cost.
+//
+// Unpriced repair-schedule entries (labour-only tasks → step-3 labour floor, gaps,
+// manual, standing items, unmapped/flagged faults) need estimator input and are
+// DEFERRED (listed in payload.pending), exactly as works-mode defers standing
+// items. DRY-RUN BY DEFAULT; real repair quotes only on Jamie's explicit go.
+
+const REPAIR_RATES = { contingency: 0, margin: 0 };   // uplift zeroed (the base does the same for a Repair element)
+
+function buildRepairWritePayload(repairSchedule, meta, opts) {
+  const o = opts || {};
+  const idx = o.rcIndex || (typeof rateCardIndex === 'function' ? rateCardIndex() : new Map());
+  const m = meta || {};
+  const ref = String(m.quotationReference || '').trim();
+  if (!ref) throw new Error('buildRepairWritePayload: meta.quotationReference is required (the upsert key)');
+  const pending = [];
+
+  // Only priced rate-card lines are written; everything else is deferred (listed).
+  const order = [];                       // first-seen fault order
+  const byFault = new Map();              // faultRef -> { label, lines:[] }
+  ((repairSchedule && repairSchedule.lines) || []).forEach((ln) => {
+    if (ln.kind !== 'rate-line' || !ln.found || ln.cost == null) {
+      pending.push('repair-deferred:' + (ln.ref || '?') + ':' + (ln.item || ln.task || ln.kind));
+      return;
+    }
+    if (!byFault.has(ln.ref)) { byFault.set(ln.ref, { label: ln.faultLabel || ln.ref, lines: [] }); order.push(ln.ref); }
+    byFault.get(ln.ref).lines.push(ln);
+  });
+  ['standing', 'gaps', 'manual', 'unmapped', 'flags'].forEach((bucket) => {
+    ((repairSchedule && repairSchedule[bucket]) || []).forEach((x) => pending.push('repair-' + bucket + ':' + (x.ref || x.trigger || x.faultType || '?')));
+  });
+
+  let hMat = 0, hLab = 0, hTotal = 0;
+  const elements = order.map((faultRef, ei) => {
+    const grp = byFault.get(faultRef);
+    const elementId = wbSlug(ref) + '-' + wbSlug(faultRef);
+    let eMat = 0, eLab = 0, eTotal = 0;
+    const lines = grp.lines.map((ln, li) => {
+      const it = idx.get(String(ln.item || '').trim().toLowerCase());
+      const matPer = (it && typeof it.materials === 'number') ? it.materials : 0;
+      const labPer = (it && typeof it.labour === 'number') ? it.labour : 0;
+      const p = priceLine(Number(ln.qty) || 0, matPer, labPer, REPAIR_RATES);   // 0/0 → no uplift, mirrors the base
+      eMat += p.materialsCost; eLab += p.labourCost; eTotal += p.totalToClient;
+      return { key: elementId + '-' + wbSlug(ln.item), fields: {
+        lineId: elementId + '-' + wbSlug(ln.item), number: li + 1,
+        section: (it && it.category) || null,
+        costType: (it && it.costType) || 'Materials & Labour',
+        item: ln.item, quantity: p.quantity, uom: (it && it.unit) || ln.unit || null,
+        materialsCostPerUnit: matPer, labourCostPerUnit: labPer
+      }, meta: { found: !!it, tradeConfirm: ln.tradeConfirm || null } };
+    });
+    hMat += eMat; hLab += eLab; hTotal += eTotal;
+    return { key: elementId, typeConfirm: null, fields: {
+      elementId: elementId, name: grp.label, number: ei + 1, type: 'Repair',
+      roofArea: null, wallArea: null,
+      materialsCost: eMat, labourCost: eLab, totalToClient: eTotal
+    }, lines: lines };
+  });
+
+  // Header — repair carries NO uplift, so contingency/margin = 0 and the billed
+  // total IS the base cost. Percent fields 0 (the per-line Element Type, not the
+  // header, drives the formulas; 0 here is the honest figure for a pure-repair quote).
+  const header = { key: ref, fields: {
+    ref: ref, projectName: m.projectName || ref, worksDesc: m.worksDescription || '',
+    status: WORKS_WB.status,
+    roofArea: null, wallArea: null,
+    marginPct: 0, contingencyPct: 0,
+    materialsCost: hMat, labourCost: hLab, disbursementsCost: 0,
+    totalContingency: 0, totalMargin: 0,
+    projectTotalCost: hMat + hLab, totalToClient: hTotal,
+    costPerM2: null
+  } };
+
+  return { ref: ref, mode: 'repair', header: header, elements: elements,
+    marginPresentation: { computedMargin: 0, presentedMargin: 0, residualAbsorbed: 0 },
+    deferredItems: pending, pending: pending, provisional: pending.length > 0 };
+}
+
+// One-call inspection entry point — build repair payload → diff vs existing →
+// snapshot → log → return the plan. NEVER writes. Reconciliation is trivially £0
+// (no uplift → billed = base cost), included for parity with the works path.
+async function dryRunRepairWriteBack(repairSchedule, meta, existing, opts) {
+  const o = opts || {};
+  const payload = buildRepairWritePayload(repairSchedule, meta, o);
+  const t = payload.header.fields.totalToClient;
+  payload.reconciliation = { toolTotal: t, airtableTotal: t, breakdownTotal: t, drift: 0, breakdownResidual: 0, reconciled: true, line: null };
+  const plan = diffWritePlan(payload, existing);
+  const res = await executeWritePlan(plan, payload, existing, { dryRun: true, log: o.log });
+  res.reconciliation = payload.reconciliation;
+  return res;
+}
+
+if (typeof window !== 'undefined') {
+  window.NovaRepairWriteBack = { REPAIR_RATES, buildRepairWritePayload, dryRunRepairWriteBack };
+}
+// === NOVA REPAIR WRITE-BACK (costing layer step 7 — repair / Option B) — END ===
+
 // ---- Photo storage helpers (R2 via Worker) ----
 // Photos live on R2 under surveys/{NOV-id}/{ts}-{rand}.jpg. Locally we
 // keep a small thumbnail in the base64 field, plus the R2 key. The
