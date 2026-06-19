@@ -3842,8 +3842,12 @@ if (typeof window !== 'undefined') {
 // exactly (pulled from the base 2026-06-18). Per line, materials and labour are
 // SEPARATE streams; for each, contingency (4%) and margin (35%) are BOTH taken
 // off the base cost INDEPENDENTLY (not compounded): a £100 line = 100 + 4 + 35 =
-// £139, NOT 100 x 1.04 x 1.35. Every one of the 11 columns rounds to whole
-// pounds. The 0.04 / 0.35 are HARDCODED in the Airtable formulas today — the
+// £139, NOT 100 x 1.04 x 1.35. The cost/contingency/margin columns DISPLAY to
+// whole pounds, but each stream's Total rounds ONCE from the full-precision sum —
+// exactly as the base does (its Total formula references the full-precision
+// underlying cost/contingency/margin, not their precision-0 display), so a
+// stream's rounded columns can read £1 off its own Total. The 0.04 / 0.35 are
+// HARDCODED in the Airtable formulas today — the
 // Quotation header's Margin Percent / Contingency Percent fields are NOT
 // referenced by them, so changing the header does not change the lines. Kept
 // literal here to agree with the base. If these ever become header/config-driven,
@@ -3903,13 +3907,19 @@ function loadWorksConfig(overrides) {
 }
 
 // Price one cost stream exactly as the Line Items formulas do: contingency and
-// margin are EACH taken off the (rounded) base cost, independently; each column
-// rounds to whole pounds. £100 -> { cost:100, contingency:4, margin:35, total:139 }.
+// margin are EACH taken off the FULL-PRECISION base cost, independently. The
+// cost/contingency/margin columns DISPLAY rounded (precision-0), but the Total
+// rounds ONCE from the full-precision sum — matching the base, whose Total
+// formula reads the full-precision underlying values, not the rounded display.
+// £100 -> { cost:100, contingency:4, margin:35, total:139 }; a base like £56784
+// -> total round(56784 x 1.39)=78930, though 56784+2271+19874 displays as 78929.
 function priceStream(baseCost, rates) {
-  const cost = Math.round(Number(baseCost) || 0);
-  const contingency = Math.round(cost * rates.contingency);
-  const margin = Math.round(cost * rates.margin);
-  return { cost, contingency, margin, total: cost + contingency + margin };
+  const base = Number(baseCost) || 0;                  // full precision (qty x per-unit)
+  const cost = Math.round(base);
+  const contingency = Math.round(base * rates.contingency);
+  const margin = Math.round(base * rates.margin);
+  const total = Math.round(base + base * rates.contingency + base * rates.margin);
+  return { cost, contingency, margin, total };
 }
 
 // Full 11-column line pricing — materials stream + labour stream (each its own
@@ -4325,6 +4335,13 @@ function logDryRun(plan, payload, log) {
   });
   plan.deletes.lines.forEach((d) => log('     - [DELETE orphan line] ' + d.key + '  (rec ' + d.recordId + ')'));
   plan.deletes.elements.forEach((d) => log('  • [DELETE orphan element] ' + d.key + '  (rec ' + d.recordId + ')'));
+  if (payload.reconciliation) {
+    const r = payload.reconciliation;
+    log('  §3 reconciliation: tool £' + r.toolTotal + ' vs base-recompute £' + r.airtableTotal + ' → drift £' + r.drift
+      + (r.reconciled ? '  ✓ reconciled — NO §3 line written' : '  → would WRITE §3 line £' + r.drift));
+    log('     breakdown Σ(cost+contingency+margin) £' + r.breakdownTotal + ' vs billed Total £' + r.toolTotal
+      + ' → residual £' + r.breakdownResidual + ' (base-inherent per-line rounding; not auto-reconciled)');
+  }
   if (payload.deferredStandingItems && payload.deferredStandingItems.length)
     log('  deferred (unpriced standing items, NOT written): ' + payload.deferredStandingItems.map((s) => s.key).join(', '));
   if (payload.pending && payload.pending.length) log('  pending: ' + payload.pending.join(', '));
@@ -4410,19 +4427,61 @@ async function executeWritePlan(plan, payload, existing, opts) {
   }
 }
 
+// §3 rounding reconciliation. Step-6 priceStream now rounds each stream Total once
+// from full precision, mirroring the base, so the total the tool PREVIEWS equals
+// the total Airtable RECOMPUTES from the same Quantity + per-unit costs — they
+// agree, drift 0. This computes that drift explicitly and yields a correction line
+// ONLY when it is non-zero; a £0 correction is never written (noise in the
+// breakout). POLICY (Jamie, 2026-06-19): write the §3 line iff drift !== 0.
+//
+// Separately it surfaces the breakdown RESIDUAL — Σ(rounded cost+contingency+
+// margin) vs Σ(rounded line Totals). That gap is the base's OWN per-line rounding
+// (the rounded breakout columns don't re-add to the full-precision Total), it is
+// present in Airtable too, and it is NOT auto-reconciled here. Whether the §3 line
+// should instead target this residual is a read-back decision for Jamie.
+function computeRoundingReconciliation(schedule, opts) {
+  const o = opts || {};
+  const cfg = o.config || (typeof loadWorksConfig === 'function' ? loadWorksConfig() : { margin: 0.35, contingency: 0.04 });
+  // Recompute each line Total from Quantity + per-unit costs via the SAME mirrored
+  // formula Airtable uses; their sum is the total the base will show.
+  let airtableTotal = 0;
+  (schedule.elements || []).forEach((el) => (el.lines || []).forEach((ln) => {
+    const q = Number(ln.quantity) || 0;
+    airtableTotal += priceStream(q * (Number(ln.materialsCostPerUnit) || 0), cfg).total
+                   + priceStream(q * (Number(ln.labourCostPerUnit) || 0), cfg).total;
+  }));
+  const toolTotal = Number(schedule.clientTotal) || 0;     // header Total to Client we would write
+  const breakdownTotal = (Number(schedule.subtotalCost) || 0) + (Number(schedule.contingency) || 0) + (Number(schedule.margin) || 0);
+  const drift = toolTotal - airtableTotal;                 // tool vs base — 0 when aligned
+  const out = {
+    toolTotal: toolTotal, airtableTotal: airtableTotal, breakdownTotal: breakdownTotal,
+    drift: drift, breakdownResidual: toolTotal - breakdownTotal,
+    reconciled: drift === 0, line: null
+  };
+  if (drift !== 0) {
+    out.line = { item: 'Rounding reconciliation (§3)', section: 'Cons', costType: 'Materials & Labour',
+      quantity: 1, materialsCostPerUnit: drift, labourCostPerUnit: 0,
+      note: 'auto §3 reconciliation: tool £' + toolTotal + ' − base £' + airtableTotal + ' = £' + drift };
+  }
+  return out;
+}
+
 // One-call inspection entry point: build payload -> diff vs existing -> snapshot ->
-// log -> return the full plan. NEVER writes (no transport passed).
+// reconcile -> log -> return the full plan. NEVER writes (no transport passed).
 async function dryRunWorksWriteBack(schedule, meta, existing, opts) {
   const o = opts || {};
   const payload = buildWritePayload(schedule, meta, o);
+  payload.reconciliation = computeRoundingReconciliation(schedule, o);
   const plan = diffWritePlan(payload, existing);
-  return executeWritePlan(plan, payload, existing, { dryRun: true, log: o.log });
+  const res = await executeWritePlan(plan, payload, existing, { dryRun: true, log: o.log });
+  res.reconciliation = payload.reconciliation;
+  return res;
 }
 
 if (typeof window !== 'undefined') {
   window.NovaWorksWriteBack = { WORKS_WB, WORKS_ELEMENT_META,
     wbSlug, wbElementId, wbLineId, buildWritePayload, diffWritePlan, snapshotExisting,
-    logDryRun, executeWritePlan, dryRunWorksWriteBack };
+    computeRoundingReconciliation, logDryRun, executeWritePlan, dryRunWorksWriteBack };
 }
 // === NOVA WORKS WRITE-BACK (costing layer step 7) — END ===
 
