@@ -2542,6 +2542,112 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report .bk-foot .tag{font-size:18px;font-weight:700;color:var(--orange);}
   .sl-report .bk-foot .co{font-size:13px;color:rgba(255,255,255,.7);margin-top:10px;}
   .sl-report .bk-foot .rg{font-size:11px;color:rgba(255,255,255,.45);margin-top:6px;}
+
+  /* repeated brand burst is print-only; hidden on screen */
+  .sl-report .sl-print-burst{ display:none; }
+  /* per-group column header is print-only; the single <thead> serves on screen */
+  .sl-report .sl-colhdr{ display:none; }
+
+  /* Brand burst on every paginated page. Paged.js clones the .sl-print-burst
+     (position:fixed) into each page box (as position:absolute) and renders its
+     preview in SCREEN media, so the burst's look lives here at TOP LEVEL via
+     Paged.js's own .pagedjs_pages container — not inside @media print — so it
+     shows in both the Paged.js preview and the print. Matches nothing in the
+     Kingston report (which has no .sl-print-burst), so it stays scoped. */
+  .pagedjs_pages .sl-print-burst{
+    display:block; right:-250px; bottom:-250px; width:500px; height:500px;
+    opacity:.16; z-index:0; pointer-events:none;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    background:center/contain no-repeat;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500' viewBox='0 0 500 500'%3E%3Cg fill='none' stroke='%23F7901E' stroke-width='20'%3E%3Ccircle cx='250' cy='250' r='120'/%3E%3Ccircle cx='250' cy='250' r='200'/%3E%3Ccircle cx='250' cy='250' r='280'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* ============================================================
+     SCHEDULE-LED PRINT MODEL — A4 landscape, the same page size as
+     the Kingston report. The @page rules and the page: assignments are
+     TOP-LEVEL (not inside @media print) because the Paged.js polyfill
+     reads top-level @page. They are NAMED (slcover / slpage) and only
+     referenced by .sl-report elements, so Kingston's @page model and the
+     on-screen view are untouched (page: is inert on screen). */
+  /* Default page SIZE only (identical to Kingston's, so it never changes
+     Kingston's print) — Paged.js applies one size to every page, so this sets
+     A4 landscape for the whole schedule-led document. Margins are set per
+     named page below. */
+  @page{ size:297mm 210mm; }
+  @page slcover{ size:297mm 210mm; margin:0; }
+  @page slpage{
+    size:297mm 210mm;
+    margin:12mm 14mm 16mm 14mm;
+    @bottom-left{
+      content:"The truth from above";
+      font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+      font-size:8pt; font-weight:700; color:#434244;
+      border-top:.5pt solid #F7901E; padding-top:3mm; vertical-align:top;
+    }
+    @bottom-right{
+      content:"Page " counter(page) " of " counter(pages);
+      font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+      font-size:8pt; color:#9a9a9c;
+      border-top:.5pt solid #F7901E; padding-top:3mm; vertical-align:top; text-align:right;
+    }
+  }
+  .sl-report .sheet.dark{ page:slcover; }
+  .sl-report .sheet:not(.dark),
+  .sl-report .sl-schedule,
+  .sl-report .sl-cards{ page:slpage; }
+
+  @media print {
+    /* strip the screen scaffolding: no centring, padding, gaps, page bg,
+       so there is no blank leading page and no inter-sheet gaps */
+    .sl-report{ display:block; padding:0; margin:0; gap:0; background:#fff; align-items:stretch; }
+
+    /* keep the burst element position:fixed so Paged.js picks it up to repeat
+       per page; its look is defined at top level (see .pagedjs_pages rule). */
+    .sl-report .sl-print-burst{ display:block; position:fixed; }
+    /* in-content decorative rings off for print — the fixed burst replaces them */
+    .sl-report .bleed{ display:none !important; }
+
+    /* dark cover + back: full-bleed page. Sized a little under the page and
+       given a large ink box-shadow that bleeds dark to every edge, so the
+       sheet never overflows the printable height (which would split the cover
+       across two pages) yet still reads as edge-to-edge dark. */
+    .sl-report .sheet.dark{ width:297mm; height:194mm; margin:0;
+      box-shadow:0 0 0 24mm #434244; break-after:page; break-inside:avoid; overflow:hidden;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+    /* light fixed sheets (exec / areas / findings): fill the margined page,
+       one per page; the @page margin-box footer replaces the in-content foot */
+    .sl-report .sheet:not(.dark){ width:auto; height:auto; min-height:176mm;
+      box-shadow:none; break-after:page; break-inside:avoid; overflow:visible; }
+    .sl-report .sheet .foot, .sl-report .sheet .cv-foot{ display:none; }
+
+    /* flowing blocks: full width on the margined page */
+    .sl-report .sl-schedule, .sl-report .sl-cards{
+      width:100% !important; max-width:none !important;
+      box-shadow:none !important; background:#fff; }
+    .sl-report .sl-schedule .pad, .sl-report .sl-cards .pad{ padding:0; }
+
+    /* condition schedule: flows; keep area groups together; the per-group
+       column header (sl-colhdr) gives every page its column labels, since the
+       single <thead> is hidden in print and Paged.js does not clone it */
+    .sl-report .sl-schedule{ break-before:page; }
+    .sl-report .sl-schedule table thead{ display:none; }
+    .sl-report .sl-colhdr{ display:table-row; }
+    .sl-report .sl-colhdr th{ font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+      color:var(--grey); text-align:left; font-weight:700; padding:7px 8px 5px; border-bottom:1px solid var(--line); }
+    .sl-report .sl-colhdr th.r{ text-align:right; }
+    .sl-report .sl-schedule tbody.sl-area-group{ break-inside:avoid; }
+    .sl-report .sl-schedule .boxrow{ break-inside:avoid; margin-top:14px; }
+
+    /* priority cards: start fresh, two per page */
+    .sl-report .sl-cards{ break-before:page; }
+    .sl-report .sl-cards .cards{ break-inside:avoid; break-after:page; }
+    .sl-report .sl-cards .cards:last-child{ break-after:auto; }
+    .sl-report .sl-cards .card{ box-shadow:none; }
+
+    /* no trailing blank page after the back cover */
+    .sl-report > :last-child{ break-after:auto; }
+  }
 </style>
 </head>
 <body>
@@ -7009,7 +7115,7 @@ function slRenderExec(survey) {
     : '<div class="bleed"><svg class="rings" style="right:-60px;bottom:-60px;" width="240" height="240" viewBox="0 0 240 240"><g fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"><circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="100"/><circle cx="200" cy="200" r="140"/></g></svg></div>SITE OVERVIEW &middot; AERIAL';
 
   const row = function(k, vHtml) {
-    return '<div class="row"><div class="rk">' + k + '</div><div class="rv">' + (vHtml || '&mdash;') + '</div></div>';
+    return '<div class="row"><div class="rk">' + k + '</div><div class="rv">' + (vHtml || 'TBC') + '</div></div>';
   };
 
   return '' +
@@ -7113,18 +7219,26 @@ function slRenderSchedule(survey, costInfo) {
     return arr.slice().sort(function(a, b) { return (Number(a.number) || 0) - (Number(b.number) || 0); });
   };
   const costCell = function(num) {
-    if (!costsPresent) return '&mdash;';
+    if (!costsPresent) return 'TBC';
     if (mode === 'works') return 'Included';
     const c = costsByRef['F' + num];
-    return (typeof c === 'number' && isFinite(c)) ? slGBP(c) : '&mdash;';
+    return (typeof c === 'number' && isFinite(c)) ? slGBP(c) : 'TBC';
   };
 
-  let bodyRows = '';
+  // One <tbody> per area group so print can keep a group together
+  // (break-inside: avoid) while the <thead> repeats on each continuation page.
+  let bodyGroups = '';
   const areaSubtotals = [];
   groups.forEach(function(g) {
     const faults = sortByNum(g.faults);
-    bodyRows += '<tr class="grp"><td colspan="6">' + escapeHtml(g.area) +
-      ' <span class="gf">' + faults.length + ' fault' + (faults.length === 1 ? '' : 's') + '</span></td></tr>';
+    // grp = area band; sl-colhdr = a print-only column header repeated at the
+    // start of every group, so each printed page (which always begins with a
+    // whole group) carries the column labels. (This Paged.js build does not
+    // clone <thead> across pages.) On screen sl-colhdr is hidden; the single
+    // <thead> serves there.
+    let rows = '<tr class="grp"><td colspan="6">' + escapeHtml(g.area) +
+      ' <span class="gf">' + faults.length + ' fault' + (faults.length === 1 ? '' : 's') + '</span></td></tr>' +
+      '<tr class="sl-colhdr"><th>Ref</th><th>Location</th><th>Severity</th><th>Recommended action</th><th class="r">Ev</th><th class="r">Cost</th></tr>';
     let areaSum = 0;
     faults.forEach(function(f) {
       const num = (f.number != null ? f.number : '?');
@@ -7137,7 +7251,7 @@ function slRenderSchedule(survey, costInfo) {
         'style="font-size:10px;font-weight:700;color:var(--orange);text-decoration:none;white-space:nowrap;">View</a>';
       const c = costsByRef['F' + num];
       if (costsPresent && mode === 'repair' && typeof c === 'number' && isFinite(c)) areaSum += c;
-      bodyRows += '<tr>' +
+      rows += '<tr>' +
         '<td class="ref">F' + num + '</td>' +
         '<td class="loc">' + escapeHtml(f.location || '') + '</td>' +
         '<td>' + sevPill + '</td>' +
@@ -7146,16 +7260,17 @@ function slRenderSchedule(survey, costInfo) {
         '<td class="cost">' + costCell(num) + '</td>' +
       '</tr>';
     });
-    const subVal = !costsPresent ? '&mdash;' : ((mode === 'works') ? 'Included' : slGBP(areaSum));
+    const subVal = !costsPresent ? 'TBC' : ((mode === 'works') ? 'Included' : slGBP(areaSum));
     areaSubtotals.push({ area: g.area, value: subVal });
-    bodyRows += '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(g.area) +
+    rows += '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(g.area) +
       '&nbsp;&nbsp;<b>' + subVal + '</b></td></tr>';
+    bodyGroups += '<tbody class="sl-area-group">' + rows + '</tbody>';
   });
 
   const brk = areaSubtotals.map(function(a) {
     return escapeHtml(a.area) + '&nbsp;&nbsp;' + a.value;
   }).join('<br>');
-  const grandHtml = !costsPresent ? '&mdash;' : (slGBP(ci.total) + ' <small>+VAT</small>');
+  const grandHtml = !costsPresent ? 'TBC' : (slGBP(ci.total) + ' <small>+VAT</small>');
   const subLine = 'All ' + slSpellCount(stats.total) + ' fault' + (stats.total === 1 ? '' : 's') +
     ', grouped by area with a subtotal each. Each row points to its full photo set in the online gallery.';
 
@@ -7174,7 +7289,7 @@ function slRenderSchedule(survey, costInfo) {
       '<div class="sub">' + escapeHtml(subLine) + '</div>' +
       '<table>' +
         '<thead><tr><th>Ref</th><th>Location</th><th>Severity</th><th>Recommended action</th><th class="r">Ev</th><th class="r">Cost</th></tr></thead>' +
-        '<tbody>' + bodyRows + '</tbody>' +
+        bodyGroups +
       '</table>' +
       '<div class="boxrow">' +
         '<div class="totalbox">' +
@@ -9549,7 +9664,7 @@ function slRenderCards(survey) {
     const ext = faultExtent(f);
     const extTxt = (ext && (ext.qty || ext.unit))
       ? String((ext.qty != null ? ext.qty : '') + (ext.unit ? ' ' + ext.unit : '')).trim()
-      : '—';
+      : 'TBC';
     const photos = Array.isArray(f.photos) ? f.photos : [];
     const photoCount = photos.length;
     const url = 'https://nova-limited.com/g/' + slug + '?f=F' + num;
@@ -9580,11 +9695,11 @@ function slRenderCards(survey) {
         '<span class="ctitle">' + escapeHtml(title) + '</span></div>' +
         '<span class="csev" style="background:' + col + ';">' + (sev ? sev.toUpperCase() : 'UNRATED') + '</span></div>' +
       '<div class="kv">' +
-        '<div><div class="label">Location</div><div class="val">' + (f.location ? escapeHtml(f.location) : '—') + '</div></div>' +
+        '<div><div class="label">Location</div><div class="val">' + (f.location ? escapeHtml(f.location) : 'TBC') + '</div></div>' +
         '<div><div class="label">Extent</div><div class="val">' + escapeHtml(extTxt) + '</div></div>' +
       '</div>' +
-      '<div class="block"><div class="label">Observation</div><p>' + (f.description ? escapeHtml(f.description) : '—') + '</p></div>' +
-      '<div class="block"><div class="label">Recommended action</div><p>' + (f.recommendation ? escapeHtml(f.recommendation) : '—') + '</p></div>' +
+      '<div class="block"><div class="label">Observation</div><p>' + (f.description ? escapeHtml(f.description) : 'TBC') + '</p></div>' +
+      '<div class="block"><div class="label">Recommended action</div><p>' + (f.recommendation ? escapeHtml(f.recommendation) : 'TBC') + '</p></div>' +
       photoBlock +
       '<div class="ev-set">' + qr +
         '<div><div class="et">Full evidence set</div>' +
@@ -9636,12 +9751,12 @@ function slRenderFindings(survey, costInfo) {
       const c = costsByRef['F' + (f.number)];
       if (mode === 'repair' && typeof c === 'number' && isFinite(c)) sum += c;
     });
-    const val = !costsPresent ? '&mdash;' : ((mode === 'works') ? 'Included' : slGBP(sum));
+    const val = !costsPresent ? 'TBC' : ((mode === 'works') ? 'Included' : slGBP(sum));
     return '<div class="crow"><span>' + escapeHtml(g.area) + '</span><span>' + val + '</span></div>';
   }).join('');
 
-  const grand     = !costsPresent ? '&mdash;' : slGBP(ci.total);
-  const grandRow  = !costsPresent ? '&mdash;' : (slGBP(ci.total) + ' +VAT');
+  const grand     = !costsPresent ? 'TBC' : slGBP(ci.total);
+  const grandRow  = !costsPresent ? 'TBC' : (slGBP(ci.total) + ' +VAT');
   const condition = s['f-overall-rating'] || 'TBC';
   const lifeNow   = s['f-remaining-life-asstands'] || 'TBC';
   const lifeWorks = s['f-remaining-life-postworks'] || 'TBC';
@@ -9724,6 +9839,10 @@ function slRenderBack(survey) {
 // NOT wired into renderReport()/the live report path.
 function renderScheduleLedReport(survey, costInfo) {
   return '<div class="sl-report">' +
+    // Print-only brand burst — Paged.js repeats this fixed element on every
+    // page; its ring is a tiny inline-SVG background in the stylesheet (cheap
+    // to clone). The element is display:none on screen.
+    '<div class="sl-print-burst" aria-hidden="true"></div>' +
     slRenderCover(survey) +
     slRenderExec(survey) +
     slRenderAreasOverview(survey) +
