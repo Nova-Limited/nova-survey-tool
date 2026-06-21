@@ -7097,6 +7097,12 @@ function slGallerySlug(s) {
 function slRenderSchedule(survey, costInfo) {
   const s  = survey || {};
   const ci = costInfo || {};
+  // costsPresent: does costInfo actually carry cost data? When it does not
+  // (empty/absent costInfo), the schedule renders as a condition document —
+  // the Cost column, per-area subtotals and grand total are left blank.
+  const costsPresent = !!(costInfo && (costInfo.mode === 'works' || costInfo.mode === 'repair'
+    || typeof costInfo.total === 'number'
+    || (costInfo.costsByRef && Object.keys(costInfo.costsByRef).length > 0)));
   const mode = (ci.mode === 'works') ? 'works' : 'repair';
   const costsByRef = ci.costsByRef || {};
   const groups = slGroupFaultsByArea(s);
@@ -7107,6 +7113,7 @@ function slRenderSchedule(survey, costInfo) {
     return arr.slice().sort(function(a, b) { return (Number(a.number) || 0) - (Number(b.number) || 0); });
   };
   const costCell = function(num) {
+    if (!costsPresent) return '&mdash;';
     if (mode === 'works') return 'Included';
     const c = costsByRef['F' + num];
     return (typeof c === 'number' && isFinite(c)) ? slGBP(c) : '&mdash;';
@@ -7129,7 +7136,7 @@ function slRenderSchedule(survey, costInfo) {
       const ev = '<a href="' + url + '" target="_blank" rel="noopener" ' +
         'style="font-size:10px;font-weight:700;color:var(--orange);text-decoration:none;white-space:nowrap;">View</a>';
       const c = costsByRef['F' + num];
-      if (mode === 'repair' && typeof c === 'number' && isFinite(c)) areaSum += c;
+      if (costsPresent && mode === 'repair' && typeof c === 'number' && isFinite(c)) areaSum += c;
       bodyRows += '<tr>' +
         '<td class="ref">F' + num + '</td>' +
         '<td class="loc">' + escapeHtml(f.location || '') + '</td>' +
@@ -7139,7 +7146,7 @@ function slRenderSchedule(survey, costInfo) {
         '<td class="cost">' + costCell(num) + '</td>' +
       '</tr>';
     });
-    const subVal = (mode === 'works') ? 'Included' : slGBP(areaSum);
+    const subVal = !costsPresent ? '&mdash;' : ((mode === 'works') ? 'Included' : slGBP(areaSum));
     areaSubtotals.push({ area: g.area, value: subVal });
     bodyRows += '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(g.area) +
       '&nbsp;&nbsp;<b>' + subVal + '</b></td></tr>';
@@ -7148,7 +7155,7 @@ function slRenderSchedule(survey, costInfo) {
   const brk = areaSubtotals.map(function(a) {
     return escapeHtml(a.area) + '&nbsp;&nbsp;' + a.value;
   }).join('<br>');
-  const grand = slGBP(ci.total);
+  const grandHtml = !costsPresent ? '&mdash;' : (slGBP(ci.total) + ' <small>+VAT</small>');
   const subLine = 'All ' + slSpellCount(stats.total) + ' fault' + (stats.total === 1 ? '' : 's') +
     ', grouped by area with a subtotal each. Each row points to its full photo set in the online gallery.';
 
@@ -7174,7 +7181,7 @@ function slRenderSchedule(survey, costInfo) {
           '<div class="bleed"><svg class="rings" style="right:-40px;bottom:-40px;" width="200" height="200" viewBox="0 0 200 200"><g fill="none" stroke="rgba(255,255,255,.06)" stroke-width="14"><circle cx="170" cy="170" r="50"/><circle cx="170" cy="170" r="85"/><circle cx="170" cy="170" r="120"/></g></svg></div>' +
           '<div class="brk">' + brk + '</div>' +
           '<div class="tk">Total for all works</div>' +
-          '<div class="tv">' + grand + ' <small>+VAT</small></div>' +
+          '<div class="tv">' + grandHtml + '</div>' +
         '</div>' +
         '<div class="sevbox">' +
           '<div class="sk" style="margin-bottom:8px;">Faults by severity</div>' +
@@ -9613,6 +9620,11 @@ function slRenderCards(survey) {
 function slRenderFindings(survey, costInfo) {
   const s  = survey || {};
   const ci = costInfo || {};
+  // costsPresent: when costInfo carries no cost data, the cost figures (per
+  // area, the grand total) render blank so the page reads as a condition doc.
+  const costsPresent = !!(costInfo && (costInfo.mode === 'works' || costInfo.mode === 'repair'
+    || typeof costInfo.total === 'number'
+    || (costInfo.costsByRef && Object.keys(costInfo.costsByRef).length > 0)));
   const mode = (ci.mode === 'works') ? 'works' : 'repair';
   const costsByRef = ci.costsByRef || {};
   const groups = slGroupFaultsByArea(s);
@@ -9624,11 +9636,12 @@ function slRenderFindings(survey, costInfo) {
       const c = costsByRef['F' + (f.number)];
       if (mode === 'repair' && typeof c === 'number' && isFinite(c)) sum += c;
     });
-    const val = (mode === 'works') ? 'Included' : slGBP(sum);
+    const val = !costsPresent ? '&mdash;' : ((mode === 'works') ? 'Included' : slGBP(sum));
     return '<div class="crow"><span>' + escapeHtml(g.area) + '</span><span>' + val + '</span></div>';
   }).join('');
 
-  const grand     = slGBP(ci.total);
+  const grand     = !costsPresent ? '&mdash;' : slGBP(ci.total);
+  const grandRow  = !costsPresent ? '&mdash;' : (slGBP(ci.total) + ' +VAT');
   const condition = s['f-overall-rating'] || 'TBC';
   const lifeNow   = s['f-remaining-life-asstands'] || 'TBC';
   const lifeWorks = s['f-remaining-life-postworks'] || 'TBC';
@@ -9657,7 +9670,7 @@ function slRenderFindings(survey, costInfo) {
         '<div class="cba">' +
           '<div class="label" style="margin-bottom:6px;">Cost by area</div>' +
           areaRows +
-          '<div class="crow t"><span>Total for all works</span><span>' + grand + ' +VAT</span></div>' +
+          '<div class="crow t"><span>Total for all works</span><span>' + grandRow + '</span></div>' +
           '<div class="note">Priced line by line in the condition schedule. Subject to access and to no concealed defects being found on opening up.</div>' +
           '<div class="label" style="margin:22px 0 6px;">Faults by severity</div>' +
           sevRows +
@@ -9719,6 +9732,65 @@ function renderScheduleLedReport(survey, costInfo) {
     slRenderFindings(survey, costInfo) +
     slRenderBack(survey) +
   '</div>';
+}
+
+// Report layout dispatcher (additive, PREVIEW-ONLY). Selects the Kingston card
+// layout or the schedule-led layout by fault count, with a manual override, and
+// returns the report markup. NOT wired into the live report path — renderReport
+// remains the tool's entry point; renderReportAuto is reached only from the
+// preview for now.
+//
+//   opts.layoutOverride = 'kingston' | 'schedule-led'   forces that layout.
+//   auto rule (no override): faultCount >= 10 -> schedule-led, else Kingston.
+//
+// costInfo is passed through to the schedule-led renderer (which tolerates an
+// empty/absent costInfo by leaving its cost columns blank). The Kingston layout
+// is a condition document with no cost columns, so it ignores costInfo.
+function renderReportAuto(survey, costInfo, opts) {
+  const s = survey || {};
+  const faultCount = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.length : 0;
+  const override = opts && opts.layoutOverride;
+  const layout = (override === 'kingston' || override === 'schedule-led')
+    ? override
+    : (faultCount >= 10 ? 'schedule-led' : 'kingston');
+
+  if (layout === 'schedule-led') {
+    return renderScheduleLedReport(s, costInfo);
+  }
+
+  // Kingston condition document. This mirrors renderReport(id)'s assembly but
+  // works from a survey OBJECT and RETURNS markup — renderReport takes an id and
+  // writes straight to #report-body, so it can't be reused to get a string.
+  // renderReport itself is left untouched (the live path is unchanged). costInfo
+  // is not consumed here: Kingston has no cost columns.
+  const ec             = s.endClient || {};
+  const clientLine     = (ec.company || ec.contactName || '').trim();
+  const visitDateStr   = fmtDate((s.visit && s.visit.date) || s.createdAt);
+  const refDisplay     = 'NOV-' + s.id;
+  const overallRating  = s['f-overall-rating']    || 'TBC';
+  const recommendation = s['f-recommendation']    || 'TBC';
+  const totalCost      = s['f-total-cost-band']   || 'TBC';
+  const buildings      = Array.isArray(s.buildings) ? s.buildings : [];
+  let sectionCounter = 0;
+  const nextNum = () => String(++sectionCounter).padStart(2, '0');
+
+  let html = '<div class="report">';
+  html += renderCover(s, clientLine, visitDateStr, refDisplay, overallRating, recommendation);
+  if (s['f-executive-summary']) html += renderExecSummary(s, overallRating, nextNum());
+  html += renderSiteInfo(s, nextNum());
+  if (buildings.length) html += renderRoofGeometry(buildings, nextNum());
+  const hasSitePlan =
+    (s.siteImageSource === 'upload' && siteImageSrcFor(s)) ||
+    (Array.isArray(s.siteFaultMarkers) && s.siteFaultMarkers.length) ||
+    (Array.isArray(s.siteImagePins) && s.siteImagePins.length);
+  if (s.clientReportedIssues || s.siteContext) html += renderBackground(s, nextNum());
+  if (hasSitePlan) html += renderSitePlan(s, nextNum());
+  if (Array.isArray(s.siteFaultMarkers) && s.siteFaultMarkers.length) html += renderFindingsAtAGlance(s, nextNum());
+  if (s['f-recommendation'] || s['f-next-steps']) html += renderRecommendationSection(s, recommendation, totalCost, overallRating, nextNum());
+  html += renderCta(s, recommendation, nextNum());
+  html += renderBrandFooter();
+  html += '</div>';
+  return html;
 }
 
 // ============================================================
