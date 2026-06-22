@@ -3093,6 +3093,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
               <span id="sp-schedule-title" style="font-size:13px;font-weight:600;color:#434244;"></span>
             </div>
             <div id="sp-schedule-rows"></div>
+            <!-- Derived costed schedule: auto-pulled rate-card line items per fault + running total -->
+            <div id="sp-costed-schedule" style="display:none;margin-top:16px;"></div>
           </div>
 
         </div>
@@ -3740,7 +3742,7 @@ const FAULT_WORKS_MAP = {
              { item: null, basis: 'labour', task: 'lap reseal' } ],
     standing: ['Access'] },
   'fastener-failure': { mode: 'priced',
-    lines: [ { item: 'Main Fix', basis: 'extent', tradeConfirm: 'Main Fix per Sq m of area, or Stitchers/Bracket Fix per Box/100 — confirm which for this fault' } ],
+    lines: [ { item: 'Main Fix', basis: 'extent', tradeConfirm: 'Main Fix per Sq m of area, or Stitchers/Bracket Fix per Box/100, confirm which for this fault' } ],
     standing: ['Access'] },
   'sheet-damage': { mode: 'priced',
     lines: [ { item: 'Strip', basis: 'extent' },
@@ -3748,22 +3750,22 @@ const FAULT_WORKS_MAP = {
              { item: 'Main Fix', basis: 'extent' } ],
     standing: ['Access', 'Waste'] },
   'failed-flashing': { mode: 'priced',
-    lines: [ { item: 'Eave', basis: 'extent', tradeConfirm: 'pick the flashing subtype (Eave / Ridge / Barge / Cap) — not captured by the fault' } ],
+    lines: [ { item: 'Eave', basis: 'extent', tradeConfirm: 'pick the flashing subtype (Eave / Ridge / Barge / Cap), not captured by the fault' } ],
     standing: ['Access'] },
   'failed-rooflight': { mode: 'priced',
     lines: [ { item: 'Skylight', basis: 'extent' } ],
     standing: ['Access'] },
   'membrane-split': { mode: 'gap',
-    note: 'Single-ply patch / liquid repair — structured manual entry (areas x time), not a unit rate.',
+    note: 'Single-ply patch / liquid repair, structured manual entry (areas x time), not a unit rate.',
     standing: ['Access'] },
   'failed-seam': { mode: 'gap',
-    note: 'Seam re-weld / liquid detail — structured manual entry (areas x time), not a unit rate.',
+    note: 'Seam re-weld / liquid detail, structured manual entry (areas x time), not a unit rate.',
     standing: ['Access'] },
   'upstand-failure': { mode: 'priced',
     lines: [ { item: 'Upstand', basis: 'extent' } ],
     standing: ['Access'] },
   'ponding-water': { mode: 'flag',
-    note: 'Ponding / water not discharging — FLAG ONLY. Recommend falls remediation; feeds the drainage seam (gutter calculator). Not priced here.' },
+    note: 'Ponding / water not discharging, FLAG ONLY. Recommend falls remediation; feeds the drainage seam (gutter calculator). Not priced here.' },
   'blocked-outlet': { mode: 'priced',
     lines: [ { item: null, basis: 'labour', task: 'clear / rod outlet' },
              { item: 'Leafguards', basis: 'count' } ],
@@ -3776,11 +3778,11 @@ const FAULT_WORKS_MAP = {
     lines: [ { item: 'Gutter Liner', basis: 'extent', tradeConfirm: 'Gutter Liner, Trimline or Insulated Gutter per spec; add Outlets / Downpipes if renewed' } ],
     standing: ['Access', 'Waste'] },
   'parapet-gutter-lining': { mode: 'priced',
-    lines: [ { item: 'Gutter Liner', basis: 'extent', tradeConfirm: 'parapet/box gutter lining — confirm Gutter Liner vs bespoke fabrication' } ],
+    lines: [ { item: 'Gutter Liner', basis: 'extent', tradeConfirm: 'parapet/box gutter lining, confirm Gutter Liner vs bespoke fabrication' } ],
     standing: ['Access'] },
   'failed-patch-repair': { mode: 'manual',
-    note: 'Failed patch repair — depends what was patched; estimator enters the remedial line.' },
-  'other': { mode: 'manual', note: 'Building-specific — free-text manual line entry by estimator.' }
+    note: 'Failed patch repair, depends what was patched; estimator enters the remedial line.' },
+  'other': { mode: 'manual', note: 'Building-specific, free-text manual line entry by estimator.' }
 };
 
 // Standing-item triggers -> the job-level rate-card line they attach (once).
@@ -11023,6 +11025,7 @@ function spOpenFaultPanel(id) {
   if (imgBlock) imgBlock.style.display = isOffPlan ? 'block' : 'none';
   if (isOffPlan) spRenderFaultImagePanel(fault);
   document.getElementById('sp-fault-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  spRenderCostedSchedule();   // refresh derived costs on fault selection
 }
 
 function spCloseFaultPanel() {
@@ -11326,6 +11329,7 @@ function spFaultExtentChange(field, value) {
     }
   }
   spRenderFaultTotal();
+  spRenderCostedSchedule();   // extent feeds the priced quantities
 }
 
 // Trim trailing zeros from a decimal: "78.00" -> "78", "26.5" -> "26.5".
@@ -11562,6 +11566,116 @@ function spRenderSchedule() {
     });
     rows.appendChild(row);
   });
+  spRenderCostedSchedule();
+}
+
+// Derived costed schedule for the editor. Wires the existing repair pricing
+// engine (generateRepairSchedule -> FAULT_WORKS_MAP + the /rate-card cache) to
+// the fault list: each fault pulls its mapped rate-card line items and shows a
+// per-fault priced remedial schedule, with a running total. No new pricing path
+// — it only surfaces what generateRepairSchedule returns. Faults whose type has
+// no rate-card line (cut edge, flat-roof / liquid systems) are flagged "No
+// rate-card price yet" with a blank figure (the slot the override fills next).
+function spRenderCostedSchedule() {
+  const host = document.getElementById('sp-costed-schedule');
+  if (!host) return;
+  const survey = spCurrentSurvey();
+  const faults = (survey && survey.siteFaultMarkers) ? survey.siteFaultMarkers : [];
+  if (!faults.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  host.style.display = 'block';
+
+  const money = function(n) {
+    const v = (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
+    const p = v.split('.');
+    return '£' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + p[1];
+  };
+  const esc = (typeof escapeHtml === 'function') ? escapeHtml : function(s){ return String(s == null ? '' : s); };
+  const noPrice = '<span style="color:#F7901E;font-weight:700;font-size:11px;">No rate-card price yet</span>';
+
+  // Rate card must be cached for the engine to price. Surface its absence
+  // rather than silently zero-pricing every fault.
+  const card = (typeof getCachedRateCard === 'function') ? getCachedRateCard() : null;
+  if (!card) {
+    host.innerHTML =
+      '<div style="border:1px solid #e0e0dc;border-radius:8px;padding:12px 14px;background:#fbfbf9;font-size:12px;color:#888;">' +
+      '<b style="color:#434244;">Derived costed schedule</b><br>' +
+      'Rate card not cached yet, it loads from Airtable on first use. Reopen this survey once it has cached to see derived costs.</div>';
+    return;
+  }
+
+  const sched = generateRepairSchedule(survey);
+
+  // Group every engine row by fault ref, preserving fault order by number.
+  const groups = {};
+  const ensure = function(ref, label) {
+    if (!groups[ref]) groups[ref] = { ref: ref, label: label || ref, lines: [], notes: [] };
+    if (label && (groups[ref].label === ref)) groups[ref].label = label;
+    return groups[ref];
+  };
+  (sched.lines || []).forEach(function(l){ ensure(l.ref, l.faultLabel).lines.push(l); });
+  (sched.gaps || []).forEach(function(x){ ensure(x.ref, x.label).notes.push({ kind: 'gap', text: x.note }); });
+  (sched.manual || []).forEach(function(x){ ensure(x.ref, x.label).notes.push({ kind: 'manual', text: x.note }); });
+  (sched.flags || []).forEach(function(x){ ensure(x.ref, x.label).notes.push({ kind: 'flag', text: x.note }); });
+  (sched.unmapped || []).forEach(function(x){
+    const t = (x.faultType === '(none)') ? 'Fault type not set yet' : 'No rate-card mapping for this fault type';
+    ensure(x.ref, x.label).notes.push({ kind: 'unmapped', text: t });
+  });
+
+  const order = faults.slice()
+    .sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); })
+    .map(function(f){ return 'F' + (f.number != null ? f.number : '?'); });
+  const seen = {};
+  const refs = order.filter(function(r){ if (seen[r] || !groups[r]) return false; seen[r] = 1; return true; });
+
+  let html = '<div style="border:1px solid #e0e0dc;border-radius:8px;padding:12px 14px;background:#fbfbf9;">';
+  html += '<div style="font-size:13px;font-weight:700;color:#434244;">Derived costed schedule</div>';
+  html += '<div style="font-size:11px;color:#888;margin:2px 0 10px;">Auto-pulled from the rate card by fault type and extent. Figures are the engine’s priced rate-card lines; unmapped types are flagged for the override step.</div>';
+
+  refs.forEach(function(ref){
+    const g = groups[ref];
+    let faultSum = 0, hasPriced = false, hasPending = false;
+    let lineHtml = '';
+    g.lines.forEach(function(l){
+      let qtyTxt = (l.qty != null && l.qty !== '' && Number(l.qty)) ? (l.qty + (l.unit ? ' ' + l.unit : '')) : '';
+      let label = (l.kind === 'labour-task')
+        ? (esc(l.task || 'labour') + ' (labour)')
+        : esc(l.item || 'line');
+      let right;
+      if (l.kind === 'labour-task') { right = '<span style="color:#888;font-size:11px;">priced at finalisation (labour floor)</span>'; hasPending = true; }
+      else if (typeof l.cost === 'number' && isFinite(l.cost)) {
+        right = money(l.cost); faultSum += l.cost; hasPriced = true;
+        if (qtyTxt && l.unitPrice != null) qtyTxt += ' × ' + money(l.unitPrice);
+      } else { right = noPrice; hasPending = true; }
+      lineHtml += '<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:#555;padding:2px 0 2px 14px;">' +
+        '<span>' + label + (qtyTxt ? ' <span style="color:#999;">· ' + esc(qtyTxt) + '</span>' : '') + '</span>' +
+        '<span style="white-space:nowrap;">' + right + '</span></div>';
+      if (l.tradeConfirm) lineHtml += '<div style="font-size:10.5px;color:#b07a1e;padding:0 0 2px 26px;">confirm: ' + esc(l.tradeConfirm) + '</div>';
+    });
+    g.notes.forEach(function(n){
+      lineHtml += '<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:2px 0 2px 14px;">' +
+        '<span style="color:#888;">' + esc(n.text) + '</span>' + '<span>' + noPrice + '</span></div>';
+      hasPending = true;
+    });
+
+    const rightHead = hasPriced ? money(faultSum) : noPrice;
+    html += '<div style="padding:8px 0;border-bottom:1px solid #ededea;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">' +
+        '<span style="font-weight:600;font-size:12.5px;color:#434244;">' + esc(ref) + ' · ' + esc(g.label) + '</span>' +
+        '<span style="font-weight:700;font-size:12.5px;color:#434244;white-space:nowrap;">' + rightHead + (hasPriced && hasPending ? ' <span style="color:#888;font-weight:400;font-size:10px;">+ pending</span>' : '') + '</span>' +
+      '</div>' + lineHtml + '</div>';
+  });
+
+  // Job-level standing items (qty confirmed at finalisation, not per fault).
+  const standing = (sched.standing || []).map(function(s){ return s.item || s.trigger; }).filter(Boolean);
+  if (standing.length) {
+    html += '<div style="font-size:11px;color:#888;padding:8px 0 0;">Job-level standing items (quantity at finalisation): ' + esc(standing.join(', ')) + '</div>';
+  }
+
+  html += '<div style="display:flex;justify-content:space-between;border-top:2px solid #434244;padding-top:8px;margin-top:8px;font-weight:700;font-size:13px;color:#434244;">' +
+    '<span>Derived schedule total (priced lines)</span><span>' + money(sched.total || 0) + '</span></div>';
+  html += '<div style="font-size:10.5px;color:#999;margin-top:4px;">Excludes the labour floor, standing items, and any line shown “No rate-card price yet”. Margin, sanity checks and finalisation come next.</div>';
+  html += '</div>';
+  host.innerHTML = html;
 }
 
 // ── Session restore — called after currentSiteImage + currentBuildings
