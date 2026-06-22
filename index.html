@@ -3793,6 +3793,45 @@ const STANDING_ITEM_LINES = {
   Waste:  { item: 'General Waste', note: 'Tonnage confirmed at job level (asbestos routes to the Asbestos line).' }
 };
 
+// Purchase-unit conversion. Some rate-card consumables are sold by a pack unit
+// (box, roll, pack, cartridge...) while the fault extent is measured by length
+// or area. Pricing must convert the measured quantity into WHOLE purchase units
+// (you buy a whole box; the off-cut is Nova's cost, not the client's), then
+// price at the per-pack rate. Factor source: the conversion the lap-seal mapping
+// already surfaced ("1 box = 288 lin m" for butyl tape). Items sold by a pack
+// unit with no known factor are flagged, never guessed.
+const RATE_CARD_PURCHASE_UNITS = {
+  box:1, roll:1, pack:1, cartridge:1, carton:1, drum:1, tin:1, tube:1, bag:1, pail:1, kit:1, coil:1, reel:1, sleeve:1
+};
+const RATE_CARD_UNIT_CONVERSIONS = {
+  'butyl tape': { perPurchaseUnit: 288, measuredUnit: 'lin m' }   // 1 box = 288 lin m
+};
+function _pluralUnit(unit, n) {
+  if (n === 1) return unit;
+  return /(s|x|z|ch|sh)$/i.test(unit) ? unit + 'es' : unit + 's';
+}
+// Decide how a rate-card line should price given the measured quantity. Returns:
+//   null                    -> no purchase-unit conversion needed (price raw, as before)
+//   { units, cost, note }   -> converted to whole purchase units, round UP
+//   { missing:true, note }  -> sold by a pack unit but factor unknown: caller prices raw + flags
+function rcPurchaseConversion(measuredQty, measuredUnit, item, unitPrice) {
+  if (!item || !item.unit) return null;
+  const cardUnit = String(item.unit).trim().toLowerCase();
+  if (!RATE_CARD_PURCHASE_UNITS[cardUnit]) return null;          // card unit is itself a measure -> no conversion
+  const mUnit = String(measuredUnit || '').trim().toLowerCase();
+  const conv  = RATE_CARD_UNIT_CONVERSIONS[String(item.name || '').trim().toLowerCase()];
+  const flag  = (why) => ({ missing: true,
+    note: 'conversion factor missing: ' + item.name + ' is sold per ' + item.unit +
+          ' but the fault is measured in ' + (measuredUnit || '?') + ' ' + why });
+  if (!conv || !(conv.perPurchaseUnit > 0)) return flag('(no box/roll/pack factor on file)');
+  if (conv.measuredUnit && conv.measuredUnit !== mUnit) return flag('(factor is per ' + conv.measuredUnit + ', not ' + (measuredUnit || '?') + ')');
+  const units = Math.max(1, Math.ceil((Number(measuredQty) || 0) / conv.perPurchaseUnit));   // whole packs, round UP
+  const price = Number(unitPrice) || 0;
+  const money = '£' + (Math.round(price * 100) / 100).toFixed(2);
+  return { units: units, cost: units * price,
+    note: (Number(measuredQty) || 0) + ' ' + (measuredUnit || '') + ' = ' + units + ' ' + _pluralUnit(cardUnit, units) + ' × ' + money };
+}
+
 // extent total + unit from a captured fault's Extent block.
 function faultExtent(f) {
   const n = Number(f && f.qtyCount) || 0;
@@ -3842,11 +3881,27 @@ function generateRepairSchedule(survey, rcIndex) {
       const qty = (spec.basis === 'count') ? (Number(f.qtyCount) || 0) : ext.qty;
       const it = idx.get(String(spec.item || '').trim().toLowerCase());
       const unitPrice = rcUnitPrice(it);
-      const cost = (it && unitPrice != null && qty) ? qty * unitPrice : null;
+      let cost = (it && unitPrice != null && qty) ? qty * unitPrice : null;
+      // Purchase-unit conversion: consumables sold by box/roll/pack cost by whole
+      // packs, not by raw measured length/area. Convert (round up) where a factor
+      // is known; flag (price raw) where it is not.
+      let purchaseQty = null, convNote = null, convMissing = false;
+      let tradeConfirm = spec.tradeConfirm || null;
+      if (it && unitPrice != null && qty) {
+        const conv = rcPurchaseConversion(qty, ext.unit, it, unitPrice);
+        if (conv && conv.units != null) {
+          cost = conv.cost; purchaseQty = conv.units; convNote = conv.note;
+          // the box-conversion reminder is now resolved; drop it, keep genuine spec choices
+          if (tradeConfirm && /conver|box/i.test(tradeConfirm)) tradeConfirm = null;
+        } else if (conv && conv.missing) {
+          convMissing = true; tradeConfirm = conv.note;
+        }
+      }
       const line = { ref, faultLabel: faultLabel(f.faultType), kind: 'rate-line',
         item: spec.item, found: !!it, unit: it ? it.unit : ext.unit,
-        qty, unitPrice, cost };
-      if (spec.tradeConfirm) line.tradeConfirm = spec.tradeConfirm;
+        qty, measuredQty: qty, measuredUnit: ext.unit,
+        unitPrice, cost, purchaseQty, convNote, convMissing };
+      if (tradeConfirm) line.tradeConfirm = tradeConfirm;
       if (!it) line.note = 'rate-card item not found: "' + spec.item + '"';
       out.lines.push(line);
       if (cost) out.total += cost;
@@ -11636,7 +11691,11 @@ function spRenderCostedSchedule() {
     let faultSum = 0, hasPriced = false, hasPending = false;
     let lineHtml = '';
     g.lines.forEach(function(l){
-      let qtyTxt = (l.qty != null && l.qty !== '' && Number(l.qty)) ? (l.qty + (l.unit ? ' ' + l.unit : '')) : '';
+      // Quantity text: a resolved purchase-unit conversion ("18 lin m = 1 box ×
+      // £12.00") shows plainly; otherwise the measured quantity in its own unit.
+      const measQty = (l.measuredQty != null ? l.measuredQty : l.qty);
+      const measUnit = (l.measuredUnit != null ? l.measuredUnit : l.unit);
+      let qtyTxt = (measQty != null && measQty !== '' && Number(measQty)) ? (measQty + (measUnit ? ' ' + measUnit : '')) : '';
       let label = (l.kind === 'labour-task')
         ? (esc(l.task || 'labour') + ' (labour)')
         : esc(l.item || 'line');
@@ -11644,7 +11703,8 @@ function spRenderCostedSchedule() {
       if (l.kind === 'labour-task') { right = '<span style="color:#888;font-size:11px;">priced at finalisation (labour floor)</span>'; hasPending = true; }
       else if (typeof l.cost === 'number' && isFinite(l.cost)) {
         right = money(l.cost); faultSum += l.cost; hasPriced = true;
-        if (qtyTxt && l.unitPrice != null) qtyTxt += ' × ' + money(l.unitPrice);
+        if (l.convNote) qtyTxt = l.convNote;
+        else if (qtyTxt && l.unitPrice != null) qtyTxt += ' × ' + money(l.unitPrice);
       } else { right = noPrice; hasPending = true; }
       lineHtml += '<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:#555;padding:2px 0 2px 14px;">' +
         '<span>' + label + (qtyTxt ? ' <span style="color:#999;">· ' + esc(qtyTxt) + '</span>' : '') + '</span>' +
