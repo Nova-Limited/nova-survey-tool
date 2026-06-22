@@ -3095,6 +3095,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
             <div id="sp-schedule-rows"></div>
             <!-- Derived costed schedule: auto-pulled rate-card line items per fault + running total -->
             <div id="sp-costed-schedule" style="display:none;margin-top:16px;"></div>
+            <!-- Job-level Labour section (your judged time at the cost-side rates) -->
+            <div id="sp-labour-section"></div>
           </div>
 
         </div>
@@ -5241,7 +5243,10 @@ function makeBlankSiteImage() {
     // Manual price overrides + hand-entered prices for the derived costed
     // schedule, keyed by line/fault/total. Calculator proposes, Jamie disposes;
     // the engine's derived figure is recorded alongside so nothing is lost.
-    costOverrides:    {}
+    costOverrides:    {},
+    // Job-level labour inputs (duration days, crew size, site visits) for the
+    // Labour section under the costed schedule.
+    labourInputs:     {}
   };
 }
 let currentSiteImage = makeBlankSiteImage();
@@ -5638,7 +5643,8 @@ async function goToNewSurvey() {
       siteMapZoom:      Number.isFinite(Number(draft.siteMapZoom))      ? Number(draft.siteMapZoom)      : 18,
       siteImagePins:    Array.isArray(draft.siteImagePins)    ? draft.siteImagePins.map(p => ({ ...p })) : [],
       siteFaultMarkers: Array.isArray(draft.siteFaultMarkers) ? draft.siteFaultMarkers.map(f => ({ ...f })) : [],
-      costOverrides:    (draft.costOverrides && typeof draft.costOverrides === 'object') ? draft.costOverrides : {}
+      costOverrides:    (draft.costOverrides && typeof draft.costOverrides === 'object') ? draft.costOverrides : {},
+      labourInputs:     (draft.labourInputs && typeof draft.labourInputs === 'object') ? draft.labourInputs : {}
     };
   } else {
     // Fresh-form defaults beyond what resetForm/FIELD_MAP dflts handle (the date).
@@ -5684,7 +5690,8 @@ function editCurrent() {
     siteMapZoom:      Number.isFinite(Number(s.siteMapZoom))      ? Number(s.siteMapZoom)      : 18,
     siteImagePins:    Array.isArray(s.siteImagePins)    ? s.siteImagePins.map(p => ({ ...p })) : [],
     siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : [],
-    costOverrides:    (s.costOverrides && typeof s.costOverrides === 'object') ? s.costOverrides : {}
+    costOverrides:    (s.costOverrides && typeof s.costOverrides === 'object') ? s.costOverrides : {},
+    labourInputs:     (s.labourInputs && typeof s.labourInputs === 'object') ? s.labourInputs : {}
   };
   document.getElementById('form-title').textContent = 'Edit survey';
   document.getElementById('form-meta').textContent = s.id + ' · created ' + fmtDate(s.createdAt);
@@ -5938,6 +5945,8 @@ function collectFormData() {
     .map(f => ({ ...f, photos: Array.isArray(f.photos) ? f.photos.slice() : [] }));
   out.costOverrides = (currentSiteImage.costOverrides && typeof currentSiteImage.costOverrides === 'object')
     ? currentSiteImage.costOverrides : {};
+  out.labourInputs = (currentSiteImage.labourInputs && typeof currentSiteImage.labourInputs === 'object')
+    ? currentSiteImage.labourInputs : {};
   return out;
 }
 function populateForm(data) {
@@ -11147,6 +11156,7 @@ function spOpenFaultPanel(id) {
   if (isOffPlan) spRenderFaultImagePanel(fault);
   document.getElementById('sp-fault-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   spRenderCostedSchedule();   // refresh derived costs on fault selection
+  spRenderLabourSection();
 }
 
 function spCloseFaultPanel() {
@@ -11451,6 +11461,7 @@ function spFaultExtentChange(field, value) {
   }
   spRenderFaultTotal();
   spRenderCostedSchedule();   // extent feeds the priced quantities
+  spRenderLabourSection();
 }
 
 // Trim trailing zeros from a decimal: "78.00" -> "78", "26.5" -> "26.5".
@@ -11688,6 +11699,7 @@ function spRenderSchedule() {
     rows.appendChild(row);
   });
   spRenderCostedSchedule();
+  spRenderLabourSection();
 }
 
 // Derived costed schedule for the editor. Wires the existing repair pricing
@@ -11942,6 +11954,70 @@ function spCostRecalc() {
   });
   const g = document.getElementById('sp-ov-grand');
   if (g) g.textContent = spCostMoney(totals.grand);
+}
+
+// ── Job-level Labour section (additive; sits under the costed schedule) ──
+// Your judged time for the job, at the agreed cost-side rates. Standing items
+// and the subbie-cost margin check come in later briefs.
+function spLabourCompute() {
+  const li = (currentSiteImage && currentSiteImage.labourInputs && typeof currentSiteImage.labourInputs === 'object') ? currentSiteImage.labourInputs : {};
+  const r = NOVA_COST_RATES.labour;
+  const dur  = spCostNum(li.durationDays);
+  const crew = (li.crewSize != null && li.crewSize !== '') ? spCostNum(li.crewSize) : 2;
+  const vis  = spCostNum(li.visits);
+  const opLabour  = (dur != null && crew != null) ? dur * crew * r.operativeDay : null;
+  const visitCost = (vis != null) ? vis * r.siteVisit : null;
+  return { dur: dur, crew: crew, vis: vis, opLabour: opLabour, visitCost: visitCost, total: (opLabour || 0) + (visitCost || 0) };
+}
+function spRenderLabourSection() {
+  const host = document.getElementById('sp-labour-section');
+  if (!host) return;
+  const survey = spCurrentSurvey();
+  if (!survey || !(survey.siteFaultMarkers || []).length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  host.style.display = 'block';
+  const c = spLabourCompute();
+  let schedGrand = 0;
+  try { schedGrand = spCostTotals(spCostModel(survey), spCostOv()).grand || 0; } catch (e) {}
+  const r = NOVA_COST_RATES.labour;
+  const field = function(label, key, val, ph) {
+    return '<label style="display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:#555;">' + label +
+      '<input type="number" step="' + (key === 'durationDays' ? '0.5' : '1') + '" min="0" class="sp-lab-in" data-lab-field="' + key +
+      '" value="' + _spAttr(val == null ? '' : val) + '" placeholder="' + _spAttr(ph) +
+      '" style="width:64px;font-size:12px;padding:3px 5px;border:1px solid #cfcfca;border-radius:4px;text-align:right;"></label>';
+  };
+  let html = '<div style="border:1px solid #e0e0dc;border-radius:8px;padding:12px 14px;background:#fbfbf9;margin-top:10px;">';
+  html += '<div style="font-size:13px;font-weight:700;color:#434244;">Labour</div>';
+  html += '<div style="font-size:11px;color:#888;margin:2px 0 10px;">Your judged time for the job. Operatives at ' + spCostMoney(r.operativeDay) + ' a day each, site visits at ' + spCostMoney(r.siteVisit) + '.</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">' +
+    field('Duration (days)', 'durationDays', c.dur, 'days') +
+    field('Crew (operatives)', 'crewSize', (c.crew != null ? c.crew : 2), '2') +
+    field('Site visits', 'visits', c.vis, '0') + '</div>';
+  html += '<div style="margin-top:10px;font-size:11.5px;color:#555;">Operatives <b id="sp-lab-op" style="color:#434244;">' + (c.opLabour != null ? spCostMoney(c.opLabour) : 'enter duration and crew') + '</b> &nbsp;·&nbsp; Visits <b id="sp-lab-vis" style="color:#434244;">' + (c.visitCost != null ? spCostMoney(c.visitCost) : spCostMoney(0)) + '</b> &nbsp;·&nbsp; Labour total <b id="sp-lab-tot" style="color:#434244;">' + spCostMoney(c.total) + '</b></div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;border-top:2px solid #434244;padding-top:8px;margin-top:10px;"><span style="font-weight:700;font-size:13px;color:#434244;">Job total (schedule + labour)</span><b id="sp-lab-jobtotal" style="font-size:14px;color:#434244;">' + spCostMoney(schedGrand + (c.total || 0)) + '</b></div>';
+  html += '<div style="font-size:10.5px;color:#999;margin-top:5px;">Standing items and the subbie-cost margin check come next.</div></div>';
+  host.innerHTML = html;
+  host.querySelectorAll('.sp-lab-in').forEach(function (el) {
+    el.addEventListener('input', function () { spLabourInputChange(el.getAttribute('data-lab-field'), el.value); });
+  });
+}
+function spLabourInputChange(field, value) {
+  if (!field) return;
+  if (!currentSiteImage.labourInputs || typeof currentSiteImage.labourInputs !== 'object') currentSiteImage.labourInputs = {};
+  currentSiteImage.labourInputs[field] = value;
+  spSaveSurveyField('labourInputs', currentSiteImage.labourInputs);
+  spLabourRecalc();
+}
+function spLabourRecalc() {
+  const survey = spCurrentSurvey();
+  if (!survey) return;
+  const c = spLabourCompute();
+  let schedGrand = 0;
+  try { schedGrand = spCostTotals(spCostModel(survey), spCostOv()).grand || 0; } catch (e) {}
+  const set = function (id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  set('sp-lab-op', c.opLabour != null ? spCostMoney(c.opLabour) : 'enter duration and crew');
+  set('sp-lab-vis', c.visitCost != null ? spCostMoney(c.visitCost) : spCostMoney(0));
+  set('sp-lab-tot', spCostMoney(c.total));
+  set('sp-lab-jobtotal', spCostMoney(schedGrand + (c.total || 0)));
 }
 
 // ── Session restore — called after currentSiteImage + currentBuildings
