@@ -3970,6 +3970,44 @@ if (typeof window !== 'undefined') {
 //   labour+standstill= labourComponent + standstillCost ; materials on top.
 // This reproduces every worked example (lone job -> £990; ten tasks over two
 // days -> 2 x £990; plant longer than crew -> standstill follows plant).
+
+// Agreed cost-side rates (GBP) that finalisation and the front-page scaffold
+// placement read from. Additive seed; DEFAULT_FLOOR_CONFIG / DEFAULT_MARGIN_CONFIG
+// are unchanged.
+const NOVA_COST_RATES = {
+  labour: {
+    operativeDay: 320,        // per operative, per day (cost basis)
+    siteVisit: 400            // per management/director site visit
+  },
+  standing: {
+    mewpDay: 250,
+    telehandlerWeek: 650,
+    craneDay: 600,
+    standstillDay: 350,
+    hireDay: 175,             // generic plant hire fallback
+    wasteGeneralTonne: 400,
+    wasteAsbestosTonne: 600,
+    travelMile: 0.45,
+    accomHotelNight: 150,
+    accomFoodNight: 30,
+    accomMaxNightsPerWeek: 4, // crew travel home for the weekend
+    workingPlatformLinM: 75,  // scaffold/working platform along an elevation
+    handrailLinM: 55,         // edge protection only, on an elevation
+    hakiStaircase: 2500,      // per unit
+    mansafeNetsSqm: 4.5,
+    airtestingDay: 375
+  },
+  gaps: {
+    // remediations with no rate-card line; priced per job, these are the standard starting figures
+    cutEdgeStripLinM: 8,      // remove existing coating to take a new coat
+    cutEdgeInstallLinM: 20,   // new cut-edge coat, including materials
+    liquidStripSqm: 10,       // remove existing liquid coating
+    liquidCoatSqm: 36,        // new liquid coating
+    washDownSqm: 16           // general roof wash-down prep; applies wherever coating
+    // flat-roof repairs: priced per job, no standard rate, so no key here
+  }
+};
+
 const DEFAULT_FLOOR_CONFIG = {
   crewSize:          2,     // operatives per crew (two-man crew) — crew-day = crewSize x operativeDayRate
   operativeDayRate:  320,   // £/operative/day — read from Airtable 'Operative Day Rate' config row
