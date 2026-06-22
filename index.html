@@ -3768,11 +3768,11 @@ const FAULT_WORKS_MAP = {
     note: 'Ponding / water not discharging, FLAG ONLY. Recommend falls remediation; feeds the drainage seam (gutter calculator). Not priced here.' },
   'blocked-outlet': { mode: 'priced',
     lines: [ { item: null, basis: 'labour', task: 'clear / rod outlet' },
-             { item: 'Leafguards', basis: 'count' } ],
+             { item: 'Leafguards', basis: 'perUnit', countLabel: 'outlets' } ],
     standing: ['Access'] },
   'blocked-gutter': { mode: 'priced',
     lines: [ { item: null, basis: 'labour', task: 'clear / rod / flush gutter' },
-             { item: 'Leafguards', basis: 'extent' } ],
+             { item: 'Leafguards', basis: 'perUnit', countLabel: 'outlets' } ],
     standing: ['Access'] },
   'gutter-failure': { mode: 'priced',
     lines: [ { item: 'Gutter Liner', basis: 'extent', tradeConfirm: 'Gutter Liner, Trimline or Insulated Gutter per spec; add Outlets / Downpipes if renewed' } ],
@@ -3805,11 +3805,13 @@ const RATE_CARD_PURCHASE_UNITS = {
   unit:1, units:1
 };
 const RATE_CARD_UNIT_CONVERSIONS = {
-  'butyl tape': { perPurchaseUnit: 288, measuredUnit: 'lin m' }   // 1 box = 288 lin m
+  'butyl tape': { perPurchaseUnit: 288, measuredUnit: 'lin m' },  // 1 box = 288 lin m (card: Box/30/288/LM)
+  'gun grade':  { perPurchaseUnit: 2,   measuredUnit: 'lin m' }   // 1 cartridge = 2 lin m
 };
 function _pluralUnit(unit, n) {
   if (n === 1) return unit;
-  return /(s|x|z|ch|sh)$/i.test(unit) ? unit + 'es' : unit + 's';
+  if (/s$/i.test(unit)) return unit;                          // already plural (e.g. "units")
+  return /(x|z|ch|sh)$/i.test(unit) ? unit + 'es' : unit + 's';
 }
 // Decide how a rate-card line should price given the measured quantity. Returns:
 //   null                    -> no purchase-unit conversion needed (price raw, as before)
@@ -3880,6 +3882,20 @@ function generateRepairSchedule(survey, rcIndex) {
         out.lines.push({ ref, faultLabel: faultLabel(f.faultType), kind: 'labour-task',
           task: spec.task || 'labour', qty: ext.qty, unit: ext.unit,
           cost: null, labourFloorPending: true });
+        return;
+      }
+      if (spec.basis === 'perUnit') {
+        // Per-unit item whose quantity is NOT derivable from the fault extent
+        // (e.g. leafguards: one per outlet, unrelated to gutter length). The
+        // count is hand-keyed on the override surface and priced at the card
+        // rate; this is a deliberate per-unit line, not a missing factor.
+        const pit = idx.get(String(spec.item || '').trim().toLowerCase());
+        const label = spec.countLabel || 'units';
+        out.lines.push({ ref, faultLabel: faultLabel(f.faultType), kind: 'rate-line',
+          item: spec.item, found: !!pit, unit: pit ? pit.unit : '',
+          unitPrice: rcUnitPrice(pit), qty: null, cost: null,
+          perUnit: true, countLabel: label,
+          note: 'per ' + label.replace(/s$/, '') + ', enter count' });
         return;
       }
       const qty = (spec.basis === 'count') ? (Number(f.qtyCount) || 0) : ext.qty;
@@ -11683,6 +11699,7 @@ function spCostModel(survey) {
       lines.forEach(function(l, i){
         const key = ref + '::' + (l.item || 'line') + '::' + i;
         if (l.kind === 'labour-task') entry.lines.push({ key: key, kind: 'labour', item: (l.task || 'labour') + ' (labour)', desc: _spLineDesc(l) });
+        else if (l.perUnit)          entry.lines.push({ key: key, kind: 'count', item: l.item, rate: l.unitPrice, countLabel: l.countLabel || 'units', hint: l.note || ('per ' + (l.countLabel || 'unit') + ', enter count') });
         else if (l.convMissing)      entry.lines.push({ key: key, kind: 'manual', item: l.item, desc: _spLineDesc(l), hint: l.tradeConfirm || 'no conversion factor on the card' });
         else                          entry.lines.push({ key: key, kind: 'priced', item: l.item, desc: _spLineDesc(l), derived: l.cost, hint: l.tradeConfirm || null });
       });
@@ -11705,6 +11722,11 @@ function spCostModel(survey) {
 // Used value for a line: the override if entered, else the derived figure
 // (priced lines only); manual lines have no derived figure, so null until entered.
 function spCostUsed(line, rec) {
+  if (line.kind === 'count') {
+    // count lines store a quantity (e.g. outlets); price = count × card rate
+    const c = rec ? spCostNum(rec.value) : null;
+    return (c != null && line.rate != null) ? c * line.rate : null;
+  }
   const ovv = rec ? spCostNum(rec.value) : null;
   if (ovv != null) return ovv;
   if (line.kind === 'priced') return (typeof line.derived === 'number' && isFinite(line.derived)) ? line.derived : null;
@@ -11789,11 +11811,25 @@ function spRenderCostedSchedule() {
           const rec = ov[line.key];
           const over = rec && spCostNum(rec.value) != null;
           right = '<span style="color:' + (over ? '#aaa' : '#434244') + ';' + (over ? 'text-decoration:line-through;' : '') + 'font-size:11px;margin-right:6px;">' + spCostMoney(line.derived) + '</span>' + _spOvInputs(line.key, line.derived);
+        } else if (line.kind === 'count') {
+          // per-unit (e.g. per outlet): key a count, price = count × card rate.
+          const rec = ov[line.key];
+          const cv = (rec && rec.value != null) ? rec.value : '';
+          const used = spCostUsed(line, rec);
+          const sane = line.key.replace(/[^a-z0-9]/gi, '_');
+          const one = String(line.countLabel || 'unit').replace(/s$/, '');
+          right = '<span style="color:#888;font-size:11px;margin-right:6px;">' + spCostMoney(line.rate) + ' / ' + _spEsc(one) + '</span>' +
+            '<input type="number" step="1" min="0" class="sp-ov-in" data-ov-key="' + _spAttr(line.key) + '" data-ov-field="value" value="' + _spAttr(cv) + '" placeholder="0" style="width:52px;font-size:11px;padding:2px 4px;border:1px solid #cfcfca;border-radius:4px;text-align:right;"> ' +
+            '<span style="font-size:11px;color:#888;">' + _spEsc(line.countLabel || 'units') + '</span> = <b id="cv_' + sane + '" style="font-size:11.5px;color:#434244;">' + (used != null ? spCostMoney(used) : '£0.00') + '</b>' +
+            '<input type="text" class="sp-ov-in" data-ov-key="' + _spAttr(line.key) + '" data-ov-field="reason" value="' + _spAttr(rec ? rec.reason : '') + '" placeholder="reason" style="width:108px;font-size:11px;padding:2px 4px;border:1px solid #e2e2dd;border-radius:4px;margin-left:6px;">';
         } else { // manual
           right = '<span style="color:#F7901E;font-weight:700;font-size:11px;margin-right:6px;">no rate-card price</span>' + _spOvInputs(line.key, null);
         }
         lineHtml += lineRow(left, right);
-        if (line.hint) lineHtml += '<div style="font-size:10.5px;color:#b07a1e;padding:0 0 2px 26px;">confirm: ' + _spEsc(line.hint) + '</div>';
+        if (line.hint) {
+          const pfx = (line.kind === 'priced') ? 'confirm: ' : '';
+          lineHtml += '<div style="font-size:10.5px;color:#b07a1e;padding:0 0 2px 26px;">' + pfx + _spEsc(line.hint) + '</div>';
+        }
       });
     }
     const subTxt = (sub.value != null) ? spCostMoney(sub.value) : (e.category === 'flag' || e.category === 'notype' ? '' : 'to price');
@@ -11855,6 +11891,12 @@ function spCostRecalc() {
   const ov = spCostOv();
   const totals = spCostTotals(model, ov);
   model.forEach(function(e){
+    // per-count line computed prices (e.g. "5 outlets = £75")
+    e.lines.forEach(function(line){
+      if (line.kind !== 'count') return;
+      const cspan = document.getElementById('cv_' + line.key.replace(/[^a-z0-9]/gi, '_'));
+      if (cspan) { const u = spCostUsed(line, ov[line.key]); cspan.textContent = (u != null) ? spCostMoney(u) : '£0.00'; }
+    });
     const span = document.getElementById('sp-ov-sub-' + e.ref);
     if (!span) return;
     const s = totals.subs[e.ref];
