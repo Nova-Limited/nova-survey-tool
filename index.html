@@ -3801,7 +3801,8 @@ const STANDING_ITEM_LINES = {
 // already surfaced ("1 box = 288 lin m" for butyl tape). Items sold by a pack
 // unit with no known factor are flagged, never guessed.
 const RATE_CARD_PURCHASE_UNITS = {
-  box:1, roll:1, pack:1, cartridge:1, carton:1, drum:1, tin:1, tube:1, bag:1, pail:1, kit:1, coil:1, reel:1, sleeve:1
+  box:1, roll:1, pack:1, cartridge:1, carton:1, drum:1, tin:1, tube:1, bag:1, pail:1, kit:1, coil:1, reel:1, sleeve:1,
+  unit:1, units:1
 };
 const RATE_CARD_UNIT_CONVERSIONS = {
   'butyl tape': { perPurchaseUnit: 288, measuredUnit: 'lin m' }   // 1 box = 288 lin m
@@ -3816,7 +3817,10 @@ function _pluralUnit(unit, n) {
 //   { missing:true, note }  -> sold by a pack unit but factor unknown: caller prices raw + flags
 function rcPurchaseConversion(measuredQty, measuredUnit, item, unitPrice) {
   if (!item || !item.unit) return null;
-  const cardUnit = String(item.unit).trim().toLowerCase();
+  // The live card encodes the unit as e.g. "Box/30/288/LM" (purchase unit first,
+  // then the conversion) or a bare purchase word like "Units". Take the first
+  // token as the purchase unit; the factor still comes from the table on file.
+  const cardUnit = String(item.unit).trim().toLowerCase().split('/')[0].trim();
   if (!RATE_CARD_PURCHASE_UNITS[cardUnit]) return null;          // card unit is itself a measure -> no conversion
   const mUnit = String(measuredUnit || '').trim().toLowerCase();
   const conv  = RATE_CARD_UNIT_CONVERSIONS[String(item.name || '').trim().toLowerCase()];
@@ -5179,7 +5183,11 @@ function makeBlankSiteImage() {
     siteMapCentreLng: null,
     siteMapZoom:      18,
     siteImagePins:    [],
-    siteFaultMarkers: []
+    siteFaultMarkers: [],
+    // Manual price overrides + hand-entered prices for the derived costed
+    // schedule, keyed by line/fault/total. Calculator proposes, Jamie disposes;
+    // the engine's derived figure is recorded alongside so nothing is lost.
+    costOverrides:    {}
   };
 }
 let currentSiteImage = makeBlankSiteImage();
@@ -5575,7 +5583,8 @@ async function goToNewSurvey() {
       siteMapCentreLng: Number.isFinite(Number(draft.siteMapCentreLng)) ? Number(draft.siteMapCentreLng) : null,
       siteMapZoom:      Number.isFinite(Number(draft.siteMapZoom))      ? Number(draft.siteMapZoom)      : 18,
       siteImagePins:    Array.isArray(draft.siteImagePins)    ? draft.siteImagePins.map(p => ({ ...p })) : [],
-      siteFaultMarkers: Array.isArray(draft.siteFaultMarkers) ? draft.siteFaultMarkers.map(f => ({ ...f })) : []
+      siteFaultMarkers: Array.isArray(draft.siteFaultMarkers) ? draft.siteFaultMarkers.map(f => ({ ...f })) : [],
+      costOverrides:    (draft.costOverrides && typeof draft.costOverrides === 'object') ? draft.costOverrides : {}
     };
   } else {
     // Fresh-form defaults beyond what resetForm/FIELD_MAP dflts handle (the date).
@@ -5620,7 +5629,8 @@ function editCurrent() {
     siteMapCentreLng: Number.isFinite(Number(s.siteMapCentreLng)) ? Number(s.siteMapCentreLng) : null,
     siteMapZoom:      Number.isFinite(Number(s.siteMapZoom))      ? Number(s.siteMapZoom)      : 18,
     siteImagePins:    Array.isArray(s.siteImagePins)    ? s.siteImagePins.map(p => ({ ...p })) : [],
-    siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : []
+    siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : [],
+    costOverrides:    (s.costOverrides && typeof s.costOverrides === 'object') ? s.costOverrides : {}
   };
   document.getElementById('form-title').textContent = 'Edit survey';
   document.getElementById('form-meta').textContent = s.id + ' · created ' + fmtDate(s.createdAt);
@@ -5872,6 +5882,8 @@ function collectFormData() {
   // strings, so slice() is enough — we're cloning the list, not the bytes.
   out.siteFaultMarkers = (currentSiteImage.siteFaultMarkers || [])
     .map(f => ({ ...f, photos: Array.isArray(f.photos) ? f.photos.slice() : [] }));
+  out.costOverrides = (currentSiteImage.costOverrides && typeof currentSiteImage.costOverrides === 'object')
+    ? currentSiteImage.costOverrides : {};
   return out;
 }
 function populateForm(data) {
@@ -11631,6 +11643,103 @@ function spRenderSchedule() {
 // — it only surfaces what generateRepairSchedule returns. Faults whose type has
 // no rate-card line (cut edge, flat-roof / liquid systems) are flagged "No
 // rate-card price yet" with a blank figure (the slot the override fills next).
+// ── Derived costed schedule, helpers ──
+function spCostMoney(n) {
+  const v = (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
+  const p = v.split('.');
+  return '£' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + p[1];
+}
+function spCostNum(v) { return (v !== '' && v != null && isFinite(Number(v))) ? Number(v) : null; }
+function spCostOv() { return (currentSiteImage && currentSiteImage.costOverrides && typeof currentSiteImage.costOverrides === 'object') ? currentSiteImage.costOverrides : {}; }
+function _spAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _spEsc(s) { return (typeof escapeHtml === 'function') ? escapeHtml(s) : String(s == null ? '' : s); }
+function _spLineDesc(l) {
+  if (l.convNote) return l.convNote;
+  const q = (l.measuredQty != null ? l.measuredQty : l.qty);
+  const u = (l.measuredUnit != null ? l.measuredUnit : l.unit);
+  let t = (q != null && q !== '' && Number(q)) ? (q + (u ? ' ' + u : '')) : '';
+  if (l.kind === 'rate-line' && !l.convMissing && t && l.unitPrice != null) t += ' × ' + spCostMoney(l.unitPrice);
+  return t;
+}
+// Build a category-aware model of the survey's costed schedule using the
+// engine's own buckets (out.lines / gaps / manual / flags / unmapped). Each
+// entry: { ref, label, category, lines:[{ key, kind, item, desc, derived, hint }], note }.
+//   kind 'priced'  -> derived figure, overridable
+//   kind 'labour'  -> priced at finalisation (no field)
+//   kind 'manual'  -> no derived figure: hand-enter a price (gap/manual/factor-less)
+//   category 'flag'   -> routing note only, no price (priced elsewhere)
+//   category 'notype' -> fault type not set yet, nothing to price
+function spCostModel(survey) {
+  const sched = generateRepairSchedule(survey);
+  const faults = (survey.siteFaultMarkers || []).slice()
+    .sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); });
+  const find = function(arr, ref){ return (arr || []).find(function(x){ return x.ref === ref; }); };
+  const model = [];
+  faults.forEach(function(f){
+    const ref = 'F' + (f.number != null ? f.number : '?');
+    const lines = (sched.lines || []).filter(function(l){ return l.ref === ref; });
+    if (lines.length) {
+      const entry = { ref: ref, label: lines[0].faultLabel || ref, category: 'priced', lines: [], note: null };
+      lines.forEach(function(l, i){
+        const key = ref + '::' + (l.item || 'line') + '::' + i;
+        if (l.kind === 'labour-task') entry.lines.push({ key: key, kind: 'labour', item: (l.task || 'labour') + ' (labour)', desc: _spLineDesc(l) });
+        else if (l.convMissing)      entry.lines.push({ key: key, kind: 'manual', item: l.item, desc: _spLineDesc(l), hint: l.tradeConfirm || 'no conversion factor on the card' });
+        else                          entry.lines.push({ key: key, kind: 'priced', item: l.item, desc: _spLineDesc(l), derived: l.cost, hint: l.tradeConfirm || null });
+      });
+      model.push(entry);
+      return;
+    }
+    const flag = find(sched.flags, ref);
+    if (flag) { model.push({ ref: ref, label: flag.label || ref, category: 'flag', lines: [], note: flag.note }); return; }
+    const gap = find(sched.gaps, ref), man = find(sched.manual, ref), unm = find(sched.unmapped, ref);
+    const src = gap || man || unm;
+    if (src) {
+      const noType = unm && unm.faultType === '(none)';
+      if (noType) { model.push({ ref: ref, label: src.label || ref, category: 'notype', lines: [], note: 'Fault type not set yet' }); return; }
+      model.push({ ref: ref, label: src.label || ref, category: 'manual-fault', note: src.note || 'No rate-card line for this fault type',
+        lines: [{ key: ref + '::MANUAL', kind: 'manual', item: src.label || 'remedial line', desc: src.note || '', hint: null }] });
+    }
+  });
+  return model;
+}
+// Used value for a line: the override if entered, else the derived figure
+// (priced lines only); manual lines have no derived figure, so null until entered.
+function spCostUsed(line, rec) {
+  const ovv = rec ? spCostNum(rec.value) : null;
+  if (ovv != null) return ovv;
+  if (line.kind === 'priced') return (typeof line.derived === 'number' && isFinite(line.derived)) ? line.derived : null;
+  return null;
+}
+function spCostTotals(model, ov) {
+  const subs = {}; let grandSum = 0; let anyPending = false;
+  model.forEach(function(e){
+    let sub = 0, anyVal = false, pending = false;
+    e.lines.forEach(function(line){
+      if (line.kind === 'labour') return;
+      const used = spCostUsed(line, ov[line.key]);
+      if (used == null) pending = true; else { sub += used; anyVal = true; }
+    });
+    subs[e.ref] = { value: anyVal ? sub : null, pending: pending, hasLines: e.lines.some(function(l){ return l.kind !== 'labour'; }) };
+    grandSum += sub; if (pending) anyPending = true;
+  });
+  const totRec = ov['TOTAL'];
+  const overridden = totRec && spCostNum(totRec.value) != null;
+  return { subs: subs, derivedGrand: grandSum, grand: overridden ? spCostNum(totRec.value) : grandSum, overridden: overridden, anyPending: anyPending };
+}
+
+// £-override + reason inputs for a line/total. derived may be null (manual entry).
+function _spOvInputs(key, derived) {
+  const ov = spCostOv()[key] || {};
+  const ph = (derived != null && derived !== '') ? String(Math.round(Number(derived) * 100) / 100) : 'enter £';
+  const inBase = 'class="sp-ov-in" data-ov-key="' + _spAttr(key) + '"';
+  return '<span style="white-space:nowrap;">£ <input type="number" step="0.01" min="0" ' + inBase +
+      ' data-ov-field="value" data-ov-derived="' + (derived != null ? _spAttr(derived) : '') + '"' +
+      ' value="' + _spAttr(ov.value) + '" placeholder="' + _spAttr(ph) + '"' +
+      ' style="width:70px;font-size:11px;padding:2px 4px;border:1px solid #cfcfca;border-radius:4px;text-align:right;"></span>' +
+    '<input type="text" ' + inBase + ' data-ov-field="reason" value="' + _spAttr(ov.reason) + '" placeholder="reason"' +
+      ' style="width:130px;font-size:11px;padding:2px 4px;border:1px solid #e2e2dd;border-radius:4px;margin-left:6px;">';
+}
+
 function spRenderCostedSchedule() {
   const host = document.getElementById('sp-costed-schedule');
   if (!host) return;
@@ -11639,16 +11748,6 @@ function spRenderCostedSchedule() {
   if (!faults.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
   host.style.display = 'block';
 
-  const money = function(n) {
-    const v = (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
-    const p = v.split('.');
-    return '£' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + p[1];
-  };
-  const esc = (typeof escapeHtml === 'function') ? escapeHtml : function(s){ return String(s == null ? '' : s); };
-  const noPrice = '<span style="color:#F7901E;font-weight:700;font-size:11px;">No rate-card price yet</span>';
-
-  // Rate card must be cached for the engine to price. Surface its absence
-  // rather than silently zero-pricing every fault.
   const card = (typeof getCachedRateCard === 'function') ? getCachedRateCard() : null;
   if (!card) {
     host.innerHTML =
@@ -11658,84 +11757,111 @@ function spRenderCostedSchedule() {
     return;
   }
 
-  const sched = generateRepairSchedule(survey);
-
-  // Group every engine row by fault ref, preserving fault order by number.
-  const groups = {};
-  const ensure = function(ref, label) {
-    if (!groups[ref]) groups[ref] = { ref: ref, label: label || ref, lines: [], notes: [] };
-    if (label && (groups[ref].label === ref)) groups[ref].label = label;
-    return groups[ref];
+  const model = spCostModel(survey);
+  const ov = spCostOv();
+  const totals = spCostTotals(model, ov);
+  const lineRow = function(leftHtml, rightHtml) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11.5px;color:#555;padding:3px 0 3px 14px;">' +
+      '<span style="flex:1;">' + leftHtml + '</span><span style="white-space:nowrap;">' + rightHtml + '</span></div>';
   };
-  (sched.lines || []).forEach(function(l){ ensure(l.ref, l.faultLabel).lines.push(l); });
-  (sched.gaps || []).forEach(function(x){ ensure(x.ref, x.label).notes.push({ kind: 'gap', text: x.note }); });
-  (sched.manual || []).forEach(function(x){ ensure(x.ref, x.label).notes.push({ kind: 'manual', text: x.note }); });
-  (sched.flags || []).forEach(function(x){ ensure(x.ref, x.label).notes.push({ kind: 'flag', text: x.note }); });
-  (sched.unmapped || []).forEach(function(x){
-    const t = (x.faultType === '(none)') ? 'Fault type not set yet' : 'No rate-card mapping for this fault type';
-    ensure(x.ref, x.label).notes.push({ kind: 'unmapped', text: t });
-  });
-
-  const order = faults.slice()
-    .sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); })
-    .map(function(f){ return 'F' + (f.number != null ? f.number : '?'); });
-  const seen = {};
-  const refs = order.filter(function(r){ if (seen[r] || !groups[r]) return false; seen[r] = 1; return true; });
 
   let html = '<div style="border:1px solid #e0e0dc;border-radius:8px;padding:12px 14px;background:#fbfbf9;">';
   html += '<div style="font-size:13px;font-weight:700;color:#434244;">Derived costed schedule</div>';
-  html += '<div style="font-size:11px;color:#888;margin:2px 0 10px;">Auto-pulled from the rate card by fault type and extent. Figures are the engine’s priced rate-card lines; unmapped types are flagged for the override step.</div>';
+  html += '<div style="font-size:11px;color:#888;margin:2px 0 10px;">Auto-pulled from the rate card. Override any figure, or enter a price for items with no rate-card line; the engine\'s derived figure is kept alongside (calculator proposes, you dispose).</div>';
 
-  refs.forEach(function(ref){
-    const g = groups[ref];
-    let faultSum = 0, hasPriced = false, hasPending = false;
+  model.forEach(function(e){
+    const sub = totals.subs[e.ref] || { value: null, pending: false, hasLines: false };
     let lineHtml = '';
-    g.lines.forEach(function(l){
-      // Quantity text: a resolved purchase-unit conversion ("18 lin m = 1 box ×
-      // £12.00") shows plainly; otherwise the measured quantity in its own unit.
-      const measQty = (l.measuredQty != null ? l.measuredQty : l.qty);
-      const measUnit = (l.measuredUnit != null ? l.measuredUnit : l.unit);
-      let qtyTxt = (measQty != null && measQty !== '' && Number(measQty)) ? (measQty + (measUnit ? ' ' + measUnit : '')) : '';
-      let label = (l.kind === 'labour-task')
-        ? (esc(l.task || 'labour') + ' (labour)')
-        : esc(l.item || 'line');
-      let right;
-      if (l.kind === 'labour-task') { right = '<span style="color:#888;font-size:11px;">priced at finalisation (labour floor)</span>'; hasPending = true; }
-      else if (typeof l.cost === 'number' && isFinite(l.cost)) {
-        right = money(l.cost); faultSum += l.cost; hasPriced = true;
-        if (l.convNote) qtyTxt = l.convNote;
-        else if (qtyTxt && l.unitPrice != null) qtyTxt += ' × ' + money(l.unitPrice);
-      } else { right = noPrice; hasPending = true; }
-      lineHtml += '<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:#555;padding:2px 0 2px 14px;">' +
-        '<span>' + label + (qtyTxt ? ' <span style="color:#999;">· ' + esc(qtyTxt) + '</span>' : '') + '</span>' +
-        '<span style="white-space:nowrap;">' + right + '</span></div>';
-      if (l.tradeConfirm) lineHtml += '<div style="font-size:10.5px;color:#b07a1e;padding:0 0 2px 26px;">confirm: ' + esc(l.tradeConfirm) + '</div>';
-    });
-    g.notes.forEach(function(n){
-      lineHtml += '<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:2px 0 2px 14px;">' +
-        '<span style="color:#888;">' + esc(n.text) + '</span>' + '<span>' + noPrice + '</span></div>';
-      hasPending = true;
-    });
-
-    const rightHead = hasPriced ? money(faultSum) : noPrice;
-    html += '<div style="padding:8px 0;border-bottom:1px solid #ededea;">' +
+    if (e.category === 'flag') {
+      lineHtml += lineRow('<span style="color:#888;">routing: ' + _spEsc(e.note) + '</span>',
+        '<span style="color:#888;font-size:11px;">priced elsewhere</span>');
+    } else if (e.category === 'notype') {
+      lineHtml += lineRow('<span style="color:#888;">' + _spEsc(e.note) + '</span>',
+        '<span style="color:#aaa;font-size:11px;">set a fault type</span>');
+    } else {
+      e.lines.forEach(function(line){
+        const left = '<b style="font-weight:600;color:#434244;">' + _spEsc(line.item) + '</b>' +
+          (line.desc ? ' <span style="color:#999;">· ' + _spEsc(line.desc) + '</span>' : '');
+        let right;
+        if (line.kind === 'labour') {
+          right = '<span style="color:#888;font-size:11px;">at finalisation (labour floor)</span>';
+        } else if (line.kind === 'priced') {
+          const rec = ov[line.key];
+          const over = rec && spCostNum(rec.value) != null;
+          right = '<span style="color:' + (over ? '#aaa' : '#434244') + ';' + (over ? 'text-decoration:line-through;' : '') + 'font-size:11px;margin-right:6px;">' + spCostMoney(line.derived) + '</span>' + _spOvInputs(line.key, line.derived);
+        } else { // manual
+          right = '<span style="color:#F7901E;font-weight:700;font-size:11px;margin-right:6px;">no rate-card price</span>' + _spOvInputs(line.key, null);
+        }
+        lineHtml += lineRow(left, right);
+        if (line.hint) lineHtml += '<div style="font-size:10.5px;color:#b07a1e;padding:0 0 2px 26px;">confirm: ' + _spEsc(line.hint) + '</div>';
+      });
+    }
+    const subTxt = (sub.value != null) ? spCostMoney(sub.value) : (e.category === 'flag' || e.category === 'notype' ? '' : 'to price');
+    const subColor = (sub.value != null) ? '#434244' : '#F7901E';
+    html += '<div style="padding:7px 0;border-bottom:1px solid #ededea;">' +
       '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">' +
-        '<span style="font-weight:600;font-size:12.5px;color:#434244;">' + esc(ref) + ' · ' + esc(g.label) + '</span>' +
-        '<span style="font-weight:700;font-size:12.5px;color:#434244;white-space:nowrap;">' + rightHead + (hasPriced && hasPending ? ' <span style="color:#888;font-weight:400;font-size:10px;">+ pending</span>' : '') + '</span>' +
+        '<span style="font-weight:600;font-size:12.5px;color:#434244;">' + _spEsc(e.ref) + ' · ' + _spEsc(e.label) + '</span>' +
+        '<span style="font-weight:700;font-size:12.5px;white-space:nowrap;color:' + subColor + ';"><span id="sp-ov-sub-' + _spAttr(e.ref) + '">' + subTxt + '</span>' +
+          (sub.pending && sub.value != null ? ' <span style="color:#888;font-weight:400;font-size:10px;">+ to price</span>' : '') + '</span>' +
       '</div>' + lineHtml + '</div>';
   });
 
-  // Job-level standing items (qty confirmed at finalisation, not per fault).
-  const standing = (sched.standing || []).map(function(s){ return s.item || s.trigger; }).filter(Boolean);
+  // Job-level standing items + the running total (overridable).
+  const sched2 = generateRepairSchedule(survey);
+  const standing = (sched2.standing || []).map(function(s){ return s.item || s.trigger; }).filter(Boolean);
   if (standing.length) {
-    html += '<div style="font-size:11px;color:#888;padding:8px 0 0;">Job-level standing items (quantity at finalisation): ' + esc(standing.join(', ')) + '</div>';
+    html += '<div style="font-size:11px;color:#888;padding:8px 0 0;">Job-level standing items (quantity at finalisation): ' + _spEsc(standing.join(', ')) + '</div>';
   }
-
-  html += '<div style="display:flex;justify-content:space-between;border-top:2px solid #434244;padding-top:8px;margin-top:8px;font-weight:700;font-size:13px;color:#434244;">' +
-    '<span>Derived schedule total (priced lines)</span><span>' + money(sched.total || 0) + '</span></div>';
-  html += '<div style="font-size:10.5px;color:#999;margin-top:4px;">Excludes the labour floor, standing items, and any line shown “No rate-card price yet”. Margin, sanity checks and finalisation come next.</div>';
+  const totOver = ov['TOTAL'] && spCostNum(ov['TOTAL'].value) != null;
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;border-top:2px solid #434244;padding-top:8px;margin-top:8px;gap:10px;">' +
+    '<span style="font-weight:700;font-size:13px;color:#434244;">Schedule total</span>' +
+    '<span style="white-space:nowrap;font-weight:700;font-size:13px;color:#434244;">' +
+      (totOver ? '<span style="font-weight:400;font-size:11px;color:#aaa;text-decoration:line-through;margin-right:8px;">' + spCostMoney(totals.derivedGrand) + '</span>' : '') +
+      _spOvInputs('TOTAL', totals.derivedGrand) +
+      ' <b id="sp-ov-grand" style="margin-left:10px;font-size:14px;">' + spCostMoney(totals.grand) + '</b>' +
+    '</span></div>';
+  html += '<div style="font-size:10.5px;color:#999;margin-top:5px;">Labour floor and standing items are priced at finalisation, not here. Margin and sanity checks come next.</div>';
   html += '</div>';
   host.innerHTML = html;
+
+  // Wire the override / price-entry inputs. Live keystrokes update the affected
+  // subtotal + grand total without re-rendering (so focus is never lost).
+  host.querySelectorAll('.sp-ov-in').forEach(function(inp){
+    inp.addEventListener('input', function(){
+      spCostOverrideChange(inp.getAttribute('data-ov-key'), inp.getAttribute('data-ov-field'), inp.value, inp.getAttribute('data-ov-derived'));
+    });
+  });
+}
+
+// Record an override / hand-entered price + reason and log the derived figure
+// it replaced, then live-recompute the totals.
+function spCostOverrideChange(key, field, value, derived) {
+  if (!key) return;
+  if (!currentSiteImage.costOverrides || typeof currentSiteImage.costOverrides !== 'object') currentSiteImage.costOverrides = {};
+  const ov = currentSiteImage.costOverrides;
+  if (!ov[key]) ov[key] = { value: '', reason: '', derived: (derived != null && derived !== '') ? Number(derived) : null };
+  ov[key][field] = value;
+  if (field === 'value' && derived != null && derived !== '') ov[key].derived = Number(derived);  // log what was overridden
+  spSaveSurveyField('costOverrides', ov);
+  spCostRecalc();
+}
+
+// Recompute fault subtotals + grand total from the store and write them into
+// the live spans (no DOM rebuild, so inputs keep focus).
+function spCostRecalc() {
+  const survey = spCurrentSurvey();
+  if (!survey || !(survey.siteFaultMarkers || []).length) return;
+  const model = spCostModel(survey);
+  const ov = spCostOv();
+  const totals = spCostTotals(model, ov);
+  model.forEach(function(e){
+    const span = document.getElementById('sp-ov-sub-' + e.ref);
+    if (!span) return;
+    const s = totals.subs[e.ref];
+    span.textContent = (s && s.value != null) ? spCostMoney(s.value) : (e.category === 'flag' || e.category === 'notype' ? '' : 'to price');
+  });
+  const g = document.getElementById('sp-ov-grand');
+  if (g) g.textContent = spCostMoney(totals.grand);
 }
 
 // ── Session restore — called after currentSiteImage + currentBuildings
