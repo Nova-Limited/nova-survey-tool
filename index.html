@@ -2487,6 +2487,14 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 
   /* boxes row — table layout: totalbox | 24px gap | 380px sevbox */
   .sl-report .boxrow{display:table;width:100%;margin-top:18px;border-spacing:0;}
+  /* Costed schedule only: pin the totals boxrow to the foot of its sheet. The
+     .pad is a flex column, so margin-top:auto absorbs the vertical slack and
+     drops the boxrow to the bottom on a sparse sheet, while a full sheet (no
+     slack) keeps it in normal flow right after the table. Extra bottom padding
+     holds a clear gap above the in-content foot. Placement/size only — the
+     boxrow / totalbox / sevbox styling is unchanged. */
+  .sl-report .sheet.sl-sched .pad{ padding-bottom:64px; }
+  .sl-report .sheet.sl-sched .boxrow{ margin-top:auto; }
   .sl-report .boxcell{display:table-cell;vertical-align:top;}
   .sl-report .boxcell.gap{width:24px;}
   .sl-report .totalbox{background:var(--ink);color:#fff;border-radius:10px;padding:20px 28px;position:relative;overflow:hidden;height:122px;display:flex;flex-direction:column;justify-content:flex-end;}
@@ -7448,7 +7456,21 @@ function slRenderSchedule(survey, costInfo) {
   });
   if (cur.length) chunks.push(cur);
 
-  const lastRows = chunks.length ? chunks[chunks.length - 1].reduce(function(n, b) { return n + b.rowCount; }, 0) : 0;
+  const chunkRows = function(c) { return c.reduce(function(n, b) { return n + b.rowCount; }, 0); };
+  // Prefer to carry the totals boxrow on the last fault sheet rather than spill
+  // it onto a lonely sheet. If the last chunk is too full to also hold the box,
+  // peel its final area into a new last chunk when that area alone leaves room
+  // for the box. Only when even a single trailing area cannot fit both does the
+  // box get its own sheet.
+  if (chunks.length && chunkRows(chunks[chunks.length - 1]) > ROWS_WITH_BOX) {
+    const last = chunks[chunks.length - 1];
+    if (last.length > 1 && last[last.length - 1].rowCount <= ROWS_WITH_BOX) {
+      const peeled = last.pop();
+      chunks.push([peeled]);
+    }
+  }
+
+  const lastRows = chunks.length ? chunkRows(chunks[chunks.length - 1]) : 0;
   const boxOnLast = chunks.length > 0 && lastRows <= ROWS_WITH_BOX;
   const totalSheets = chunks.length + ((chunks.length && !boxOnLast) ? 1 : 0);
 
