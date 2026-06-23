@@ -2580,11 +2580,13 @@ main { padding-bottom: env(safe-area-inset-bottom); }
      named page below. */
   @page{ size:297mm 210mm; }
   @page slcover{ size:297mm 210mm; margin:0; }
-  /* Costed schedule sheets are the approved 1040×735 fixed-sheet design with an
-     in-content foot (no margin-box footer). NB Paged.js applies one page size to
-     the whole document, so using slsheet in the full report is gated on the
-     single-print-page-model decision; the schedule renders 1:1 standalone. */
-  @page slsheet{ size:1040px 735px; margin:0; }
+  /* Costed schedule sheets carry the approved fixed-sheet design with an
+     in-content foot (no margin-box footer), now unified to A4 landscape — the
+     same size as every other page — so Paged.js renders one coherent document.
+     margin:0 (like slcover) so the .sheet fills the page and the in-content
+     foot sits where the design places it. The √2 proportion is unchanged
+     (1040/735 = 1.4149; A4 landscape 297/210 = 1.4143), so the look is kept. */
+  @page slsched{ size:297mm 210mm; margin:0; }
   @page slpage{
     size:297mm 210mm;
     margin:12mm 14mm 16mm 14mm;
@@ -2602,7 +2604,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     }
   }
   .sl-report .sheet.dark{ page:slcover; }
-  .sl-report .sheet.sl-sched{ page:slsheet; }
+  .sl-report .sheet.sl-sched{ page:slsched; }
   .sl-report .sheet:not(.dark):not(.sl-sched),
   .sl-report .sl-cards{ page:slpage; }
 
@@ -2631,10 +2633,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
       box-shadow:none; break-after:page; break-inside:avoid; overflow:visible; }
     .sl-report .sheet .foot, .sl-report .sheet .cv-foot{ display:none; }
 
-    /* costed schedule sheets are the approved fixed 1040×735 design (page:slsheet
-       above): a true fixed sheet that fills its own page, keeps its in-content
-       foot, and does not inherit the A4 light-sheet sizing or footer-hiding */
-    .sl-report .sheet.sl-sched{ width:1040px; height:735px; min-height:0;
+    /* costed schedule sheets carry the approved fixed-sheet design (page:slsched
+       above), now unified to A4 landscape: a true fixed sheet that fills its own
+       page, keeps its in-content foot, and does not inherit the A4 light-sheet
+       sizing (height:auto/min-height) or the footer-hiding of the other pages */
+    .sl-report .sheet.sl-sched{ width:297mm; height:210mm; min-height:0;
       box-shadow:none; overflow:hidden; break-after:page; break-inside:avoid; }
     .sl-report .sheet.sl-sched:last-child{ break-after:auto; }
     .sl-report .sheet.sl-sched .foot{ display:flex; }
@@ -7329,6 +7332,25 @@ function slRenderAreasOverview(survey) {
   '</section>';
 }
 
+// Eyebrow site label for the costed schedule. Prefer the specific unit/building
+// designator the address holds (e.g. "Pinhoe Trade Park, Unit 4") over the
+// derived building+town name; fall back to deriveSiteShortName when no unit is
+// present. (There is no dedicated unit field, so it is read from the address.)
+function slSchedSiteLabel(s) {
+  const addr = ((s && s.site && s.site.address) || '').replace(/\s+/g, ' ').trim();
+  if (addr) {
+    const BUILDING_RE = /\b[A-Z][a-zA-Z'\-]+(?:\s+[A-Z][a-zA-Z'\-]+)*\s+(?:House|Building|Centre|Center|Hall|Court|Mill|Park|Yard|Place|Lodge|Wharf|Works|Mews|Tower)\b/;
+    const UNIT_RE = /\b(?:Unit|Units|Suite|Bay|Block|Plot|Warehouse|Workshop|Office|Floor)\s+[A-Za-z0-9][A-Za-z0-9\-]*/i;
+    const bm = addr.match(BUILDING_RE);
+    const um = addr.match(UNIT_RE);
+    const building = bm ? bm[0].trim() : '';
+    const unit = um ? um[0].trim().replace(/\s+/g, ' ') : '';
+    if (building && unit) return building + ', ' + unit;
+    if (unit) return unit;
+  }
+  return (typeof deriveSiteShortName === 'function') ? deriveSiteShortName(s) : '';
+}
+
 // GBP for the schedule cost figures. No existing currency formatter in the
 // tool (registerCurrencyLabel is unrelated), so: £ with thousands separators,
 // no decimals. Locale-independent grouping so it renders identically headless
@@ -7412,12 +7434,12 @@ function slRenderSchedule(survey, costInfo) {
              rowCount: 2 + faultRows.length };
   });
 
-  // FIT BUDGET (learned by render): a 1040×735 sheet that ALSO carries the
-  // totals boxrow holds ~9 table rows; a schedule-only sheet holds ~15. Each
-  // area costs 2 overhead rows (group + subtotal). Greedy-fill areas onto
-  // sheets, keeping each area's rows together.
-  const ROWS_WITH_BOX = 9;
-  const ROWS_PLAIN    = 15;
+  // FIT BUDGET (learned by render at A4 landscape, 297×210mm): a sheet that ALSO
+  // carries the totals boxrow holds ~11 table rows; a schedule-only sheet holds
+  // ~18. Each area costs 2 overhead rows (group + subtotal). Greedy-fill areas
+  // onto sheets, keeping each area's rows together.
+  const ROWS_WITH_BOX = 11;
+  const ROWS_PLAIN    = 18;
   const chunks = [];
   let cur = [], curRows = 0;
   areaBlocks.forEach(function(b) {
@@ -7459,7 +7481,7 @@ function slRenderSchedule(survey, costInfo) {
     '</div>';
 
   // Header + foot, shared across every schedule sheet.
-  const siteShort = (typeof deriveSiteShortName === 'function') ? deriveSiteShortName(s) : '';
+  const siteShort = slSchedSiteLabel(s);
   const eyebrowBase = '02 &middot; Condition schedule' + (siteShort ? ' &middot; ' + escapeHtml(siteShort) : '');
   const ref = (typeof novaSurveyIdFor === 'function') ? novaSurveyIdFor(s) : '';
   const foot = '<div class="foot"><div class="tag">The truth from above</div><div>' +
