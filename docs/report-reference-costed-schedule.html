@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nova Costed Schedule Reference</title>
+<style>
+  :root{
+    --ink:#434244;--orange:#F7901E;--light:#f4f5f7;--line:#e5e7eb;--grey:#6b7280;
+    --crit:#c2143b;--poor:#F7901E;--fair:#2f7fc4;--mon:#2f9e5c;
+    --font:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{background:var(--light);font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  body{display:flex;flex-direction:column;align-items:center;gap:24px;padding:24px;}
+  .sheet{width:1040px;height:735px;position:relative;overflow:hidden;background:#fff;box-shadow:0 6px 28px rgba(20,20,30,.12);box-sizing:border-box;}
+  @page{size:1040px 735px;margin:0;}
+  @media print{html,body{background:#fff;}body{display:block;padding:0;gap:0;}.sheet{box-shadow:none;break-inside:avoid;break-after:page;}.sheet:last-child{break-after:auto;}}
+  .pad{position:relative;z-index:2;height:100%;padding:42px 60px 40px;display:flex;flex-direction:column;}
+  .eyebrow{font-size:11px;letter-spacing:.22em;font-weight:700;color:var(--orange);text-transform:uppercase;}
+  h2{font-size:30px;font-weight:700;letter-spacing:-.01em;margin:6px 0 12px;}
+  h2 .gt{color:var(--orange);margin-right:8px;}
+  .foot{position:absolute;left:60px;right:60px;bottom:20px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#9aa0a6;border-top:1px solid var(--line);padding-top:11px;z-index:3;}
+  .foot .tag{color:var(--ink);font-weight:600;}
+  table{width:100%;border-collapse:collapse;margin-top:8px;}
+  thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);text-align:left;font-weight:700;padding:0 8px 5px;}
+  thead th.r{text-align:right;}
+  .grp td{background:var(--light);font-weight:700;font-size:12.5px;padding:5px 10px;border-left:3px solid var(--orange);}
+  .grp td .gf{float:right;color:var(--grey);font-weight:600;}
+  tbody td{font-size:11.5px;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  td.ref{font-weight:700;width:42px;}
+  td.loc{width:185px;}
+  td.cost{text-align:right;font-weight:700;width:80px;white-space:nowrap;}
+  td.ev{width:34px;text-align:center;}
+  .evbox{display:inline-block;width:18px;height:16px;border:1px solid var(--line);border-radius:3px;color:#b8bcc2;font-size:10px;line-height:15px;}
+  .sev{display:inline-block;padding:3px 9px;border-radius:11px;font-size:9px;font-weight:800;letter-spacing:.06em;color:#fff;}
+  .sev.critical{background:var(--crit);} .sev.poor{background:var(--poor);}
+  .sev.fair{background:var(--fair);} .sev.monitor{background:var(--mon);}
+  tr.sub td{font-size:12px;font-weight:700;color:var(--grey);text-align:right;padding:6px 8px;border:none;}
+  tr.sub td b{color:var(--ink);}
+  .boxrow{display:table;width:100%;margin-top:18px;border-spacing:0;}
+  .boxcell{display:table-cell;vertical-align:top;}
+  .boxcell.gap{width:24px;}
+  .totalbox{background:var(--ink);color:#fff;border-radius:10px;padding:20px 28px;position:relative;overflow:hidden;height:122px;display:flex;flex-direction:column;justify-content:flex-end;}
+  .bleed{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+  .rings{position:absolute;}
+  .totalbox .tk{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
+  .totalbox .tv{font-size:37px;font-weight:800;margin-top:5px;line-height:1;}
+  .totalbox .tv small{font-size:15px;font-weight:600;color:rgba(255,255,255,.65);}
+  .totalbox .brk{position:absolute;right:28px;top:22px;text-align:right;font-size:12px;color:rgba(255,255,255,.7);line-height:1.7;}
+  .sevbox{width:380px;border:1px solid var(--line);border-radius:10px;padding:13px 28px;height:122px;}
+  .sevbox .sk{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:5px;}
+  .sevbox .sr{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line);}
+  .sevbox .sr .dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:10px;vertical-align:-1px;}
+  .sevbox .sr.tot{border-bottom:none;font-weight:700;}
+  .sevbox .sr .n{font-weight:700;}
+</style>
+</head>
+<body>
+<section class="sheet">
+  <div class="pad">
+    <div class="eyebrow">02 · Condition schedule · Pinhoe Trade Park, Unit 4</div>
+    <h2><span class="gt">»</span>Every fault, and the cost.</h2>
+    <table>
+      <thead><tr><th>Ref</th><th>Location</th><th>Severity</th><th>Recommended action</th><th class="r">Ev</th><th class="r">Cost</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="6">Main roof · built-up metal <span class="gf">2 faults</span></td></tr>
+        <tr><td class="ref">F1</td><td class="loc">North slope, ridge laps</td><td><span class="sev critical">CRITICAL</span></td><td>Strip and reseal 6 no. failed side laps with butyl and gun-grade sealant</td><td class="ev"><span class="evbox">↗</span></td><td class="cost">£1,640</td></tr>
+        <tr><td class="ref">F2</td><td class="loc">North bays, cut edges</td><td><span class="sev poor">POOR</span></td><td>Strip corrosion, prime and recoat 48 lin m of cut edge</td><td class="ev"><span class="evbox">↗</span></td><td class="cost">£1,340</td></tr>
+        <tr class="sub"><td colspan="6">SUBTOTAL · Main roof&nbsp;&nbsp;<b>£2,980</b></td></tr>
+        <tr class="grp"><td colspan="6">Gutters and drainage <span class="gf">3 faults</span></td></tr>
+        <tr><td class="ref">F3</td><td class="loc">Valley gutter 2</td><td><span class="sev critical">CRITICAL</span></td><td>Reline 16 lin m of valley gutter with liquid system, dress into outlets</td><td class="ev"><span class="evbox">↗</span></td><td class="cost">£2,180</td></tr>
+        <tr><td class="ref">F4</td><td class="loc">Valley gutter 1</td><td><span class="sev fair">FAIR</span></td><td>Build up falls locally to drain</td><td class="ev"><span class="evbox">↗</span></td><td class="cost">£540</td></tr>
+        <tr><td class="ref">F5</td><td class="loc">Outlet RWO-1</td><td><span class="sev monitor">MONITOR</span></td><td>No action. Reinspect at next survey</td><td class="ev"><span class="evbox">↗</span></td><td class="cost">Included</td></tr>
+        <tr class="sub"><td colspan="6">SUBTOTAL · Gutters and drainage&nbsp;&nbsp;<b>£2,720</b></td></tr>
+      </tbody>
+    </table>
+    <div class="boxrow">
+      <div class="boxcell">
+        <div class="totalbox">
+          <div class="bleed"><svg class="rings" style="right:-40px;bottom:-40px;" width="200" height="200" viewBox="0 0 200 200"><g fill="none" stroke="rgba(255,255,255,.06)" stroke-width="14"><circle cx="170" cy="170" r="50"/><circle cx="170" cy="170" r="85"/><circle cx="170" cy="170" r="120"/></g></svg></div>
+          <div class="brk">Main roof&nbsp;&nbsp;£2,980<br>Gutters and drainage&nbsp;&nbsp;£2,720</div>
+          <div class="tk">Total for the works</div>
+          <div class="tv">£5,700 <small>+VAT</small></div>
+        </div>
+      </div>
+      <div class="boxcell gap"></div>
+      <div class="boxcell" style="width:380px;">
+        <div class="sevbox">
+          <div class="sk">Faults by severity</div>
+          <div class="sr"><span><span class="dot" style="background:var(--crit)"></span>Critical</span><span class="n">2</span></div>
+          <div class="sr"><span><span class="dot" style="background:var(--poor)"></span>Poor</span><span class="n">1</span></div>
+          <div class="sr"><span><span class="dot" style="background:var(--fair)"></span>Fair</span><span class="n">1</span></div>
+          <div class="sr"><span><span class="dot" style="background:var(--mon)"></span>Monitor</span><span class="n">1</span></div>
+          <div class="sr tot"><span>Total</span><span class="n">5</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="tag">The truth from above</div><div>NOV-SURV-2026-021 · Condition schedule</div></div>
+</section>
+</body>
+</html>

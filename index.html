@@ -2471,9 +2471,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report thead th.r{text-align:right;}
   .sl-report .grp td{background:var(--light);font-weight:700;font-size:12.5px;padding:5px 10px;border-left:3px solid var(--orange);}
   .sl-report .grp td .gf{float:right;color:var(--grey);font-weight:600;}
-  .sl-report tbody td{font-size:11.5px;padding:3.5px 8px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  .sl-report tbody td{font-size:11.5px;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:middle;}
   .sl-report td.ref{font-weight:700;width:42px;}
-  .sl-report td.loc{width:170px;}
+  .sl-report td.loc{width:185px;}
+  .sl-report .evlink{text-decoration:none;}
+  .sl-report .sl-sched h2{margin:6px 0 12px;}
   .sl-report td.cost{text-align:right;font-weight:700;width:80px;white-space:nowrap;}
   .sl-report td.ev{width:34px;text-align:center;}
   .sl-report .evbox{display:inline-block;width:18px;height:16px;border:1px solid var(--line);border-radius:3px;color:#b8bcc2;font-size:10px;line-height:15px;}
@@ -2483,16 +2485,19 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report tr.sub td{font-size:12px;font-weight:700;color:var(--grey);text-align:right;padding:6px 8px;border:none;}
   .sl-report tr.sub td b{color:var(--ink);}
 
-  /* boxes row */
-  .sl-report .boxrow{display:flex;gap:24px;margin-top:18px;}
-  .sl-report .totalbox{flex:1;background:var(--ink);color:#fff;border-radius:10px;padding:22px 28px;position:relative;overflow:hidden;min-height:130px;display:flex;flex-direction:column;justify-content:flex-end;}
+  /* boxes row — table layout: totalbox | 24px gap | 380px sevbox */
+  .sl-report .boxrow{display:table;width:100%;margin-top:18px;border-spacing:0;}
+  .sl-report .boxcell{display:table-cell;vertical-align:top;}
+  .sl-report .boxcell.gap{width:24px;}
+  .sl-report .totalbox{background:var(--ink);color:#fff;border-radius:10px;padding:20px 28px;position:relative;overflow:hidden;height:122px;display:flex;flex-direction:column;justify-content:flex-end;}
+  .sl-report .totalbox .rings{opacity:1;}
   .sl-report .totalbox .tk{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
-  .sl-report .totalbox .tv{font-size:38px;font-weight:800;margin-top:6px;}
+  .sl-report .totalbox .tv{font-size:37px;font-weight:800;margin-top:5px;line-height:1;}
   .sl-report .totalbox .tv small{font-size:15px;font-weight:600;color:rgba(255,255,255,.65);}
-  .sl-report .totalbox .brk{position:absolute;right:28px;top:24px;text-align:right;font-size:12px;color:rgba(255,255,255,.7);line-height:1.7;}
-  .sl-report .sevbox{width:420px;border:1px solid var(--line);border-radius:10px;padding:16px 30px;}
-  .sl-report .sevbox .sk{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
-  .sl-report .sevbox .sr{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line);}
+  .sl-report .totalbox .brk{position:absolute;right:28px;top:22px;text-align:right;font-size:12px;color:rgba(255,255,255,.7);line-height:1.7;}
+  .sl-report .sevbox{width:380px;border:1px solid var(--line);border-radius:10px;padding:13px 28px;height:122px;}
+  .sl-report .sevbox .sk{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:5px;}
+  .sl-report .sevbox .sr{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line);}
   .sl-report .sevbox .sr .dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:10px;vertical-align:-1px;}
   .sl-report .sevbox .sr.tot{border-bottom:none;font-weight:700;}
   .sl-report .sevbox .sr .n{font-weight:700;}
@@ -2575,6 +2580,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
      named page below. */
   @page{ size:297mm 210mm; }
   @page slcover{ size:297mm 210mm; margin:0; }
+  /* Costed schedule sheets are the approved 1040×735 fixed-sheet design with an
+     in-content foot (no margin-box footer). NB Paged.js applies one page size to
+     the whole document, so using slsheet in the full report is gated on the
+     single-print-page-model decision; the schedule renders 1:1 standalone. */
+  @page slsheet{ size:1040px 735px; margin:0; }
   @page slpage{
     size:297mm 210mm;
     margin:12mm 14mm 16mm 14mm;
@@ -2592,8 +2602,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     }
   }
   .sl-report .sheet.dark{ page:slcover; }
-  .sl-report .sheet:not(.dark),
-  .sl-report .sl-schedule,
+  .sl-report .sheet.sl-sched{ page:slsheet; }
+  .sl-report .sheet:not(.dark):not(.sl-sched),
   .sl-report .sl-cards{ page:slpage; }
 
   @media print {
@@ -2620,6 +2630,14 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     .sl-report .sheet:not(.dark){ width:auto; height:auto; min-height:176mm;
       box-shadow:none; break-after:page; break-inside:avoid; overflow:visible; }
     .sl-report .sheet .foot, .sl-report .sheet .cv-foot{ display:none; }
+
+    /* costed schedule sheets are the approved fixed 1040×735 design (page:slsheet
+       above): a true fixed sheet that fills its own page, keeps its in-content
+       foot, and does not inherit the A4 light-sheet sizing or footer-hiding */
+    .sl-report .sheet.sl-sched{ width:1040px; height:735px; min-height:0;
+      box-shadow:none; overflow:hidden; break-after:page; break-inside:avoid; }
+    .sl-report .sheet.sl-sched:last-child{ break-after:auto; }
+    .sl-report .sheet.sl-sched .foot{ display:flex; }
 
     /* flowing blocks: full width on the margined page */
     .sl-report .sl-schedule, .sl-report .sl-cards{
@@ -7350,93 +7368,130 @@ function slRenderSchedule(survey, costInfo) {
   const sortByNum = function(arr) {
     return arr.slice().sort(function(a, b) { return (Number(a.number) || 0) - (Number(b.number) || 0); });
   };
-  const costCell = function(num) {
+  // No-action items (monitor severity = reinspect only) carry no price; they
+  // read "Included" rather than "TBC" so the schedule does not look unpriced.
+  const isNoAction = function(f) { return (f.severity || '').toLowerCase() === 'monitor'; };
+  const costCell = function(f, num) {
     if (!costsPresent) return 'TBC';
     if (mode === 'works') return 'Included';
     const c = costsByRef['F' + num];
-    return (typeof c === 'number' && isFinite(c)) ? slGBP(c) : 'TBC';
+    if (typeof c === 'number' && isFinite(c)) return slGBP(c);
+    return isNoAction(f) ? 'Included' : 'TBC';
   };
 
-  // One <tbody> per area group so print can keep a group together
-  // (break-inside: avoid) while the <thead> repeats on each continuation page.
-  let bodyGroups = '';
-  const areaSubtotals = [];
-  groups.forEach(function(g) {
+  // Build a row-model per area. Each area is one <tbody> (group band row + a
+  // fault row each + a subtotal row). rowCount drives the fit-budget packing.
+  const areaBlocks = groups.map(function(g) {
     const faults = sortByNum(g.faults);
-    // grp = area band; sl-colhdr = a print-only column header repeated at the
-    // start of every group, so each printed page (which always begins with a
-    // whole group) carries the column labels. (This Paged.js build does not
-    // clone <thead> across pages.) On screen sl-colhdr is hidden; the single
-    // <thead> serves there.
-    let rows = '<tr class="grp"><td colspan="6">' + escapeHtml(g.area) +
-      ' <span class="gf">' + faults.length + ' fault' + (faults.length === 1 ? '' : 's') + '</span></td></tr>' +
-      '<tr class="sl-colhdr"><th>Ref</th><th>Location</th><th>Severity</th><th>Recommended action</th><th class="r">Ev</th><th class="r">Cost</th></tr>';
+    const headRow = '<tr class="grp"><td colspan="6">' + escapeHtml(g.area) +
+      ' <span class="gf">' + faults.length + ' fault' + (faults.length === 1 ? '' : 's') + '</span></td></tr>';
     let areaSum = 0;
-    faults.forEach(function(f) {
+    const faultRows = faults.map(function(f) {
       const num = (f.number != null ? f.number : '?');
       const sev = (f.severity || '').toLowerCase();
       const sevPill = SEVSET[sev]
         ? '<span class="sev ' + sev + '">' + sev.toUpperCase() + '</span>'
         : '<span class="sev" style="background:var(--grey)">UNRATED</span>';
       const url = 'https://nova-limited.com/g/' + slug + '?f=F' + num;
-      const ev = '<a href="' + url + '" target="_blank" rel="noopener" ' +
-        'style="font-size:10px;font-weight:700;color:var(--orange);text-decoration:none;white-space:nowrap;">View</a>';
+      const ev = '<a class="evlink" href="' + url + '" target="_blank" rel="noopener"><span class="evbox">&#8599;</span></a>';
       const c = costsByRef['F' + num];
       if (costsPresent && mode === 'repair' && typeof c === 'number' && isFinite(c)) areaSum += c;
-      rows += '<tr>' +
+      return '<tr>' +
         '<td class="ref">F' + num + '</td>' +
         '<td class="loc">' + escapeHtml(f.location || '') + '</td>' +
         '<td>' + sevPill + '</td>' +
         '<td>' + escapeHtml(f.recommendation || '') + '</td>' +
         '<td class="ev">' + ev + '</td>' +
-        '<td class="cost">' + costCell(num) + '</td>' +
+        '<td class="cost">' + costCell(f, num) + '</td>' +
       '</tr>';
     });
     const subVal = !costsPresent ? 'TBC' : ((mode === 'works') ? 'Included' : slGBP(areaSum));
-    areaSubtotals.push({ area: g.area, value: subVal });
-    rows += '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(g.area) +
+    const subRow = '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(g.area) +
       '&nbsp;&nbsp;<b>' + subVal + '</b></td></tr>';
-    bodyGroups += '<tbody class="sl-area-group">' + rows + '</tbody>';
+    return { area: g.area, subVal: subVal, headRow: headRow, faultRows: faultRows, subRow: subRow,
+             rowCount: 2 + faultRows.length };
   });
 
-  const brk = areaSubtotals.map(function(a) {
-    return escapeHtml(a.area) + '&nbsp;&nbsp;' + a.value;
-  }).join('<br>');
-  const grandHtml = !costsPresent ? 'TBC' : (slGBP(ci.total) + ' <small>+VAT</small>');
-  const subLine = 'All ' + slSpellCount(stats.total) + ' fault' + (stats.total === 1 ? '' : 's') +
-    ', grouped by area with a subtotal each. Each row points to its full photo set in the online gallery.';
+  // FIT BUDGET (learned by render): a 1040×735 sheet that ALSO carries the
+  // totals boxrow holds ~9 table rows; a schedule-only sheet holds ~15. Each
+  // area costs 2 overhead rows (group + subtotal). Greedy-fill areas onto
+  // sheets, keeping each area's rows together.
+  const ROWS_WITH_BOX = 9;
+  const ROWS_PLAIN    = 15;
+  const chunks = [];
+  let cur = [], curRows = 0;
+  areaBlocks.forEach(function(b) {
+    if (cur.length && curRows + b.rowCount > ROWS_PLAIN) { chunks.push(cur); cur = []; curRows = 0; }
+    cur.push(b); curRows += b.rowCount;
+  });
+  if (cur.length) chunks.push(cur);
 
+  const lastRows = chunks.length ? chunks[chunks.length - 1].reduce(function(n, b) { return n + b.rowCount; }, 0) : 0;
+  const boxOnLast = chunks.length > 0 && lastRows <= ROWS_WITH_BOX;
+  const totalSheets = chunks.length + ((chunks.length && !boxOnLast) ? 1 : 0);
+
+  // Totals content (boxrow): per-area breakdown, grand total, severity counts.
+  const brk = areaBlocks.map(function(b) { return escapeHtml(b.area) + '&nbsp;&nbsp;' + b.subVal; }).join('<br>');
+  const grandHtml = !costsPresent ? 'TBC' : (slGBP(ci.total) + ' <small>+VAT</small>');
   const sevRows =
     '<div class="sr"><span><span class="dot" style="background:var(--crit)"></span>Critical</span><span class="n">' + stats.bySeverity.critical + '</span></div>' +
     '<div class="sr"><span><span class="dot" style="background:var(--poor)"></span>Poor</span><span class="n">' + stats.bySeverity.poor + '</span></div>' +
     '<div class="sr"><span><span class="dot" style="background:var(--fair)"></span>Fair</span><span class="n">' + stats.bySeverity.fair + '</span></div>' +
     '<div class="sr"><span><span class="dot" style="background:var(--mon)"></span>Monitor</span><span class="n">' + stats.bySeverity.monitor + '</span></div>' +
     '<div class="sr tot"><span>Total</span><span class="n">' + stats.total + '</span></div>';
-
-  return '' +
-  '<div class="sl-schedule" style="width:1040px;max-width:100%;background:#fff;box-shadow:0 6px 28px rgba(20,20,30,.12);">' +
-    '<div class="pad" style="height:auto;">' +
-      '<div class="eyebrow">02 &middot; Condition schedule</div>' +
-      '<h2><span class="gt">&raquo;</span>Every fault, at a glance.</h2>' +
-      '<div class="sub">' + escapeHtml(subLine) + '</div>' +
-      '<table>' +
-        '<thead><tr><th>Ref</th><th>Location</th><th>Severity</th><th>Recommended action</th><th class="r">Ev</th><th class="r">Cost</th></tr></thead>' +
-        bodyGroups +
-      '</table>' +
-      '<div class="boxrow">' +
+  const boxrow =
+    '<div class="boxrow">' +
+      '<div class="boxcell">' +
         '<div class="totalbox">' +
           '<div class="bleed"><svg class="rings" style="right:-40px;bottom:-40px;" width="200" height="200" viewBox="0 0 200 200"><g fill="none" stroke="rgba(255,255,255,.06)" stroke-width="14"><circle cx="170" cy="170" r="50"/><circle cx="170" cy="170" r="85"/><circle cx="170" cy="170" r="120"/></g></svg></div>' +
           '<div class="brk">' + brk + '</div>' +
-          '<div class="tk">Total for all works</div>' +
+          '<div class="tk">Total for the works</div>' +
           '<div class="tv">' + grandHtml + '</div>' +
         '</div>' +
+      '</div>' +
+      '<div class="boxcell gap"></div>' +
+      '<div class="boxcell" style="width:380px;">' +
         '<div class="sevbox">' +
-          '<div class="sk" style="margin-bottom:8px;">Faults by severity</div>' +
+          '<div class="sk">Faults by severity</div>' +
           sevRows +
         '</div>' +
       '</div>' +
-    '</div>' +
-  '</div>';
+    '</div>';
+
+  // Header + foot, shared across every schedule sheet.
+  const siteShort = (typeof deriveSiteShortName === 'function') ? deriveSiteShortName(s) : '';
+  const eyebrowBase = '02 &middot; Condition schedule' + (siteShort ? ' &middot; ' + escapeHtml(siteShort) : '');
+  const ref = (typeof novaSurveyIdFor === 'function') ? novaSurveyIdFor(s) : '';
+  const foot = '<div class="foot"><div class="tag">The truth from above</div><div>' +
+    (ref ? escapeHtml(ref) + ' &middot; ' : '') + 'Condition schedule</div></div>';
+  const numTag = function(n) { return (totalSheets > 1) ? ' &middot; ' + n + '/' + totalSheets : ''; };
+  const sheet = function(eyebrow, h2, inner) {
+    return '<section class="sheet sl-sched">' +
+      '<div class="pad">' +
+        '<div class="eyebrow">' + eyebrow + '</div>' +
+        '<h2><span class="gt">&raquo;</span>' + h2 + '</h2>' +
+        inner +
+      '</div>' + foot +
+    '</section>';
+  };
+
+  if (!chunks.length) return '';   // no faults: orchestrator handles empties
+  let html = '';
+  chunks.forEach(function(chunk, i) {
+    let tbodies = '';
+    chunk.forEach(function(b) { tbodies += '<tbody class="sl-area-group">' + b.headRow + b.faultRows.join('') + b.subRow + '</tbody>'; });
+    const includeBox = (i === chunks.length - 1) && boxOnLast;
+    const inner =
+      '<table>' +
+        '<thead><tr><th>Ref</th><th>Location</th><th>Severity</th><th>Recommended action</th><th class="r">Ev</th><th class="r">Cost</th></tr></thead>' +
+        tbodies +
+      '</table>' + (includeBox ? boxrow : '');
+    html += sheet(eyebrowBase + numTag(i + 1), 'Every fault, and the cost.', inner);
+  });
+  // Totals boxrow overflows onto its own final sheet when it will not fit.
+  if (!boxOnLast) html += sheet(eyebrowBase + numTag(totalSheets), 'The cost, in total.', boxrow);
+
+  return html;
 }
 
 // === VENDORED QR LIBRARY (build step 2d) ===
