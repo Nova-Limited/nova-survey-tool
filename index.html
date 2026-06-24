@@ -2456,6 +2456,16 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report .aerial{height:200px;background:var(--ink);border-radius:8px;position:relative;overflow:hidden;
           display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.4);
           font-size:12px;letter-spacing:.14em;}
+  /* exec: three vertical zones distributed top / middle / bottom. The .pad is a
+     flex column; justify-content:space-between pins the top zone to the top, the
+     stat band to the bottom, and centres the site+aerial middle zone with real
+     space above and below. Needs a definite sheet height in print (set in the
+     @media print block) so .pad (height:100%) fills the page. */
+  .sl-report .sheet.sl-exec .pad{ justify-content:space-between; padding-bottom:56px; }
+  .sl-report .ex-mid{ display:flex; gap:40px; align-items:flex-start; }
+  .sl-report .ex-mid .site{ flex:1; }
+  .sl-report .ex-mid .aerial{ width:380px; }
+  .sl-report .ex-bot .metrics{ margin:0; }
   .sl-report .areas{margin-top:22px;}
   .sl-report .area{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid var(--line);}
   .sl-report .area:first-child{border-top:none;}
@@ -2550,11 +2560,37 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report .contact .k{font-size:10px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
   .sl-report .contact .v{font-size:14px;font-weight:700;margin-top:5px;}
 
+  /* findings — "next step" page (5b): the closing paragraph centred with real
+     breathing room. margin:auto 0 centres it in the flex-column .pad (needs the
+     definite print height set below); eyebrow + h2 stay at the top. */
+  .sl-report .sheet.sl-next .next-lead{ margin:auto 0; max-width:640px; }
+  .sl-report .sheet.sl-next .next-lead p{ font-size:16px; line-height:1.75; color:#3f4044; }
+
   /* back */
   .sl-report .bk-foot{position:absolute;left:60px;bottom:56px;}
   .sl-report .bk-foot .tag{font-size:18px;font-weight:700;color:var(--orange);}
   .sl-report .bk-foot .co{font-size:13px;color:rgba(255,255,255,.7);margin-top:10px;}
   .sl-report .bk-foot .rg{font-size:11px;color:rgba(255,255,255,.45);margin-top:6px;}
+  /* back — contact block, mid-page, same three-column treatment as findings but
+     keyed for the dark sheet. margin:auto 0 centres it between the wordmark and
+     the foot in the flex-column .pad (dark sheets have a definite print height). */
+  .sl-report .bk-contact{display:flex;gap:56px;margin:auto 0;padding-top:26px;
+          border-top:1px solid rgba(255,255,255,.16);}
+  .sl-report .bk-contact .k{font-size:10px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
+  .sl-report .bk-contact .v{font-size:15px;font-weight:700;margin-top:6px;color:#fff;}
+
+  /* orange-ring burst for the dark cover + back, matching the interior pages'
+     burst (same SVG as .pagedjs_pages .sl-print-burst). The interior burst is
+     cloned onto every page by Paged.js but sits BEHIND the opaque dark sheet, so
+     the dark pages need this in-sheet element to show it. Low opacity reads as
+     decoration against the ink; z-index:0 keeps it behind the .pad content. */
+  .sl-report .sheet.dark .sl-darkburst{
+    position:absolute; right:-160px; bottom:-160px; width:480px; height:480px;
+    z-index:0; opacity:.16; pointer-events:none;
+    background:center/contain no-repeat;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500' viewBox='0 0 500 500'%3E%3Cg fill='none' stroke='%23F7901E' stroke-width='20'%3E%3Ccircle cx='250' cy='250' r='120'/%3E%3Ccircle cx='250' cy='250' r='200'/%3E%3Ccircle cx='250' cy='250' r='280'/%3E%3C/g%3E%3C/svg%3E");
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
 
   /* repeated brand burst is print-only; hidden on screen */
   .sl-report .sl-print-burst{ display:none; }
@@ -2651,6 +2687,14 @@ main { padding-bottom: env(safe-area-inset-bottom); }
        .bk-foot, which this does not touch). Placement only; cover content markup
        is unchanged. */
     .sl-report .sheet.dark .cv-foot{ display:flex; margin-top:auto; }
+    /* exec + the two findings pages need a DEFINITE height so .pad (height:100%)
+       fills the page and the flex distribution / margin-auto can place the zones.
+       The general light-sheet rule above leaves height auto, which collapses .pad
+       to its content and bunches everything at the top. 181mm sits just inside the
+       slpage content box (210 - 12 top - 16 bottom = 182mm) so nothing spills to a
+       second page; overflow:hidden guards the bottom margin-box footer. */
+    .sl-report .sheet.sl-exec, .sl-report .sheet.sl-find, .sl-report .sheet.sl-next{
+      height:181mm; min-height:0; overflow:hidden; }
 
     /* costed schedule sheets carry the approved fixed-sheet design (page:slsched
        above), now unified to A4 landscape: a true fixed sheet that fills its own
@@ -7234,6 +7278,8 @@ function slRenderCover(survey) {
       // ring uses the scoped .rings ghost opacity (step 1); no inline opacity
       '<img class="rings" src="' + SL_NOVA_RING_MARK + '" alt="" aria-hidden="true" style="right:-260px;bottom:-80px;width:700px;height:auto;">' +
     '</div>' +
+    // orange-ring burst, matching the interior pages (low opacity on the ink)
+    '<div class="sl-darkburst" aria-hidden="true"></div>' +
     '<div class="pad">' +
       '<div class="cv-top">' +
         '<img class="wordmark" src="' + SL_NOVA_WORDMARK_WHITE + '" alt="nova" style="height:44px;">' +
@@ -7295,31 +7341,36 @@ function slRenderExec(survey) {
     return '<div class="row"><div class="rk">' + k + '</div><div class="rv">' + (vHtml || 'TBC') + '</div></div>';
   };
 
+  // Three vertical zones distributed across the page (top / middle / bottom) via
+  // .pad space-between (scoped to .sl-exec): top = eyebrow+h2+narrative; middle =
+  // site metadata + aerial side by side, centred with space above and below;
+  // bottom = the three-stat condition band anchoring the foot. Same content and
+  // components as before — only the vertical arrangement changed.
   return '' +
-  '<section class="sheet">' +
+  '<section class="sheet sl-exec">' +
     slPageBurst() +
     '<div class="pad">' +
-      '<div class="eyebrow">01 &middot; Executive summary</div>' +
-      '<h2><span class="gt">&raquo;</span>The picture at a glance.</h2>' +
-      '<div class="cols">' +
-        '<div class="col-l">' +
-          '<p class="body">' + intro1 + '</p>' +
-          '<p class="body" style="margin-top:12px;">' + intro2 + '</p>' +
-          '<div class="metrics">' +
-            '<div class="metric"><div class="k">Condition today</div><div class="v">' + escapeHtml(condition) + '</div></div>' +
-            '<div class="metric"><div class="k">Life as it stands</div><div class="v">' + escapeHtml(lifeNow) + '</div></div>' +
-            '<div class="metric"><div class="k">Life with works</div><div class="v">' + escapeHtml(lifeWorks) + '</div></div>' +
-          '</div>' +
+      '<div class="ex-top">' +
+        '<div class="eyebrow">01 &middot; Executive summary</div>' +
+        '<h2><span class="gt">&raquo;</span>The picture at a glance.</h2>' +
+        '<p class="body" style="margin-top:14px;">' + intro1 + '</p>' +
+        '<p class="body" style="margin-top:12px;">' + intro2 + '</p>' +
+      '</div>' +
+      '<div class="ex-mid">' +
+        '<div class="site">' +
+          '<h3>The site</h3>' +
+          row('Address', addrHtml) +
+          row('Visit', visitHtml) +
+          row('Surveyor', surveyorHtml) +
+          row('Works brief', worksHtml) +
         '</div>' +
-        '<div class="col-r">' +
-          '<div class="site">' +
-            '<h3>The site</h3>' +
-            row('Address', addrHtml) +
-            row('Visit', visitHtml) +
-            row('Surveyor', surveyorHtml) +
-            row('Works brief', worksHtml) +
-          '</div>' +
-          '<div class="aerial" style="margin-top:22px;">' + aerialInner + '</div>' +
+        '<div class="aerial">' + aerialInner + '</div>' +
+      '</div>' +
+      '<div class="ex-bot">' +
+        '<div class="metrics">' +
+          '<div class="metric"><div class="k">Condition today</div><div class="v">' + escapeHtml(condition) + '</div></div>' +
+          '<div class="metric"><div class="k">Life as it stands</div><div class="v">' + escapeHtml(lifeNow) + '</div></div>' +
+          '<div class="metric"><div class="k">Life with works</div><div class="v">' + escapeHtml(lifeWorks) + '</div></div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -10022,12 +10073,15 @@ function slRenderFindings(survey, costInfo) {
     '<div class="crow"><span>Fair</span><span>' + stats.bySeverity.fair + '</span></div>' +
     '<div class="crow"><span>Monitor</span><span>' + stats.bySeverity.monitor + '</span></div>';
 
+  // Page 5a — "By the numbers": cost by area + faults-by-severity (left), and
+  // targeted-repairs-by-area + the totals row (right). The closing narrative and
+  // the contact block have moved off this page (5b and the back page respectively).
   return '' +
-  '<section class="sheet">' +
+  '<section class="sheet sl-find">' +
     slPageBurst() +
     '<div class="pad">' +
       '<div class="eyebrow">04 &middot; Findings and costs</div>' +
-      '<h2><span class="gt">&raquo;</span>By the numbers. Then the next step.</h2>' +
+      '<h2><span class="gt">&raquo;</span>By the numbers.</h2>' +
       '<div class="find-grid">' +
         '<div class="cba">' +
           '<div class="label" style="margin-bottom:6px;">Cost by area</div>' +
@@ -10045,13 +10099,27 @@ function slRenderFindings(survey, costInfo) {
             '<div><div class="k">Priority works within</div><div class="v">' + escapeHtml(windowTxt) + '</div></div>' +
             '<div><div class="k">Life after works</div><div class="v">' + escapeHtml(lifeWorks) + '</div></div>' +
           '</div>' +
-          '<div class="contact">' +
-            '<div><div class="k">Call us</div><div class="v">0203 479 2994</div></div>' +
-            '<div><div class="k">Email</div><div class="v">hello@nova-limited.com</div></div>' +
-            '<div><div class="k">Website</div><div class="v">nova-limited.com</div></div>' +
-          '</div>' +
-          '<p class="narr" style="margin-top:20px;">We have laid out what we found at ' + escapeHtml(siteTitle) + ' and what we recommend. The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you are ready.</p>' +
         '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="foot"><div class="tag">The truth from above</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
+  '</section>';
+}
+
+// Page 5b — "Then the next step": the closing narrative, given a page of its own
+// with real breathing room. Same copy as before (split out of the old findings
+// page); contact details now live on the back page.
+function slRenderFindingsNext(survey) {
+  const s = survey || {};
+  const siteTitle = deriveSiteShortName(s) || 'the site';
+  return '' +
+  '<section class="sheet sl-next">' +
+    slPageBurst() +
+    '<div class="pad">' +
+      '<div class="eyebrow">04 &middot; Findings and costs</div>' +
+      '<h2><span class="gt">&raquo;</span>Then the next step.</h2>' +
+      '<div class="next-lead">' +
+        '<p>We have laid out what we found at ' + escapeHtml(siteTitle) + ' and what we recommend. The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you are ready.</p>' +
       '</div>' +
     '</div>' +
     '<div class="foot"><div class="tag">The truth from above</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
@@ -10067,8 +10135,16 @@ function slRenderBack(survey) {
     '<div class="bleed">' +
       '<img class="rings" src="' + SL_NOVA_RING_MARK + '" alt="" aria-hidden="true" style="right:-260px;bottom:-80px;width:700px;height:auto;">' +
     '</div>' +
+    // orange-ring burst, matching the interior pages (low opacity on the ink)
+    '<div class="sl-darkburst" aria-hidden="true"></div>' +
     '<div class="pad">' +
       '<img class="wordmark" src="' + SL_NOVA_WORDMARK_WHITE + '" alt="nova" style="height:54px;align-self:flex-start;">' +
+      // contact block, mid-page, moved off the findings page
+      '<div class="bk-contact">' +
+        '<div><div class="k">Call us</div><div class="v">0203 479 2994</div></div>' +
+        '<div><div class="k">Email</div><div class="v">hello@nova-limited.com</div></div>' +
+        '<div><div class="k">Website</div><div class="v">nova-limited.com</div></div>' +
+      '</div>' +
     '</div>' +
     '<div class="bk-foot">' +
       '<div class="tag">The truth from above</div>' +
@@ -10096,6 +10172,7 @@ function renderScheduleLedReport(survey, costInfo) {
     slRenderSchedule(survey, costInfo) +
     slRenderCards(survey) +
     slRenderFindings(survey, costInfo) +
+    slRenderFindingsNext(survey) +
     slRenderBack(survey) +
   '</div>';
 }
