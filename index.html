@@ -2520,7 +2520,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report .sevbox .sr .n{font-weight:700;}
 
   /* detail cards */
-  .sl-report .cards{display:flex;gap:30px;margin-top:10px;flex:1;}
+  .sl-report .cards{display:flex;gap:30px;margin-top:10px;flex:1;position:relative;}
   .sl-report .card{flex:1;border:1px solid var(--line);border-radius:12px;padding:20px 24px;position:relative;border-left:4px solid var(--crit);}
   .sl-report .card .chead{display:flex;align-items:center;justify-content:space-between;}
   .sl-report .card .cid{display:flex;align-items:center;gap:12px;}
@@ -7444,7 +7444,8 @@ function slRenderExec(survey) {
   // the CTA panel anchored to the foot of the .pad via a flex:1 spacer.
   return '' +
   '<section class="sheet sl-exec">' +
-    slBurst('ink', 'bottom:-120px;right:-120px;width:480px;opacity:.12;z-index:1;') +
+    // Mid-right so it clears the bottom CTA panel; bleeds off the right edge.
+    slBurst('ink', 'top:50%;right:-180px;width:460px;transform:translateY(-50%);opacity:.12;z-index:1;') +
     '<div class="pad">' +
       '<div class="ex-top">' +
         '<div class="eyebrow">01 &middot; Executive summary</div>' +
@@ -10098,8 +10099,12 @@ function slRenderCards(survey) {
   };
 
   let rows = '';
+  // Each .cards row is forced to its own page (break-after:page), so a burst
+  // inside each row gives every card page the brand burst, bottom-right.
   for (let i = 0; i < chosen.length; i += 2) {
-    rows += '<div class="cards">' + cardHtml(chosen[i]) + (chosen[i + 1] ? cardHtml(chosen[i + 1]) : '') + '</div>';
+    rows += '<div class="cards">' +
+      slBurst('ink', 'bottom:-120px;right:-120px;width:480px;opacity:.12;z-index:1;') +
+      cardHtml(chosen[i]) + (chosen[i + 1] ? cardHtml(chosen[i + 1]) : '') + '</div>';
   }
   if (!chosen.length) rows = '<p class="body">No priority faults to detail.</p>';
 
