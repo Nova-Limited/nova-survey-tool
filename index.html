@@ -2596,9 +2596,15 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report .cta-stats.one{ justify-content:center; text-align:center; }
   .sl-report .cta-col{ flex:1; }
   .sl-report .cta-stats.one .cta-col{ flex:0 0 auto; }
-  /* symmetric breathing around the divider (comparison variant only) */
-  .sl-report .cta-stats:not(.one) .cta-col:first-child{ padding-right:32px; }
+  /* comparison variant: each block is exactly half the panel, so the divider is
+     anchored at the midpoint regardless of which block's content is wider. The
+     two clusters tuck to the outer edges (left col left-aligned, right col
+     right-aligned) with a mirrored ~32px safety gap to the centre divider, so the
+     breathing either side reads equal. */
+  .sl-report .cta-stats:not(.one) .cta-col{ flex:0 0 50%; }
+  .sl-report .cta-stats:not(.one) .cta-col:first-child{ text-align:left; padding-right:32px; }
   .sl-report .cta-col + .cta-col{ border-left:1px solid #e5e7eb; padding-left:32px; }
+  .sl-report .cta-stats:not(.one) .cta-col + .cta-col{ text-align:right; }
   .sl-report .cta-col .ck{ font-size:10px; letter-spacing:.18em; font-weight:700; color:var(--grey); text-transform:uppercase; }
   .sl-report .cta-col .cfig{ font-size:30px; font-weight:800; line-height:1; margin-top:8px; white-space:nowrap; }
   .sl-report .cta-col .csub{ font-size:12px; color:var(--grey); margin-top:6px; }
