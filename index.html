@@ -2653,6 +2653,24 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report .bk-closer{ font-size:34px; font-weight:700; color:#fff; line-height:1.15; letter-spacing:-.01em; margin-top:14px; max-width:680px; }
   .sl-report .bk-narr{ font-size:14px; color:rgba(255,255,255,.7); line-height:1.6; margin-top:16px; max-width:560px; }
 
+  /* ---- TIER 1 unified report — surveyor narrative landings ---- */
+  /* exec: surveyor's own executive summary paragraph(s), under the auto-lede */
+  .sl-report .ex-summary{ margin-top:14px; max-width:980px; }
+  .sl-report .ex-summary p{ font-size:13px; line-height:1.6; color:var(--ink); }
+  .sl-report .ex-summary p + p{ margin-top:8px; }
+  /* exec: background row — client-reported + site-context panels, side by side */
+  .sl-report .ex-bg-row{ display:flex; gap:24px; margin-top:18px; }
+  .sl-report .ex-bg-col{ flex:1; background:#fafbfc; border:1px solid #e5e7eb; border-radius:6px; padding:14px 18px; }
+  .sl-report .ex-bg-col .k{ font-size:10px; letter-spacing:.18em; font-weight:700; color:var(--orange); text-transform:uppercase; }
+  .sl-report .ex-bg-col p{ font-size:12px; line-height:1.5; color:var(--ink); margin-top:6px; }
+  /* closer: recommendation + next-steps block, above the roadmap */
+  .sl-report .rec-block{ margin-top:14px; max-width:980px; }
+  .sl-report .rec-block .rec-h3{ font-size:14px; font-weight:700; color:var(--ink); }
+  .sl-report .rec-block .rec-body{ font-size:13px; line-height:1.6; color:var(--ink); margin-top:6px; }
+  .sl-report .rec-block .rec-eyebrow{ font-size:10px; letter-spacing:.18em; font-weight:700; color:var(--orange); text-transform:uppercase; margin-top:12px; margin-bottom:4px; }
+  /* schedule: one-line areas summary when the Areas page is folded in (small surveys) */
+  .sl-report .sched-areas-summary{ font-size:12px; color:var(--grey); margin-top:6px; }
+
   /* repeated brand burst is print-only; hidden on screen */
   .sl-report .sl-print-burst{ display:none; }
   /* per-group column header is print-only; the single <thead> serves on screen */
@@ -7346,7 +7364,7 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
       '</div>' +
     '</div>';
   };
-  const comparison = function(lead, doNothingSub){
+  const comparison = function(lead, doNothingSub, withWorksSub){
     return '<div class="cta-panel">' +
       '<div class="cta-eyebrow">Where this roof stands</div>' +
       '<div class="cta-lead">' + escapeHtml(lead) + '</div>' +
@@ -7358,14 +7376,16 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
         '</div>' +
         '<div class="cta-col">' +
           '<div class="ck">With the priority works</div>' + fig(lifeWorks, GREEN) +
-          '<div class="csub">Of remaining life</div>' +
+          '<div class="csub">' + escapeHtml(withWorksSub || 'Of remaining life') + '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
   };
+  if (r === 'excellent') return reassurance('Rated Excellent today. Continued routine maintenance keeps the roof in service indefinitely.', 'Of remaining life with routine maintenance');
   if (r === 'good') return reassurance('Rated Good today. Planned maintenance keeps the roof in service for the long term.', 'Of remaining life with planned maintenance');
   if (r === 'fair') return reassurance('Rated Fair today. Targeted works extend the life of the roof significantly.', 'Of remaining life with the recommended works');
   if (r === 'critical') return comparison('Rated Critical today. Urgent works are needed to prevent serious failure.', 'Before water ingress');
+  if (r === 'end of life') return comparison('Rated End of Life today. Replacement is required to restore the roof to a serviceable condition.', 'Before failure', 'Of remaining life with replacement');
   // Poor (and any unrecognised rating) -> comparison with the Poor lead.
   return comparison('Rated Poor today. Priority works return the roof to ' + (lifeWorks || 'TBC') + ' of life.', 'Before serious failure');
 }
@@ -7380,7 +7400,13 @@ function slRenderCover(survey) {
   const stats      = slFaultStats(s);
   const groups     = slGroupFaultsByArea(s);
   const isFallback = groups.length === 1 && groups[0].area === 'All faults';
-  const summary    = slCap(slSummaryPhrase(stats, isFallback));
+  // Headline line 2, generated from the survey shape (slSpellCount), with the
+  // single-fault and single-area special forms.
+  let summary;
+  if (stats.total === 1)            summary = 'One fault identified';
+  else if (isFallback)              summary = slCap(slSpellCount(stats.total)) + ' faults';
+  else if (stats.areaCount === 1)   summary = slCap(slSpellCount(stats.total)) + ' faults in one area';
+  else                              summary = slCap(slSpellCount(stats.total)) + ' faults across ' + slSpellCount(stats.areaCount) + ' areas';
 
   return '' +
   '<section class="sheet dark">' +
@@ -7427,6 +7453,20 @@ function slRenderExec(survey) {
     : 'None are critical; the works can be programmed at the next planned opportunity.';
   const lede = 'A full condition survey of ' + escapeHtml(siteTitle) + ' identified ' + escapeHtml(countClause) + '. ' + escapeHtml(critClause);
 
+  // Surveyor narrative landings (render only when the field is populated).
+  const paras = function(txt){ return txt.split(/\n{2,}/).map(function(p){ return '<p>' + escapeHtml(p).replace(/\n/g, '<br>') + '</p>'; }).join(''); };
+  const execSummaryTxt  = (s['f-executive-summary'] || '').trim();
+  const execSummaryHtml = execSummaryTxt ? '<div class="ex-summary">' + paras(execSummaryTxt) + '</div>' : '';
+  const clientIssuesTxt = (s.clientReportedIssues || '').trim();
+  const siteContextTxt  = (s.siteContext || '').trim();
+  const bgCol = function(label, txt){ return '<div class="ex-bg-col"><div class="k">' + label + '</div>' + paras(txt) + '</div>'; };
+  const bgRowHtml = (clientIssuesTxt || siteContextTxt)
+    ? '<div class="ex-bg-row">' +
+        (clientIssuesTxt ? bgCol('What the client reported', clientIssuesTxt) : '') +
+        (siteContextTxt  ? bgCol('Site context', siteContextTxt) : '') +
+      '</div>'
+    : '';
+
   const condition = s['f-overall-rating'] || 'TBC';
   const lifeNow   = s['f-remaining-life-asstands'] || 'TBC';
   const lifeWorks = s['f-remaining-life-postworks'] || 'TBC';
@@ -7459,6 +7499,7 @@ function slRenderExec(survey) {
         '<div class="eyebrow">01 &middot; Executive summary</div>' +
         '<h2><span class="gt">&raquo;</span>The picture at a glance.</h2>' +
         '<p class="body" style="margin-top:14px;">' + lede + '</p>' +
+        execSummaryHtml +
       '</div>' +
       '<div class="ex-mid">' +
         '<div class="site">' +
@@ -7470,6 +7511,7 @@ function slRenderExec(survey) {
         '</div>' +
         '<div class="aerial">' + aerialInner + '</div>' +
       '</div>' +
+      bgRowHtml +
       '<div style="flex:1;"></div>' +
       slExecCTA(condition, lifeNow, lifeWorks) +
     '</div>' +
@@ -7546,9 +7588,12 @@ function slGallerySlug(s) {
 // renders as one block. NO slPageBurst() here: the per-page burst is applied
 // through the Paged.js page mechanism at integration, not inside flowing content.
 // costInfo = { mode:'repair'|'works', costsByRef:{ 'F1':<number>, ... }, total:<number ex VAT> }
-function slRenderSchedule(survey, costInfo) {
+function slRenderSchedule(survey, costInfo, opts) {
   const s  = survey || {};
   const ci = costInfo || {};
+  // Tier 1: when the Areas page is folded in (small surveys), this one-line
+  // summary is shown under the first schedule sheet's h2.
+  const foldedAreasLine = (opts && opts.foldedAreasLine) ? String(opts.foldedAreasLine) : '';
   // costsPresent: does costInfo actually carry cost data? When it does not
   // (empty/absent costInfo), the schedule renders as a condition document —
   // the Cost column, per-area subtotals and grand total are left blank.
@@ -7675,11 +7720,12 @@ function slRenderSchedule(survey, costInfo) {
   const foot = '<div class="foot"><div class="tag">The honest view from above.</div><div>' +
     (ref ? escapeHtml(ref) + ' &middot; ' : '') + 'Condition schedule</div></div>';
   const numTag = function(n) { return (totalSheets > 1) ? ' &middot; ' + n + '/' + totalSheets : ''; };
-  const sheet = function(eyebrow, h2, inner) {
+  const sheet = function(eyebrow, h2, inner, subline) {
     return '<section class="sheet sl-sched">' +
       '<div class="pad">' +
         '<div class="eyebrow">' + eyebrow + '</div>' +
         '<h2><span class="gt">&raquo;</span>' + h2 + '</h2>' +
+        (subline || '') +
         inner +
       '</div>' + foot +
     '</section>';
@@ -7696,7 +7742,9 @@ function slRenderSchedule(survey, costInfo) {
         '<thead><tr><th>Ref</th><th>Location</th><th>Severity</th><th>Recommended action</th><th class="r">Ev</th><th class="r">Cost</th></tr></thead>' +
         tbodies +
       '</table>' + (includeBox ? boxrow : '');
-    html += sheet(eyebrowBase + numTag(i + 1), 'Every fault, and the cost.', inner);
+    const subline = (i === 0 && foldedAreasLine)
+      ? '<div class="sched-areas-summary">' + escapeHtml(foldedAreasLine) + '</div>' : '';
+    html += sheet(eyebrowBase + numTag(i + 1), 'Every fault, and the cost.', inner, subline);
   });
   // Totals boxrow overflows onto its own final sheet when it will not fit.
   if (!boxOnLast) html += sheet(eyebrowBase + numTag(totalSheets), 'The cost, in total.', boxrow);
@@ -10037,14 +10085,17 @@ function slQR(url, size) {
 // Paged.js page mechanism at integration. QR: a marked placeholder for now —
 // a self-contained, verified-scannable QR encoder is deferred (see report);
 // the gallery URL + photo count are rendered in full alongside it.
-function slRenderCards(survey) {
+function slRenderCards(survey, opts) {
   const SL_CARD_ALL_MAX = 8;        // total faults <= this: card EVERY fault; else only critical
   const SL_INLINE_PHOTOS_MAX = 10;  // total faults <= this: inline photos; else lead photo + gallery ref
+  // Tier 1 forces critical-only selection regardless of total (the section is
+  // also omitted entirely by the orchestrator when there are no critical faults).
+  const criticalOnly = !!(opts && opts.criticalOnly);
   const s = survey || {};
   const all = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.slice() : [];
   const total = all.length;
   const slug = slGallerySlug(s);
-  const cardAll = total <= SL_CARD_ALL_MAX;
+  const cardAll = !criticalOnly && total <= SL_CARD_ALL_MAX;
   const inlinePhotos = total <= SL_INLINE_PHOTOS_MAX;
 
   let chosen = cardAll ? all : all.filter(function(f){ return (f.severity || '').toLowerCase() === 'critical'; });
@@ -10227,6 +10278,31 @@ function slRenderFindings(survey, costInfo) {
 function slRenderFindingsNext(survey) {
   const s = survey || {};
   const siteTitle = deriveSiteShortName(s) || 'the site';
+
+  // Recommendation block (renders only when recommendation and/or next-steps are populated).
+  const stats = slFaultStats(s);
+  const critN = stats.critical;
+  const priorityWindow = critN > 0 ? 'three months' : 'the next cycle';
+  const critPhrase = critN > 0 ? ('the ' + slSpellCount(critN) + ' critical defect' + (critN === 1 ? '' : 's')) : 'the priority defects';
+  const recVal = (s['f-recommendation'] || '').trim();
+  const recSentences = {
+    'Continue maintenance':  'Continue maintenance. The roof remains in service with planned, light-touch attention to the items listed.',
+    'Targeted repairs':      'Targeted repairs to ' + critPhrase + ' within the next ' + priorityWindow + ', programmed to keep the building watertight.',
+    'Recover':               'Overcladding or membrane recovery to restore the roof envelope without full replacement.',
+    'Replace':               'Full re-roof. The existing covering has reached the end of its serviceable life.',
+    'Further investigation': 'Further investigation required before a remedial scope can be confirmed.'
+  };
+  const recSentence = recVal ? (recSentences[recVal] || (recVal + '.')) : '';
+  const nextStepsTxt = (s['f-next-steps'] || '').trim();
+  const recParas = function(txt){ return txt.split(/\n{2,}/).map(function(p){ return '<p class="rec-body">' + escapeHtml(p).replace(/\n/g, '<br>') + '</p>'; }).join(''); };
+  const recBlock = (recSentence || nextStepsTxt)
+    ? '<div class="rec-block">' +
+        '<h3 class="rec-h3">Our recommendation</h3>' +
+        (recSentence ? '<p class="rec-body">' + escapeHtml(recSentence) + '</p>' : '') +
+        (nextStepsTxt ? '<div class="rec-eyebrow">Next steps</div>' + recParas(nextStepsTxt) : '') +
+      '</div>'
+    : '';
+
   const TICK = '&#10003;';
   // Step 02 copy is generic so it covers drone, walked and inspection surveys
   // (a survey-method field does not exist yet — see scope note).
@@ -10256,6 +10332,7 @@ function slRenderFindingsNext(survey) {
     '<div class="pad">' +
       '<div class="eyebrow">05 &middot; Then the next step</div>' +
       '<h2><span class="gt">&raquo;</span>From this report to a roof signed off.</h2>' +
+      recBlock +
       '<p class="rm-intro">One accountable process, the same whether it is a single building or a national estate. You are here, with the survey complete and the report and fixed price in hand. The next conversation is the practical one.</p>' +
       '<div class="roadmap">' +
         '<div class="rm-line"></div><div class="rm-fill"></div>' +
@@ -10319,6 +10396,52 @@ function renderScheduleLedReport(survey, costInfo) {
     slRenderFindings(survey, costInfo) +
     slRenderFindingsNext(survey) +
     slRenderBack(survey) +
+  '</div>';
+}
+
+// ============================================================
+// TIER 1 UNIFIED REPORT — the single generator.
+// Produces the locked A4-landscape design against any survey, switching only
+// the schedule presentation by fault count. Reuses the locked component
+// renderers (cover, exec, areas, schedule, cards, findings, findings-next/
+// closer, back). Conditional behaviour:
+//   - Areas page renders when faultCount >= 6 OR distinct area count >= 3;
+//     otherwise a one-line areas summary is folded into the schedule header.
+//   - Cards section renders only when there is >= 1 critical fault (critical-only).
+//   - Surveyor narrative blocks render only when their field is populated
+//     (handled inside the component renderers).
+// costInfo may be null (renders the cost-less / condition-document variant).
+// ============================================================
+function renderTier1Report(survey, costInfo) {
+  const s = survey || {};
+  const faultCount = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.length : 0;
+  const stats = slFaultStats(s);
+  const groups = slGroupFaultsByArea(s);
+  const isFallback = groups.length === 1 && groups[0].area === 'All faults';
+  const distinctAreaCount = isFallback ? 0 : groups.length;
+  const criticalCount = stats.critical;
+  const showAreas = faultCount >= 6 || distinctAreaCount >= 3;
+
+  // When the Areas page is folded in, summarise it as a single line under the
+  // first schedule sheet's header.
+  let scheduleOpts;
+  if (!showAreas && faultCount > 0) {
+    const faultsWord = faultCount === 1 ? 'fault' : 'faults';
+    const line = (distinctAreaCount >= 2)
+      ? slCap(slSpellCount(faultCount)) + ' ' + faultsWord + ' across ' + slSpellCount(distinctAreaCount) + ' areas'
+      : slCap(slSpellCount(faultCount)) + ' ' + faultsWord + ' in one area';
+    scheduleOpts = { foldedAreasLine: line };
+  }
+
+  return '<div class="sl-report">' +
+    slRenderCover(s) +
+    slRenderExec(s) +
+    (showAreas ? slRenderAreasOverview(s) : '') +
+    slRenderSchedule(s, costInfo, scheduleOpts) +
+    (criticalCount > 0 ? slRenderCards(s, { criticalOnly: true }) : '') +
+    slRenderFindings(s, costInfo) +
+    slRenderFindingsNext(s) +
+    slRenderBack(s) +
   '</div>';
 }
 
@@ -12468,7 +12591,13 @@ function enterPrintMode(surveyId) {
   //    at this point but will be stripped before Paged.js loads.
   reportSurveyId = surveyId;
   currentSurveyId = surveyId;
-  renderReport(surveyId);
+  // Tier 1 unified report replaces renderReport on the live print path.
+  // costInfo comes from the costing engine when computed; otherwise null, which
+  // renders the cost-less / condition-document variant (degrades gracefully).
+  var _t1survey = loadSurveys().find(function(x){ return x.id === surveyId; });
+  var _t1cost = (typeof window !== 'undefined' && window._novaPrintCostInfo) || null;
+  var _t1body = document.getElementById('report-body');
+  if (_t1body) _t1body.innerHTML = _t1survey ? renderTier1Report(_t1survey, _t1cost) : '<p>Survey not found.</p>';
   // Activate the report view so its .view CSS resolves to display:block —
   // Paged.js measures source content via its computed dimensions, and a
   // display:none subtree paginates to zero-height empty pages.
