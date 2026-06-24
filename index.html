@@ -2640,6 +2640,17 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     .sl-report .sheet:not(.dark){ width:auto; height:auto; min-height:176mm;
       box-shadow:none; break-after:page; break-inside:avoid; overflow:visible; }
     .sl-report .sheet .foot, .sl-report .sheet .cv-foot{ display:none; }
+    /* Cover (dark) keeps its in-content brand foot, pinned to the bottom of the
+       sheet. @page slcover has no margin-box footer, so without this the cover
+       loses its foot strip entirely (the rule above hides it for every sheet).
+       margin-top:auto absorbs the flex-column slack (the .pad is flex-column) and
+       drops the foot to the foot of the sheet on every render, even when the
+       headline wraps to four lines on the A4 canvas; the .pad's 40px bottom
+       padding leaves a clean gap below the border-top rule. Scoped to
+       .sheet.dark .cv-foot — only the cover has .cv-foot (the back page uses
+       .bk-foot, which this does not touch). Placement only; cover content markup
+       is unchanged. */
+    .sl-report .sheet.dark .cv-foot{ display:flex; margin-top:auto; }
 
     /* costed schedule sheets carry the approved fixed-sheet design (page:slsched
        above), now unified to A4 landscape: a true fixed sheet that fills its own
@@ -7203,7 +7214,12 @@ function slPageBurst() {
 
 function slRenderCover(survey) {
   const s = survey || {};
-  const siteTitle  = deriveSiteShortName(s) || 'Site survey';
+  // Site label shares the schedule eyebrow's rule (slSchedSiteLabel): prefer the
+  // address's specific unit/building designator (e.g. "Pinhoe Trade Park, Unit 4")
+  // over deriveSiteShortName's derived town form, falling back to the derived name
+  // when no unit/building is present. For Meridian (no unit) this is unchanged
+  // ("Meridian Distribution Centre, Avonmouth").
+  const siteTitle  = slSchedSiteLabel(s) || 'Site survey';
   const ref        = 'NOV-' + (s.id || '');
   const prepared   = (fmtDate((s.visit && s.visit.date) || s.createdAt) || '').toUpperCase();
   const rating     = s['f-overall-rating'] || 'TBC';
