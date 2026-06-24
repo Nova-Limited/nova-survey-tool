@@ -2596,7 +2596,9 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .sl-report .cta-stats.one{ justify-content:center; text-align:center; }
   .sl-report .cta-col{ flex:1; }
   .sl-report .cta-stats.one .cta-col{ flex:0 0 auto; }
-  .sl-report .cta-col + .cta-col{ border-left:1px solid #e5e7eb; padding-left:28px; }
+  /* symmetric breathing around the divider (comparison variant only) */
+  .sl-report .cta-stats:not(.one) .cta-col:first-child{ padding-right:32px; }
+  .sl-report .cta-col + .cta-col{ border-left:1px solid #e5e7eb; padding-left:32px; }
   .sl-report .cta-col .ck{ font-size:10px; letter-spacing:.18em; font-weight:700; color:var(--grey); text-transform:uppercase; }
   .sl-report .cta-col .cfig{ font-size:30px; font-weight:800; line-height:1; margin-top:8px; white-space:nowrap; }
   .sl-report .cta-col .csub{ font-size:12px; color:var(--grey); margin-top:6px; }
@@ -10224,7 +10226,7 @@ function slRenderFindingsNext(survey) {
   // (a survey-method field does not exist yet — see scope note).
   const steps = [
     { st:'done',    dot:TICK, num:'01', label:'Desktop survey',         desc:'Roof assessed remotely first',      badge:'' },
-    { st:'done',    dot:TICK, num:'02', label:'Site survey',            desc:'Roof captured on site',             badge:'<span class="rm-badge free">Free</span>' },
+    { st:'done',    dot:TICK, num:'02', label:'Site survey',            desc:'Roof captured on site',             badge:'' },
     { st:'current', dot:'03', num:'03', label:'Report and fixed price', cur:true, desc:'Options in plain terms, in writing', badge:'<span class="rm-badge here">You are here</span>' },
     { st:'next',    dot:'04', num:'04', label:'Price accepted',         desc:'Scope and programme agreed',        badge:'' },
     { st:'',        dot:'05', num:'05', label:'Mobilise on site',       desc:'Working cleanly around operations', badge:'' },
