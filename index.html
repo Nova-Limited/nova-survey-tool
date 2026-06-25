@@ -2398,6 +2398,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     box-sizing:border-box;
   }
   .sl-report .sheet.dark{background:var(--ink);color:#fff;box-shadow:0 8px 30px rgba(20,20,30,.18);}
+  /* card sheets grow to fit their two cards on screen (print pins them to a page) */
+  .sl-report .sheet.sl-cards-sheet{height:auto;}
 
   /* bleed clip: fills the sheet exactly so decoration can never extend it */
   .sl-report .bleed{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
@@ -2713,22 +2715,14 @@ main { padding-bottom: env(safe-area-inset-bottom); }
      foot sits where the design places it. The √2 proportion is unchanged
      (1040/735 = 1.4149; A4 landscape 297/210 = 1.4143), so the look is kept. */
   @page slsched{ size:297mm 210mm; margin:0; }
-  @page slpage{
-    size:297mm 210mm;
-    margin:12mm 14mm 16mm 14mm;
-    @bottom-left{
-      content:"The honest view from above.";
-      font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
-      font-size:8pt; font-weight:700; color:#434244;
-      border-top:.5pt solid #F7901E; padding-top:3mm; vertical-align:top;
-    }
-    @bottom-right{
-      content:"Page " counter(page) " of " counter(pages);
-      font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
-      font-size:8pt; color:#9a9a9c;
-      border-top:.5pt solid #F7901E; padding-top:3mm; vertical-align:top; text-align:right;
-    }
-  }
+  /* Every page now carries its foot INSIDE the sheet (like slcover / slsched),
+     so the report prints correctly under Chrome "Margins: None" — the @page
+     margin-box footer is gone (it collapses to nothing when margins are zeroed,
+     which dropped the foot strip and left a blank band on the light pages). The
+     12/14/16mm page inset the light sheets used to get from this @page margin is
+     reproduced as sheet padding in the print block below, so the content box is
+     unchanged. */
+  @page slpage{ size:297mm 210mm; margin:0; }
   .sl-report .sheet.dark{ page:slcover; }
   .sl-report .sheet.sl-sched{ page:slsched; }
   .sl-report .sheet:not(.dark):not(.sl-sched),
@@ -2775,11 +2769,27 @@ main { padding-bottom: env(safe-area-inset-bottom); }
        to its content and bunches everything at the top. 181mm sits just inside the
        slpage content box (210 - 12 top - 16 bottom = 182mm) so nothing spills to a
        second page; overflow:hidden guards the bottom margin-box footer. */
-    .sl-report .sheet.sl-exec, .sl-report .sheet.sl-find, .sl-report .sheet.sl-next{
-      height:181mm; min-height:0; overflow:hidden; }
-    /* areas keeps its natural (min-height) sizing but must clip so the corner
-       burst bleeds off the sheet rather than spilling onto the page margin. */
-    .sl-report .sheet.sl-areas{ overflow:hidden; }
+    /* Light fixed sheets fill the whole margin:0 page and re-create their old
+       content box via sheet padding (= the retired @page slpage margin), so the
+       .pad (height:100%) gets the identical 269x182mm area and the flex / margin-
+       auto composition — including the exec's 1-vs-2-page spill — is unchanged.
+       Their in-content .foot (un-hidden below) sits in the bottom padding band,
+       where the margin-box footer used to be. */
+    .sl-report .sheet.sl-exec, .sl-report .sheet.sl-find, .sl-report .sheet.sl-next,
+    .sl-report .sheet.sl-areas, .sl-report .sheet.sl-cards-sheet{
+      width:297mm; height:210mm; min-height:0; overflow:hidden;
+      /* 12 top + 17 bottom = 29mm => .pad content box is exactly 181mm tall, the
+         same as the old fixed-sheet height, so bottom-anchored zones (the exec
+         rating panel, the closer CTA) land pixel-identically to before. */
+      padding:12mm 14mm 17mm; box-sizing:border-box; }
+    /* cards keep their old full-bleed-to-the-page-inset look (the retired
+       .sl-cards .pad{padding:0}); the sheet padding now provides that inset. */
+    .sl-report .sheet.sl-cards-sheet .pad{ padding:0; }
+    .sl-report .sheet.sl-cards-sheet .card{ box-shadow:none; }
+    /* un-hide the in-content foot on every light fixed sheet (same as sl-sched) */
+    .sl-report .sheet.sl-exec .foot, .sl-report .sheet.sl-find .foot,
+    .sl-report .sheet.sl-next .foot, .sl-report .sheet.sl-areas .foot,
+    .sl-report .sheet.sl-cards-sheet .foot{ display:flex; }
 
     /* costed schedule sheets carry the approved fixed-sheet design (page:slsched
        above), now unified to A4 landscape: a true fixed sheet that fills its own
@@ -9461,29 +9471,37 @@ function slRenderCards(survey, opts) {
     '</div>';
   };
 
-  let rows = '';
-  // Each .cards row is forced to its own page (break-after:page), so a burst
-  // inside each row gives every card page the brand burst, bottom-right.
-  for (let i = 0; i < chosen.length; i += 2) {
-    rows += '<div class="cards">' +
-      slBurst('ink', 'bottom:-120px;right:-120px;width:480px;opacity:.12;z-index:1;') +
-      cardHtml(chosen[i]) + (chosen[i + 1] ? cardHtml(chosen[i + 1]) : '') + '</div>';
-  }
-  if (!chosen.length) rows = '<p class="body">No priority faults to detail.</p>';
-
   const sub = cardAll
     ? 'Every fault is detailed below with evidence. Each fault’s complete photo set lives in the online gallery, referenced by fault number.'
     : 'The schedule covers all ' + slSpellCount(total) + ' faults. The ' + slSpellCount(chosen.length) + ' critical fault' + (chosen.length === 1 ? '' : 's') + ' ' + (chosen.length === 1 ? 'is' : 'are') + ' detailed here in full with evidence. Every fault’s complete photo set lives in the online gallery, referenced by fault number.';
 
-  return '' +
-  '<div class="sl-cards" style="width:1040px;max-width:100%;background:#fff;box-shadow:0 6px 28px rgba(20,20,30,.12);">' +
-    '<div class="pad" style="height:auto;">' +
+  // Per-page fixed sheets, two cards each. Every card page carries its own
+  // in-content foot (like the schedule) so the section prints correctly under
+  // Chrome "Margins: None". The eyebrow/intro sits on the first sheet only;
+  // a continuation page is just its two cards (as before). The burst repeats
+  // bottom-right on every card page.
+  const cburst = slBurst('ink', 'bottom:-120px;right:-120px;width:480px;opacity:.12;z-index:1;');
+  const cfoot  = '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
+  const chead  =
       '<div class="eyebrow">03 · Priority faults in detail</div>' +
       '<h2><span class="gt">&raquo;</span>The serious few, up close.</h2>' +
-      '<div class="sub">' + escapeHtml(sub) + '</div>' +
-      '<div style="margin-top:18px;display:flex;flex-direction:column;gap:30px;">' + rows + '</div>' +
-    '</div>' +
-  '</div>';
+      '<div class="sub">' + escapeHtml(sub) + '</div>';
+
+  if (!chosen.length) {
+    return '<section class="sheet sl-cards-sheet">' + cburst + '<div class="pad">' + chead +
+      '<p class="body" style="margin-top:18px;">No priority faults to detail.</p></div>' + cfoot + '</section>';
+  }
+
+  let sheets = '';
+  for (let i = 0; i < chosen.length; i += 2) {
+    sheets += '<section class="sheet sl-cards-sheet">' + cburst + '<div class="pad">' +
+      (i === 0 ? chead : '') +
+      '<div class="cardwrap" style="margin-top:18px;display:flex;flex-direction:column;gap:30px;">' +
+        '<div class="cards">' + cardHtml(chosen[i]) + (chosen[i + 1] ? cardHtml(chosen[i + 1]) : '') + '</div>' +
+      '</div>' +
+    '</div>' + cfoot + '</section>';
+  }
+  return sheets;
 }
 
 // Findings and costs — FIXED 1040x735 sheet transcribed from the target.
