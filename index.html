@@ -7350,6 +7350,16 @@ function slBurst(tone, css) {
 function slExecCTA(rating, lifeNow, lifeWorks) {
   const r = (rating || '').toLowerCase();
   const RED = '#c2143b', GREEN = '#2f9e5c';
+  // Remaining-life records carry either a plain number (5, 20 -> "20 yrs") or a
+  // pre-formatted string ("2-3 yrs", "15+ yrs" -> left as-is). Empty -> dash.
+  const fmtLife = function(v){
+    if (v == null) return '–';
+    const str = String(v).trim();
+    if (str === '' || str === 'TBC') return '–';
+    if (/[a-z]/i.test(str)) return str;                 // already worded (yrs, months…)
+    if (/^\d+(\.\d+)?$/.test(str)) return str + ' yrs';  // plain number
+    return str;
+  };
   const fig = function(val, color){ return '<div class="cfig" style="color:' + color + ';">' + escapeHtml(val) + '</div>'; };
   const reassurance = function(lead, withSub){
     return '<div class="cta-panel">' +
@@ -7358,7 +7368,7 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
       '<hr class="cta-rule">' +
       '<div class="cta-stats one">' +
         '<div class="cta-col">' +
-          '<div class="ck">With the priority works</div>' + fig(lifeWorks, GREEN) +
+          '<div class="ck">With the priority works</div>' + fig(fmtLife(lifeWorks), GREEN) +
           '<div class="csub">' + escapeHtml(withSub) + '</div>' +
         '</div>' +
       '</div>' +
@@ -7371,11 +7381,11 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
       '<hr class="cta-rule">' +
       '<div class="cta-stats">' +
         '<div class="cta-col">' +
-          '<div class="ck">If you do nothing</div>' + fig(lifeNow, RED) +
+          '<div class="ck">If you do nothing</div>' + fig(fmtLife(lifeNow), RED) +
           '<div class="csub">' + escapeHtml(doNothingSub) + '</div>' +
         '</div>' +
         '<div class="cta-col">' +
-          '<div class="ck">With the priority works</div>' + fig(lifeWorks, GREEN) +
+          '<div class="ck">With the priority works</div>' + fig(fmtLife(lifeWorks), GREEN) +
           '<div class="csub">' + escapeHtml(withWorksSub || 'Of remaining life') + '</div>' +
         '</div>' +
       '</div>' +
@@ -7387,7 +7397,7 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
   if (r === 'critical') return comparison('Rated Critical today. Urgent works are needed to prevent serious failure.', 'Before water ingress');
   if (r === 'end of life') return comparison('Rated End of Life today. Replacement is required to restore the roof to a serviceable condition.', 'Before failure', 'Of remaining life with replacement');
   // Poor (and any unrecognised rating) -> comparison with the Poor lead.
-  return comparison('Rated Poor today. Priority works return the roof to ' + (lifeWorks || 'TBC') + ' of life.', 'Before serious failure');
+  return comparison('Rated Poor today. Priority works return the roof to ' + fmtLife(lifeWorks) + ' of life.', 'Before serious failure');
 }
 
 function slRenderCover(survey) {
@@ -7416,7 +7426,6 @@ function slRenderCover(survey) {
         '<img class="wordmark" src="assets/nova-wordmark-white.png" alt="nova" style="height:46px;width:auto;">' +
         '<div style="text-align:right;">' +
           '<div class="prep">PREPARED <b>' + escapeHtml(prepared) + '</b></div>' +
-          '<div class="badge">Schedule-led survey</div>' +
           '<div class="prep" style="margin-top:8px;">' + escapeHtml(ref) + '</div>' +
         '</div>' +
       '</div>' +
@@ -7488,35 +7497,48 @@ function slRenderExec(survey) {
     return '<div class="row"><div class="rk">' + k + '</div><div class="rv">' + (vHtml || 'TBC') + '</div></div>';
   };
 
-  // Three zones: top (eyebrow/h2/lede), middle (site + aerial, gap above), and
-  // the CTA panel anchored to the foot of the .pad via a flex:1 spacer.
-  return '' +
-  '<section class="sheet sl-exec">' +
-    // Mid-right so it clears the bottom CTA panel; bleeds off the right edge.
-    slBurst('ink', 'top:50%;right:-180px;width:460px;transform:translateY(-50%);opacity:.12;z-index:1;') +
-    '<div class="pad">' +
-      '<div class="ex-top">' +
-        '<div class="eyebrow">01 &middot; Executive summary</div>' +
-        '<h2><span class="gt">&raquo;</span>The picture at a glance.</h2>' +
-        '<p class="body" style="margin-top:14px;">' + lede + '</p>' +
-        execSummaryHtml +
-      '</div>' +
-      '<div class="ex-mid">' +
-        '<div class="site">' +
-          '<h3>The site</h3>' +
-          row('Address', addrHtml) +
-          row('Visit', visitHtml) +
-          row('Surveyor', surveyorHtml) +
-          row('Works brief', worksHtml) +
-        '</div>' +
-        '<div class="aerial">' + aerialInner + '</div>' +
-      '</div>' +
-      bgRowHtml +
-      '<div style="flex:1;"></div>' +
-      slExecCTA(condition, lifeNow, lifeWorks) +
-    '</div>' +
-    '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
-  '</section>';
+  // The rating panel (CTA) is ALWAYS on the LAST exec page, anchored to the foot
+  // via the flex:1 spacer. One page when the content fits; otherwise the content
+  // takes page 1 and the rating panel takes page 2 (eyebrow "… (continued)"). The
+  // background row prefers page 1 but flows to page 2 if it does not fit there.
+  const burst = slBurst('ink', 'top:50%;right:-180px;width:460px;transform:translateY(-50%);opacity:.12;z-index:1;');
+  const foot  = '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
+  const ctaHtml = slExecCTA(condition, lifeNow, lifeWorks);
+  const topHtml =
+    '<div class="ex-top">' +
+      '<div class="eyebrow">01 &middot; Executive summary</div>' +
+      '<h2><span class="gt">&raquo;</span>The picture at a glance.</h2>' +
+      '<p class="body" style="margin-top:14px;">' + lede + '</p>' +
+      execSummaryHtml +
+    '</div>';
+  const siteHtml =
+    '<div class="ex-mid">' +
+      '<div class="site"><h3>The site</h3>' + row('Address', addrHtml) + row('Visit', visitHtml) +
+        row('Surveyor', surveyorHtml) + row('Works brief', worksHtml) + '</div>' +
+      '<div class="aerial">' + aerialInner + '</div>' +
+    '</div>';
+
+  // Crude content-height estimate (px at A4 landscape) to choose 1 vs 2 pages.
+  const estLines = function(txt, cpl){ return txt ? txt.split(/\n{2,}/).reduce(function(n, p){ return n + Math.max(1, Math.ceil(p.replace(/\n/g, ' ').length / cpl)); }, 0) : 0; };
+  const estParas = function(txt){ return txt ? txt.split(/\n{2,}/).length : 0; };
+  const estBase = 80 + Math.max(1, estLines(lede, 120)) * 20;
+  const estSum  = execSummaryTxt ? (12 + estLines(execSummaryTxt, 118) * 20 + Math.max(0, estParas(execSummaryTxt) - 1) * 8) : 0;
+  const estSite = 224;
+  const estBg   = (clientIssuesTxt || siteContextTxt) ? (95 + Math.max(estLines(clientIssuesTxt, 60), estLines(siteContextTxt, 60)) * 16) : 0;
+  const estCta  = 196;
+  const ONE_PAGE = 586, PAGE1 = 600;
+  const content  = estBase + estSum + estSite + estBg;
+
+  const sheet = function(inner){ return '<section class="sheet sl-exec">' + burst + '<div class="pad">' + inner + '</div>' + foot + '</section>'; };
+
+  if (content + estCta <= ONE_PAGE) {
+    return sheet(topHtml + siteHtml + bgRowHtml + '<div style="flex:1;"></div>' + ctaHtml);
+  }
+  // Two pages: content on page 1, rating panel anchored to the foot of page 2.
+  const bgOnPage1 = !estBg || (content <= PAGE1);
+  const contEyebrow = '<div class="ex-top"><div class="eyebrow">01 &middot; Executive summary (continued)</div></div>';
+  return sheet(topHtml + siteHtml + (bgOnPage1 ? bgRowHtml : '')) +
+         sheet(contEyebrow + (bgOnPage1 ? '' : bgRowHtml) + '<div style="flex:1;"></div>' + ctaHtml);
 }
 
 function slRenderAreasOverview(survey) {
@@ -10420,7 +10442,7 @@ function renderTier1Report(survey, costInfo) {
   const isFallback = groups.length === 1 && groups[0].area === 'All faults';
   const distinctAreaCount = isFallback ? 0 : groups.length;
   const criticalCount = stats.critical;
-  const showAreas = faultCount >= 6 || distinctAreaCount >= 3;
+  const showAreas = faultCount >= 6 && distinctAreaCount >= 3;
 
   // When the Areas page is folded in, summarise it as a single line under the
   // first schedule sheet's header.
