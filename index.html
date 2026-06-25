@@ -7526,19 +7526,21 @@ function slRenderExec(survey) {
   const estSite = 224;
   const estBg   = (clientIssuesTxt || siteContextTxt) ? (95 + Math.max(estLines(clientIssuesTxt, 60), estLines(siteContextTxt, 60)) * 16) : 0;
   const estCta  = 196;
-  const ONE_PAGE = 586, PAGE1 = 600;
+  const ONE_PAGE = 586;
   const content  = estBase + estSum + estSite + estBg;
 
   const sheet = function(inner){ return '<section class="sheet sl-exec">' + burst + '<div class="pad">' + inner + '</div>' + foot + '</section>'; };
 
   if (content + estCta <= ONE_PAGE) {
+    // One page: everything, with the rating panel anchored to the foot.
     return sheet(topHtml + siteHtml + bgRowHtml + '<div style="flex:1;"></div>' + ctaHtml);
   }
-  // Two pages: content on page 1, rating panel anchored to the foot of page 2.
-  const bgOnPage1 = !estBg || (content <= PAGE1);
+  // Two pages: page 1 carries the heading, summary and site details; page 2
+  // (continued) carries the background panels and the rating panel anchored to
+  // its foot — the balanced reading signed off through eye-check.
   const contEyebrow = '<div class="ex-top"><div class="eyebrow">01 &middot; Executive summary (continued)</div></div>';
-  return sheet(topHtml + siteHtml + (bgOnPage1 ? bgRowHtml : '')) +
-         sheet(contEyebrow + (bgOnPage1 ? '' : bgRowHtml) + '<div style="flex:1;"></div>' + ctaHtml);
+  return sheet(topHtml + siteHtml) +
+         sheet(contEyebrow + bgRowHtml + '<div style="flex:1;"></div>' + ctaHtml);
 }
 
 function slRenderAreasOverview(survey) {
