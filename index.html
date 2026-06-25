@@ -5915,6 +5915,8 @@ function goToReportCurrent() {
   // Unified Tier 1 report (replaces the retired Kingston renderReport path).
   // costInfo from the costing engine when computed, else null (TBC cost rendering).
   var s = loadSurveys().find(function(x){ return x.id === currentSurveyId; });
+  // Survey-specific default Save-as-PDF filename (Chrome reads document.title).
+  if (s) document.title = computeReportFilename(s);
   var costInfo = (typeof window !== 'undefined' && window._novaPrintCostInfo) || null;
   var body = document.getElementById('report-body');
   if (body) body.innerHTML = s ? renderTier1Report(s, costInfo) : '<p>Survey not found.</p>';
@@ -6529,6 +6531,30 @@ function deriveSiteShortName(s) {
   if (building) return building;
   if (town) return town;
   return (addr.split(',')[0] || addr.split('\n')[0] || '').trim();
+}
+
+// Survey-specific default filename for print / Save-as-PDF. Chrome uses
+// document.title as the suggested filename (and appends .pdf for the PDF
+// destination), so the print entry points set document.title to this. Format:
+//   Nova-Condition-Report-{NOV-SURV-YYYY-NNN}-{Site-Slug}-{YYYY-MM-DD}
+// Missing pieces fall back to "unknown" (or "site" for an empty slug) so the
+// structure stays consistent and grep-able; runs of non-alphanumerics collapse
+// to a single hyphen, no leading/trailing/double hyphens.
+function computeReportFilename(survey) {
+  var s = survey || {};
+  var ref = s.id ? ('NOV-' + s.id) : 'unknown';
+  var shortName = (typeof deriveSiteShortName === 'function') ? deriveSiteShortName(s) : '';
+  var site = String(shortName || '')
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')      // strip diacritics
+    .replace(/['\u2018\u2019]/g, '')                       // drop apostrophes (Marys, not Mary-s)
+    .replace(/[^\x00-\x7F]/g, '')                          // drop remaining non-ASCII
+    .replace(/[^A-Za-z0-9]+/g, '-')                        // non-alphanumerics -> single hyphen
+    .replace(/^-+|-+$/g, '');                              // trim hyphens
+  if (!site) site = 'site';
+  var raw = (s.visit && s.visit.date) || s['f-visit-date'] || '';
+  var visit = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : 'unknown';
+  return ('Nova-Condition-Report-' + ref + '-' + site + '-' + visit)
+    .replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
 }
 
 // Word form of a defect count for the cover headline: "Three defects",
@@ -11864,6 +11890,8 @@ function enterPrintMode(surveyId) {
   // costInfo comes from the costing engine when computed; otherwise null, which
   // renders the cost-less / condition-document variant (degrades gracefully).
   var _t1survey = loadSurveys().find(function(x){ return x.id === surveyId; });
+  // Survey-specific default Save-as-PDF filename (Chrome reads document.title).
+  if (_t1survey) document.title = computeReportFilename(_t1survey);
   var _t1cost = (typeof window !== 'undefined' && window._novaPrintCostInfo) || null;
   var _t1body = document.getElementById('report-body');
   if (_t1body) _t1body.innerHTML = _t1survey ? renderTier1Report(_t1survey, _t1cost) : '<p>Survey not found.</p>';
