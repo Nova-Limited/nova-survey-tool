@@ -2526,7 +2526,10 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 
   /* detail cards */
   .sl-report .cards{display:flex;gap:30px;margin-top:10px;flex:1;position:relative;}
-  .sl-report .card{flex:1;border:1px solid var(--line);border-radius:12px;padding:20px 24px;position:relative;border-left:4px solid var(--crit);}
+  .sl-report .card{flex:1;border:1px solid var(--line);border-radius:12px;padding:20px 24px;position:relative;border-left:4px solid var(--crit);display:flex;flex-direction:column;}
+  /* matched pair: body text stays top, lead image + evidence set drop to the
+     bottom so both cards' images sit at the same height regardless of text. */
+  .sl-report .cardbtm{margin-top:auto;}
   .sl-report .card .chead{display:flex;align-items:center;justify-content:space-between;}
   .sl-report .card .cid{display:flex;align-items:center;gap:12px;}
   .sl-report .card .ftag{background:var(--crit);color:#fff;font-weight:800;font-size:13px;padding:6px 9px;border-radius:6px;}
@@ -2743,8 +2746,12 @@ main { padding-bottom: env(safe-area-inset-bottom); }
        given a large ink box-shadow that bleeds dark to every edge, so the
        sheet never overflows the printable height (which would split the cover
        across two pages) yet still reads as edge-to-edge dark. */
-    .sl-report .sheet.dark{ width:297mm; height:194mm; margin:0;
-      box-shadow:0 0 0 24mm #434244; break-after:page; break-inside:avoid; overflow:hidden;
+    /* True full-page dark sheet: fills the whole 210mm page with a real dark
+       background (no 194mm + 24mm box-shadow bleed, which leaked the dark up onto
+       the previous page in native print and parked the foot ~28mm high). Same
+       210mm the light sheets use, so it prints one-per-page without splitting. */
+    .sl-report .sheet.dark{ width:297mm; height:210mm; margin:0;
+      background:var(--ink); box-shadow:none; break-after:page; break-inside:avoid; overflow:hidden;
       -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 
     /* light fixed sheets (exec / areas / findings): fill the margined page,
@@ -9462,12 +9469,12 @@ function slRenderCards(survey, opts) {
       '</div>' +
       '<div class="block"><div class="label">Observation</div><p>' + (f.description ? escapeHtml(f.description) : 'TBC') + '</p></div>' +
       '<div class="block"><div class="label">Recommended action</div><p>' + (f.recommendation ? escapeHtml(f.recommendation) : 'TBC') + '</p></div>' +
-      photoBlock +
+      '<div class="cardbtm">' + photoBlock +
       '<div class="ev-set">' + qr +
         '<div><div class="et">Full evidence set</div>' +
         '<div class="eu">' + escapeHtml(url.replace(/^https:\/\//, '')) + '</div>' +
         '<div class="ep">' + escapeHtml(evText) + '</div></div>' +
-      '</div>' +
+      '</div></div>' +
     '</div>';
   };
 
@@ -9679,7 +9686,7 @@ function slRenderBack(survey) {
   const s = survey || {};
   return '' +
   '<section class="sheet dark sl-back">' +
-    slBurst('white', 'bottom:-120px;right:-120px;width:480px;opacity:.20;z-index:1;') +
+    slBurst('white', 'bottom:-60px;right:-120px;width:480px;opacity:.20;z-index:1;') +
     '<div class="pad">' +
       '<img class="wordmark" src="assets/nova-wordmark-white.png" alt="nova" style="height:54px;width:auto;align-self:flex-start;">' +
       '<div class="bk-eyebrow">Get in touch</div>' +
