@@ -6266,6 +6266,86 @@ function apptTimeDisplay(vi, withDuration) {
   var d = Number(vi.visitDurationMins);
   return (withDuration && d > 0) ? (t + ', ' + d + ' min') : t;
 }
+
+// ---- Calendar export (.ics) for a site visit. Generates a local file that opens
+// in Apple Calendar on the Mac. No logins, no account permissions, nothing written
+// to any calendar automatically — the surveyor reviews and saves the event.
+function icsEscape(v){ return String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); }
+function icsPad(n){ return ('0' + n).slice(-2); }
+// RFC 5545 line folding: split logical lines into <=75-octet pieces, continuations
+// prefixed with a single space. (Content is ASCII here, so length == octets.)
+function icsFold(line){
+  if (line.length <= 74) return line;
+  var out = '', i = 0;
+  while (i < line.length){ out += (i ? '\r\n ' : '') + line.slice(i, i + 73); i += 73; }
+  return out;
+}
+// Build a VCALENDAR string from a survey, or null if it lacks a date + start time.
+function buildVisitICS(survey){
+  var s = survey || {}, vi = s.visit || {};
+  var date  = String(vi.date || '').trim();             // YYYY-MM-DD
+  var start = String(vi.appointmentStart || '').trim();  // HH:MM
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,2}:\d{2}$/.test(start)) return null;
+  var dur = Number(vi.visitDurationMins) > 0 ? Number(vi.visitDurationMins) : 90;
+  var Y = +date.slice(0,4), Mo = +date.slice(5,7), D = +date.slice(8,10);
+  var H = +start.split(':')[0], Mi = +start.split(':')[1];
+  var endTotal = H*60 + Mi + dur;
+  var dayCarry = Math.floor(endTotal / 1440), endMin = ((endTotal % 1440) + 1440) % 1440;
+  var endH = Math.floor(endMin / 60), endM = endMin % 60;
+  var ed = new Date(Date.UTC(Y, Mo-1, D)); ed.setUTCDate(ed.getUTCDate() + dayCarry); // date-only, TZ-safe
+  var dtStart = '' + Y + icsPad(Mo) + icsPad(D) + 'T' + icsPad(H) + icsPad(Mi) + '00';
+  var dtEnd   = '' + ed.getUTCFullYear() + icsPad(ed.getUTCMonth()+1) + icsPad(ed.getUTCDate()) + 'T' + icsPad(endH) + icsPad(endM) + '00';
+  var now = new Date();
+  var stamp = '' + now.getUTCFullYear() + icsPad(now.getUTCMonth()+1) + icsPad(now.getUTCDate()) + 'T'
+            + icsPad(now.getUTCHours()) + icsPad(now.getUTCMinutes()) + icsPad(now.getUTCSeconds()) + 'Z';
+
+  var ref = s.id ? ('NOV-' + s.id) : 'NOV-UNKNOWN';
+  var siteName = (typeof deriveSiteShortName === 'function' && deriveSiteShortName(s))
+    || (typeof firstLine === 'function' ? firstLine((s.site || {}).address) : '') || 'site';
+  var address = String((s.site || {}).address || '').replace(/\s+/g, ' ').trim();
+  var ec = s.endClient || {}, mc = s.mainContractor || {};
+  var client = (ec.company || ec.contactName || mc.company || '').trim();
+  var desc = ['Survey reference: ' + ref];
+  if (client) desc.push('Client: ' + client);
+  if (vi.surveyorName) desc.push('Surveyor: ' + String(vi.surveyorName).trim());
+  if (vi.worksDescription) desc.push('Works: ' + String(vi.worksDescription).trim());
+  // Stable UID derived from the survey id, so re-adding updates the same event.
+  var uid = 'nova-visit-' + String(s.id || 'unknown').replace(/[^A-Za-z0-9._-]/g, '') + '@nova-limited.com';
+
+  var lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nova (SW) Limited//Survey Tool//EN',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VTIMEZONE', 'TZID:Europe/London',
+    'BEGIN:DAYLIGHT', 'TZOFFSETFROM:+0000', 'TZOFFSETTO:+0100', 'TZNAME:BST', 'DTSTART:19700329T010000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU', 'END:DAYLIGHT',
+    'BEGIN:STANDARD', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0000', 'TZNAME:GMT', 'DTSTART:19701025T020000', 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU', 'END:STANDARD',
+    'END:VTIMEZONE',
+    'BEGIN:VEVENT',
+    'UID:' + uid,
+    'DTSTAMP:' + stamp,
+    'DTSTART;TZID=Europe/London:' + dtStart,
+    'DTEND;TZID=Europe/London:' + dtEnd,
+    'SUMMARY:' + icsEscape('Nova site visit: ' + siteName),
+    address ? ('LOCATION:' + icsEscape(address)) : null,
+    'DESCRIPTION:' + icsEscape(desc.join('\n')),
+    'SEQUENCE:0', 'STATUS:CONFIRMED', 'TRANSP:OPAQUE',
+    'END:VEVENT', 'END:VCALENDAR'
+  ].filter(function(x){ return x != null; });
+  return { ics: lines.map(icsFold).join('\r\n') + '\r\n', ref: ref };
+}
+function addVisitToCalendar(surveyId){
+  var s = loadSurveys().find(function(x){ return x.id === (surveyId || currentSurveyId); });
+  if (!s){ if (typeof showToast === 'function') showToast('Survey not found'); return; }
+  if (!String((s.visit || {}).appointmentStart || '').trim()){
+    if (typeof showToast === 'function') showToast('Set an appointment time first'); return; }
+  var built = buildVisitICS(s);
+  if (!built){ if (typeof showToast === 'function') showToast('Need a visit date and appointment time'); return; }
+  var blob = new Blob([built.ics], { type: 'text/calendar;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href = url; a.download = 'Nova-visit-' + built.ref + '.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+}
+
 function populateForm(data) {
   for (const f of FIELD_MAP) {
     const el = document.getElementById(f.id);
@@ -6493,6 +6573,9 @@ function renderSurveyDetail(s) {
       '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
       '<button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>' +
       '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
+      '<button class="btn btn-secondary" onclick="addVisitToCalendar(currentSurveyId)"' +
+        ((vi && vi.appointmentStart) ? '' : ' disabled title="Set an appointment time first"') +
+        '>Add to calendar</button>' +
       '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
       '<span id="sync-at-status" style="font-size:13px;color:#666;margin-left:10px;align-self:center;"></span>' +
       '<button class="btn btn-danger" onclick="deleteCurrent()" style="margin-left:auto;">Delete</button>';
