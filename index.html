@@ -2835,6 +2835,74 @@ main { padding-bottom: env(safe-area-inset-bottom); }
     .sl-report > :last-child{ break-after:auto; }
   }
 </style>
+
+<style id="pp-pack-styles">
+  /* ---- Subcontractor pricing pack: A4 PORTRAIT, separate from the report ---- */
+  .pp-pack{ font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#434244; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pp-pack .pp-sheet{ break-after:page; position:relative; }
+  .pp-pack .pp-sheet:last-child{ break-after:auto; }
+
+  /* top bar on the inner section pages */
+  .pp-pack .pp-top{ display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+  .pp-pack .pp-logo{ height:34px; width:auto; }
+  .pp-pack .pp-rule{ flex:1; border-top:2px solid #F7901E; }
+
+  /* shared type */
+  .pp-pack .pp-eyebrow{ font-size:9px; letter-spacing:.18em; font-weight:700; color:#F7901E; text-transform:uppercase; }
+  .pp-pack .pp-h2{ font-size:21px; font-weight:700; margin:3px 0 2px; color:#434244; border-bottom:2px solid #434244; padding-bottom:8px; }
+  .pp-pack .pp-sub2{ font-size:11px; color:#6b6c70; margin:9px 0 12px; }
+
+  /* cover */
+  .pp-pack .pp-cover{ }
+  .pp-pack .pp-cv-top{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #F7901E; padding-bottom:14px; }
+  .pp-pack .pp-return{ font-size:10px; letter-spacing:.04em; color:#6b6c70; font-weight:600; }
+  .pp-pack .pp-cover .pp-eyebrow{ margin-top:26px; }
+  .pp-pack .pp-title{ font-size:30px; font-weight:700; letter-spacing:-.01em; margin:6px 0 4px; }
+  .pp-pack .pp-sub{ font-size:12px; color:#6b6c70; }
+  .pp-pack .pp-meta{ display:flex; gap:28px; margin:26px 0 24px; }
+  .pp-pack .pp-meta>div{ }
+  .pp-pack .pp-k{ font-size:8.5px; letter-spacing:.14em; font-weight:700; color:#F7901E; text-transform:uppercase; }
+  .pp-pack .pp-v{ font-size:12px; font-weight:600; margin-top:3px; }
+
+  .pp-pack .pp-how{ border:1px solid #e1e5ec; border-radius:8px; padding:16px 20px 6px; background:#fafbfc; }
+  .pp-pack .pp-how-h{ font-size:10px; letter-spacing:.16em; font-weight:700; color:#F7901E; text-transform:uppercase; margin-bottom:6px; }
+  .pp-pack .pp-how ol{ margin:0; padding-left:18px; }
+  .pp-pack .pp-how li{ font-size:11px; line-height:1.55; color:#3f4044; margin-bottom:10px; }
+  .pp-pack .pp-routes{ font-size:11px; line-height:1.6; color:#3f4044; margin:18px 2px 0; }
+  .pp-pack .pp-standards{ font-size:9.5px; line-height:1.55; color:#9aa0a6; margin-top:26px; border-top:1px solid #e1e5ec; padding-top:12px; }
+
+  /* schedule tables (Section A and B share this) */
+  .pp-pack .pp-table{ width:100%; border-collapse:collapse; table-layout:fixed; }
+  .pp-pack .pp-table th, .pp-pack .pp-table td{ text-align:left; vertical-align:top; padding:8px 8px; font-size:10.5px; line-height:1.35; }
+  .pp-pack .pp-hr th{ background:#434244; color:#fff; font-size:8.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; padding:7px 8px; }
+  .pp-pack .pp-area td{ background:#f1f2f4; font-size:9px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:#434244; padding:6px 8px; }
+  .pp-pack .pp-row td{ border-bottom:1px solid #e8eaee; }
+  .pp-pack .pp-row .pp-c-ref{ font-weight:700; }
+  .pp-pack .pp-c-ref{ width:7%; } .pp-pack .pp-c-unit{ width:8%; text-align:center; }
+  .pp-pack .pp-c-qty{ width:8%; text-align:center; } .pp-pack .pp-c-rate{ width:11%; } .pp-pack .pp-c-line{ width:12%; }
+  .pp-pack td.pp-c-unit, .pp-pack td.pp-c-qty{ text-align:center; }
+  .pp-pack .pp-tbc{ color:#F7901E; font-weight:700; font-size:9px; }
+  .pp-pack .pp-blue{ background:#eef3fb; border-bottom:1px solid #dbe4f1 !important; }
+  .pp-pack .pp-grp{ break-inside:auto; }
+
+  /* exclusions + return note on Section B */
+  .pp-pack .pp-excl{ margin-top:22px; }
+  .pp-pack .pp-excl-h{ background:#434244; color:#fff; font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; padding:8px 12px; }
+  .pp-pack .pp-excl-box{ border:1px solid #e1e5ec; border-top:none; height:120px; }
+  .pp-pack .pp-return-note{ font-size:10px; line-height:1.6; color:#3f4044; margin-top:18px; }
+
+  /* in-content foot fallback (margin-box foot is primary) — hidden on screen/print */
+  .pp-pack .pp-foot{ display:none; }
+
+  @media print{
+    .pp-pack .pp-area td, .pp-pack .pp-hr th, .pp-pack .pp-excl-h{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .pp-pack .pp-row{ break-inside:avoid; }
+    .pp-pack .pp-area{ break-after:avoid; }
+  }
+</style>
+
+<!-- SheetJS (xlsx-js-style: SheetJS API + cell styles) for the pricing return .xlsx -->
+<script src="assets/xlsx-style.min.js"></script>
 </head>
 <body>
 <header class="topbar no-print">
@@ -3364,6 +3432,22 @@ main { padding-bottom: env(safe-area-inset-bottom); }
         </div>
       </details>
 
+      <details class="section" id="section-b3">
+        <summary>Section B3 — Access for pricing pack</summary>
+        <div class="section-body">
+          <p class="section-hint">Per elevation needing scaffold or a working platform. Suggestions are pulled from the roof slopes (length and eave height) and are fully editable — slopes are not equated with elevations. This drives Section B of the subcontractor pricing pack; it does not change the roof measurements.</p>
+          <div id="pack-access-list"></div>
+          <div class="add-building-row">
+            <button type="button" class="btn btn-ghost" onclick="ppAddElevation()">+ Add elevation</button>
+            <button type="button" class="btn btn-ghost" onclick="ppSuggestFromSlopes()">Suggest from roof slopes</button>
+          </div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" id="pack-safety-netting" onchange="ppSetNetting('safety', this.checked)"> Safety netting (man-safe) — on by default where there is height access</label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" id="pack-debris-netting" onchange="ppSetNetting('debris', this.checked)"> Debris netting (fine mesh inside the safety netting) — off by default</label>
+          </div>
+        </div>
+      </details>
+
       <details class="section" id="section-d">
         <summary>Section C — Access &amp; Safety</summary>
         <div class="section-body">
@@ -3532,6 +3616,21 @@ main { padding-bottom: env(safe-area-inset-bottom); }
       <div class="report-actions no-print">
         <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
         <button class="link-btn" onclick="backToDetail()">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-pp" class="view">
+    <div class="container wide">
+      <div class="view-header no-print">
+        <button class="link-btn" onclick="ppBackToDetail()" style="align-self:flex-start;">← Back to survey</button>
+        <h1>Pricing pack preview</h1>
+        <div class="meta">The Excel return has downloaded. Tap Print to save the pack as PDF (Margins: Default, Background graphics: On).</div>
+      </div>
+      <div id="pp-body"></div>
+      <div class="report-actions no-print">
+        <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
+        <button class="link-btn" onclick="ppBackToDetail()">Close</button>
       </div>
     </div>
   </section>
@@ -5404,6 +5503,7 @@ const NOVA_MARK_TRANSPARENT = 'assets/nova-mark-transparent.png';
 // ---- State ----
 let currentSurveyId = null;
 let currentBuildings = [];
+let currentPackAccess = { elevations: [], safetyNetting: true, debrisNetting: false };
 // Site-plan image + annotation state. Lat/lng live on DOM inputs (via FIELD_MAP
 // just like every other Section A field); everything else hangs off here.
 function makeBlankSiteImage() {
@@ -5797,6 +5897,7 @@ function goHome() {
 async function goToNewSurvey() {
   currentSurveyId = null;
   currentBuildings = [];
+  currentPackAccess = { elevations: [], safetyNetting: true, debrisNetting: false };
   currentSiteImage = makeBlankSiteImage();
   resetForm();
 
@@ -5819,6 +5920,7 @@ async function goToNewSurvey() {
     currentBuildings = Array.isArray(draft.buildings)
       ? draft.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(s => ({ ...s })) }))
       : [];
+    currentPackAccess = ppInitAccess(draft);
     currentSiteImage = {
       siteImageSource:  draft.siteImageSource || '',
       siteImageData:    draft.siteImageData   || '',
@@ -5842,6 +5944,7 @@ async function goToNewSurvey() {
   document.getElementById('form-meta').textContent = '';
   document.getElementById('f-ref-readout').textContent = '— assigned on save —';
   renderBuildings();
+  renderPackAccess();
   spRestoreImageState();
   updateConditionals();
   updateEngagementVisibility();
@@ -5866,6 +5969,7 @@ function editCurrent() {
   currentBuildings = Array.isArray(s.buildings)
     ? s.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(sl => ({ ...sl })) }))
     : [];
+  currentPackAccess = ppInitAccess(s);
   currentSiteImage = {
     siteImageSource:  s.siteImageSource || '',
     siteImageData:    s.siteImageData   || '',
@@ -5883,6 +5987,7 @@ function editCurrent() {
   document.getElementById('form-meta').textContent = s.id + ' · created ' + fmtDate(s.createdAt);
   document.getElementById('f-ref-readout').textContent = s.id;
   renderBuildings();
+  renderPackAccess();
   spRestoreImageState();
   updateConditionals();
   updateEngagementVisibility();
@@ -6120,6 +6225,12 @@ function collectFormData() {
     ...b,
     slopes: (b.slopes || []).map(s => ({ ...s }))
   }));
+  // Pricing-pack per-elevation access capture (additive; drives Section B).
+  out.packAccess = {
+    elevations: (currentPackAccess.elevations || []).map(e => ({ ...e })),
+    safetyNetting: currentPackAccess.safetyNetting !== false,
+    debrisNetting: !!currentPackAccess.debrisNetting
+  };
   // Site-plan fields. Arrays are cloned so mutations after this point don't
   // bleed back into a survey already written to localStorage. Pin / fault
   // marker entries now carry lat/lng (geographic) rather than x/y fractions.
@@ -6368,6 +6479,7 @@ function renderSurveyDetail(s) {
     actions.innerHTML =
       '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
       '<button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>' +
+      '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
       '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
       '<span id="sync-at-status" style="font-size:13px;color:#666;margin-left:10px;align-self:center;"></span>' +
       '<button class="btn btn-danger" onclick="deleteCurrent()" style="margin-left:auto;">Delete</button>';
@@ -6556,6 +6668,367 @@ function computeReportFilename(survey) {
   return ('Nova-Condition-Report-' + ref + '-' + site + '-' + visit)
     .replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
 }
+
+/* ===================== SUBCONTRACTOR PRICING PACK GENERATOR =====================
+   Additive and source-agnostic. A normalized "pack model" is the single interface:
+   buildPricingPackModelFromSurvey() feeds it from a completed survey + the new
+   per-elevation access capture; a future new-works element feed produces the same
+   model shape, so renderPricingPackHTML() / buildPricingReturnWorkbook() never need
+   a second generator. Nothing here touches renderTier1Report / enterPrintMode (the
+   live report path). PDF pack = Paged.js, A4 portrait. Excel return = SheetJS.
+   Commercial rules enforced: no client costs on either output; Monitor faults
+   excluded; Nova prelims never on the pack (Section B is scaffold/access/netting).
+*/
+function ppEsc(s){ return escapeHtml(s == null ? '' : String(s)); }
+function ppFmtDate(iso){
+  if(!iso) return '';
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso)); if(!m) return String(iso);
+  var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return (Number(m[3])) + ' ' + months[Number(m[2])-1] + ' ' + m[1];
+}
+// Return-by: the Friday at least 7 days after prepared, "5pm, Friday D Month YYYY".
+function ppReturnBy(iso){
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||'')); if(!m) return '';
+  var days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  // build a UTC day count to avoid TZ drift; advance to the first Friday >= prepared+7
+  var d = new Date(Date.UTC(Number(m[1]), Number(m[2])-1, Number(m[3])));
+  d.setUTCDate(d.getUTCDate()+7);
+  while(d.getUTCDay()!==5) d.setUTCDate(d.getUTCDate()+1);
+  return '5pm, ' + days[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + months[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+
+// ---- model builder: SURVEY ROUTE (fault schedule -> Section A; access -> Section B)
+function buildPricingPackModelFromSurvey(survey, access){
+  var s = survey || {}; access = access || {};
+  var addr = (s.site && s.site.address) || '';
+  var parts = addr.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+  var siteName = parts[0] || 'Site';
+  var siteAddress = parts.slice(1).join(', ');
+  var surveyRef = s.id ? ('NOV-' + s.id) : 'NOV-UNKNOWN';
+  var packRef = s.id ? ('NOV-' + String(s.id).replace(/SURV/, 'PP')) : 'NOV-PP-UNKNOWN';
+  var preparedISO = access.preparedISO || (typeof todayIso === 'function' ? todayIso() : '');
+
+  // Section A — priceable faults grouped by area, Monitor excluded, no client cost.
+  var faults = (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [])
+    .filter(function(f){ return (f && (f.severity || '').toLowerCase() !== 'monitor'); });
+  var order = [], byArea = {};
+  faults.forEach(function(f){ var a = f.area || 'Other works'; if(!byArea[a]){ byArea[a]=[]; order.push(a); } byArea[a].push(f); });
+  var groups = order.map(function(a){
+    var lines = byArea[a].slice().sort(function(x,y){ return (Number(x.number)||0)-(Number(y.number)||0); }).map(function(f){
+      var ext = (typeof faultExtent === 'function') ? faultExtent(f) : { qty:0, unit:'' };
+      var qty = (Number(ext.qty) > 0) ? Number(ext.qty) : null;   // null => TBC, rate-only
+      return { ref:'F'+(f.number!=null?f.number:'?'), location:(f.location||'').trim(),
+               works:(f.recommendation || f.description || '').trim(), unit: ext.unit || '', qty: qty };
+    });
+    return { area: a, lines: lines };
+  });
+  var sectionA = { title:'Roofing and remedial works',
+    subtitle:'Priced line by line. Enter rates in the Excel return. Lines marked rate only are still being measured.',
+    groups: groups };
+
+  // Section B — scaffold by elevation + netting. NO prelims (priced in the engine).
+  var bLines = [], n = 0;
+  (access.elevations || []).forEach(function(e){
+    n++;
+    var plat = (e.accessType === 'platform');
+    var works = (plat ? 'Working platform and edge protection' : 'Handrail and edge protection')
+      + (e.heightM ? (' to ' + (e.heightM) + 'm working height') : '');
+    bLines.push({ ref:'S'+n, location:(e.name||('Elevation '+n)), works:works, unit:'Lin m',
+                  qty:(Number(e.lengthM)>0 ? Number(e.lengthM) : null) });
+  });
+  if (access.safetyNetting){ n++; bLines.push({ ref:'S'+n, location:'Beneath the roof working area',
+    works:'Safety netting, man-safe, to the working area', unit:'Item', qty:1 }); }
+  if (access.debrisNetting){ n++; bLines.push({ ref:'S'+n, location:'Inside the safety netting',
+    works:'Debris netting, fine mesh inside the safety netting to contain dropped fixings', unit:'Item', qty:1 }); }
+  var sectionB = { title:'Scaffold, access and netting',
+    subtitle:'Priced once for the job. Price only what your trade provides.',
+    lines: bLines };
+
+  return {
+    meta:{ siteName:siteName, siteAddress:siteAddress, surveyRef:surveyRef, packRef:packRef,
+           sourceType:'Remedial repairs, fault list', preparedISO:preparedISO, prepared:ppFmtDate(preparedISO),
+           returnBy:ppReturnBy(preparedISO), returnTo:'hello@nova-limited.com' },
+    sectionA:sectionA, sectionB:sectionB,
+    exclusionsTitle:'Exclusions and assumptions · to be completed by the subcontractor',
+    standards:'All works to be carried out to the latest applicable British Standards, trade body guidance and statutory requirements in force at the time of the works. The current edition applies where a standard has been revised, and you are deemed to have allowed for compliance in your price.'
+  };
+}
+
+// ---- shared row/qty helpers (used by both renderers; keep the two outputs in lockstep)
+function ppQtyCell(line){ return (line.qty == null) ? 'rate only' : String(line.qty); }
+function ppIsFixed(line){ return line.qty != null; }
+
+// ---- PDF PACK (Paged.js, A4 portrait). Returns an HTML string for #pp-body.
+function renderPricingPackHTML(model){
+  var m = model.meta;
+  var logo = 'assets/nova-mark-transparent.png';
+  var foot = function(sec){ return '<div class="pp-foot"><div>&middot; The honest view from above.</div>'
+    + '<div>' + ppEsc(m.surveyRef) + ' &middot; Subcontractor pricing pack &middot; ' + ppEsc(sec) + '</div></div>'; };
+  var topbar = '<div class="pp-top"><img class="pp-logo" src="' + logo + '" alt="Nova"><div class="pp-rule"></div></div>';
+
+  // table rows for a flat line list, with optional area-group headers
+  var headRow = '<tr class="pp-hr"><th class="pp-c-ref">Ref</th><th>Location</th><th>Works to be priced</th>'
+    + '<th class="pp-c-unit">Unit</th><th class="pp-c-qty">Qty</th><th class="pp-c-rate">Rate &pound;</th><th class="pp-c-line">Line &pound;</th></tr>';
+  var lineRow = function(l){
+    var qtyCls = (l.qty==null) ? ' pp-tbc' : '';
+    return '<tr class="pp-row">'
+      + '<td class="pp-c-ref">' + ppEsc(l.ref) + '</td>'
+      + '<td>' + ppEsc(l.location) + '</td>'
+      + '<td>' + ppEsc(l.works) + '</td>'
+      + '<td class="pp-c-unit">' + ppEsc(l.unit) + '</td>'
+      + '<td class="pp-c-qty' + qtyCls + '">' + ppEsc(ppQtyCell(l)) + '</td>'
+      + '<td class="pp-c-rate pp-blue"></td>'
+      + '<td class="pp-c-line pp-blue"></td></tr>';
+  };
+  var areaHdr = function(a){ return '<tr class="pp-area"><td colspan="7">' + ppEsc(a) + '</td></tr>'; };
+
+  // ---- COVER ----
+  var meta = '<div class="pp-meta">'
+    + '<div><div class="pp-k">Survey reference</div><div class="pp-v">' + ppEsc(m.surveyRef) + '</div></div>'
+    + '<div><div class="pp-k">Source type</div><div class="pp-v">' + ppEsc(m.sourceType) + '</div></div>'
+    + '<div><div class="pp-k">Prepared</div><div class="pp-v">' + ppEsc(m.prepared) + '</div></div>'
+    + '<div><div class="pp-k">Returns to</div><div class="pp-v">' + ppEsc(m.returnTo) + '</div></div>'
+    + '</div>';
+  var how = '<div class="pp-how"><div class="pp-how-h">How to price this pack</div><ol>'
+    + '<li><b>Price only the sections relevant to your trade.</b> Leave any line or section outside your scope blank. You are not expected to price the whole pack.</li>'
+    + '<li><b>Enter your prices in the accompanying Excel return, blue cells only.</b> Fixed-quantity lines multiply your rate by the quantity and total automatically. Lines marked rate only are still being measured: return a unit rate and the total settles when the survey confirms the extent.</li>'
+    + '<li><b>Section A is the works. Section B is scaffold, access and netting,</b> priced once for the job, not per line.</li>'
+    + '<li><b>Complete the exclusions box.</b> Anything you have assumed is excluded must be stated, so it is agreed now and not discovered on site.</li>'
+    + '</ol></div>';
+  var routes = '<div class="pp-routes"><b>One pack, two routes.</b> This same template carries our new-works estimates as well as remedial repairs. On a new roof it is equipped with element and quantity lines, for example composite sheet by the square metre and flashings by the linear metre, in place of a fault list. The pricing mechanics and the blue-cell return are identical, so you price either the same way.</div>';
+  var cover = '<section class="pp-sheet pp-cover">'
+    + '<div class="pp-cv-top"><img class="pp-logo" src="' + logo + '" alt="Nova">'
+    + '<div class="pp-return">Return by ' + ppEsc((m.returnBy||'').replace(/^5pm, /,'')) + '</div></div>'
+    + '<div class="pp-eyebrow">Subcontractor pricing pack</div>'
+    + '<h1 class="pp-title">' + ppEsc(m.siteName) + '</h1>'
+    + '<div class="pp-sub">' + ppEsc(m.siteAddress) + '</div>'
+    + meta + how + routes
+    + '<div class="pp-standards">' + ppEsc(model.standards) + '</div>'
+    + '</section>';
+
+  // ---- SECTION A ---- (flowing table; area groups kept together where they fit)
+  var aBody = model.sectionA.groups.map(function(g){
+    return '<tbody class="pp-grp">' + areaHdr(g.area) + g.lines.map(lineRow).join('') + '</tbody>';
+  }).join('');
+  var sectionA = '<section class="pp-sheet pp-section">' + topbar
+    + '<div class="pp-eyebrow">Section A</div><h2 class="pp-h2">' + ppEsc(model.sectionA.title) + '</h2>'
+    + '<div class="pp-sub2">' + ppEsc(model.sectionA.subtitle) + '</div>'
+    + '<table class="pp-table"><thead>' + headRow + '</thead>' + aBody + '</table>'
+    + foot('Section A') + '</section>';
+
+  // ---- SECTION B + EXCLUSIONS + RETURN/STANDARDS ----
+  var bRows = model.sectionB.lines.length
+    ? model.sectionB.lines.map(lineRow).join('')
+    : '<tr class="pp-row"><td colspan="7" class="pp-tbc">No scaffold or access required for this job.</td></tr>';
+  var excl = '<div class="pp-excl"><div class="pp-excl-h">' + ppEsc(model.exclusionsTitle) + '</div>'
+    + '<div class="pp-excl-box"></div></div>';
+  var ret = '<div class="pp-return-note"><b>Return.</b> Price in the accompanying Excel return, blue cells only, and email it back to ' + ppEsc(m.returnTo) + ' by the return date on the cover. The site visit and final measure are arranged through Nova. '
+    + '<b>Standards.</b> ' + ppEsc(model.standards) + '</div>';
+  var sectionB = '<section class="pp-sheet pp-section">' + topbar
+    + '<div class="pp-eyebrow">Section B</div><h2 class="pp-h2">' + ppEsc(model.sectionB.title) + '</h2>'
+    + '<div class="pp-sub2">' + ppEsc(model.sectionB.subtitle) + '</div>'
+    + '<table class="pp-table"><thead>' + headRow + '</thead><tbody>' + bRows + '</tbody></table>'
+    + excl + ret + foot('Section B') + '</section>';
+
+  return '<div class="pp-pack">' + cover + sectionA + sectionB + '</div>';
+}
+
+// ---- EXCEL RETURN (SheetJS). Returns a workbook; caller writes/downloads it.
+function buildPricingReturnWorkbook(model){
+  if (typeof XLSX === 'undefined') throw new Error('SheetJS (XLSX) not loaded');
+  var m = model.meta;
+  var aoa = [], merges = [], rowMeta = [];   // rowMeta[r] = role tag for styling
+  var push = function(arr, role){ aoa.push(arr); rowMeta.push(role||''); };
+  var mergeRow = function(){ merges.push({ s:{r:aoa.length-1,c:0}, e:{r:aoa.length-1,c:6} }); };
+
+  push(['NOVA  ·  Subcontractor Pricing Return','','','','','',''],'h1'); mergeRow();
+  push([m.siteName + '  ·  ' + m.surveyRef + '  ·  Pack ref ' + m.packRef + '  ·  Return by ' + m.returnBy,'','','','','',''],'h2'); mergeRow();
+  push(['','','','','','',''],'');
+  push(['YOUR DETAILS','','','','','',''],'sec');
+  var detailRows = ['Company name','Contact name','Email','Telephone','Date priced'];
+  detailRows.forEach(function(lbl){ push(['',lbl,'','','','',''],'detail'); merges.push({ s:{r:aoa.length-1,c:2}, e:{r:aoa.length-1,c:4} }); });
+  push(['','','','','','',''],'');
+  push(['Instructions: price only the lines relevant to your trade; leave the rest blank. Enter rates in the blue cells only. Fixed-quantity lines total automatically. Lines marked TBC are rate-only: return a unit rate and the total settles when the survey confirms the extent.','','','','','',''],'note'); mergeRow();
+  push(['','','','','','',''],'');
+
+  var colHdr = ['Ref','Location','Works to be priced','Unit','Qty','Rate £','Line £'];
+  var firstDataRow=null, lastDataRow=null;
+  var emitSection = function(title){ push([title,'','','','','',''],'sec'); mergeRow(); push(colHdr.slice(),'colhdr'); };
+  var emitArea = function(a){ push([a,'','','','','',''],'area'); mergeRow(); };
+  var emitLine = function(l){
+    var r = aoa.length;            // 0-based index of the row we are about to add
+    var excelRow = r + 1;          // 1-based Excel row
+    var qty = (l.qty==null) ? 'TBC' : l.qty;
+    // Line £ formula only for fixed-qty lines; rate-only stays blank
+    var lineCell = ppIsFixed(l) ? { f: 'IF(F'+excelRow+'="","",F'+excelRow+'*E'+excelRow+')' } : '';
+    push([l.ref, l.location, l.works, l.unit, qty, '', lineCell], 'line');
+    if(firstDataRow==null) firstDataRow=excelRow; lastDataRow=excelRow;
+    return excelRow;
+  };
+
+  // SECTION A
+  emitSection('SECTION A  ·  ' + model.sectionA.title.toUpperCase());
+  var aFirst=null, aLast=null;
+  model.sectionA.groups.forEach(function(g){ emitArea(g.area); g.lines.forEach(function(l){ var er=emitLine(l); if(aFirst==null)aFirst=er; aLast=er; }); });
+  push(['','','Section A subtotal (priced lines)','','','',{ f:'SUM(G'+aFirst+':G'+aLast+')' }],'subtotal');
+  var aSubRow = aoa.length;
+  push(['','','','','','',''],'');
+
+  // SECTION B
+  emitSection('SECTION B  ·  ' + model.sectionB.title.toUpperCase() + '   (price once for the job)');
+  var bFirst=null, bLast=null;
+  (model.sectionB.lines.length?model.sectionB.lines:[{ref:'',location:'',works:'No scaffold or access required for this job.',unit:'',qty:null}])
+    .forEach(function(l){ var er=emitLine(l); if(bFirst==null)bFirst=er; bLast=er; });
+  push(['','','Section B subtotal','','','',{ f:'SUM(G'+bFirst+':G'+bLast+')' }],'subtotal');
+  var bSubRow = aoa.length;
+  push(['','','','','','',''],'');
+  push(['','','PACK TOTAL (excl. VAT)','','','',{ f:'G'+aSubRow+'+G'+bSubRow }],'total');
+  push(['','','','','','',''],'');
+
+  // EXCLUSIONS
+  push(['EXCLUSIONS AND ASSUMPTIONS (please complete)','','','','','',''],'sec'); mergeRow();
+  for(var i=0;i<5;i++){ push(['','','','','','',''],'exclbox'); mergeRow(); }
+  push(['','','','','','',''],'');
+  push(['Standards: ' + model.standards + ' The honest view from above.','','','','','',''],'note'); merges.push({ s:{r:aoa.length-1,c:0}, e:{r:aoa.length+1,c:6} });
+
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var maxR = aoa.length - 1; merges.forEach(function(mg){ if (mg.e.r > maxR) maxR = mg.e.r; });
+  ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:maxR,c:6} });
+  ws['!merges'] = merges;
+  ws['!cols'] = [{wch:6},{wch:23},{wch:46},{wch:7},{wch:7},{wch:11},{wch:13}];
+
+  // ---- cell styling (xlsx-js-style): brand header, blue input cells, borders ----
+  var INK='434244', ORANGE='F7901E', BLUE='EEF3FB', GREY='F1F2F4', LINEC='D9DEE6';
+  var cellAt = function(r,c){ var a=XLSX.utils.encode_cell({r:r,c:c}); if(!ws[a]) ws[a]={t:'s',v:''}; return ws[a]; };
+  var fill = function(rgb){ return { patternType:'solid', fgColor:{rgb:rgb} }; };
+  var thin = { style:'thin', color:{rgb:LINEC} };
+  var boxBorder = { top:thin, bottom:thin, left:thin, right:thin };
+  var setRow = function(r, fn){ for(var c=0;c<7;c++){ var cell=cellAt(r,c); cell.s = Object.assign({}, cell.s, fn(c)); } };
+  for(var r=0;r<=maxR;r++){
+    var role = rowMeta[r] || '';
+    if(role==='h1') setRow(r, function(){ return { fill:fill(INK), font:{ color:{rgb:'FFFFFF'}, bold:true, sz:15, name:'Helvetica' }, alignment:{ vertical:'center' } }; });
+    else if(role==='h2') setRow(r, function(){ return { fill:fill(INK), font:{ color:{rgb:'D8D8D8'}, sz:10, name:'Helvetica' } }; });
+    else if(role==='sec') setRow(r, function(){ return { fill:fill(INK), font:{ color:{rgb:'FFFFFF'}, bold:true, sz:10, name:'Helvetica' }, alignment:{ vertical:'center' } }; });
+    else if(role==='colhdr') setRow(r, function(c){ return { fill:fill(INK), font:{ color:{rgb:'FFFFFF'}, bold:true, sz:9, name:'Helvetica' }, alignment:{ horizontal:(c>=3?'center':'left') } }; });
+    else if(role==='area') setRow(r, function(){ return { fill:fill(GREY), font:{ color:{rgb:INK}, bold:true, sz:9, name:'Helvetica' } }; });
+    else if(role==='detail'){ cellAt(r,1).s={ font:{ bold:true, sz:10, color:{rgb:INK}, name:'Helvetica' }, alignment:{ vertical:'center' } }; cellAt(r,2).s={ fill:fill(BLUE), border:boxBorder }; }
+    else if(role==='note') setRow(r, function(){ return { font:{ italic:true, sz:9, color:{rgb:'6B6C70'}, name:'Helvetica' }, alignment:{ wrapText:true, vertical:'top' } }; });
+    else if(role==='line'){
+      for(var c2=0;c2<7;c2++){ var cl=cellAt(r,c2); cl.s={ font:{ sz:10, color:{rgb:INK}, name:'Helvetica' }, alignment:{ vertical:'top', wrapText:(c2===2), horizontal:(c2>=3?'center':'left') }, border:{ bottom:thin } }; if(c2===0) cl.s.font.bold=true; }
+      cellAt(r,5).s = { fill:fill(BLUE), border:boxBorder, alignment:{ horizontal:'center' }, numFmt:'#,##0.00', font:{ sz:10, name:'Helvetica' } };  // Rate (blue input)
+      cellAt(r,6).s = { border:boxBorder, alignment:{ horizontal:'center' }, numFmt:'#,##0.00', font:{ sz:10, name:'Helvetica' } };                  // Line (formula)
+    }
+    else if(role==='subtotal'||role==='total'){ var b=(role==='total'); cellAt(r,2).s={ font:{ bold:true, sz:(b?11:10), color:{rgb:INK}, name:'Helvetica' }, alignment:{ horizontal:'right' } }; cellAt(r,6).s={ font:{ bold:true, sz:(b?11:10), color:{rgb:b?ORANGE:INK}, name:'Helvetica' }, alignment:{ horizontal:'center' }, numFmt:'#,##0.00', border:{ top:(b?{style:'medium',color:{rgb:INK}}:thin) } }; }
+    else if(role==='exclbox') setRow(r, function(c){ return { border:{ left:(c===0?thin:undefined), right:(c===6?thin:undefined), bottom:thin } }; });
+  }
+  ws['!rows'] = []; // let Excel auto-height; explicit heights for the header band
+  ws['!rows'][0]={hpt:22}; ws['!rows'][1]={hpt:16};
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pricing Return');
+  return wb;
+}
+
+// ---- in-app control: build access from the survey, generate both outputs ----
+// Access for Section B: use the captured per-elevation block (survey.packAccess)
+// if present; otherwise SUGGEST one from the roof slopes (length -> elevation
+// length, eave height -> working height) as editable defaults. Slopes are never
+// equated with elevations in the data model — this only borrows their values.
+function ppDeriveAccess(s){
+  s = s || {};
+  if (s.packAccess && Array.isArray(s.packAccess.elevations) && s.packAccess.elevations.length) {
+    var pa = s.packAccess;
+    return { elevations: pa.elevations, safetyNetting: pa.safetyNetting !== false,
+             debrisNetting: !!pa.debrisNetting, preparedISO: (typeof todayIso==='function'?todayIso():'') };
+  }
+  var elevations = [];
+  ((s.buildings) || []).forEach(function(b){ (b.slopes || []).forEach(function(sl){
+    var len = Number(sl.length) || 0, h = Number(sl.eaves) || 0;
+    if (len > 0 || h > 0) elevations.push({ name: ((b.name || 'Building') + ' ' + (sl.id || '')).trim(),
+      accessType: 'platform', lengthM: len || null, heightM: h || null }); }); });
+  var hasHeight = elevations.some(function(e){ return Number(e.heightM) > 0; });
+  return { elevations: elevations, safetyNetting: hasHeight, debrisNetting: false,
+           preparedISO: (typeof todayIso==='function'?todayIso():'') };
+}
+// Inject a global PORTRAIT @page just for the pack (paged.js won't change page
+// size per named page). Removed again on leaving the pack so the landscape
+// report still prints correctly.
+function ppPackPageStyle(){
+  if (document.getElementById('pp-active-page')) return;
+  var st = document.createElement('style'); st.id = 'pp-active-page';
+  st.textContent = '@page{size:210mm 297mm;margin:16mm 14mm 18mm 14mm;'
+    + '@top-left{content:none}@top-center{content:none}@top-right{content:none}@bottom-center{content:none}'
+    + '@bottom-left{content:"\\00B7  The honest view from above.";font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6}'
+    + '@bottom-right{content:"Subcontractor pricing pack  \\00B7  Page " counter(page);font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6;text-align:right}}';
+  document.head.appendChild(st);
+}
+function ppBackToDetail(){
+  var st = document.getElementById('pp-active-page'); if (st && st.parentNode) st.parentNode.removeChild(st);
+  if (typeof backToDetail === 'function') backToDetail(); else if (typeof showView === 'function') showView('detail');
+}
+function generatePricingPack(surveyId){
+  var s = loadSurveys().find(function(x){ return x.id === (surveyId || currentSurveyId); });
+  if (!s){ if (typeof showToast === 'function') showToast('Survey not found'); return; }
+  var model = buildPricingPackModelFromSurvey(s, ppDeriveAccess(s));
+  // 1) Excel return — download immediately
+  try { var wb = buildPricingReturnWorkbook(model);
+    XLSX.writeFile(wb, 'Nova-Pricing-Return-' + model.meta.surveyRef + '.xlsx'); }
+  catch (e){ if (typeof showToast === 'function') showToast('Excel error: ' + e.message); }
+  // 2) PDF pack — render + paginate for Print / Save as PDF
+  var body = document.getElementById('pp-body');
+  if (body){ body.innerHTML = renderPricingPackHTML(model); }
+  ppPackPageStyle();
+  document.title = 'Nova-Pricing-Pack-' + model.meta.surveyRef;
+  if (typeof showView === 'function') showView('pp');
+  var px = document.createElement('script'); px.src = 'assets/paged.polyfill.js';
+  document.head.appendChild(px);
+}
+
+// ---- access-capture form section (Section B3) state + UI ----
+function ppInitAccess(src){
+  var pa = (src && src.packAccess) || {};
+  return { elevations: Array.isArray(pa.elevations) ? pa.elevations.map(function(e){ return Object.assign({}, e); }) : [],
+           safetyNetting: pa.safetyNetting !== false, debrisNetting: !!pa.debrisNetting };
+}
+function ppElevationsFromSlopes(){
+  var out = [];
+  (currentBuildings || []).forEach(function(b){ (b.slopes || []).forEach(function(sl){
+    var len = Number(sl.length) || 0, h = Number(sl.eaves) || 0;
+    if (len > 0 || h > 0) out.push({ name: ((b.name || 'Building') + ' ' + (sl.id || '')).trim(),
+      accessType: 'platform', lengthM: len || '', heightM: h || '' }); }); });
+  return out;
+}
+function renderPackAccess(){
+  var list = document.getElementById('pack-access-list'); if (!list) return;
+  var els = currentPackAccess.elevations || [];
+  list.innerHTML = els.length ? els.map(function(e, i){
+    var plat = (e.accessType !== 'handrail');
+    return '<div class="pack-elev-row" style="display:grid;grid-template-columns:1.6fr 1.5fr 0.9fr 0.9fr auto;gap:8px;align-items:center;margin-bottom:8px;">'
+      + '<input type="text" placeholder="Elevation name" value="' + attr(e.name) + '" oninput="ppUpdateElevation(' + i + ',\'name\',this.value)" style="width:100%;">'
+      + '<select onchange="ppUpdateElevation(' + i + ',\'accessType\',this.value)" style="width:100%;">'
+        + '<option value="platform"' + (plat?' selected':'') + '>Working platform</option>'
+        + '<option value="handrail"' + (!plat?' selected':'') + '>Handrail and edge protection</option></select>'
+      + '<input type="number" step="0.1" placeholder="Length m" value="' + attr(e.lengthM) + '" oninput="ppUpdateElevation(' + i + ',\'lengthM\',this.value)" style="width:100%;">'
+      + '<input type="number" step="0.1" placeholder="Height m" value="' + attr(e.heightM) + '" oninput="ppUpdateElevation(' + i + ',\'heightM\',this.value)" style="width:100%;">'
+      + '<button type="button" class="btn btn-ghost" onclick="ppRemoveElevation(' + i + ')" title="Remove">×</button>'
+    + '</div>';
+  }).join('') : '<p class="section-hint" style="opacity:.7;">No elevations yet. Add one, or pull suggestions from the roof slopes.</p>';
+  var sn = document.getElementById('pack-safety-netting'); if (sn) sn.checked = currentPackAccess.safetyNetting !== false;
+  var dn = document.getElementById('pack-debris-netting'); if (dn) dn.checked = !!currentPackAccess.debrisNetting;
+}
+function ppAddElevation(){ currentPackAccess.elevations.push({ name:'', accessType:'platform', lengthM:'', heightM:'' }); renderPackAccess(); }
+function ppRemoveElevation(i){ currentPackAccess.elevations.splice(i,1); renderPackAccess(); }
+function ppUpdateElevation(i, key, val){ if (currentPackAccess.elevations[i]) currentPackAccess.elevations[i][key] = (key==='lengthM'||key==='heightM') ? (val===''?'':Number(val)) : val; }
+function ppSetNetting(which, on){ if (which==='safety') currentPackAccess.safetyNetting = !!on; else currentPackAccess.debrisNetting = !!on; }
+function ppSuggestFromSlopes(){
+  var sug = ppElevationsFromSlopes();
+  if (!sug.length){ if (typeof showToast==='function') showToast('No roof slopes with length/eave height to suggest from'); return; }
+  currentPackAccess.elevations = sug;
+  if (currentPackAccess.elevations.some(function(e){ return Number(e.heightM)>0; })) currentPackAccess.safetyNetting = true;
+  renderPackAccess();
+}
+
 
 // Word form of a defect count for the cover headline: "Three defects",
 // not "3 defects". Falls back to digits above 12 so the line stays tight.
