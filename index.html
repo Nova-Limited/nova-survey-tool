@@ -3572,6 +3572,25 @@ main { padding-bottom: env(safe-area-inset-bottom); }
               </select>
             </div>
           </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-purlin-type">Purlin type</label>
+              <select id="f-purlin-type" onchange="onPurlinTypeChange()">
+                <option>Steel</option>
+                <option>Concrete</option>
+              </select>
+              <div style="font-size:11px;color:#888;margin-top:4px;">Concrete portal frames cannot be fixed direct — a steel carrier is banded to the purlins. Overcladding is not offered unless every purlin is accessible.</div>
+            </div>
+            <div class="field" id="concrete-purlin-fields" style="display:none;">
+              <label for="f-carrier-linm">Steel carrier length (linear m)</label>
+              <input type="number" id="f-carrier-linm" min="0" step="1" placeholder="e.g. 100" oninput="onPurlinTypeChange()" onchange="onPurlinTypeChange()">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:10px;">
+                <input type="checkbox" id="f-overclad-override" onchange="onPurlinTypeChange()">
+                Allow overcladding override (clear access to every purlin)
+              </label>
+              <div id="carrier-readout" style="font-size:12px;color:#555;margin-top:8px;"></div>
+            </div>
+          </div>
           <div class="field">
             <label for="f-next-steps">Next steps</label>
             <textarea id="f-next-steps" rows="4" placeholder="What happens after this report — programmed works, further surveys, quotes to follow, decisions needed."></textarea>
@@ -3726,6 +3745,9 @@ const FIELD_MAP = [
   { id: 'f-executive-summary',  type: 'textarea', path: 'f-executive-summary' },
   { id: 'f-total-cost-band',    type: 'text',     path: 'f-total-cost-band' },
   { id: 'f-recommendation',     type: 'text',     path: 'f-recommendation' },
+  { id: 'f-purlin-type',        type: 'text',     path: 'purlinType', dflt: 'Steel' },
+  { id: 'f-overclad-override',  type: 'checkbox', path: 'overcladOverride' },
+  { id: 'f-carrier-linm',       type: 'number',   path: 'carrierLinM' },
   { id: 'f-next-steps',         type: 'textarea', path: 'f-next-steps' },
   { id: 'f-surveyor-notes',     type: 'textarea', path: 'surveyorNotes' }
 ];
@@ -4610,6 +4632,37 @@ function loadWorksConfig(overrides) {
   return Object.assign({}, DEFAULT_WORKS_CONFIG, overrides || {});
 }
 
+// === NOVA CONCRETE-PURLIN CARRIER (re-roof on a concrete portal frame) ========
+// On concrete purlins you cannot fix direct (rebar-strike risk shatters the
+// section), so direct-fix overcladding is not possible. The work-around is a
+// steel carrier banded to the purlins; the new covering fixes to that. This is
+// the ONLY added cost: the £14.50/m is supply + fix ALL-IN (steel, banding,
+// fixings and labour) — NO separate banding/labour-uplift/asbestos line, and no
+// margin/contingency on top. The bay-by-bay slowdown to the main works is handled
+// by Jamie adjusting on-site time at survey, not by the tool.
+// Both knobs live here, clearly labelled, so they are easy to change later.
+const CARRIER_RATE_PER_M = 14.50;  // £ per linear metre, supply + fix all-in
+const CARRIER_SECTION_M  = 3;      // steel supplied in 3m lengths -> price rounds UP to whole sections
+// Carrier length is ENTERED BY THE SURVEYOR — the tool holds slopes, not purlin
+// runs, so it is never derived. sections = ceil(L/3); cost = sections*3*rate.
+// e.g. 100 lin m -> 34 sections -> 102 m priced -> £1,479.00.
+function computeConcreteCarrier(linearMetres) {
+  const L = Number(linearMetres) || 0;
+  if (!(L > 0)) return { linM: 0, sections: 0, pricedM: 0, cost: 0, ratePerM: CARRIER_RATE_PER_M, sectionM: CARRIER_SECTION_M };
+  const sections = Math.ceil(L / CARRIER_SECTION_M);
+  const pricedM  = sections * CARRIER_SECTION_M;
+  const cost     = Math.round(pricedM * CARRIER_RATE_PER_M * 100) / 100;  // all-in; no markup
+  return { linM: L, sections: sections, pricedM: pricedM, cost: cost, ratePerM: CARRIER_RATE_PER_M, sectionM: CARRIER_SECTION_M };
+}
+// Overcladding (the 'Recover' route) is only valid on concrete purlins when the
+// surveyor has consciously enabled the override for a building with clear,
+// uninterrupted access to EVERY purlin. Default off -> overclad not offered.
+function overcladAllowed(survey) {
+  var s = survey || {};
+  if (String(s.purlinType || 'Steel').toLowerCase() !== 'concrete') return true;  // steel: unchanged
+  return !!s.overcladOverride;  // concrete: only when the override is consciously on
+}
+
 // Price one cost stream exactly as the Line Items formulas do: contingency and
 // margin are EACH taken off the FULL-PRECISION base cost, independently. The
 // cost/contingency/margin columns DISPLAY rounded (precision-0), but the Total
@@ -4695,6 +4748,29 @@ function generateWorksSchedule(measurements, opts) {
     elem.perM2 = (elem.areaM2 > 0) ? elem.totalToClient / elem.areaM2 : null;
     out.elements.push(elem);
   });
+
+  // Concrete-purlin steel carrier: ONE flat all-in line, no margin/contingency
+  // (the £14.50/m is already the full supply+fix price). Only when purlin type is
+  // Concrete and the surveyor has entered a carrier length. The price is added to
+  // the works total as cost==price so the job margin is unaffected by it.
+  const purlinType  = (opts && opts.purlinType)  != null ? opts.purlinType  : meas.purlinType;
+  const carrierLinM = (opts && opts.carrierLinM) != null ? opts.carrierLinM : meas.carrierLinM;
+  if (String(purlinType || 'Steel').toLowerCase() === 'concrete' && Number(carrierLinM) > 0) {
+    const c = computeConcreteCarrier(carrierLinM);
+    const line = { element: 'Concrete-purlin steel carrier', measurementKey: 'carrierLinM',
+      item: 'Steel carrier banded to concrete purlins', found: true, unit: 'm', allIn: true,
+      quantity: c.pricedM, materialsCostPerUnit: CARRIER_RATE_PER_M, labourCostPerUnit: 0,
+      materialsCost: c.cost, materialsContingency: 0, materialsMargin: 0, materialsTotal: c.cost,
+      labourCost: 0, labourContingency: 0, labourMargin: 0, labourTotal: 0,
+      totalToClient: c.cost, carrier: c };
+    const elem = { key: 'carrier', label: 'Concrete-purlin steel carrier', system: null, areaM2: null,
+      lines: [line], materialsCost: c.cost, labourCost: 0, totalToClient: c.cost, perM2: null, allIn: true };
+    out.elements.push(elem);
+    out.elementLines.push(line);
+    out.materialsCost += c.cost; out.materialsTotal += c.cost;  // cost==price, 0 markup
+    out.totalToClient += c.cost;
+    out.carrier = c;
+  }
 
   // standing-elements checklist — prompts; qty is a surveyor input, so unpriced here.
   STANDING_ELEMENTS_CHECKLIST.forEach((se) => {
@@ -4788,7 +4864,8 @@ function worksFloorSanity(worksSchedule, opts) {
 
 if (typeof window !== 'undefined') {
   window.NovaWorksPricing = { WORKS_ELEMENT_MAP, STANDING_ELEMENTS_CHECKLIST, DEFAULT_WORKS_CONFIG,
-    loadWorksConfig, priceStream, priceLine, generateWorksSchedule, worksFloorSanity };
+    loadWorksConfig, priceStream, priceLine, generateWorksSchedule, worksFloorSanity,
+    CARRIER_RATE_PER_M, CARRIER_SECTION_M, computeConcreteCarrier, overcladAllowed };
 }
 // === NOVA WORKS PRICING (costing layer step 6) — END ===
 
@@ -5949,6 +6026,7 @@ async function goToNewSurvey() {
   document.getElementById('f-ref-readout').textContent = '— assigned on save —';
   renderBuildings();
   renderPackAccess();
+  onPurlinTypeChange();
   spRestoreImageState();
   updateConditionals();
   updateEngagementVisibility();
@@ -5992,6 +6070,7 @@ function editCurrent() {
   document.getElementById('f-ref-readout').textContent = s.id;
   renderBuildings();
   renderPackAccess();
+  onPurlinTypeChange();
   spRestoreImageState();
   updateConditionals();
   updateEngagementVisibility();
@@ -6347,6 +6426,42 @@ function addVisitToCalendar(surveyId){
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
 }
 
+// Concrete-purlin form behaviour: reveal the carrier fields when Concrete, keep
+// the carrier price readout live, and suppress the 'Recover' (overclad) route
+// unless the overclad override is consciously on. Safe to call any time.
+function onPurlinTypeChange() {
+  var ptEl = document.getElementById('f-purlin-type');
+  var concrete = (((ptEl && ptEl.value) || 'Steel').toLowerCase() === 'concrete');
+  var fields = document.getElementById('concrete-purlin-fields');
+  if (fields) fields.style.display = concrete ? '' : 'none';
+  var override = !!(document.getElementById('f-overclad-override') || {}).checked;
+  var allowOverclad = !concrete || override;
+  // Suppress the 'Recover' option when overcladding is not allowed for this job.
+  var rec = document.getElementById('f-recommendation');
+  if (rec) {
+    for (var i = 0; i < rec.options.length; i++) {
+      var o = rec.options[i];
+      if (o.value === 'Recover' || o.text === 'Recover') {
+        o.disabled = !allowOverclad; o.hidden = !allowOverclad;
+        if (!allowOverclad && rec.value === 'Recover') rec.value = '';
+      }
+    }
+  }
+  // Live carrier price readout (demonstrates the 3m round-up).
+  var ro = document.getElementById('carrier-readout');
+  if (ro) {
+    if (concrete) {
+      var L = Number((document.getElementById('f-carrier-linm') || {}).value) || 0;
+      if (L > 0) {
+        var c = computeConcreteCarrier(L);
+        ro.textContent = c.sections + ' × ' + c.sectionM + 'm sections = ' + c.pricedM
+          + ' m priced at £' + c.ratePerM.toFixed(2) + '/m = £'
+          + c.cost.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          + ' (steel, banding, fixings and labour, all-in)';
+      } else { ro.textContent = 'Enter the carrier length to price the steel carrier.'; }
+    } else { ro.textContent = ''; }
+  }
+}
 function populateForm(data) {
   for (const f of FIELD_MAP) {
     const el = document.getElementById(f.id);
