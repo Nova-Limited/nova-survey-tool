@@ -1401,6 +1401,8 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 }
 .survey-roof-total-label { font-size: 0.74rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.7); }
 .survey-roof-total-value { font-size: 1.5rem; font-weight: 900; color: var(--gold); letter-spacing: -0.01em; }
+/* Section B roof area while derived from B2 (read-only until Override is ticked). */
+input.derived-field { background: #f6f8fa; color: #555; }
 
 /* SEVERITY PILL (form / list) */
 .pill {
@@ -3381,6 +3383,11 @@ main { padding-bottom: env(safe-area-inset-bottom); }
             <div class="field">
               <label for="f-roof-area">Approx. roof area (m²)</label>
               <input type="number" id="f-roof-area" min="0" inputmode="numeric">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:6px;">
+                <input type="checkbox" id="f-roof-area-override" onchange="updateDerivedRoofArea()">
+                Override (enter manually)
+              </label>
+              <span class="hint" id="f-roof-area-hint"></span>
             </div>
           </div>
           <div class="field-row">
@@ -3722,6 +3729,7 @@ const FIELD_MAP = [
   // Section B (flat)
   { id: 'f-roof-type',         type: 'text',   path: 'f-roof-type' },
   { id: 'f-roof-area',         type: 'number', path: 'f-roof-area' },
+  { id: 'f-roof-area-override', type: 'checkbox', path: 'roofAreaOverride' },
   { id: 'f-num-buildings',     type: 'number', path: 'f-num-buildings',     dflt: 1 },
   { id: 'f-age',               type: 'text',   path: 'f-age' },
   { id: 'f-construction-type', type: 'text',   path: 'f-construction-type' },
@@ -6027,6 +6035,7 @@ async function goToNewSurvey() {
   renderBuildings();
   renderPackAccess();
   onPurlinTypeChange();
+  updateDerivedRoofArea();
   spRestoreImageState();
   updateConditionals();
   updateEngagementVisibility();
@@ -6071,6 +6080,7 @@ function editCurrent() {
   renderBuildings();
   renderPackAccess();
   onPurlinTypeChange();
+  updateDerivedRoofArea();
   spRestoreImageState();
   updateConditionals();
   updateEngagementVisibility();
@@ -10822,9 +10832,33 @@ function updateSlopeSummaryChip(bi, si) {
 }
 function updateSurveyRoofTotalDisplay() {
   const el = document.getElementById('survey-roof-total-value');
-  if (!el) return;
   const t = surveyTotalRoofArea(currentBuildings);
-  el.textContent = t == null ? '— m²' : fmtAreaDisp(t);
+  if (el) el.textContent = t == null ? '— m²' : fmtAreaDisp(t);
+  updateDerivedRoofArea();   // keep Section B's roof area in step with B2
+}
+
+// Section B "Approx. roof area" is captured once in B2 (Buildings & Slopes) and
+// reused here: by default it derives from surveyTotalRoofArea(currentBuildings)
+// — the same slope-area total B2 shows and the costing uses — and updates live
+// when B2 changes. The surveyor can tick "Override" to enter a manual figure,
+// which then persists untouched. Truncated to 2dp to match the B2 convention.
+function updateDerivedRoofArea() {
+  const input = document.getElementById('f-roof-area');
+  if (!input) return;
+  const override = document.getElementById('f-roof-area-override');
+  const hint = document.getElementById('f-roof-area-hint');
+  const manual = !!(override && override.checked);
+  input.readOnly = !manual;
+  input.classList.toggle('derived-field', !manual);
+  if (manual) {
+    if (hint) hint.textContent = 'Manual override. Not linked to Section B2.';
+    return;
+  }
+  const total = (typeof surveyTotalRoofArea === 'function') ? surveyTotalRoofArea(currentBuildings) : null;
+  input.value = (total == null) ? '' : (Math.floor(total * 100) / 100);
+  if (hint) hint.textContent = (total == null)
+    ? 'Derived from Section B2 — add buildings and slopes there, or tick Override to enter manually.'
+    : 'Derived from Section B2 (total of all slope areas). Tick Override to adjust manually.';
 }
 
 // ---- Building-width auto-span helpers ----
