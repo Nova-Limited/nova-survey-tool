@@ -3579,7 +3579,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
                 <option>Steel</option>
                 <option>Concrete</option>
               </select>
-              <div style="font-size:11px;color:#888;margin-top:4px;">Concrete portal frames cannot be fixed direct — a steel carrier is banded to the purlins. Overcladding is not offered unless every purlin is accessible.</div>
+              <div style="font-size:11px;color:#888;margin-top:4px;">Concrete portal frames cannot be fixed direct. A steel carrier is banded to the purlins. Overcladding is not offered unless every purlin is accessible.</div>
             </div>
             <div class="field" id="concrete-purlin-fields" style="display:none;">
               <label for="f-carrier-linm">Steel carrier length (linear m)</label>
@@ -4637,13 +4637,13 @@ function loadWorksConfig(overrides) {
 // section), so direct-fix overcladding is not possible. The work-around is a
 // steel carrier banded to the purlins; the new covering fixes to that. This is
 // the ONLY added cost: the £14.50/m is supply + fix ALL-IN (steel, banding,
-// fixings and labour) — NO separate banding/labour-uplift/asbestos line, and no
+// fixings and labour). NO separate banding/labour-uplift/asbestos line, and no
 // margin/contingency on top. The bay-by-bay slowdown to the main works is handled
 // by Jamie adjusting on-site time at survey, not by the tool.
 // Both knobs live here, clearly labelled, so they are easy to change later.
 const CARRIER_RATE_PER_M = 14.50;  // £ per linear metre, supply + fix all-in
 const CARRIER_SECTION_M  = 3;      // steel supplied in 3m lengths -> price rounds UP to whole sections
-// Carrier length is ENTERED BY THE SURVEYOR — the tool holds slopes, not purlin
+// Carrier length is ENTERED BY THE SURVEYOR, the tool holds slopes, not purlin
 // runs, so it is never derived. sections = ceil(L/3); cost = sections*3*rate.
 // e.g. 100 lin m -> 34 sections -> 102 m priced -> £1,479.00.
 function computeConcreteCarrier(linearMetres) {
