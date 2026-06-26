@@ -2152,6 +2152,7 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .topbar, .form-actions, .report-actions, .view-header, .no-print { display: none !important; }
   .view { display: none !important; }
   #view-report.active { display: block !important; }
+  #view-pp.active { display: block !important; }
   .container, .container.wide { padding: 0 !important; max-width: none !important; }
   .report { box-shadow: none !important; border-radius: 0 !important; }
   /* Tighter section bottom-padding now that several blocks have been
@@ -7077,8 +7078,15 @@ function ppPackPageStyle(surveyRef){
   document.head.appendChild(st);
 }
 function ppBackToDetail(){
+  // Drop the pack's portrait @page override so the landscape report still prints,
+  // restore the report's document title, and return to the SAME survey detail the
+  // pack was launched from. backToDetail() relies on reportSurveyId (a report-only
+  // value) and would fall through to home, so return via currentSurveyId directly.
   var st = document.getElementById('pp-active-page'); if (st && st.parentNode) st.parentNode.removeChild(st);
-  if (typeof backToDetail === 'function') backToDetail(); else if (typeof showView === 'function') showView('detail');
+  var s = (typeof loadSurveys === 'function') ? loadSurveys().find(function(x){ return x.id === currentSurveyId; }) : null;
+  if (s && typeof renderSurveyDetail === 'function'){ renderSurveyDetail(s); showView('detail'); }
+  else if (typeof backToDetail === 'function'){ backToDetail(); }
+  else if (typeof showView === 'function'){ showView('detail'); }
 }
 function generatePricingPack(surveyId){
   var s = loadSurveys().find(function(x){ return x.id === (surveyId || currentSurveyId); });
@@ -7100,9 +7108,14 @@ function generatePricingPack(surveyId){
   if (body){ body.innerHTML = renderPricingPackHTML(model); }
   ppPackPageStyle(model.meta.surveyRef);
   document.title = 'Nova-Pricing-Pack-' + model.meta.surveyRef;
+  // Show the pack in its print-ready view. Pagination is handled by the browser's
+  // native print (window.print) + the portrait @page injected above — the same
+  // mechanism the Tier 1 report uses. We deliberately do NOT load paged.polyfill.js
+  // here: as a script it auto-runs and rewrites document.body, which wiped the app
+  // UI (and the Back button) and left a blank screen with no way back. The "Back to
+  // survey" / Close controls in #view-pp (ppBackToDetail) return cleanly to the
+  // detail the surveyor launched from, with survey state intact.
   if (typeof showView === 'function') showView('pp');
-  var px = document.createElement('script'); px.src = 'assets/paged.polyfill.js';
-  document.head.appendChild(px);
 }
 
 // ---- access-capture form section (Section B3) state + UI ----
