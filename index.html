@@ -2852,10 +2852,15 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   .pp-pack .pp-h2{ font-size:21px; font-weight:700; margin:3px 0 2px; color:#434244; border-bottom:2px solid #434244; padding-bottom:8px; }
   .pp-pack .pp-sub2{ font-size:11px; color:#6b6c70; margin:9px 0 12px; }
 
+  /* survey ref fed to the page foot via a Paged.js running string */
+  .pp-pack .pp-ref-src{ string-set: ppref content(text); height:0; overflow:hidden; font-size:0; line-height:0; }
   /* cover */
   .pp-pack .pp-cover{ }
   .pp-pack .pp-cv-top{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #F7901E; padding-bottom:14px; }
+  .pp-pack .pp-cv-tr{ text-align:right; }
   .pp-pack .pp-return{ font-size:10px; letter-spacing:.04em; color:#6b6c70; font-weight:600; }
+  .pp-pack .pp-packref{ font-size:9px; letter-spacing:.04em; color:#9aa0a6; margin-top:5px; }
+  .pp-pack .pp-netnote{ font-size:9.5px; line-height:1.5; color:#6b6c70; margin-top:10px; }
   .pp-pack .pp-cover .pp-eyebrow{ margin-top:26px; }
   .pp-pack .pp-title{ font-size:30px; font-weight:700; letter-spacing:-.01em; margin:6px 0 4px; }
   .pp-pack .pp-sub{ font-size:12px; color:#6b6c70; }
@@ -6686,17 +6691,23 @@ function ppFmtDate(iso){
   var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
   return (Number(m[3])) + ' ' + months[Number(m[2])-1] + ' ' + m[1];
 }
-// Return-by: the Friday at least 7 days after prepared, "5pm, Friday D Month YYYY".
-function ppReturnBy(iso){
+// Return-by default: ISO of the first Friday at least 7 days after prepared.
+function ppReturnByISO(iso){
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||'')); if(!m) return '';
+  var d = new Date(Date.UTC(Number(m[1]), Number(m[2])-1, Number(m[3])));
+  d.setUTCDate(d.getUTCDate()+7);
+  while(d.getUTCDay()!==5) d.setUTCDate(d.getUTCDate()+1);  // first Friday >= prepared+7
+  return d.getUTCFullYear() + '-' + ('0'+(d.getUTCMonth()+1)).slice(-2) + '-' + ('0'+d.getUTCDate()).slice(-2);
+}
+// Label an ISO date as "5pm, Friday D Month YYYY".
+function ppReturnByLabel(iso){
   var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||'')); if(!m) return '';
   var days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  // build a UTC day count to avoid TZ drift; advance to the first Friday >= prepared+7
   var d = new Date(Date.UTC(Number(m[1]), Number(m[2])-1, Number(m[3])));
-  d.setUTCDate(d.getUTCDate()+7);
-  while(d.getUTCDay()!==5) d.setUTCDate(d.getUTCDate()+1);
   return '5pm, ' + days[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + months[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
 }
+function ppReturnBy(iso){ return ppReturnByLabel(ppReturnByISO(iso)); }
 
 // ---- model builder: SURVEY ROUTE (fault schedule -> Section A; access -> Section B)
 function buildPricingPackModelFromSurvey(survey, access){
@@ -6737,10 +6748,12 @@ function buildPricingPackModelFromSurvey(survey, access){
     bLines.push({ ref:'S'+n, location:(e.name||('Elevation '+n)), works:works, unit:'Lin m',
                   qty:(Number(e.lengthM)>0 ? Number(e.lengthM) : null) });
   });
+  // Netting lines are Sq m, rate-only (qty null) — the subby returns a unit rate and
+  // the line settles once the net area is measured, like any other rate-only line.
   if (access.safetyNetting){ n++; bLines.push({ ref:'S'+n, location:'Beneath the roof working area',
-    works:'Safety netting, man-safe, to the working area', unit:'Item', qty:1 }); }
+    works:'Safety netting, man-safe, to the working area', unit:'Sq m', qty:null }); }
   if (access.debrisNetting){ n++; bLines.push({ ref:'S'+n, location:'Inside the safety netting',
-    works:'Debris netting, fine mesh inside the safety netting to contain dropped fixings', unit:'Item', qty:1 }); }
+    works:'Debris netting, fine mesh inside the safety netting to contain dropped fixings', unit:'Sq m', qty:null }); }
   var sectionB = { title:'Scaffold, access and netting',
     subtitle:'Priced once for the job. Price only what your trade provides.',
     lines: bLines };
@@ -6748,7 +6761,7 @@ function buildPricingPackModelFromSurvey(survey, access){
   return {
     meta:{ siteName:siteName, siteAddress:siteAddress, surveyRef:surveyRef, packRef:packRef,
            sourceType:'Remedial repairs, fault list', preparedISO:preparedISO, prepared:ppFmtDate(preparedISO),
-           returnBy:ppReturnBy(preparedISO), returnTo:'hello@nova-limited.com' },
+           returnBy:(access.returnBy || ppReturnBy(preparedISO)), returnTo:'hello@nova-limited.com' },
     sectionA:sectionA, sectionB:sectionB,
     exclusionsTitle:'Exclusions and assumptions · to be completed by the subcontractor',
     standards:'All works to be carried out to the latest applicable British Standards, trade body guidance and statutory requirements in force at the time of the works. The current edition applies where a standard has been revised, and you are deemed to have allowed for compliance in your price.'
@@ -6799,7 +6812,8 @@ function renderPricingPackHTML(model){
   var routes = '<div class="pp-routes"><b>One pack, two routes.</b> This same template carries our new-works estimates as well as remedial repairs. On a new roof it is equipped with element and quantity lines, for example composite sheet by the square metre and flashings by the linear metre, in place of a fault list. The pricing mechanics and the blue-cell return are identical, so you price either the same way.</div>';
   var cover = '<section class="pp-sheet pp-cover">'
     + '<div class="pp-cv-top"><img class="pp-logo" src="' + logo + '" alt="Nova">'
-    + '<div class="pp-return">Return by ' + ppEsc((m.returnBy||'').replace(/^5pm, /,'')) + '</div></div>'
+    + '<div class="pp-cv-tr"><div class="pp-return">Return by ' + ppEsc((m.returnBy||'').replace(/^5pm, /,'')) + '</div>'
+    + '<div class="pp-packref">Pack ref ' + ppEsc(m.packRef) + '</div></div></div>'
     + '<div class="pp-eyebrow">Subcontractor pricing pack</div>'
     + '<h1 class="pp-title">' + ppEsc(m.siteName) + '</h1>'
     + '<div class="pp-sub">' + ppEsc(m.siteAddress) + '</div>'
@@ -6821,6 +6835,8 @@ function renderPricingPackHTML(model){
   var bRows = model.sectionB.lines.length
     ? model.sectionB.lines.map(lineRow).join('')
     : '<tr class="pp-row"><td colspan="7" class="pp-tbc">No scaffold or access required for this job.</td></tr>';
+  var hasNetting = model.sectionB.lines.some(function(l){ return /netting/i.test(l.works || ''); });
+  var nettingNote = hasNetting ? '<div class="pp-netnote">Safety netting is fall-arrest netting beneath the working area. Debris netting, where shown, is a separate fine mesh fitted inside the safety netting to contain dropped fixings, and is not the same as any debris wrap around the outside of the scaffold.</div>' : '';
   var excl = '<div class="pp-excl"><div class="pp-excl-h">' + ppEsc(model.exclusionsTitle) + '</div>'
     + '<div class="pp-excl-box"></div></div>';
   var ret = '<div class="pp-return-note"><b>Return.</b> Price in the accompanying Excel return, blue cells only, and email it back to ' + ppEsc(m.returnTo) + ' by the return date on the cover. The site visit and final measure are arranged through Nova. '
@@ -6829,7 +6845,7 @@ function renderPricingPackHTML(model){
     + '<div class="pp-eyebrow">Section B</div><h2 class="pp-h2">' + ppEsc(model.sectionB.title) + '</h2>'
     + '<div class="pp-sub2">' + ppEsc(model.sectionB.subtitle) + '</div>'
     + '<table class="pp-table"><thead>' + headRow + '</thead><tbody>' + bRows + '</tbody></table>'
-    + excl + ret + foot('Section B') + '</section>';
+    + nettingNote + excl + ret + foot('Section B') + '</section>';
 
   return '<div class="pp-pack">' + cover + sectionA + sectionB + '</div>';
 }
@@ -6882,6 +6898,9 @@ function buildPricingReturnWorkbook(model){
     .forEach(function(l){ var er=emitLine(l); if(bFirst==null)bFirst=er; bLast=er; });
   push(['','','Section B subtotal','','','',{ f:'SUM(G'+bFirst+':G'+bLast+')' }],'subtotal');
   var bSubRow = aoa.length;
+  if (model.sectionB.lines.some(function(l){ return /netting/i.test(l.works||''); })){
+    push(['Safety netting is fall-arrest netting beneath the working area. Debris netting, where shown, is a separate fine mesh fitted inside the safety netting to contain dropped fixings, and is not the same as any debris wrap around the outside of the scaffold.','','','','','',''],'note'); mergeRow();
+  }
   push(['','','','','','',''],'');
   push(['','','PACK TOTAL (excl. VAT)','','','',{ f:'G'+aSubRow+'+G'+bSubRow }],'total');
   push(['','','','','','',''],'');
@@ -6954,13 +6973,16 @@ function ppDeriveAccess(s){
 // Inject a global PORTRAIT @page just for the pack (paged.js won't change page
 // size per named page). Removed again on leaving the pack so the landscape
 // report still prints correctly.
-function ppPackPageStyle(){
-  if (document.getElementById('pp-active-page')) return;
+function ppPackPageStyle(surveyRef){
+  var old = document.getElementById('pp-active-page'); if (old && old.parentNode) old.parentNode.removeChild(old);
+  // Bake the survey ref into the foot as a literal: paged.js does not support the
+  // string()/string-set running-string, but counter(page)/counter(pages) work.
+  var ref = String(surveyRef || '').replace(/["\\]/g, '');
   var st = document.createElement('style'); st.id = 'pp-active-page';
   st.textContent = '@page{size:210mm 297mm;margin:16mm 14mm 18mm 14mm;'
     + '@top-left{content:none}@top-center{content:none}@top-right{content:none}@bottom-center{content:none}'
-    + '@bottom-left{content:"\\00B7  The honest view from above.";font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6}'
-    + '@bottom-right{content:"Subcontractor pricing pack  \\00B7  Page " counter(page);font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6;text-align:right}}';
+    + '@bottom-left{content:"The honest view from above.";font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6}'
+    + '@bottom-right{content:"' + ref + '  \\00B7  Subcontractor pricing pack  \\00B7  Page " counter(page) " of " counter(pages);font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6;text-align:right}}';
   document.head.appendChild(st);
 }
 function ppBackToDetail(){
@@ -6970,7 +6992,14 @@ function ppBackToDetail(){
 function generatePricingPack(surveyId){
   var s = loadSurveys().find(function(x){ return x.id === (surveyId || currentSurveyId); });
   if (!s){ if (typeof showToast === 'function') showToast('Survey not found'); return; }
-  var model = buildPricingPackModelFromSurvey(s, ppDeriveAccess(s));
+  var access = ppDeriveAccess(s);
+  // Editable return-by: default is the first Friday >= prepared+7; override for urgent jobs.
+  var defISO = ppReturnByISO(access.preparedISO || (typeof todayIso === 'function' ? todayIso() : ''));
+  var chosen = window.prompt('Return-by date for this pack (YYYY-MM-DD).\nDefault is the first Friday at least a week out; change it for urgent jobs.', defISO);
+  if (chosen === null) return;  // cancelled
+  chosen = String(chosen).trim();
+  access.returnBy = ppReturnByLabel(/^\d{4}-\d{2}-\d{2}$/.test(chosen) ? chosen : defISO);
+  var model = buildPricingPackModelFromSurvey(s, access);
   // 1) Excel return — download immediately
   try { var wb = buildPricingReturnWorkbook(model);
     XLSX.writeFile(wb, 'Nova-Pricing-Return-' + model.meta.surveyRef + '.xlsx'); }
@@ -6978,7 +7007,7 @@ function generatePricingPack(surveyId){
   // 2) PDF pack — render + paginate for Print / Save as PDF
   var body = document.getElementById('pp-body');
   if (body){ body.innerHTML = renderPricingPackHTML(model); }
-  ppPackPageStyle();
+  ppPackPageStyle(model.meta.surveyRef);
   document.title = 'Nova-Pricing-Pack-' + model.meta.surveyRef;
   if (typeof showView === 'function') showView('pp');
   var px = document.createElement('script'); px.src = 'assets/paged.polyfill.js';
