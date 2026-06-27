@@ -7022,6 +7022,7 @@ function renderPricingPackHTML(model){
     + '</div>';
   var how = '<div class="pp-how"><div class="pp-how-h">How to price this pack</div><ol>'
     + '<li><b>Price only the sections relevant to your trade.</b> Leave any line or section outside your scope blank. You are not expected to price the whole pack.</li>'
+    + '<li><b>Price every line within your scope individually.</b> A single lump-sum price cannot be accepted and will be returned for line-by-line pricing. Pricing each line is how Nova compares returns, awards the work and settles rate-only lines once measured.</li>'
     + '<li><b>Enter your prices in the accompanying Excel return, blue cells only.</b> Fixed-quantity lines multiply your rate by the quantity and total automatically. Lines marked rate only are still being measured: return a unit rate and the total settles when the survey confirms the extent.</li>'
     + '<li><b>Section A is the works. Section B is scaffold, access and netting,</b> priced once for the job, not per line.</li>'
     + '<li><b>Complete the exclusions box.</b> Anything you have assumed is excluded must be stated, so it is agreed now and not discovered on site.</li>'
@@ -7077,6 +7078,8 @@ function buildPricingReturnWorkbook(model){
 
   push(['NOVA  ·  Subcontractor Pricing Return','','','','','',''],'h1'); mergeRow();
   push([m.siteName + '  ·  ' + m.surveyRef + '  ·  Pack ref ' + m.packRef + '  ·  Return by ' + m.returnBy,'','','','','',''],'h2'); mergeRow();
+  push(["Price every line within your trade's scope individually. This is how Nova compares returns and awards the work, and how rate-only lines are settled once measured. A single lump-sum price cannot be accepted and will be returned for line-by-line pricing.",'','','','','',''],'priceall'); mergeRow();
+  var priceAllRow = aoa.length - 1;
   push(['','','','','','',''],'');
   push(['YOUR DETAILS','','','','','',''],'sec');
   var detailRows = ['Company name','Contact name','Email','Telephone','Date priced'];
@@ -7126,6 +7129,13 @@ function buildPricingReturnWorkbook(model){
   push(['EXCLUSIONS AND ASSUMPTIONS (please complete)','','','','','',''],'sec'); mergeRow();
   for(var i=0;i<5;i++){ push(['','','','','','',''],'exclbox'); mergeRow(); }
   push(['','','','','','',''],'');
+
+  // DELIVERY (required) — blue editable cells so Nova can weigh cost and delivery together.
+  push(['DELIVERY (required)','','','','','',''],'sec'); mergeRow();
+  push(['','Earliest start date','','','','',''],'delivery'); merges.push({ s:{r:aoa.length-1,c:2}, e:{r:aoa.length-1,c:4} });
+  push(['','Estimated time on site (duration)','','','','',''],'delivery'); merges.push({ s:{r:aoa.length-1,c:2}, e:{r:aoa.length-1,c:4} });
+  push(['','','','','','',''],'');
+
   push(['Standards: ' + model.standards + ' The honest view from above.','','','','','',''],'note'); merges.push({ s:{r:aoa.length-1,c:0}, e:{r:aoa.length+1,c:6} });
 
   var ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -7148,8 +7158,9 @@ function buildPricingReturnWorkbook(model){
     else if(role==='sec') setRow(r, function(){ return { fill:fill(INK), font:{ color:{rgb:'FFFFFF'}, bold:true, sz:10, name:'Helvetica' }, alignment:{ vertical:'center' } }; });
     else if(role==='colhdr') setRow(r, function(c){ return { fill:fill(INK), font:{ color:{rgb:'FFFFFF'}, bold:true, sz:9, name:'Helvetica' }, alignment:{ horizontal:(c>=3?'center':'left') } }; });
     else if(role==='area') setRow(r, function(){ return { fill:fill(GREY), font:{ color:{rgb:INK}, bold:true, sz:9, name:'Helvetica' } }; });
-    else if(role==='detail'){ cellAt(r,1).s={ font:{ bold:true, sz:10, color:{rgb:INK}, name:'Helvetica' }, alignment:{ vertical:'center' } }; cellAt(r,2).s={ fill:fill(BLUE), border:boxBorder }; }
+    else if(role==='detail'||role==='delivery'){ cellAt(r,1).s={ font:{ bold:true, sz:10, color:{rgb:INK}, name:'Helvetica' }, alignment:{ vertical:'center' } }; cellAt(r,2).s={ fill:fill(BLUE), border:boxBorder }; }
     else if(role==='note') setRow(r, function(){ return { font:{ italic:true, sz:9, color:{rgb:'6B6C70'}, name:'Helvetica' }, alignment:{ wrapText:true, vertical:'top' } }; });
+    else if(role==='priceall') setRow(r, function(){ return { fill:fill('FCE9D6'), font:{ bold:true, sz:10, color:{rgb:INK}, name:'Helvetica' }, alignment:{ wrapText:true, vertical:'center' } }; });
     else if(role==='line'){
       for(var c2=0;c2<7;c2++){ var cl=cellAt(r,c2); cl.s={ font:{ sz:10, color:{rgb:INK}, name:'Helvetica' }, alignment:{ vertical:'top', wrapText:(c2===2), horizontal:(c2>=3?'center':'left') }, border:{ bottom:thin } }; if(c2===0) cl.s.font.bold=true; }
       cellAt(r,5).s = { fill:fill(BLUE), border:boxBorder, alignment:{ horizontal:'center' }, numFmt:'#,##0.00', font:{ sz:10, name:'Helvetica' } };  // Rate (blue input)
@@ -7160,6 +7171,21 @@ function buildPricingReturnWorkbook(model){
   }
   ws['!rows'] = []; // let Excel auto-height; explicit heights for the header band
   ws['!rows'][0]={hpt:22}; ws['!rows'][1]={hpt:16};
+  if (typeof priceAllRow === 'number') ws['!rows'][priceAllRow] = { hpt:38 };  // merged wrap-text block
+
+  // SHEET PROTECTION: xlsx-js-style writes worksheet-level <sheetProtection> but
+  // does NOT serialise per-cell locked/unlocked state (its writer ignores
+  // cell.s.protection). Protecting the sheet would therefore lock EVERY cell,
+  // including the blue inputs, leaving the subby unable to price anything. Rather
+  // than ship that broken state (or a fragile post-process workaround), the
+  // no-lump-sum outcome is enforced structurally and by copy instead:
+  //   - STRUCTURAL: there is no free-entry total anywhere. Every Line total, both
+  //     section subtotals and the PACK TOTAL are formula cells deriving from the
+  //     per-line Rate cells only; the only editable numeric inputs are those Rate
+  //     cells. A subby cannot enter a single lump-sum figure.
+  //   - COPY: the price-every-line block at the top of the return and the matching
+  //     line in the pack's "How to price this pack" panel state that a lump sum
+  //     cannot be accepted and will be returned for line-by-line pricing.
 
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Pricing Return');
