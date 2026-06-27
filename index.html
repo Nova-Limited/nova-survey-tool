@@ -7116,14 +7116,46 @@ function srColour(eff, alloc, isTotal){
   return { bg:'#FBE3DF', ink:'#b23a2c' };               // red: above allocated
 }
 
-// Per-Section-A-ref allocated cost from the costed schedule.
+// Per-Section-B-ref DERIVED allocated cost, from the per-elevation access capture
+// (survey.packAccess via ppDeriveAccess) times the matching NOVA_COST_RATES.standing
+// rate. Mirrors buildPricingPackModelFromSurvey's S-ref numbering exactly (each
+// elevation, then safety netting, then debris netting) so the keys line up.
+// Mapping: accessType 'platform' -> lengthM x workingPlatformLinM (75);
+// 'handrail' -> lengthM x handrailLinM (55); 'staircase'/'haki' (no capture surface
+// today, kept for forward use) -> hakiStaircase per unit. Netting carries no area
+// number, so it gets no derived cost (left null, not invented). No length -> null.
+function srSectionBDerived(survey){
+  var out = {};
+  var R = (typeof NOVA_COST_RATES !== 'undefined' && NOVA_COST_RATES.standing) ? NOVA_COST_RATES.standing : {};
+  var access = (typeof ppDeriveAccess === 'function') ? ppDeriveAccess(survey) : ((survey && survey.packAccess) || {});
+  var n = 0;
+  (access.elevations || []).forEach(function(e){
+    n++; var ref = 'S' + n; var len = Number(e.lengthM); var at = String(e.accessType || 'platform').toLowerCase();
+    if (at === 'staircase' || at === 'haki') out[ref] = (R.hakiStaircase != null) ? R.hakiStaircase : null;
+    else if (at === 'handrail') out[ref] = (len > 0 && R.handrailLinM != null) ? (len * R.handrailLinM) : null;
+    else out[ref] = (len > 0 && R.workingPlatformLinM != null) ? (len * R.workingPlatformLinM) : null;
+  });
+  if (access.safetyNetting){ n++; out['S' + n] = null; }   // man-safe netting area is not captured as a number -> no derived cost
+  if (access.debrisNetting){ n++; out['S' + n] = null; }
+  return out;
+}
+
+// Per-line allocated cost the comparison reads against. Section A (F*) from the
+// costed schedule (rate card + survey.costOverrides). Section B (S*) derived above,
+// with a manual override applied from survey.scaffoldCostOverrides (calculator
+// proposes, you dispose) so Jamie can adjust a scaffold figure by hand.
 function srAllocatedCost(survey){
   var out = {};
   try {
-    if (typeof spCostModel !== 'function' || typeof spCostTotals !== 'function') return out;
-    var totals = spCostTotals(spCostModel(survey), (survey && survey.costOverrides) || {});
-    Object.keys(totals.subs || {}).forEach(function(ref){ out[ref] = totals.subs[ref].value; });
+    if (typeof spCostModel === 'function' && typeof spCostTotals === 'function'){
+      var totals = spCostTotals(spCostModel(survey), (survey && survey.costOverrides) || {});
+      Object.keys(totals.subs || {}).forEach(function(ref){ out[ref] = totals.subs[ref].value; });
+    }
   } catch (e){}
+  var sb = srSectionBDerived(survey);
+  var sov = (survey && survey.scaffoldCostOverrides && typeof survey.scaffoldCostOverrides === 'object') ? survey.scaffoldCostOverrides : {};
+  Object.keys(sb).forEach(function(ref){ var o = srNum(sov[ref]); out[ref] = (o != null) ? o : sb[ref]; });
+  Object.keys(sov).forEach(function(ref){ var o = srNum(sov[ref]); if (o != null && out[ref] == null) out[ref] = o; });
   return out;
 }
 
@@ -7261,6 +7293,7 @@ function srRenderReturnsView(){
 function srRenderComparison(survey, returns){
   var rows = srAllRefs(srPackModel(survey));
   var alloc = srAllocatedCost(survey);
+  var derivedB = srSectionBDerived(survey);   // for the "derived" hint when a scaffold figure is overridden
   var sel = (survey.tradeSelections && typeof survey.tradeSelections === 'object') ? survey.tradeSelections : {};
   var th = 'padding:7px 9px;border:1px solid #e2e2dd;text-align:left;background:#434244;color:#fff;font-weight:700;font-size:11.5px;vertical-align:top;';
   var td = 'padding:5px 9px;border:1px solid #e8e8e3;font-size:12px;color:#434244;vertical-align:top;';
@@ -7288,7 +7321,7 @@ function srRenderComparison(survey, returns){
     var a = alloc[row.ref];
     h += '<tr>';
     h += '<td style="' + td + 'min-width:230px;"><b>' + srEsc(row.ref) + '</b> <span style="color:#666;">' + srEsc(String(row.works).slice(0,70)) + '</span></td>';
-    h += '<td style="' + td + 'text-align:right;background:#f7f7f4;white-space:nowrap;">' + (a != null ? srMoney(a) : '<span style="color:#bbb;">no allocated cost</span>') + '</td>';
+    h += srAllocCell(row, a, derivedB);
     returns.forEach(function(ret){ h += srCell(ret.id, row.ref, ret.lines[row.ref], a); });
     h += '</tr>';
   });
@@ -7300,7 +7333,7 @@ function srRenderComparison(survey, returns){
   h += srDeliveryRow(returns, 'Earliest start', 'earliestStart', td);
   h += srDeliveryRow(returns, 'Time on site', 'timeOnSite', td);
   h += '</tbody></table></div>';
-  h += '<div style="font-size:11px;color:#999;margin-top:8px;">Green is below your allocated cost, amber is exactly equal, red is above. The number shown is the live figure (negotiated where set, otherwise the returned price); edit any price cell to key a negotiated figure and the colours, totals and red counts re-read at once. Section B and rate-only lines have no allocated cost, so they are not coloured.</div>';
+  h += '<div style="font-size:11px;color:#999;margin-top:8px;">Green is below your allocated cost, amber is exactly equal, red is above. The number shown is the live figure (negotiated where set, otherwise the returned price); edit any price cell to key a negotiated figure and the colours, totals and red counts re-read at once. Section B scaffold and access allocated costs are derived from the access capture and shown in the Allocated cost column, where they can be overridden by hand; lines with no measurement to derive from (netting with no captured area, rate-only lines) have no allocated cost and are not coloured.</div>';
   return h;
 }
 
@@ -7317,6 +7350,45 @@ function srCell(retId, ref, rec, alloc){
       + 'style="width:74px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;background:rgba(255,255,255,0.65);color:' + col.ink + ';font-weight:700;font-size:12px;">'
     + '<div id="sr-was-' + retId + '-' + ref + '" style="font-size:10px;color:#999;min-height:12px;">' + (showWas ? ('was ' + srMoney(orig)) : '') + '</div>'
     + '</td>';
+}
+
+// Allocated-cost cell. Section A is read-only (set on the form's costed schedule).
+// Section B is an editable input: the derived scaffold figure shows by default and
+// an edit persists to survey.scaffoldCostOverrides; the derived figure stays visible
+// as a hint (calculator proposes, you dispose).
+function srAllocCell(row, a, derivedB){
+  var td = 'padding:5px 9px;border:1px solid #e8e8e3;font-size:12px;color:#434244;vertical-align:top;text-align:right;background:#f7f7f4;white-space:nowrap;';
+  if (row.section !== 'B'){
+    return '<td style="' + td + '">' + (a != null ? srMoney(a) : '<span style="color:#bbb;">no allocated cost</span>') + '</td>';
+  }
+  var d = derivedB[row.ref];
+  var over = (a != null && d != null && Math.round(a*100) !== Math.round(d*100));
+  return '<td style="' + td + '">'
+    + '<input type="number" step="0.01" min="0" data-sref="' + row.ref + '" oninput="srAllocEdit(this)" value="' + (a != null ? a : '') + '" '
+      + 'title="Derived from the access capture. Edit to override." '
+      + 'style="width:80px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;color:#434244;background:#fff;font-weight:600;">'
+    + '<div id="sr-bderiv-' + row.ref + '" style="font-size:10px;color:#999;min-height:12px;">' + (over ? ('derived ' + srMoney(d)) : '') + '</div>'
+    + '</td>';
+}
+
+// Override a Section B allocated cost by hand; re-read the row's colours + the red
+// counts live, and keep the derived figure visible as the hint. Persists in the snapshot.
+function srAllocEdit(input){
+  var ref = input.getAttribute('data-sref');
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  if (!survey.scaffoldCostOverrides || typeof survey.scaffoldCostOverrides !== 'object') survey.scaffoldCostOverrides = {};
+  var v = srNum(input.value);
+  if (v == null) delete survey.scaffoldCostOverrides[ref]; else survey.scaffoldCostOverrides[ref] = v;
+  srPersist(survey);
+  var a = srAllocatedCost(survey)[ref];
+  (survey.subbyReturns || []).forEach(function(ret){
+    var cellInput = document.querySelector('input.sr-neg[data-ret="' + ret.id + '"][data-ref="' + ref + '"]');
+    if (cellInput){ var rec = ret.lines[ref]; var col = srColour(srEffective(rec), a, srIsTotal(rec)); if (cellInput.parentNode) cellInput.parentNode.style.background = col.bg; cellInput.style.color = col.ink; }
+  });
+  var d = srSectionBDerived(survey)[ref];
+  var hint = document.getElementById('sr-bderiv-' + ref);
+  if (hint) hint.textContent = (a != null && d != null && Math.round(a*100) !== Math.round(d*100)) ? ('derived ' + srMoney(d)) : '';
+  srRefreshMarkers(survey);
 }
 
 function srDeliveryRow(returns, label, key, td){
