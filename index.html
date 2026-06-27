@@ -7116,24 +7116,48 @@ function srColour(eff, alloc, isTotal){
   return { bg:'#FBE3DF', ink:'#b23a2c' };               // red: above allocated
 }
 
-// Per-Section-B-ref DERIVED allocated cost, from the per-elevation access capture
-// (survey.packAccess via ppDeriveAccess) times the matching NOVA_COST_RATES.standing
-// rate. Mirrors buildPricingPackModelFromSurvey's S-ref numbering exactly (each
-// elevation, then safety netting, then debris netting) so the keys line up.
-// Mapping: accessType 'platform' -> lengthM x workingPlatformLinM (75);
-// 'handrail' -> lengthM x handrailLinM (55); 'staircase'/'haki' (no capture surface
-// today, kept for forward use) -> hakiStaircase per unit. Netting carries no area
-// number, so it gets no derived cost (left null, not invented). No length -> null.
+// Editable scaffold cost rates (global, persisted in localStorage). Seeded from
+// NOVA_COST_RATES.standing where a matching rate exists; scaffoldSqm is new: the
+// AREA method supersedes the old flat workingPlatformLinM (75), which no longer
+// drives the scaffold figure. Jamie tunes these from his invoices.
+var SR_RATES_KEY = 'nova_scaffold_rates_v1';
+function srRates(){
+  var def = { scaffoldSqm: 25, handrailLinM: 55, nettingSqm: 4.5, hakiUnit: 2500 };
+  try { var R = (typeof NOVA_COST_RATES !== 'undefined' && NOVA_COST_RATES.standing) ? NOVA_COST_RATES.standing : {};
+    if (R.handrailLinM != null) def.handrailLinM = R.handrailLinM;
+    if (R.mansafeNetsSqm != null) def.nettingSqm = R.mansafeNetsSqm;
+    if (R.hakiStaircase != null) def.hakiUnit = R.hakiStaircase;
+  } catch (e){}
+  var saved = {}; try { saved = JSON.parse(localStorage.getItem(SR_RATES_KEY) || '{}') || {}; } catch (e){}
+  ['scaffoldSqm','handrailLinM','nettingSqm','hakiUnit'].forEach(function(k){ var v = srNum(saved[k]); if (v != null) def[k] = v; });
+  return def;
+}
+function srSetRate(key, value){
+  var saved = {}; try { saved = JSON.parse(localStorage.getItem(SR_RATES_KEY) || '{}') || {}; } catch (e){}
+  var v = srNum(value); if (v == null) delete saved[key]; else saved[key] = v;
+  try { localStorage.setItem(SR_RATES_KEY, JSON.stringify(saved)); } catch (e){}
+}
+
+// Per-Section-B-ref DERIVED allocated cost from the access capture times the
+// editable rates (srRates). Mirrors buildPricingPackModelFromSurvey's S-ref
+// numbering exactly (each elevation, then safety netting, then debris netting).
+// Mapping:
+//   working platform / scaffold = lengthM x eaveHeightM x scaffoldSqm. The AREA
+//     method: the captured eave height MUST be in the maths so a tall scaffold is
+//     not under-read. This supersedes the old flat lengthM x 75.
+//   handrail / edge protection = lengthM x handrailLinM. Linear, no height term.
+//   'staircase' / 'haki' (no capture surface today) = hakiUnit per unit.
+//   netting carries no captured area number, so no derived cost (null, not invented).
+//   no length, or a platform with no height, leaves the line with no derived cost.
 function srSectionBDerived(survey){
-  var out = {};
-  var R = (typeof NOVA_COST_RATES !== 'undefined' && NOVA_COST_RATES.standing) ? NOVA_COST_RATES.standing : {};
+  var out = {}; var rt = srRates();
   var access = (typeof ppDeriveAccess === 'function') ? ppDeriveAccess(survey) : ((survey && survey.packAccess) || {});
   var n = 0;
   (access.elevations || []).forEach(function(e){
-    n++; var ref = 'S' + n; var len = Number(e.lengthM); var at = String(e.accessType || 'platform').toLowerCase();
-    if (at === 'staircase' || at === 'haki') out[ref] = (R.hakiStaircase != null) ? R.hakiStaircase : null;
-    else if (at === 'handrail') out[ref] = (len > 0 && R.handrailLinM != null) ? (len * R.handrailLinM) : null;
-    else out[ref] = (len > 0 && R.workingPlatformLinM != null) ? (len * R.workingPlatformLinM) : null;
+    n++; var ref = 'S' + n; var len = Number(e.lengthM); var h = Number(e.heightM); var at = String(e.accessType || 'platform').toLowerCase();
+    if (at === 'staircase' || at === 'haki') out[ref] = (rt.hakiUnit != null) ? rt.hakiUnit : null;
+    else if (at === 'handrail') out[ref] = (len > 0 && rt.handrailLinM != null) ? (len * rt.handrailLinM) : null;
+    else out[ref] = (len > 0 && h > 0 && rt.scaffoldSqm != null) ? (len * h * rt.scaffoldSqm) : null;  // length x eave height x rate/m2
   });
   if (access.safetyNetting){ n++; out['S' + n] = null; }   // man-safe netting area is not captured as a number -> no derived cost
   if (access.debrisNetting){ n++; out['S' + n] = null; }
@@ -7272,6 +7296,45 @@ function srSelectWinner(retId){
 // Open the returns view for a survey.
 function srOpenReturns(id){ srCurrentSurveyId = id || currentSurveyId; if (typeof showView === 'function') showView('returns'); srRenderReturnsView(); }
 
+// Small editable rates panel. Global cost-side rates the Section B figures derive
+// from; a change persists (localStorage) and moves the derived figures live.
+function srRatesPanel(){
+  var rt = srRates();
+  var f = function(key, label, unit){
+    return '<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:#888;">' + srEsc(label)
+      + '<span style="font-size:12px;color:#434244;white-space:nowrap;">&pound; <input type="number" step="0.01" min="0" data-rate-key="' + key + '" value="' + rt[key] + '" oninput="srRateEdit(this)" style="width:66px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;"> ' + srEsc(unit) + '</span></label>';
+  };
+  return '<div style="border:1px solid #e0e0dc;border-radius:8px;padding:12px 14px;background:#fbfbf9;margin-bottom:16px;">'
+    + '<div style="font-weight:700;color:#434244;font-size:13px;">Scaffold cost rates</div>'
+    + '<div style="font-size:11px;color:#888;margin:2px 0 10px;">Cost-side rates the Section B allocated costs derive from. Seeded defaults; set your own from invoices and the change holds across surveys. Working platform uses the area method (length &times; eave height &times; rate per m&sup2;).</div>'
+    + '<div style="display:flex;gap:22px;flex-wrap:wrap;">'
+    + f('scaffoldSqm', 'Scaffold / working platform', 'per m²')
+    + f('handrailLinM', 'Handrail / edge protection', 'per lin m')
+    + f('nettingSqm', 'Safety netting', 'per m²')
+    + f('hakiUnit', 'Haki / stair tower', 'per unit')
+    + '</div></div>';
+}
+function srRateEdit(input){ srSetRate(input.getAttribute('data-rate-key'), input.value); var sv = srLoadSurvey(srCurrentSurveyId); if (sv) srApplyRatesLive(sv); }
+
+// Re-read the derived Section B figures live after a rate change, without a full
+// re-render (so the rate input keeps focus): refresh each S* allocated input that
+// is not overridden or focused, its derived hint, the row colours and the markers.
+function srApplyRatesLive(survey){
+  var derivedB = srSectionBDerived(survey); var alloc = srAllocatedCost(survey);
+  Object.keys(derivedB).forEach(function(ref){
+    var a = alloc[ref], d = derivedB[ref];
+    var ai = document.querySelector('input[data-sref="' + ref + '"]');
+    if (ai && document.activeElement !== ai) ai.value = (a != null ? a : '');
+    var hint = document.getElementById('sr-bderiv-' + ref);
+    if (hint) hint.textContent = (a != null && d != null && Math.round(a*100) !== Math.round(d*100)) ? ('derived ' + srMoney(d)) : '';
+    (survey.subbyReturns || []).forEach(function(ret){
+      var ci = document.querySelector('input.sr-neg[data-ret="' + ret.id + '"][data-ref="' + ref + '"]');
+      if (ci){ var rec = ret.lines[ref]; var col = srColour(srEffective(rec), a, srIsTotal(rec)); if (ci.parentNode) ci.parentNode.style.background = col.bg; ci.style.color = col.ink; }
+    });
+  });
+  srRefreshMarkers(survey);
+}
+
 function srRenderReturnsView(){
   var host = document.getElementById('returns-body'); if (!host) return;
   var survey = srLoadSurvey(srCurrentSurveyId);
@@ -7284,6 +7347,7 @@ function srRenderReturnsView(){
     + '<input type="file" accept=".xlsx" onchange="srOnFile(this)" style="font-size:13px;">'
     + '<div id="sr-status" style="font-size:12px;margin-top:8px;min-height:16px;"></div>'
     + '</div>';
+  html += srRatesPanel();
   if (!returns.length){ html += '<p style="color:#888;font-size:13px;">No returns held yet. Upload a completed Excel return above to compare it against the pack.</p>'; host.innerHTML = html; return; }
   html += srRenderComparison(survey, returns);
   host.innerHTML = html;
