@@ -7122,7 +7122,7 @@ function srColour(eff, alloc, isTotal){
 // drives the scaffold figure. Jamie tunes these from his invoices.
 var SR_RATES_KEY = 'nova_scaffold_rates_v1';
 function srRates(){
-  var def = { scaffoldSqm: 25, handrailLinM: 55, nettingSqm: 4.5, hakiUnit: 2500 };
+  var def = { scaffoldSqm: 35, handrailLinM: 55, nettingSqm: 4.5, hakiUnit: 2500 };   // scaffold default £35/m² (editable); supersedes the £25 placeholder and the old flat £75/lin m
   try { var R = (typeof NOVA_COST_RATES !== 'undefined' && NOVA_COST_RATES.standing) ? NOVA_COST_RATES.standing : {};
     if (R.handrailLinM != null) def.handrailLinM = R.handrailLinM;
     if (R.mansafeNetsSqm != null) def.nettingSqm = R.mansafeNetsSqm;
