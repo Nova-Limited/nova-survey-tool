@@ -3663,6 +3663,17 @@ input.derived-field { background: #f6f8fa; color: #555; }
       </div>
     </div>
   </section>
+
+  <section id="view-returns" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">← Back to survey</button>
+        <h1>Subcontractor returns</h1>
+        <div class="meta">Hold each priced return against the pack and compare line by line against your allocated cost. The subby price is a cost-side check; it does not drive the client estimate.</div>
+      </div>
+      <div id="returns-body"></div>
+    </div>
+  </section>
 </main>
 
 <div id="modal-overlay" class="modal-overlay" hidden>
@@ -6699,6 +6710,7 @@ function renderSurveyDetail(s) {
       '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
       '<button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>' +
       '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
+      '<button class="btn btn-secondary" onclick="srOpenReturns(currentSurveyId)">Subcontractor returns</button>' +
       '<button class="btn btn-secondary" onclick="addVisitToCalendar(currentSurveyId)"' +
         ((vi && vi.appointmentStart) ? '' : ' disabled title="Set an appointment time first"') +
         '>Add to calendar</button>' +
@@ -7069,6 +7081,289 @@ function renderPricingPackHTML(model){
 }
 
 // ---- EXCEL RETURN (SheetJS). Returns a workbook; caller writes/downloads it.
+// ===== NOVA SUBCONTRACTOR RETURNS - INGEST + COMPARISON (Pass B) ==============
+// Brings completed Excel returns back in, holds each against the pack, and shows a
+// line-by-line comparison coloured against Jamie's allocated cost per line. The
+// subby price never drives the client estimate; it is a cost-side check only. The
+// selected return per trade is stored for the later job-cost ledger to read.
+//
+// ALLOCATED COST (the figure the colours read against) lives in the Derived costed
+// schedule: spCostTotals(spCostModel(survey), survey.costOverrides).subs['F<n>'] is
+// the rate-card-derived cost with Jamie's overrides applied, per Section A ref.
+// Persisted via survey.costOverrides. Section B (S<n>, scaffold/access) is not in
+// the costed schedule, so those lines have no allocated cost and compare neutrally.
+
+var srCurrentSurveyId = null;
+
+function srNum(v){ var n = Number(v); return (v !== '' && v != null && isFinite(n)) ? n : null; }
+function srMoney(n){ return (n == null) ? '' : ('£' + Number(n).toLocaleString('en-GB', { minimumFractionDigits:2, maximumFractionDigits:2 })); }
+function srToday(){ return (typeof todayIso === 'function') ? todayIso() : ''; }
+function srEsc(s){ return (typeof escapeHtml === 'function') ? escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+function srLoadSurvey(id){ return loadSurveys().find(function(s){ return s.id === id; }) || null; }
+function srPersist(survey){ var all = loadSurveys(); var i = all.findIndex(function(s){ return s.id === survey.id; }); if (i >= 0){ all[i] = survey; saveSurveys(all); } }
+
+// Effective (live) figure for a line: negotiated wins, else returned line total,
+// else returned rate. isTotal = whether that figure is a comparable total (£), so
+// only fixed-quantity / negotiated lines colour against the allocated total.
+function srEffective(rec){ if (!rec) return null; if (rec.negotiated != null) return rec.negotiated; if (rec.line != null) return rec.line; return (rec.rate != null) ? rec.rate : null; }
+function srIsTotal(rec){ return !!(rec && (rec.negotiated != null || rec.line != null)); }
+function srColour(eff, alloc, isTotal){
+  var N = { bg:'#ffffff', ink:'#434244' };
+  if (eff == null || alloc == null || !isTotal) return N;
+  var e = Math.round(eff * 100), a = Math.round(alloc * 100);
+  if (e < a) return { bg:'#E4F3E7', ink:'#1f7a37' };   // green: below allocated
+  if (e === a) return { bg:'#FCEFD2', ink:'#8a6400' };  // amber: exactly equal
+  return { bg:'#FBE3DF', ink:'#b23a2c' };               // red: above allocated
+}
+
+// Per-Section-A-ref allocated cost from the costed schedule.
+function srAllocatedCost(survey){
+  var out = {};
+  try {
+    if (typeof spCostModel !== 'function' || typeof spCostTotals !== 'function') return out;
+    var totals = spCostTotals(spCostModel(survey), (survey && survey.costOverrides) || {});
+    Object.keys(totals.subs || {}).forEach(function(ref){ out[ref] = totals.subs[ref].value; });
+  } catch (e){}
+  return out;
+}
+
+// Rebuild the pack model the return was priced against (same access source as the
+// live pricing-pack generator), and flatten to the ordered line list.
+function srPackModel(survey){ var access = (typeof ppDeriveAccess === 'function') ? ppDeriveAccess(survey) : {}; return buildPricingPackModelFromSurvey(survey, access); }
+function srAllRefs(model){
+  var rows = [];
+  model.sectionA.groups.forEach(function(g){ g.lines.forEach(function(l){ rows.push({ ref:l.ref, section:'A', area:g.area, works:l.works, qty:l.qty }); }); });
+  model.sectionB.lines.forEach(function(l){ if (l.ref) rows.push({ ref:l.ref, section:'B', area:'Scaffold, access and netting', works:l.works, qty:l.qty }); });
+  return rows;
+}
+
+// Parse a completed Excel return. Keys on the line-ref cells (F*, S*) and on
+// labelled cells, NOT on row position, so inserted rows/notes do not break it.
+function srParseReturnWorkbook(arrayBuffer){
+  if (typeof XLSX === 'undefined') throw new Error('Excel engine not loaded');
+  var wb = XLSX.read(arrayBuffer, { type:'array' });
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws || !ws['!ref']) throw new Error('the file has no readable sheet');
+  var rng = XLSX.utils.decode_range(ws['!ref']);
+  var val = function(r,c){ var cell = ws[XLSX.utils.encode_cell({ r:r, c:c })]; return (cell == null || cell.v == null) ? '' : cell.v; };
+  var detail = { company:'', contact:'', email:'', telephone:'', datePriced:'' };
+  var delivery = { earliestStart:'', timeOnSite:'' };
+  var lines = {}, surveyRef = '', packRef = '';
+  for (var r = rng.s.r; r <= rng.e.r; r++){
+    var a = String(val(r,0)).trim();
+    if (/^[FS]\d+$/i.test(a)){ lines[a.toUpperCase()] = { rate: srNum(val(r,5)), line: srNum(val(r,6)) }; continue; }
+    var b = String(val(r,1)).trim().toLowerCase();
+    if (b === 'company name') detail.company = String(val(r,2)).trim();
+    else if (b === 'contact name') detail.contact = String(val(r,2)).trim();
+    else if (b === 'email') detail.email = String(val(r,2)).trim();
+    else if (b === 'telephone') detail.telephone = String(val(r,2)).trim();
+    else if (b === 'date priced') detail.datePriced = String(val(r,2)).trim();
+    else if (b === 'earliest start date') delivery.earliestStart = String(val(r,2)).trim();
+    else if (b === 'estimated time on site (duration)') delivery.timeOnSite = String(val(r,2)).trim();
+    var t = String(a);
+    var sm = t.match(/NOV-SURV-[A-Za-z0-9\-]+/); if (sm && !surveyRef) surveyRef = sm[0];
+    var pm = t.match(/NOV-PP-[A-Za-z0-9\-]+/);   if (pm && !packRef)   packRef   = pm[0];
+  }
+  return { detail:detail, delivery:delivery, lines:lines, surveyRef:surveyRef, packRef:packRef };
+}
+
+function srValidateReturn(parsed, model){
+  if (!parsed.surveyRef || !parsed.packRef) return { ok:false, message:'Could not read the survey and pack reference from this file. It may not be a Nova pricing return.' };
+  if (parsed.surveyRef !== model.meta.surveyRef || parsed.packRef !== model.meta.packRef){
+    return { ok:false, message:'This return is for ' + parsed.surveyRef + ' / ' + parsed.packRef + ', not this job (' + model.meta.surveyRef + ' / ' + model.meta.packRef + '). Not ingested.' };
+  }
+  return { ok:true };
+}
+
+function srSummary(parsed, rows){
+  var aRefs = rows.filter(function(x){ return x.section === 'A'; }).map(function(x){ return x.ref; });
+  var bRefs = rows.filter(function(x){ return x.section === 'B'; }).map(function(x){ return x.ref; });
+  var priced = function(refs){ return refs.filter(function(ref){ var rec = parsed.lines[ref]; return rec && (rec.rate != null || rec.line != null); }).length; };
+  return { aPriced:priced(aRefs), aTotal:aRefs.length, bPriced:priced(bRefs), bTotal:bRefs.length };
+}
+
+function srSetStatus(msg, isError){ var el = document.getElementById('sr-status'); if (el){ el.textContent = msg || ''; el.style.color = isError ? '#b23a2c' : '#1f7a37'; } }
+
+// File input handler: parse, validate against this job, summarise, capture trade, ingest.
+function srOnFile(input){
+  var file = input.files && input.files[0]; if (!file) return;
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey){ srSetStatus('Survey not found.', true); return; }
+  var reader = new FileReader();
+  reader.onload = function(){
+    try {
+      var parsed = srParseReturnWorkbook(reader.result);
+      var model = srPackModel(survey);
+      var v = srValidateReturn(parsed, model);
+      if (!v.ok){ srSetStatus(v.message, true); input.value = ''; return; }
+      var rows = srAllRefs(model);
+      var sum = srSummary(parsed, rows);
+      var who = parsed.detail.company || parsed.detail.contact || 'Subcontractor';
+      var bTxt = sum.bPriced ? (sum.bPriced + ' of ' + sum.bTotal + ' Section B lines') : 'Section B blank';
+      var trade = window.prompt(who + ' priced ' + sum.aPriced + ' of ' + sum.aTotal + ' Section A lines; ' + bTxt + '.\n\nEnter the trade for this return (for example Roofing, or Scaffold):', '');
+      if (trade === null){ input.value = ''; return; }
+      srIngest(survey, parsed, String(trade).trim() || 'Unspecified', sum);
+      input.value = '';
+    } catch (e){ srSetStatus('Could not read this file: ' + e.message, true); input.value = ''; }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function srIngest(survey, parsed, trade, sum){
+  if (!Array.isArray(survey.subbyReturns)) survey.subbyReturns = [];
+  var lines = {};
+  Object.keys(parsed.lines).forEach(function(ref){ var rc = parsed.lines[ref]; lines[ref] = { rate:rc.rate, line:rc.line, negotiated:null }; });
+  var nums = survey.subbyReturns.map(function(r){ return parseInt(String(r.id).replace('ret-',''), 10) || 0; });
+  var id = 'ret-' + ((nums.length ? Math.max.apply(null, nums) : 0) + 1);
+  survey.subbyReturns.push({ id:id, subbyName:(parsed.detail.company || parsed.detail.contact || 'Subcontractor'), trade:trade,
+    detail:parsed.detail, delivery:parsed.delivery, lines:lines, summary:sum,
+    surveyRef:parsed.surveyRef, packRef:parsed.packRef, dateIngested:srToday() });
+  srPersist(survey);
+  srRenderReturnsView();
+  srSetStatus(survey.subbyReturns[survey.subbyReturns.length-1].subbyName + ' return ingested: ' + sum.aPriced + ' of ' + sum.aTotal + ' Section A lines priced.', false);
+}
+
+function srRemoveReturn(retId){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  survey.subbyReturns = (survey.subbyReturns || []).filter(function(r){ return r.id !== retId; });
+  if (survey.tradeSelections) Object.keys(survey.tradeSelections).forEach(function(t){ if (survey.tradeSelections[t] === retId) survey.tradeSelections[t] = null; });
+  srPersist(survey); srRenderReturnsView();
+}
+
+function srSelectWinner(retId){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var ret = (survey.subbyReturns || []).find(function(r){ return r.id === retId; }); if (!ret) return;
+  if (!survey.tradeSelections || typeof survey.tradeSelections !== 'object') survey.tradeSelections = {};
+  survey.tradeSelections[ret.trade] = (survey.tradeSelections[ret.trade] === retId) ? null : retId;
+  srPersist(survey); srRenderReturnsView();
+}
+
+// Open the returns view for a survey.
+function srOpenReturns(id){ srCurrentSurveyId = id || currentSurveyId; if (typeof showView === 'function') showView('returns'); srRenderReturnsView(); }
+
+function srRenderReturnsView(){
+  var host = document.getElementById('returns-body'); if (!host) return;
+  var survey = srLoadSurvey(srCurrentSurveyId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var returns = Array.isArray(survey.subbyReturns) ? survey.subbyReturns : [];
+  var html = '';
+  html += '<div style="border:1px solid #e0e0dc;border-radius:8px;padding:14px 16px;background:#fbfbf9;margin-bottom:16px;">'
+    + '<div style="font-weight:700;color:#434244;">Bring in a completed return</div>'
+    + '<div style="font-size:12px;color:#888;margin:4px 0 10px;">Upload the subcontractor\'s priced Excel return. It is checked against this job\'s survey and pack reference before it is held.</div>'
+    + '<input type="file" accept=".xlsx" onchange="srOnFile(this)" style="font-size:13px;">'
+    + '<div id="sr-status" style="font-size:12px;margin-top:8px;min-height:16px;"></div>'
+    + '</div>';
+  if (!returns.length){ html += '<p style="color:#888;font-size:13px;">No returns held yet. Upload a completed Excel return above to compare it against the pack.</p>'; host.innerHTML = html; return; }
+  html += srRenderComparison(survey, returns);
+  host.innerHTML = html;
+  srRefreshTotals(survey); srRefreshMarkers(survey);
+}
+
+function srRenderComparison(survey, returns){
+  var rows = srAllRefs(srPackModel(survey));
+  var alloc = srAllocatedCost(survey);
+  var sel = (survey.tradeSelections && typeof survey.tradeSelections === 'object') ? survey.tradeSelections : {};
+  var th = 'padding:7px 9px;border:1px solid #e2e2dd;text-align:left;background:#434244;color:#fff;font-weight:700;font-size:11.5px;vertical-align:top;';
+  var td = 'padding:5px 9px;border:1px solid #e8e8e3;font-size:12px;color:#434244;vertical-align:top;';
+  var h = '<div style="overflow-x:auto;"><table style="border-collapse:collapse;min-width:100%;">';
+  // header
+  h += '<thead><tr>';
+  h += '<th style="' + th + 'min-width:230px;">Line</th>';
+  h += '<th style="' + th + 'text-align:right;background:#5a5b5d;">Allocated cost</th>';
+  returns.forEach(function(ret){
+    var winner = sel[ret.trade] === ret.id;
+    h += '<th style="' + th + 'min-width:120px;' + (winner ? 'background:#1f7a37;' : '') + '">'
+      + '<div>' + srEsc(ret.subbyName) + '</div>'
+      + '<div style="font-weight:400;color:#d8d8d8;font-size:10.5px;">' + srEsc(ret.trade) + ' · ' + ret.summary.aPriced + '/' + ret.summary.aTotal + ' priced</div>'
+      + '<div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
+        + '<button onclick="srSelectWinner(\'' + ret.id + '\')" style="font-size:10.5px;padding:2px 7px;border-radius:4px;border:1px solid #fff;background:' + (winner ? '#fff' : 'transparent') + ';color:' + (winner ? '#1f7a37' : '#fff') + ';cursor:pointer;font-weight:700;">' + (winner ? '✓ Winner' : 'Select winner') + '</button>'
+        + '<span id="sr-redcount-' + ret.id + '" style="font-size:10.5px;color:#fff;"></span>'
+        + '<button onclick="srRemoveReturn(\'' + ret.id + '\')" title="Remove this return" style="font-size:10.5px;padding:1px 5px;border-radius:4px;border:1px solid #d8a39c;background:transparent;color:#f6d6d1;cursor:pointer;">remove</button>'
+      + '</div></th>';
+  });
+  h += '</tr></thead><tbody>';
+  // line rows
+  var curArea = null;
+  rows.forEach(function(row){
+    if (row.area !== curArea){ curArea = row.area; h += '<tr><td colspan="' + (2 + returns.length) + '" style="padding:6px 9px;background:#f1f2f4;border:1px solid #e8e8e3;font-weight:700;font-size:11px;color:#434244;">' + srEsc(curArea) + '</td></tr>'; }
+    var a = alloc[row.ref];
+    h += '<tr>';
+    h += '<td style="' + td + 'min-width:230px;"><b>' + srEsc(row.ref) + '</b> <span style="color:#666;">' + srEsc(String(row.works).slice(0,70)) + '</span></td>';
+    h += '<td style="' + td + 'text-align:right;background:#f7f7f4;white-space:nowrap;">' + (a != null ? srMoney(a) : '<span style="color:#bbb;">no allocated cost</span>') + '</td>';
+    returns.forEach(function(ret){ h += srCell(ret.id, row.ref, ret.lines[row.ref], a); });
+    h += '</tr>';
+  });
+  // per-subby total row
+  h += '<tr><td style="' + td + 'font-weight:700;text-align:right;">Per-trade total (priced lines)</td><td style="' + td + 'background:#f7f7f4;"></td>';
+  returns.forEach(function(ret){ h += '<td style="' + td + 'text-align:right;font-weight:700;" id="sr-total-' + ret.id + '"></td>'; });
+  h += '</tr>';
+  // delivery rows
+  h += srDeliveryRow(returns, 'Earliest start', 'earliestStart', td);
+  h += srDeliveryRow(returns, 'Time on site', 'timeOnSite', td);
+  h += '</tbody></table></div>';
+  h += '<div style="font-size:11px;color:#999;margin-top:8px;">Green is below your allocated cost, amber is exactly equal, red is above. The number shown is the live figure (negotiated where set, otherwise the returned price); edit any price cell to key a negotiated figure and the colours, totals and red counts re-read at once. Section B and rate-only lines have no allocated cost, so they are not coloured.</div>';
+  return h;
+}
+
+function srCell(retId, ref, rec, alloc){
+  var tdBase = 'padding:4px 6px;border:1px solid #e8e8e3;text-align:right;vertical-align:top;';
+  if (!rec || (rec.rate == null && rec.line == null && rec.negotiated == null)){
+    return '<td style="' + tdBase + 'color:#cfcfca;text-align:center;">·</td>';
+  }
+  var eff = srEffective(rec), isTotal = srIsTotal(rec), col = srColour(eff, alloc, isTotal);
+  var orig = (rec.line != null ? rec.line : rec.rate);
+  var showWas = (rec.negotiated != null && orig != null && Math.round(rec.negotiated*100) !== Math.round(orig*100));
+  return '<td style="' + tdBase + 'background:' + col.bg + ';">'
+    + '<input type="number" step="0.01" min="0" class="sr-neg" data-ret="' + retId + '" data-ref="' + ref + '" value="' + (eff != null ? eff : '') + '" oninput="srNegEdit(this)" '
+      + 'style="width:74px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;background:rgba(255,255,255,0.65);color:' + col.ink + ';font-weight:700;font-size:12px;">'
+    + '<div id="sr-was-' + retId + '-' + ref + '" style="font-size:10px;color:#999;min-height:12px;">' + (showWas ? ('was ' + srMoney(orig)) : '') + '</div>'
+    + '</td>';
+}
+
+function srDeliveryRow(returns, label, key, td){
+  var h = '<tr><td style="' + td + 'font-weight:600;color:#666;">' + label + '</td><td style="' + td + 'background:#f7f7f4;"></td>';
+  returns.forEach(function(ret){ h += '<td style="' + td + 'text-align:center;font-size:11.5px;">' + srEsc((ret.delivery && ret.delivery[key]) || '-') + '</td>'; });
+  return h + '</tr>';
+}
+
+// Live recompute (no re-render, so focus is kept on the edited cell).
+function srNegEdit(input){
+  var retId = input.getAttribute('data-ret'), ref = input.getAttribute('data-ref');
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var ret = (survey.subbyReturns || []).find(function(r){ return r.id === retId; }); if (!ret) return;
+  var rec = ret.lines[ref]; if (!rec){ rec = { rate:null, line:null, negotiated:null }; ret.lines[ref] = rec; }
+  var v = srNum(input.value);
+  var orig = (rec.line != null ? rec.line : rec.rate);
+  rec.negotiated = (v == null) ? null : v;   // keep returned (rate/line) untouched; negotiated is the live figure
+  srPersist(survey);
+  // recolour this cell
+  var alloc = srAllocatedCost(survey)[ref];
+  var col = srColour(srEffective(rec), alloc, srIsTotal(rec));
+  var cell = input.parentNode; if (cell) cell.style.background = col.bg; input.style.color = col.ink;
+  var was = document.getElementById('sr-was-' + retId + '-' + ref);
+  var showWas = (rec.negotiated != null && orig != null && Math.round(rec.negotiated*100) !== Math.round(orig*100));
+  if (was) was.textContent = showWas ? ('was ' + srMoney(orig)) : '';
+  srRefreshTotals(survey); srRefreshMarkers(survey);
+}
+
+function srRefreshTotals(survey){
+  (survey.subbyReturns || []).forEach(function(ret){
+    var sum = 0, any = false;
+    Object.keys(ret.lines || {}).forEach(function(ref){ var rec = ret.lines[ref]; var e = srEffective(rec); if (e != null && srIsTotal(rec)){ sum += e; any = true; } });
+    var el = document.getElementById('sr-total-' + ret.id); if (el) el.textContent = any ? srMoney(sum) : '-';
+  });
+}
+
+function srRefreshMarkers(survey){
+  var alloc = srAllocatedCost(survey);
+  (survey.subbyReturns || []).forEach(function(ret){
+    var reds = 0;
+    Object.keys(ret.lines || {}).forEach(function(ref){ var rec = ret.lines[ref]; var e = srEffective(rec); var a = alloc[ref];
+      if (e != null && a != null && srIsTotal(rec) && Math.round(e*100) > Math.round(a*100)) reds++; });
+    var el = document.getElementById('sr-redcount-' + ret.id);
+    if (el) el.textContent = reds ? (reds + (reds === 1 ? ' line above' : ' lines above')) : 'all within cost';
+  });
+}
+
 function buildPricingReturnWorkbook(model){
   if (typeof XLSX === 'undefined') throw new Error('SheetJS (XLSX) not loaded');
   var m = model.meta;
