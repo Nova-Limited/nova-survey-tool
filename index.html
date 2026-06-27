@@ -3674,6 +3674,17 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <div id="returns-body"></div>
     </div>
   </section>
+
+  <section id="view-ledger" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">← Back to survey</button>
+        <h1>Job cost ledger</h1>
+        <div class="meta">Real profit per task: the sell price you quoted against what the work actually cost. Margin is sell minus actual, not estimated. The post-win actuals record for repairs.</div>
+      </div>
+      <div id="ledger-body"></div>
+    </div>
+  </section>
 </main>
 
 <div id="modal-overlay" class="modal-overlay" hidden>
@@ -6711,6 +6722,7 @@ function renderSurveyDetail(s) {
       '<button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>' +
       '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
       '<button class="btn btn-secondary" onclick="srOpenReturns(currentSurveyId)">Subcontractor returns</button>' +
+      '<button class="btn btn-secondary" onclick="srOpenLedger(currentSurveyId)">Job cost ledger</button>' +
       '<button class="btn btn-secondary" onclick="addVisitToCalendar(currentSurveyId)"' +
         ((vi && vi.appointmentStart) ? '' : ' disabled title="Set an appointment time first"') +
         '>Add to calendar</button>' +
@@ -7096,7 +7108,7 @@ function renderPricingPackHTML(model){
 var srCurrentSurveyId = null;
 
 function srNum(v){ var n = Number(v); return (v !== '' && v != null && isFinite(n)) ? n : null; }
-function srMoney(n){ return (n == null) ? '' : ('£' + Number(n).toLocaleString('en-GB', { minimumFractionDigits:2, maximumFractionDigits:2 })); }
+function srMoney(n){ if (n == null) return ''; var v = Number(n); var s = Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits:2, maximumFractionDigits:2 }); return (v < 0 ? '-£' : '£') + s; }
 function srToday(){ return (typeof todayIso === 'function') ? todayIso() : ''; }
 function srEsc(s){ return (typeof escapeHtml === 'function') ? escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
 function srLoadSurvey(id){ return loadSurveys().find(function(s){ return s.id === id; }) || null; }
@@ -7498,6 +7510,167 @@ function srRefreshMarkers(survey){
     var el = document.getElementById('sr-redcount-' + ret.id);
     if (el) el.textContent = reds ? (reds + (reds === 1 ? ' line above' : ' lines above')) : 'all within cost';
   });
+}
+
+// ===== NOVA REPAIR JOB COST LEDGER - real margin per task ====================
+// One row per task (F* fault lines, S* scaffold/access lines): estimated cost
+// (from srAllocatedCost, read-only), actual cost (from the selected Pass B return
+// where one is the winner, else manual), the per-task SELL (Jamie's quoted client
+// line price, entered here), and the real margin = SELL minus ACTUAL with a colour
+// flag. The post-win actuals record for repairs. Sell + manual actuals ride in the
+// survey snapshot (survey.ledgerSell / survey.ledgerActuals); no new Airtable fields.
+
+// Actual cost from a selected winning return (Pass B), if one priced this task line.
+function srLedgerActualFromReturn(survey, ref){
+  var sel = (survey && survey.tradeSelections) || {};
+  var returns = (survey && survey.subbyReturns) || [];
+  var found = null;
+  Object.keys(sel).forEach(function(trade){
+    if (found || !sel[trade]) return;
+    var ret = returns.find(function(r){ return r.id === sel[trade]; });
+    if (ret && ret.lines && ret.lines[ref]){ var v = srEffective(ret.lines[ref]); if (v != null) found = { value: v, subbyName: ret.subbyName, trade: trade }; }
+  });
+  return found;
+}
+
+// Margin colour bands: RED below 0 (loss), AMBER exactly 0 (break-even), GREEN
+// above 0 (profit). null margin (no sell entered) reads neutral, never a loss.
+function srMarginColour(margin){
+  if (margin == null) return { bg:'#ffffff', ink:'#888888' };
+  var m = Math.round(margin * 100);
+  if (m < 0) return { bg:'#FBE3DF', ink:'#b23a2c' };
+  if (m === 0) return { bg:'#FCEFD2', ink:'#8a6400' };
+  return { bg:'#E4F3E7', ink:'#1f7a37' };
+}
+function srMarginWord(margin){
+  if (margin == null) return 'Not priced';
+  var m = Math.round(margin * 100);
+  return (m < 0) ? 'Loss' : (m === 0 ? 'Break-even' : 'Profit');
+}
+
+// The per-task figures. actual = selected-return price if present, else the manual
+// actual; a blank actual counts as 0 for the maths (cost not yet incurred), so a
+// freshly priced task reads as full margin and turns red as actuals cross the sell.
+function srLedgerRowFigures(survey, ref, alloc){
+  alloc = alloc || srAllocatedCost(survey);
+  var fromRet = srLedgerActualFromReturn(survey, ref);
+  var actual = fromRet ? fromRet.value : srNum((survey.ledgerActuals || {})[ref]);
+  var sell = srNum((survey.ledgerSell || {})[ref]);
+  var est = alloc[ref];
+  var margin = (sell != null) ? (sell - (actual != null ? actual : 0)) : null;
+  var pct = (sell != null && Math.round(sell * 100) !== 0) ? (margin / sell * 100) : null;
+  return { est: est, actual: actual, fromReturn: fromRet, sell: sell, margin: margin, pct: pct };
+}
+
+function srLedgerTotals(survey, alloc){
+  var rows = srAllRefs(srPackModel(survey));
+  var totSell = 0, totActual = 0, totEst = 0, priced = 0;
+  rows.forEach(function(row){
+    var f = srLedgerRowFigures(survey, row.ref, alloc);
+    if (f.sell != null){ priced++; totSell += f.sell; totActual += (f.actual != null ? f.actual : 0); totEst += (f.est != null ? f.est : 0); }
+  });
+  var margin = priced ? (totSell - totActual) : null;
+  var pct = (priced && Math.round(totSell * 100) !== 0) ? (margin / totSell * 100) : null;
+  return { totSell: totSell, totActual: totActual, totEst: totEst, priced: priced, total: rows.length, margin: margin, pct: pct };
+}
+
+function srOpenLedger(id){ srCurrentSurveyId = id || currentSurveyId; if (typeof showView === 'function') showView('ledger'); srRenderLedger(); }
+
+function srPctTxt(pct){ return (pct == null) ? '' : (Math.round(pct * 10) / 10) + '%'; }
+
+function srRenderLedger(){
+  var host = document.getElementById('ledger-body'); if (!host) return;
+  var survey = srLoadSurvey(srCurrentSurveyId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var rows = srAllRefs(srPackModel(survey));
+  if (!rows.length){ host.innerHTML = '<p style="color:#888;font-size:13px;">This job has no priced tasks yet. Add faults and access, then the ledger lists them here.</p>'; return; }
+  var alloc = srAllocatedCost(survey);
+  var th = 'padding:7px 9px;border:1px solid #e2e2dd;background:#434244;color:#fff;font-weight:700;font-size:11.5px;text-align:right;';
+  var thL = th + 'text-align:left;';
+  var td = 'padding:5px 9px;border:1px solid #e8e8e3;font-size:12px;color:#434244;text-align:right;vertical-align:top;';
+  var tdL = td + 'text-align:left;';
+  var h = '<div style="overflow-x:auto;"><table style="border-collapse:collapse;min-width:100%;">';
+  h += '<thead><tr>'
+    + '<th style="' + thL + 'min-width:240px;">Task</th>'
+    + '<th style="' + th + '">Estimated cost</th>'
+    + '<th style="' + th + '">Actual cost</th>'
+    + '<th style="' + th + '">Sell price</th>'
+    + '<th style="' + th + '">Margin</th>'
+    + '<th style="' + th + '">Margin %</th>'
+    + '<th style="' + th + 'text-align:center;">Status</th>'
+    + '</tr></thead><tbody>';
+  var curArea = null;
+  rows.forEach(function(row){
+    if (row.area !== curArea){ curArea = row.area; h += '<tr><td colspan="7" style="padding:6px 9px;background:#f1f2f4;border:1px solid #e8e8e3;font-weight:700;font-size:11px;color:#434244;">' + srEsc(curArea) + '</td></tr>'; }
+    var f = srLedgerRowFigures(survey, row.ref, alloc);
+    var col = srMarginColour(f.margin);
+    // Task
+    h += '<tr>';
+    h += '<td style="' + tdL + 'min-width:240px;"><b>' + srEsc(row.ref) + '</b> <span style="color:#666;">' + srEsc(String(row.works).slice(0,64)) + '</span></td>';
+    // Estimated (read-only, from srAllocatedCost)
+    h += '<td style="' + td + 'background:#f7f7f4;white-space:nowrap;">' + (f.est != null ? srMoney(f.est) : '<span style="color:#bbb;">n/a</span>') + '</td>';
+    // Actual: from selected return (read-only) or manual (editable)
+    if (f.fromReturn){
+      h += '<td style="' + td + 'white-space:nowrap;">' + srMoney(f.fromReturn.value) + '<div style="font-size:10px;color:#1f7a37;">from ' + srEsc(f.fromReturn.subbyName) + '</div></td>';
+    } else {
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" data-led="actual" data-ref="' + row.ref + '" value="' + (f.actual != null ? f.actual : '') + '" oninput="srLedgerActualEdit(this)" placeholder="enter" style="width:78px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;background:#EEF3FB;font-size:12px;"><div style="font-size:10px;color:#999;">by hand</div></td>';
+    }
+    // Sell (editable, Jamie's quoted line price, blank default)
+    h += '<td style="' + td + '"><input type="number" step="0.01" min="0" data-led="sell" data-ref="' + row.ref + '" value="' + (f.sell != null ? f.sell : '') + '" oninput="srLedgerSellEdit(this)" placeholder="quoted" style="width:78px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;background:#fff;font-weight:600;font-size:12px;"></td>';
+    // Margin value / percent / status (coloured)
+    h += '<td id="sr-led-mv-' + row.ref + '" style="' + td + 'background:' + col.bg + ';color:' + col.ink + ';font-weight:700;white-space:nowrap;">' + (f.margin != null ? srMoney(f.margin) : '') + '</td>';
+    h += '<td id="sr-led-mp-' + row.ref + '" style="' + td + 'background:' + col.bg + ';color:' + col.ink + ';">' + srPctTxt(f.pct) + '</td>';
+    h += '<td id="sr-led-st-' + row.ref + '" style="' + td + 'text-align:center;color:' + col.ink + ';font-weight:700;font-size:11px;">' + srMarginWord(f.margin) + '</td>';
+    h += '</tr>';
+  });
+  // Job total row
+  var t = srLedgerTotals(survey, alloc);
+  var tcol = srMarginColour(t.margin);
+  h += '<tr>'
+    + '<td style="' + tdL + 'font-weight:700;">Job total <span style="font-weight:400;color:#888;font-size:11px;">(' + t.priced + ' of ' + t.total + ' tasks priced)</span></td>'
+    + '<td id="sr-led-tot-est" style="' + td + 'font-weight:700;background:#f7f7f4;">' + srMoney(t.totEst) + '</td>'
+    + '<td id="sr-led-tot-act" style="' + td + 'font-weight:700;">' + srMoney(t.totActual) + '</td>'
+    + '<td id="sr-led-tot-sell" style="' + td + 'font-weight:700;">' + (t.priced ? srMoney(t.totSell) : '') + '</td>'
+    + '<td id="sr-led-tot-mv" style="' + td + 'font-weight:800;background:' + tcol.bg + ';color:' + tcol.ink + ';">' + (t.margin != null ? srMoney(t.margin) : '') + '</td>'
+    + '<td id="sr-led-tot-mp" style="' + td + 'font-weight:800;background:' + tcol.bg + ';color:' + tcol.ink + ';">' + srPctTxt(t.pct) + '</td>'
+    + '<td id="sr-led-tot-st" style="' + td + 'text-align:center;color:' + tcol.ink + ';font-weight:700;font-size:11px;">' + srMarginWord(t.margin) + '</td>'
+    + '</tr>';
+  h += '</tbody></table></div>';
+  h += '<div style="font-size:11px;color:#999;margin-top:8px;">Margin is the real figure: <b>sell minus actual cost</b>, not estimated. Green is profit, amber is break-even, red is a loss. A blank sell is a task not yet priced and stays neutral. Actuals shown as "from &lt;subby&gt;" are pulled from the selected winning return; the rest are keyed by hand. The job total counts only tasks with a sell entered, so a half-priced ledger never reads as a loss.</div>';
+  host.innerHTML = h;
+}
+
+// Live recompute on a sell or actual edit: persist, then refresh the row's margin
+// cells and the job-total row in place (so the input keeps focus).
+function srLedgerSellEdit(input){ srLedgerEdit(input, 'ledgerSell'); }
+function srLedgerActualEdit(input){ srLedgerEdit(input, 'ledgerActuals'); }
+function srLedgerEdit(input, store){
+  var ref = input.getAttribute('data-ref');
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  if (!survey[store] || typeof survey[store] !== 'object') survey[store] = {};
+  var v = srNum(input.value);
+  if (v == null) delete survey[store][ref]; else survey[store][ref] = v;
+  srPersist(survey);
+  srLedgerRecalcRow(survey, ref);
+  srLedgerRecalcTotals(survey);
+}
+function srLedgerRecalcRow(survey, ref){
+  var f = srLedgerRowFigures(survey, ref);
+  var col = srMarginColour(f.margin);
+  var mv = document.getElementById('sr-led-mv-' + ref), mp = document.getElementById('sr-led-mp-' + ref), st = document.getElementById('sr-led-st-' + ref);
+  if (mv){ mv.textContent = (f.margin != null ? srMoney(f.margin) : ''); mv.style.background = col.bg; mv.style.color = col.ink; }
+  if (mp){ mp.textContent = srPctTxt(f.pct); mp.style.background = col.bg; mp.style.color = col.ink; }
+  if (st){ st.textContent = srMarginWord(f.margin); st.style.color = col.ink; }
+}
+function srLedgerRecalcTotals(survey){
+  var t = srLedgerTotals(survey); var col = srMarginColour(t.margin);
+  var set = function(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; };
+  set('sr-led-tot-est', srMoney(t.totEst)); set('sr-led-tot-act', srMoney(t.totActual));
+  set('sr-led-tot-sell', t.priced ? srMoney(t.totSell) : '');
+  var mv = document.getElementById('sr-led-tot-mv'), mp = document.getElementById('sr-led-tot-mp'), st = document.getElementById('sr-led-tot-st');
+  if (mv){ mv.textContent = (t.margin != null ? srMoney(t.margin) : ''); mv.style.background = col.bg; mv.style.color = col.ink; }
+  if (mp){ mp.textContent = srPctTxt(t.pct); mp.style.background = col.bg; mp.style.color = col.ink; }
+  if (st){ st.textContent = srMarginWord(t.margin); st.style.color = col.ink; }
 }
 
 function buildPricingReturnWorkbook(model){
