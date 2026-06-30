@@ -3696,6 +3696,83 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <div id="estledger-body"></div>
     </div>
   </section>
+
+  <style id="np-styles">
+    #view-proposal .np-controls{display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:#faf9f6;border:1px solid #ece9e2;border-radius:8px;margin-bottom:20px;}
+    #view-proposal .np-ctl-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+    #view-proposal .np-ctl-lbl{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a898b;min-width:120px;}
+    #view-proposal .np-ctl-note{font-size:11px;color:#aaa;}
+    #view-proposal .np-pills{display:flex;flex-wrap:wrap;gap:6px;}
+    #view-proposal .np-pill{font-size:12.5px;border:1px solid #d8d8d2;border-radius:16px;padding:5px 12px;cursor:pointer;background:#fff;color:#434244;font-family:inherit;}
+    #view-proposal .np-pill.on{background:#F7901E;border-color:#F7901E;color:#1f1f1f;font-weight:700;}
+    #view-proposal .np-area{font-size:14px;font-weight:700;color:#434244;}
+    #view-proposal .np-area-src{font-size:11px;font-weight:400;color:#8a898b;}
+    #view-proposal .np-pending{font-size:13px;font-weight:400;color:#b06a1f;}
+    #view-proposal .np-rates{border-top:1px solid #ece9e2;padding-top:11px;}
+    #view-proposal .np-rates-h{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a898b;margin-bottom:8px;}
+    #view-proposal .np-rates-grid{display:flex;flex-wrap:wrap;gap:10px;}
+    #view-proposal .np-rate{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#434244;}
+    #view-proposal .np-rate-name{font-size:11px;color:#666;}
+    #view-proposal .np-rate input{width:96px;border:1px solid #d8d8d2;border-radius:5px;padding:5px 7px;font-size:13px;text-align:right;font-family:inherit;}
+
+    #view-proposal .np-proposal{max-width:1040px;}
+    #view-proposal .np-eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#8a898b;font-weight:700;margin-bottom:10px;}
+    #view-proposal .np-eyebrow b{color:#F7901E;}
+    #view-proposal .np-h2{font-size:22px;font-weight:700;letter-spacing:-.2px;margin:0 0 10px;color:#434244;}
+    #view-proposal .np-h2-sp{margin-top:34px;}
+    #view-proposal .np-lead{font-size:15px;color:#444;margin:0 0 16px;line-height:1.5;}
+
+    #view-proposal .np-optgrid{display:grid;gap:12px;}
+    #view-proposal .np-opt-col{border:1px solid #e2e3e5;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;}
+    #view-proposal .np-opt-col .np-top{background:#434244;color:#fff;padding:13px 15px;}
+    #view-proposal .np-opt-col.feature .np-top{background:#F7901E;color:#1f1f1f;}
+    #view-proposal .np-opt-col.feature{outline:2px solid #F7901E;}
+    #view-proposal .np-opt-col .np-name{font-weight:700;font-size:15px;}
+    #view-proposal .np-opt-col .np-for{font-size:11px;opacity:.85;margin-top:3px;}
+    #view-proposal .np-ribbon{background:#F7901E;color:#1f1f1f;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;text-align:center;padding:4px;}
+    #view-proposal .np-price{padding:12px 15px;border-bottom:1px solid #e2e3e5;}
+    #view-proposal .np-price .np-amt{font-size:21px;font-weight:700;color:#434244;}
+    #view-proposal .np-price .np-amt .np-vat{font-size:11px;font-weight:400;color:#8a898b;}
+    #view-proposal .np-perm2{font-size:11.5px;color:#8a898b;margin-top:3px;}
+    #view-proposal .np-specs{padding:4px 15px 12px;}
+    #view-proposal .np-specs .np-r{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px solid #e2e3e5;gap:10px;}
+    #view-proposal .np-specs .np-r:last-child{border-bottom:0;}
+    #view-proposal .np-specs .np-k{color:#8a898b;white-space:nowrap;} #view-proposal .np-specs .np-v{text-align:right;color:#434244;}
+    #view-proposal .np-caption{font-size:12.5px;color:#8a898b;margin:12px 0 0;line-height:1.45;}
+
+    #view-proposal .np-detail{border:1px solid #e2e3e5;border-radius:6px;padding:20px 22px;margin-bottom:14px;}
+    #view-proposal .np-detail.feature{border-color:#F7901E;}
+    #view-proposal .np-dhead{display:flex;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap;}
+    #view-proposal .np-dname{font-size:19px;font-weight:700;color:#434244;}
+    #view-proposal .np-tag-rec{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:4px;background:#F7901E;color:#1f1f1f;}
+    #view-proposal .np-damt{margin-left:auto;font-size:17px;font-weight:700;color:#434244;}
+    #view-proposal .np-small{font-size:12px;font-weight:400;color:#8a898b;}
+    #view-proposal .np-what{font-size:14.5px;color:#444;margin:0 0 6px;line-height:1.5;}
+    #view-proposal .np-getconsider{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:14px;}
+    #view-proposal .np-gc h4{font-size:12px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+    #view-proposal .np-gc.np-get h4{color:#5a8f5a;} #view-proposal .np-gc.np-consider h4{color:#b06a1f;}
+    #view-proposal .np-gc ul{list-style:none;margin:0;padding:0;}
+    #view-proposal .np-gc li{font-size:14px;padding:5px 0 5px 18px;position:relative;color:#434244;}
+    #view-proposal .np-gc.np-get li::before{content:"+";position:absolute;left:0;color:#5a8f5a;font-weight:700;}
+    #view-proposal .np-gc.np-consider li::before{content:"!";position:absolute;left:0;color:#b06a1f;font-weight:700;}
+
+    #view-proposal .np-accept{background:#f4f5f6;border-radius:6px;padding:20px 22px;margin-top:24px;}
+    #view-proposal .np-accept-h{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#434244;margin-bottom:4px;}
+    #view-proposal .np-accept-note{font-size:13px;color:#666;margin:0 0 12px;}
+    #view-proposal .np-accept-pills{display:flex;flex-wrap:wrap;gap:6px;}
+    #view-proposal .np-accept-readout{font-size:14px;color:#434244;margin-top:12px;padding-top:12px;border-top:1px solid #e2e3e5;}
+    @media(max-width:620px){ #view-proposal .np-getconsider{grid-template-columns:1fr;gap:16px;} }
+  </style>
+  <section id="view-proposal" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <h1>Works proposal</h1>
+        <div class="meta">Four routes compared for this roof, with indicative figures from the roof area and your per-system rates, then each route in detail (what you get / what to consider). Pick the routes to present and record the accepted one. Indicative, plus VAT, pending final measure.</div>
+      </div>
+      <div id="proposal-body"></div>
+    </div>
+  </section>
 </main>
 
 <div id="modal-overlay" class="modal-overlay" hidden>
@@ -6735,6 +6812,7 @@ function renderSurveyDetail(s) {
       '<button class="btn btn-secondary" onclick="srOpenReturns(currentSurveyId)">Subcontractor returns</button>' +
       '<button class="btn btn-secondary" onclick="srOpenLedger(currentSurveyId)">Job cost ledger</button>' +
       '<button class="btn btn-secondary" onclick="estOpenLedger(currentSurveyId)">Estimate cost ledger</button>' +
+      '<button class="btn btn-secondary" onclick="proposalOpen(currentSurveyId)">Works proposal</button>' +
       '<button class="btn btn-secondary" onclick="addVisitToCalendar(currentSurveyId)"' +
         ((vi && vi.appointmentStart) ? '' : ' disabled title="Set an appointment time first"') +
         '>Add to calendar</button>' +
@@ -8114,6 +8192,289 @@ function estDeleteRow(elId, rowId){
   var el = (L.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
   el.rows = (el.rows || []).filter(function(r){ return r.id !== rowId; });
   srPersist(survey); estRenderLedger();
+}
+
+// ===== NOVA FOUR-OPTION PROPOSAL - real indicative figures ===================
+// Brings the settled four-option proposal (Nova-Report-Body-v2-Four-Options-Full.html)
+// into the survey tool, driven by REAL indicative figures instead of the Firecracker
+// placeholder prices. The SYSTEMS content library is REUSED AS-IS (names, best,
+// life, time, what, get, consider, recommended) - the only change is the placeholder
+// price strings are dropped; each option's headline is now computed from the survey
+// roof area x an editable per-system cost-per-square-metre rate. The presentation is
+// the settled one: a "Four routes, compared" side-by-side comparison, then one detail
+// page per option framed what you get / what to consider, works-led, with the
+// indicative-pending-final-measure caption. Roof type drives which family of options
+// is offered; Jamie picks 2 to 4 routes and records the accepted one.
+//   Rates: business-wide, localStorage (scaffold-rates pattern, see srRates).
+//   Per-survey selection (family, routes, accepted): survey.proposal, in the snapshot;
+//   no new Airtable fields. See [[nova-costing-layer-build]].
+
+// --- SYSTEMS content library (ported verbatim; en dashes -> hyphens for Nova house
+//     style, placeholder prices dropped; everything else unchanged) ---
+var PROPOSAL_SYSTEMS = {
+  pitched: [
+    { id:'composite', name:'Composite re-roof', recommended:true, best:'long-term performance on a heated building',
+      life:'30-40 yr warranty', time:'~35 days',
+      what:'An insulated composite panel (insulation and weatherskin in one product), stripping the existing covering and replacing it. Our recommended route.',
+      get:['Highest thermal performance, in a single product','Longest service life and best warranty backing','Fastest install of an insulated system','Excellent airtightness'],
+      consider:['Highest material cost of the metal options','Panel lead times can be longer','Full warranty depends on the manufacturer’s specified fixings'] },
+    { id:'builtup', name:'Built-up system', best:'tuning the specification to a target U-value',
+      life:'25-30 yr', time:'~40 days',
+      what:'A site-assembled system (liner, spacer, insulation, outer sheet), with insulation specified to requirement.',
+      get:['Fully specifiable to the target U-value','Components sourced separately, flexible on spec','Well understood, long-established'],
+      consider:['More labour-intensive than composite, longer on site','More on-site steps to get right','Quality depends more on workmanship than a factory panel'] },
+    { id:'overclad', name:'Over-clad', best:'avoiding strip-out cost and disruption',
+      life:'25-30 yr', time:'~28 days',
+      what:'A new insulated covering installed over the existing, avoiding strip-out.',
+      get:['Avoids the cost and disruption of stripping','No disposal of the old covering','Building stays weathertight throughout','Faster and less disruptive'],
+      consider:['Adds load, so structural adequacy must be confirmed','Does not address the condition underneath','Raises roof height and detailing'] },
+    { id:'singleskin', name:'Strip and single skin', best:'an unheated building needing no insulation',
+      life:'20-25 yr', time:'~30 days',
+      what:'A profiled single-skin metal sheet replacing the existing, without insulation.',
+      get:['Lowest cost of the re-roof options','Right for an unheated building','Simple, robust and quick'],
+      consider:['No thermal performance','Less on energy and condensation control','Not a route to upgrade performance'] }
+  ],
+  flat: [
+    { id:'singleply', name:'Single ply membrane', recommended:true, best:'fast, cost-effective cover over a large area',
+      life:'20-25 yr', time:'varies',
+      what:'A single-ply membrane over the prepared deck. Fast and widely specified.',
+      get:['Fast to install over large areas','Cost-effective for the coverage','Wide range of details, proven track record','Relatively light'],
+      consider:['Performance depends on seam and weld quality','Vulnerable to puncture without protection','Detailing at upstands is where most issues arise'] },
+    { id:'liquid', name:'Liquid system', best:'complex detailing and awkward geometry',
+      life:'20-25 yr', time:'varies',
+      what:'A cold-applied liquid system, seamless across the roof. On a roof with valley gutters the liquid can be carried into the gutters to create one continuous surface across field and gutter, removing the field-to-gutter junction as a point of failure.',
+      get:['Fully seamless, no joints or welds to fail','Excellent for complex detailing and penetrations','Can often overlay an existing substrate','On valley-gutter roofs, one homogeneous surface across field and gutter'],
+      consider:['Predominantly cold-applied, with controlled hot works limited to the VCL/AVCL bonding stage','Weather-sensitive during application and cure','Correct film thickness and surface prep are critical'] },
+    { id:'felt', name:'Felt built-up', best:'a traditional, robust multi-layer roof',
+      life:'20-30 yr', time:'varies',
+      what:'A traditional multi-layer built-up felt system.',
+      get:['Traditional, robust, multi-layer redundancy','Well understood and widely serviceable','Good resistance to foot traffic'],
+      consider:['Heavier and slower to install than single ply','Torch-applied versions involve hot works','More layers, more labour'] },
+    { id:'hotmelt', name:'Monolithic hot melt', best:'a premium inverted roof with ballast or green roof over',
+      life:'30+ yr', time:'varies',
+      what:'A monolithic hot-melt system, the premium inverted-roof answer.',
+      get:['Seamless and self-healing to minor punctures','Very long service life','Well suited to inverted roofs with ballast or green-roof build-ups'],
+      consider:['Highest cost','Involves hot works during application','Specialist installation'] }
+  ],
+  wall: [
+    { id:'wallcomposite', name:'Composite wall cladding', recommended:true, best:'an insulated, single-product wall envelope',
+      life:'30-40 yr warranty', time:'varies',
+      what:'Insulated composite wall panels, insulation and weatherskin in one, replacing the existing cladding.',
+      get:['Insulated weatherskin in a single product','Long service life and warranty backing','Clean, fast install','Improves the building envelope'],
+      consider:['Material cost higher than single skin','Lead times on panels','Warranty depends on specified fixings'] },
+    { id:'wallsingle', name:'Single-skin wall cladding', best:'a cost-led recladding where insulation is not required',
+      life:'20-25 yr', time:'varies',
+      what:'Profiled single-skin metal wall cladding, replacing the existing.',
+      get:['Lowest cost wall option','Simple and quick','Right where the wall needs no thermal upgrade'],
+      consider:['No thermal performance','Less on the building envelope','Not an upgrade route'] }
+  ]
+};
+var PROPOSAL_FAMILY_LABELS = { pitched:'Pitched roof', flat:'Flat roof', wall:'Wall cladding' };
+var PROPOSAL_FAMILY_ORDER = ['pitched','flat','wall'];
+
+// --- per-system indicative cost-per-m2 rates (business-wide, localStorage; the
+//     scaffold-rates pattern). Indicative PROSPECTING rates, not the firm cost.
+//     Defaults preserve the Firecracker ordering within each family (recommended /
+//     most-capable higher, cost-led lower); Jamie tunes them in one place. ---
+var PROPOSAL_RATES_KEY = 'nova_proposal_rates_v1';
+var PROPOSAL_RATE_DEFAULTS = {
+  composite:245, builtup:230, overclad:180, singleskin:155,
+  hotmelt:240, liquid:185, singleply:165, felt:150,
+  wallcomposite:210, wallsingle:140
+};
+function proposalRates(){
+  var def = {}; Object.keys(PROPOSAL_RATE_DEFAULTS).forEach(function(k){ def[k] = PROPOSAL_RATE_DEFAULTS[k]; });
+  var saved = {}; try { saved = JSON.parse(localStorage.getItem(PROPOSAL_RATES_KEY) || '{}') || {}; } catch (e){}
+  Object.keys(def).forEach(function(k){ var v = srNum(saved[k]); if (v != null) def[k] = v; });
+  return def;
+}
+function proposalSetRate(id, value){
+  var saved = {}; try { saved = JSON.parse(localStorage.getItem(PROPOSAL_RATES_KEY) || '{}') || {}; } catch (e){}
+  var v = srNum(value); if (v == null) delete saved[id]; else saved[id] = v;
+  try { localStorage.setItem(PROPOSAL_RATES_KEY, JSON.stringify(saved)); } catch (e){}
+}
+
+// roof area = the Section B derived total (sum of slope areas), the same figure the
+// estimate ledger seeds from. Returns null when nothing is measured yet.
+function proposalRoofArea(survey){
+  return (typeof surveyTotalRoofArea === 'function') ? surveyTotalRoofArea(survey && survey.buildings) : null;
+}
+// roof type drives the family: if every measured slope is Flat -> flat, else pitched.
+// Wall is never auto-derived (the survey measures roofs); it is a conscious choice.
+function proposalDeriveFamily(survey){
+  var slopes = [];
+  ((survey && survey.buildings) || []).forEach(function(b){ (b.slopes || []).forEach(function(s){ slopes.push(s); }); });
+  if (!slopes.length) return 'pitched';
+  var allFlat = slopes.every(function(s){ return String(s.pitch || '') === 'Flat'; });
+  return allFlat ? 'flat' : 'pitched';
+}
+// indicative figure = roof area x per-system rate (null when either is missing).
+function proposalFigure(area, rate){
+  var a = srNum(area), r = srNum(rate);
+  return (a != null && a > 0 && r != null && r > 0) ? Math.round(a * r) : null;
+}
+function proposalMoney(n){ return (n == null) ? '' : '£' + Math.round(Number(n)).toLocaleString('en-GB'); }
+
+// per-survey selection, lazily initialised: family from the roof type, all routes in
+// that family preselected (pitched/flat = 4, wall = 2; all within the 2-4 band), the
+// recommended route accepted by default. Rides in the survey snapshot.
+function proposalState(survey){
+  if (!survey.proposal || typeof survey.proposal !== 'object') survey.proposal = {};
+  var P = survey.proposal;
+  if (!P.family || !PROPOSAL_SYSTEMS[P.family]) P.family = proposalDeriveFamily(survey);
+  var famIds = PROPOSAL_SYSTEMS[P.family].map(function(s){ return s.id; });
+  if (!Array.isArray(P.routes) || !P.routes.length) P.routes = famIds.slice(0, 4);
+  // keep routes within the family and in family order
+  P.routes = famIds.filter(function(id){ return P.routes.indexOf(id) > -1; });
+  if (P.routes.length < 2) P.routes = famIds.slice(0, Math.min(4, famIds.length));
+  if (P.routes.length > 4) P.routes = P.routes.slice(0, 4);
+  if (!P.accepted || P.routes.indexOf(P.accepted) < 0){
+    var rec = PROPOSAL_SYSTEMS[P.family].filter(function(s){ return s.recommended && P.routes.indexOf(s.id) > -1; })[0];
+    P.accepted = rec ? rec.id : (P.routes[0] || null);
+  }
+  return P;
+}
+function proposalSysById(family, id){ return (PROPOSAL_SYSTEMS[family] || []).filter(function(s){ return s.id === id; })[0] || null; }
+
+function proposalOpen(id){
+  proposalCurrentId = id || currentSurveyId;
+  var survey = srLoadSurvey(proposalCurrentId);
+  if (survey){ proposalState(survey); srPersist(survey); }   // persist the lazy-init so it survives snapshot save/load
+  if (typeof showView === 'function') showView('proposal');
+  proposalRender();
+}
+var proposalCurrentId = null;
+
+function proposalRender(){
+  var host = document.getElementById('proposal-body'); if (!host) return;
+  var survey = srLoadSurvey(proposalCurrentId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var P = proposalState(survey);
+  var area = proposalRoofArea(survey);
+  var rates = proposalRates();
+  var fam = PROPOSAL_SYSTEMS[P.family];
+
+  // --- rates panel + family selector + route picker (the on-tool controls) ---
+  var h = '<div class="np-controls">';
+  // family selector
+  h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof type</span><span class="np-pills">';
+  PROPOSAL_FAMILY_ORDER.forEach(function(f){
+    h += '<button class="np-pill' + (f === P.family ? ' on' : '') + '" onclick="proposalSetFamily(\'' + f + '\')">' + srEsc(PROPOSAL_FAMILY_LABELS[f]) + '</button>';
+  });
+  h += '</span><span class="np-ctl-note">Derived from the survey slopes; switch if presenting a different family.</span></div>';
+  // route picker
+  h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Routes to present</span><span class="np-pills">';
+  fam.forEach(function(s){
+    var on = P.routes.indexOf(s.id) > -1;
+    h += '<button class="np-pill' + (on ? ' on' : '') + '" onclick="proposalToggleRoute(\'' + s.id + '\')">' + srEsc(s.name) + (s.recommended ? ' ★' : '') + '</button>';
+  });
+  h += '</span><span class="np-ctl-note">Pick 2 to 4. The comparison renders one column per route.</span></div>';
+  // roof area
+  h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof area</span><span class="np-area">' +
+    (area != null && area > 0 ? (Math.round(area).toLocaleString('en-GB') + ' m² <span class="np-area-src">(Section B derived total)</span>') : '<span class="np-pending">pending measure - add slopes in Section B2</span>') +
+    '</span></div>';
+  // editable per-system rates (one place)
+  h += '<div class="np-rates"><div class="np-rates-h">Indicative rates (£/m²) - business-wide, editable here</div><div class="np-rates-grid">';
+  fam.forEach(function(s){
+    h += '<label class="np-rate"><span class="np-rate-name">' + srEsc(s.name) + '</span>' +
+      '<input type="number" step="1" min="0" value="' + rates[s.id] + '" data-rid="' + s.id + '" oninput="proposalRateEdit(this)"></label>';
+  });
+  h += '</div></div>';
+  h += '</div>';
+
+  // --- THE SETTLED PRESENTATION ---
+  var opts = P.routes.map(function(id){ return proposalSysById(P.family, id); }).filter(Boolean);
+  h += '<div class="np-proposal">';
+  h += '<div class="np-eyebrow">Works proposal <b>·</b> the right roof, made simple</div>';
+  h += '<h2 class="np-h2">Four routes, compared</h2>';
+  h += '<p class="np-lead">' + opts.length + ' system' + (opts.length > 1 ? 's' : '') + ' for this ' + srEsc(PROPOSAL_FAMILY_LABELS[P.family].toLowerCase()) +
+    ', set side by side so the decision rests on what each route gives, not on price alone. Our recommended route is highlighted.</p>';
+
+  // comparison grid
+  h += '<div class="np-optgrid" style="grid-template-columns:repeat(' + opts.length + ',1fr)">';
+  opts.forEach(function(s){
+    var fig = proposalFigure(area, rates[s.id]);
+    h += '<div class="np-opt-col' + (s.recommended ? ' feature' : '') + '">' +
+      (s.recommended ? '<div class="np-ribbon">Recommended</div>' : '') +
+      '<div class="np-top"><div class="np-name">' + srEsc(s.name) + '</div><div class="np-for">Best for ' + srEsc(s.best) + '</div></div>' +
+      '<div class="np-price"><div class="np-amt">' + (fig != null ? proposalMoney(fig) : 'Pending measure') + ' <span class="np-vat">plus VAT</span></div>' +
+      '<div class="np-perm2">' + proposalMoney(rates[s.id]) + '/m² indicative</div></div>' +
+      '<div class="np-specs"><div class="np-r"><span class="np-k">Lifespan</span><span class="np-v">' + srEsc(s.life) + '</span></div>' +
+      '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + srEsc(s.time) + '</span></div></div></div>';
+  });
+  h += '</div>';
+  h += '<p class="np-caption">Indicative figures, plus VAT, pending final measure. Each is the survey roof area times that route’s indicative rate; the firm price follows the detailed measure.</p>';
+
+  // per-option detail pages
+  h += '<h2 class="np-h2 np-h2-sp">Each route in detail</h2>';
+  opts.forEach(function(s){
+    var fig = proposalFigure(area, rates[s.id]);
+    h += '<div class="np-detail' + (s.recommended ? ' feature' : '') + '"><div class="np-dhead"><span class="np-dname">' + srEsc(s.name) + '</span>' +
+      (s.recommended ? '<span class="np-tag-rec">Recommended</span>' : '') +
+      '<span class="np-damt">' + (fig != null ? proposalMoney(fig) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span></div>' +
+      '<p class="np-what">' + srEsc(s.what) + '</p>' +
+      '<div class="np-getconsider">' +
+      '<div class="np-gc np-get"><h4>What you get</h4><ul>' + s.get.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
+      '<div class="np-gc np-consider"><h4>What to consider</h4><ul>' + s.consider.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
+      '</div></div>';
+  });
+
+  // accepted option
+  h += '<div class="np-accept"><div class="np-accept-h">Accepted route</div>' +
+    '<p class="np-accept-note">Record the route the client accepts. Stored against this survey, ready to flow forward.</p>' +
+    '<div class="np-accept-pills">';
+  opts.forEach(function(s){
+    h += '<button class="np-pill np-accept-pill' + (P.accepted === s.id ? ' on' : '') + '" onclick="proposalSetAccepted(\'' + s.id + '\')">' + srEsc(s.name) + '</button>';
+  });
+  h += '</div>';
+  var acc = proposalSysById(P.family, P.accepted);
+  var accFig = acc ? proposalFigure(area, rates[acc.id]) : null;
+  h += '<div class="np-accept-readout" id="np-accept-readout">' +
+    (acc ? ('Accepted: <b>' + srEsc(acc.name) + '</b> at ' + (accFig != null ? proposalMoney(accFig) + ' plus VAT (indicative)' : 'a price pending final measure')) : 'No route accepted yet.') +
+    '</div></div>';
+
+  h += '</div>';   // .np-proposal
+  host.innerHTML = h;
+}
+
+// --- edit handlers (persist, then re-render; the comparison reflows on any change) ---
+function proposalRateEdit(input){
+  proposalSetRate(input.getAttribute('data-rid'), input.value);
+  proposalRender();   // a rate change moves every figure on that route
+}
+function proposalSetFamily(family){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  if (!PROPOSAL_SYSTEMS[family]) return;
+  var P = proposalState(survey);
+  if (P.family === family) return;
+  P.family = family;
+  P.routes = PROPOSAL_SYSTEMS[family].map(function(s){ return s.id; }).slice(0, 4);   // reset routes to the new family
+  P.accepted = null;                                                                   // family changed -> re-pick
+  proposalState(survey);   // re-derive accepted/routes defaults
+  srPersist(survey); proposalRender();
+}
+function proposalToggleRoute(id){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var P = proposalState(survey);
+  var famIds = PROPOSAL_SYSTEMS[P.family].map(function(s){ return s.id; });
+  var on = P.routes.indexOf(id) > -1;
+  if (on){
+    if (P.routes.length <= 2){ showToast('Keep at least 2 routes in the comparison.', 'err'); return; }
+    P.routes = P.routes.filter(function(r){ return r !== id; });
+  } else {
+    if (P.routes.length >= 4){ showToast('Present at most 4 routes.', 'err'); return; }
+    P.routes = famIds.filter(function(f){ return P.routes.indexOf(f) > -1 || f === id; });   // keep family order
+  }
+  if (P.accepted && P.routes.indexOf(P.accepted) < 0) P.accepted = null;
+  proposalState(survey);
+  srPersist(survey); proposalRender();
+}
+function proposalSetAccepted(id){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var P = proposalState(survey);
+  if (P.routes.indexOf(id) < 0) return;
+  P.accepted = id;
+  srPersist(survey); proposalRender();
 }
 
 function buildPricingReturnWorkbook(model){
