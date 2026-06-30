@@ -3697,6 +3697,65 @@ input.derived-field { background: #f6f8fa; color: #555; }
     </div>
   </section>
 
+  <style id="cl-styles">
+    /* Calm scope-list entry surface, shared by the Estimate cost ledger and the
+       per-option worked-estimate editor. Presentation only; the maths is unchanged.
+       The face of a row shows what Jamie sets (item, quantity, quiet material rate,
+       prominent labour and time, bold line total); the full cost/+cont/+margin/total
+       build-up lives behind a per-line expander. */
+    .cl-wrap { font-size: 12.5px; color: #434244; }
+    .cl-grp { border: 1px solid #ece9e2; border-radius: 8px; margin-bottom: 9px; overflow: hidden; background: #fff; }
+    .cl-grp-head { display: flex; align-items: center; gap: 9px; padding: 9px 12px; background: #faf9f6; cursor: pointer; user-select: none; }
+    .cl-grp-head:hover { background: #f4f2ec; }
+    .cl-caret { color: #8a898b; font-size: 10px; width: 11px; flex: 0 0 auto; }
+    .cl-grp-name { font-weight: 800; font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: #434244; }
+    .cl-grp-meta { font-size: 11px; color: #aaa; font-weight: 400; letter-spacing: 0; text-transform: none; }
+    .cl-grp-sub { margin-left: auto; font-weight: 800; font-size: 13.5px; color: #434244; white-space: nowrap; }
+    .cl-grp-body { padding: 2px 0; }
+    .cl-grp.collapsed .cl-grp-body { display: none; }
+    .cl-row { display: grid; grid-template-columns: 22px minmax(120px,1.7fr) 116px 96px 1.5fr 116px 26px; gap: 9px; align-items: center; padding: 6px 12px; border-top: 1px solid #f1f0ea; }
+    .cl-row:first-child { border-top: none; }
+    .cl-row.struck { opacity: .5; }
+    .cl-ctrl { background: none; border: none; color: #b23a2c; font-size: 14px; cursor: pointer; line-height: 1; padding: 0; }
+    .cl-item-name { font-weight: 600; font-size: 12.5px; }
+    .cl-item-name.struck { text-decoration: line-through; }
+    .cl-item { display: flex; flex-direction: column; gap: 3px; }
+    .cl-item input { font-size: 12px; border: 1px solid #e3e3df; border-radius: 4px; padding: 2px 5px; width: 100%; font-family: inherit; }
+    .cl-item input.cl-spec { font-size: 11px; color: #9a9a96; border-color: #efeee9; padding: 1px 5px; }
+    .cl-item .cl-cat { font-size: 11px; border: 1px solid #e3e3df; border-radius: 4px; padding: 2px 4px; color: #6b6c70; font-family: inherit; max-width: 110px; }
+    .cl-item-head { display: flex; gap: 5px; align-items: center; }
+    .cl-qty { display: flex; align-items: center; gap: 5px; }
+    .cl-qty input { width: 64px; text-align: right; border: 1px solid #d8d8d2; border-radius: 4px; padding: 3px 5px; font-size: 12px; font-family: inherit; }
+    .cl-uom { font-size: 11px; color: #9a9a96; white-space: nowrap; }
+    /* material rate: quiet, de-emphasised (carried from the rate card) */
+    .cl-rate-quiet { width: 90px; text-align: right; border: 1px solid transparent; border-radius: 4px; padding: 3px 6px; font-size: 12px; color: #9a9a96; background: #f7f7f4; font-family: inherit; }
+    .cl-rate-quiet:hover, .cl-rate-quiet:focus { border-color: #d8d8d2; color: #434244; background: #FFF4E8; outline: none; }
+    .cl-rate-lbl { font-size: 9.5px; color: #b8b8b4; text-transform: uppercase; letter-spacing: .07em; display: block; margin-bottom: 1px; }
+    /* labour + time: the prominent input pair, the by-hand bit */
+    .cl-labour { display: flex; gap: 8px; align-items: flex-end; }
+    .cl-labour .cl-field { display: flex; flex-direction: column; }
+    .cl-labour .cl-field label { font-size: 9.5px; color: #5a6b8a; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; margin-bottom: 1px; }
+    .cl-labour input { width: 78px; text-align: right; border: 1.5px solid #c3cee0; border-radius: 5px; padding: 5px 7px; font-size: 13px; font-weight: 600; background: #eef2fb; color: #2b3a55; font-family: inherit; }
+    .cl-labour input:focus { border-color: #5a6b8a; outline: none; }
+    .cl-line-total { text-align: right; font-weight: 800; font-size: 13.5px; color: #434244; white-space: nowrap; }
+    .cl-expander { background: none; border: 1px solid #e2e2dd; border-radius: 4px; color: #8a898b; font-size: 10px; cursor: pointer; padding: 3px 5px; line-height: 1; }
+    .cl-expander:hover { border-color: #F7901E; color: #F7901E; }
+    .cl-buildup { grid-column: 1 / -1; margin: 4px 0 2px; padding: 9px 12px; background: #f7f7f4; border: 1px solid #ece9e2; border-radius: 6px; }
+    .cl-bu-row { display: flex; flex-wrap: wrap; gap: 16px 26px; font-size: 11.5px; }
+    .cl-bu-col h5 { font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; color: #8a898b; margin: 0 0 5px; font-weight: 800; }
+    .cl-bu-col .cl-bu-line { display: flex; justify-content: space-between; gap: 18px; padding: 2px 0; }
+    .cl-bu-col .cl-bu-line span:first-child { color: #6b6c70; }
+    .cl-bu-col .cl-bu-line.tot { font-weight: 800; border-top: 1px solid #e2e2dd; margin-top: 3px; padding-top: 4px; }
+    .cl-bu-actuals input { width: 84px; text-align: right; border: 1px solid #d8d8d2; border-radius: 4px; padding: 3px 6px; font-size: 12px; background: #EEF3FB; font-family: inherit; }
+    .cl-bu-actuals label { font-size: 9.5px; color: #5a6b8a; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; display: block; margin-bottom: 2px; }
+    .cl-margin { text-align: right; font-weight: 700; font-size: 12px; padding: 3px 7px; border-radius: 4px; white-space: nowrap; }
+    .cl-addrow { font-size: 10.5px; font-weight: 700; background: #fff; border: 1px solid #e0c6a6; border-radius: 4px; padding: 3px 9px; cursor: pointer; color: #434244; font-family: inherit; margin: 6px 12px 8px; }
+    @media (max-width: 760px) {
+      .cl-row { grid-template-columns: 20px 1fr 84px; grid-auto-flow: row; row-gap: 6px; }
+      .cl-rate-quiet, .cl-labour, .cl-line-total { grid-column: 2 / -1; }
+      .cl-line-total { text-align: left; }
+    }
+  </style>
   <style id="act-styles">
     /* Survey detail action bar, grouped into three task sections (layout only). */
     #detail-actions.act-grouped { flex-wrap: wrap; align-items: flex-start; gap: 14px; }
@@ -8034,117 +8093,78 @@ function estRenderLedger(){
     + '</div>';
   h += '</div>';
 
-  h += '<div style="overflow-x:auto;"><table style="border-collapse:collapse;min-width:100%;">';
-  // top header tier (groups)
-  h += '<thead><tr>'
-    + '<th style="' + thL + '" colspan="5">Item</th>'
-    + '<th style="' + grpMat + '" colspan="5">MATERIALS  (cost/unit &rarr; total)</th>'
-    + '<th style="' + grpLab + '" colspan="5">LABOUR  (cost/unit &rarr; total)</th>'
-    + '<th style="' + grpRes + '" colspan="1">SELL</th>'
-    + '<th style="' + grpRes + '" colspan="2">ACTUALS</th>'
-    + '<th style="' + grpRes + '" colspan="3">REAL MARGIN</th>'
-    + '<th style="' + th + '" colspan="1"></th>'
-    + '</tr><tr>'
-    + '<th style="' + thL + 'min-width:96px;">Category</th>'
-    + '<th style="' + thL + 'min-width:120px;">Item</th>'
-    + '<th style="' + thL + 'min-width:120px;">Spec</th>'
-    + '<th style="' + th + '">Units</th>'
-    + '<th style="' + thL + '">UOM</th>'
-    + '<th style="' + th + '">Cost/unit</th><th style="' + th + '">Cost</th><th style="' + th + '">+Cont</th><th style="' + th + '">+Margin</th><th style="' + th + '">Mat total</th>'
-    + '<th style="' + th + '">Cost/unit</th><th style="' + th + '">Cost</th><th style="' + th + '">+Cont</th><th style="' + th + '">+Margin</th><th style="' + th + '">Lab total</th>'
-    + '<th style="' + th + '">To client</th>'
-    + '<th style="' + th + '">Materials</th><th style="' + th + '">Labour</th>'
-    + '<th style="' + th + '">Difference</th><th style="' + th + '">Margin %</th><th style="' + thC + '">Status</th>'
-    + '<th style="' + thC + '"></th>'
-    + '</tr></thead><tbody>';
-
+  // calm scope list: collapsible element groups, calm rows, build-up + actuals behind a per-line expander
+  h += '<div class="cl-wrap">';
   if (!L.elements.length){
-    h += '<tr><td colspan="22" style="' + tdL + 'color:#888;padding:14px;">No elements yet. Click <b>+ Add element</b> to build by hand, or <b>Seed estimate from works engine</b> to pull the costed schedule.</td></tr>';
+    h += '<p style="color:#888;font-size:13px;padding:8px 2px;">No elements yet. Click <b>+ Add element</b> to build by hand, or <b>Seed estimate from works engine</b> to pull the costed schedule.</p>';
   }
-
   L.elements.forEach(function(el){
-    // element header band
-    h += '<tr><td colspan="22" style="padding:7px 9px;background:#fbe6d4;border:1px solid #f0d8bd;">'
-      + '<input type="text" value="' + srEsc(el.name) + '" data-elid="' + el.id + '" oninput="estElementRename(this)" '
-      + 'style="font-weight:800;font-size:13px;color:#434244;border:none;background:transparent;min-width:160px;border-bottom:1px dashed #d9b487;padding:1px 2px;">'
-      + '<button onclick="estAddRow(\'' + el.id + '\')" style="margin-left:12px;font-size:11px;background:#fff;border:1px solid #e0c6a6;border-radius:4px;padding:2px 8px;cursor:pointer;color:#434244;">+ Add row</button>'
-      + '<button onclick="estDeleteElement(\'' + el.id + '\')" style="margin-left:6px;font-size:11px;background:#fff;border:1px solid #e6c4bd;border-radius:4px;padding:2px 8px;cursor:pointer;color:#b23a2c;">Remove element</button>'
-      + '</td></tr>';
-
+    var e = estElementFigures(el, L.rates);
+    var ecol = srMarginColour(e.margin);
+    var collapsed = estGroupCollapsed(L, el.id);
+    h += '<div class="cl-grp' + (collapsed ? ' collapsed' : '') + '">';
+    // header: caret + editable name + add/remove + subtotal. Controls stopPropagation so they do not toggle collapse.
+    h += '<div class="cl-grp-head" onclick="estToggleGroup(\'' + el.id + '\')">' +
+      '<span class="cl-caret">' + (collapsed ? '▸' : '▾') + '</span>' +
+      '<input type="text" value="' + srEsc(el.name) + '" data-elid="' + el.id + '" oninput="estElementRename(this)" onclick="event.stopPropagation();" ' +
+        'style="font-weight:800;font-size:12px;letter-spacing:.03em;color:#434244;border:none;background:transparent;min-width:130px;border-bottom:1px dashed #d9b487;padding:1px 2px;font-family:inherit;">' +
+      '<button onclick="event.stopPropagation();estAddRow(\'' + el.id + '\')" style="margin-left:10px;font-size:10.5px;background:#fff;border:1px solid #e0c6a6;border-radius:4px;padding:2px 8px;cursor:pointer;color:#434244;">+ Add row</button>' +
+      '<button onclick="event.stopPropagation();estDeleteElement(\'' + el.id + '\')" style="margin-left:5px;font-size:10.5px;background:#fff;border:1px solid #e6c4bd;border-radius:4px;padding:2px 8px;cursor:pointer;color:#b23a2c;">Remove</button>' +
+      '<span class="cl-grp-sub" id="est-el-sell-' + el.id + '">' + (e.priced ? srMoney(e.sell) : '&mdash;') + '</span></div>';
+    h += '<div class="cl-grp-body">';
     (el.rows || []).forEach(function(row){
       var f = estRowFigures(row, L.rates);
       var col = srMarginColour(f.margin);
       var d = 'data-elid="' + el.id + '" data-rid="' + row.id + '"';
-      h += '<tr>';
-      // category select
-      h += '<td style="' + tdL + '"><select ' + d + ' data-field="category" onchange="estSetText(this)" style="font-size:11px;border:1px solid #d8d8d2;border-radius:4px;padding:2px 3px;max-width:96px;">'
-        + EST_CATEGORIES.map(function(c){ return '<option' + (c === row.category ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></td>';
-      // item / spec / uom
-      h += '<td style="' + tdL + '"><input type="text" ' + d + ' data-field="item" value="' + srEsc(row.item) + '" oninput="estSetText(this)" placeholder="item" style="width:118px;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;"></td>';
-      h += '<td style="' + tdL + '"><input type="text" ' + d + ' data-field="spec" value="' + srEsc(row.spec) + '" oninput="estSetText(this)" placeholder="spec" style="width:118px;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;"></td>';
-      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="units" value="' + (row.units != null ? row.units : '') + '" oninput="estSetNum(this)" placeholder="0" style="' + inp + '"></td>';
-      h += '<td style="' + tdL + '"><input type="text" ' + d + ' data-field="uom" value="' + srEsc(row.uom) + '" oninput="estSetText(this)" placeholder="m2" style="width:52px;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;"></td>';
-      // materials build-up
-      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="matPerUnit" value="' + (row.matPerUnit != null ? row.matPerUnit : '') + '" oninput="estSetNum(this)" placeholder="0" style="' + inpMat + '"></td>';
-      h += '<td id="est-mc-' + row.id + '" style="' + calc + '">' + srMoney(f.matCost) + '</td>';
-      h += '<td id="est-mco-' + row.id + '" style="' + calc + '">' + srMoney(f.matCont) + '</td>';
-      h += '<td id="est-mm-' + row.id + '" style="' + calc + '">' + srMoney(f.matMar) + '</td>';
-      h += '<td id="est-mt-' + row.id + '" style="' + td + 'font-weight:700;">' + srMoney(f.matTot) + '</td>';
-      // labour build-up
-      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="labPerUnit" value="' + (row.labPerUnit != null ? row.labPerUnit : '') + '" oninput="estSetNum(this)" placeholder="0" style="' + inpLab + '"></td>';
-      h += '<td id="est-lc-' + row.id + '" style="' + calc + '">' + srMoney(f.labCost) + '</td>';
-      h += '<td id="est-lco-' + row.id + '" style="' + calc + '">' + srMoney(f.labCont) + '</td>';
-      h += '<td id="est-lm-' + row.id + '" style="' + calc + '">' + srMoney(f.labMar) + '</td>';
-      h += '<td id="est-lt-' + row.id + '" style="' + td + 'font-weight:700;">' + srMoney(f.labTot) + '</td>';
-      // sell
-      h += '<td id="est-sell-' + row.id + '" style="' + td + 'font-weight:800;background:#eef6f0;">' + (f.sell > 0 ? srMoney(f.sell) : '') + '</td>';
-      // actuals
-      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="matActual" value="' + (row.matActual != null ? row.matActual : '') + '" oninput="estSetNum(this)" placeholder="enter" style="' + inpAct + '"></td>';
-      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="labActual" value="' + (row.labActual != null ? row.labActual : '') + '" oninput="estSetNum(this)" placeholder="enter" style="' + inpAct + '"></td>';
-      // margin (coloured)
-      h += '<td id="est-diff-' + row.id + '" style="' + td + 'font-weight:700;background:' + col.bg + ';color:' + col.ink + ';">' + (f.margin != null ? srMoney(f.margin) : '') + '</td>';
-      h += '<td id="est-pct-' + row.id + '" style="' + td + 'background:' + col.bg + ';color:' + col.ink + ';">' + srPctTxt(f.pct) + '</td>';
-      h += '<td id="est-st-' + row.id + '" style="' + td + 'text-align:center;font-weight:700;font-size:11px;color:' + col.ink + ';">' + srMarginWord(f.margin) + '</td>';
-      // delete row
-      h += '<td style="' + td + 'text-align:center;"><button onclick="estDeleteRow(\'' + el.id + '\',\'' + row.id + '\')" title="Remove row" style="background:none;border:none;color:#b23a2c;font-size:15px;cursor:pointer;line-height:1;">&times;</button></td>';
-      h += '</tr>';
+      var rowOpen = !!estRowOpen[row.id];
+      h += '<div class="cl-row">';
+      // control: delete row
+      h += '<button class="cl-ctrl" title="Remove row" onclick="estDeleteRow(\'' + el.id + '\',\'' + row.id + '\')">&times;</button>';
+      // item: category select + name + quiet spec
+      h += '<div class="cl-item"><div class="cl-item-head">' +
+        '<select ' + d + ' data-field="category" onchange="estSetText(this)" class="cl-cat">' +
+          EST_CATEGORIES.map(function(c){ return '<option' + (c === row.category ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
+        '<input type="text" ' + d + ' data-field="item" value="' + srEsc(row.item) + '" oninput="estSetText(this)" placeholder="item">' +
+        '<input type="text" ' + d + ' data-field="spec" value="' + srEsc(row.spec) + '" oninput="estSetText(this)" class="cl-spec" placeholder="spec (optional)"></div>';
+      // quantity + unit (uom editable inline as the unit)
+      h += '<div class="cl-qty"><input type="number" step="0.01" min="0" ' + d + ' data-field="units" value="' + (row.units != null ? row.units : '') + '" oninput="estSetNum(this)" placeholder="0">' +
+        '<input type="text" ' + d + ' data-field="uom" value="' + srEsc(row.uom) + '" oninput="estSetText(this)" placeholder="unit" class="cl-uom" style="width:42px;border:1px solid #efeee9;border-radius:4px;padding:2px 4px;color:#9a9a96;font-family:inherit;"></div>';
+      // material rate (quiet)
+      h += '<div><span class="cl-rate-lbl">Mat &pound;/u</span><input type="number" step="0.01" min="0" ' + d + ' data-field="matPerUnit" value="' + (row.matPerUnit != null ? row.matPerUnit : '') + '" oninput="estSetNum(this)" class="cl-rate-quiet" placeholder="rate"></div>';
+      // labour rate (prominent)
+      h += '<div class="cl-labour"><div class="cl-field"><label>Labour &pound;/u</label>' +
+        '<input type="number" step="0.01" min="0" ' + d + ' data-field="labPerUnit" value="' + (row.labPerUnit != null ? row.labPerUnit : '') + '" oninput="estSetNum(this)" placeholder="hand"></div></div>';
+      // line total (sell, bold) + margin chip beneath (Difference + colour)
+      h += '<div style="text-align:right;"><div class="cl-line-total" id="est-sell-' + row.id + '">' + (f.sell > 0 ? srMoney(f.sell) : '&mdash;') + '</div>' +
+        '<div class="cl-margin" id="est-diff-' + row.id + '" style="background:' + col.bg + ';color:' + col.ink + ';margin-top:3px;">' + (f.margin != null ? (srMoney(f.margin) + ' ' + srMarginWord(f.margin)) : '') + '</div></div>';
+      // expander
+      h += '<button class="cl-expander" title="Show the cost, contingency and margin build-up and the actuals" onclick="estToggleRow(\'' + row.id + '\')">' + (rowOpen ? '&times;' : '&hellip;') + '</button>';
+      // hidden build-up + actuals
+      if (rowOpen){
+        h += pweBuildupHtml('est-bu-' + row.id, f);   // materials + labour build-up (shared shape) - leaves cl-bu-row open
+        h += '<div class="cl-bu-col cl-bu-actuals"><h5>Actuals (post-win)</h5>' +
+          '<div style="display:flex;gap:12px;margin-bottom:6px;">' +
+          '<div><label>Materials</label><input type="number" step="0.01" min="0" ' + d + ' data-field="matActual" value="' + (row.matActual != null ? row.matActual : '') + '" oninput="estSetNum(this)" placeholder="enter"></div>' +
+          '<div><label>Labour</label><input type="number" step="0.01" min="0" ' + d + ' data-field="labActual" value="' + (row.labActual != null ? row.labActual : '') + '" oninput="estSetNum(this)" placeholder="enter"></div></div>' +
+          '<div class="cl-bu-line"><span>Margin %</span><span id="est-pct-' + row.id + '">' + srPctTxt(f.pct) + '</span></div></div>';
+        h += '</div></div>';   // close cl-bu-row + cl-buildup
+      }
+      h += '</div>';   // cl-row
     });
-
-    // element subtotal
-    var e = estElementFigures(el, L.rates);
-    var ecol = srMarginColour(e.margin);
-    h += '<tr style="background:#f4f3ef;">'
-      + '<td colspan="9" style="' + tdL + 'font-weight:700;">Subtotal &mdash; ' + srEsc(el.name) + ' <span style="font-weight:400;color:#999;font-size:11px;">(' + e.priced + ' of ' + e.rows + ' priced)</span></td>'
-      + '<td id="est-el-mt-' + el.id + '" style="' + td + 'font-weight:800;">' + srMoney(e.matTot) + '</td>'
-      + '<td colspan="4" style="' + td + '"></td>'
-      + '<td id="est-el-lt-' + el.id + '" style="' + td + 'font-weight:800;">' + srMoney(e.labTot) + '</td>'
-      + '<td id="est-el-sell-' + el.id + '" style="' + td + 'font-weight:800;background:#eef6f0;">' + (e.priced ? srMoney(e.sell) : '') + '</td>'
-      + '<td id="est-el-act-' + el.id + '" colspan="2" style="' + td + 'font-weight:700;">' + (e.priced ? srMoney(e.actual) : '') + '</td>'
-      + '<td id="est-el-diff-' + el.id + '" style="' + td + 'font-weight:800;background:' + ecol.bg + ';color:' + ecol.ink + ';">' + (e.margin != null ? srMoney(e.margin) : '') + '</td>'
-      + '<td id="est-el-pct-' + el.id + '" style="' + td + 'font-weight:700;background:' + ecol.bg + ';color:' + ecol.ink + ';">' + srPctTxt(e.pct) + '</td>'
-      + '<td id="est-el-st-' + el.id + '" style="' + td + 'text-align:center;font-weight:700;font-size:11px;color:' + ecol.ink + ';">' + srMarginWord(e.margin) + '</td>'
-      + '<td style="' + td + '"></td>'
-      + '</tr>';
+    h += '<button class="cl-addrow" onclick="estAddRow(\'' + el.id + '\')">+ Add row</button>';
+    h += '</div></div>';   // cl-grp-body + cl-grp
   });
 
-  // job total
+  // job total bar
   var j = estJobFigures(L);
   var jcol = srMarginColour(j.margin);
-  h += '<tr style="background:#434244;color:#fff;">'
-    + '<td colspan="9" style="' + tdL.replace('color:#434244', 'color:#fff') + 'font-weight:800;">JOB TOTAL <span style="font-weight:400;color:#cfcfcf;font-size:11px;">(' + j.priced + ' of ' + j.rows + ' items priced)</span></td>'
-    + '<td id="est-job-mt" style="' + td.replace('color:#434244', 'color:#fff') + 'font-weight:800;">' + srMoney(j.matTot) + '</td>'
-    + '<td colspan="4" style="' + td + '"></td>'
-    + '<td id="est-job-lt" style="' + td.replace('color:#434244', 'color:#fff') + 'font-weight:800;">' + srMoney(j.labTot) + '</td>'
-    + '<td id="est-job-sell" style="' + td + 'font-weight:800;background:#1f7a37;color:#fff;">' + (j.priced ? srMoney(j.sell) : '') + '</td>'
-    + '<td id="est-job-act" colspan="2" style="' + td.replace('color:#434244', 'color:#fff') + 'font-weight:800;">' + (j.priced ? srMoney(j.actual) : '') + '</td>'
-    + '<td id="est-job-diff" style="' + td + 'font-weight:800;background:' + jcol.bg + ';color:' + jcol.ink + ';">' + (j.margin != null ? srMoney(j.margin) : '') + '</td>'
-    + '<td id="est-job-pct" style="' + td + 'font-weight:800;background:' + jcol.bg + ';color:' + jcol.ink + ';">' + srPctTxt(j.pct) + '</td>'
-    + '<td id="est-job-st" style="' + td + 'text-align:center;font-weight:800;font-size:11px;background:' + jcol.bg + ';color:' + jcol.ink + ';">' + srMarginWord(j.margin) + '</td>'
-    + '<td style="' + td + '"></td>'
-    + '</tr>';
-
-  h += '</tbody></table></div>';
-  h += '<div style="font-size:11px;color:#999;margin-top:8px;line-height:1.5;">Each item is built up on a materials and a labour side: <b>cost/unit &rarr; cost &rarr; + contingency &rarr; + margin &rarr; total</b>; the two totals give the <b>Total to Client</b> (the sell). The real margin is the <b>Difference: sell minus actuals</b> (materials + labour), coloured green for profit, amber for break-even, red for a loss. A blank sell stays neutral, and the job total counts only items with a sell so a part-built estimate never reads as a loss. Everything here saves into the survey snapshot.</div>';
+  h += '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#434244;color:#fff;border-radius:8px;margin-top:4px;">' +
+    '<span style="font-weight:800;letter-spacing:.04em;">JOB TOTAL</span>' +
+    '<span style="font-size:11px;color:#cfcfcf;">(' + j.priced + ' of ' + j.rows + ' items priced)</span>' +
+    '<span id="est-job-diff" class="cl-margin" style="background:' + jcol.bg + ';color:' + jcol.ink + ';">' + (j.margin != null ? (srMoney(j.margin) + ' ' + srMarginWord(j.margin)) : '') + '</span>' +
+    '<span id="est-job-sell" style="margin-left:auto;font-weight:800;font-size:16px;background:#1f7a37;padding:4px 12px;border-radius:6px;">' + (j.priced ? srMoney(j.sell) : '&mdash;') + '</span></div>';
+  h += '</div>';   // cl-wrap
+  h += '<div style="font-size:11px;color:#999;margin-top:8px;line-height:1.5;">Each line shows quantity, the quiet material rate (usually carried), and the by-hand labour; the line total (Total to Client) is on the right, with the real-margin read beneath it. Open a line (&hellip;) for its cost, contingency and margin build-up and to enter actuals. Collapse the element groups that do not matter on a job. The real margin is <b>sell minus actuals</b>, green for profit, amber for break-even, red for a loss; a blank sell stays neutral. Everything saves into the survey snapshot.</div>';
   host.innerHTML = h;
 }
 
@@ -8180,32 +8200,39 @@ function estSetNum(input){
 }
 function estSet(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; }
 function estPaint(id, col){ var el = document.getElementById(id); if (el){ el.style.background = col.bg; el.style.color = col.ink; } }
+// calm-surface UI state: per-line expander (transient) + group collapse (persisted in L.collapsed)
+var estRowOpen = {};
+function estGroupCollapsed(L, elId){ return !!(L.collapsed && L.collapsed[elId]); }   // estimate-ledger elements default open (user-created)
+function estToggleRow(rowId){ estRowOpen[rowId] = !estRowOpen[rowId]; estRenderLedger(); }
+function estToggleGroup(elId){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  if (!L.collapsed || typeof L.collapsed !== 'object') L.collapsed = {};
+  L.collapsed[elId] = !L.collapsed[elId];
+  srPersist(survey);   // collapse state rides in the snapshot
+  estRenderLedger();
+}
 function estRecalcRow(L, rowId, row){
   var f = estRowFigures(row, L.rates);
-  estSet('est-mc-' + rowId, srMoney(f.matCost)); estSet('est-mco-' + rowId, srMoney(f.matCont)); estSet('est-mm-' + rowId, srMoney(f.matMar)); estSet('est-mt-' + rowId, srMoney(f.matTot));
-  estSet('est-lc-' + rowId, srMoney(f.labCost)); estSet('est-lco-' + rowId, srMoney(f.labCont)); estSet('est-lm-' + rowId, srMoney(f.labMar)); estSet('est-lt-' + rowId, srMoney(f.labTot));
-  estSet('est-sell-' + rowId, f.sell > 0 ? srMoney(f.sell) : '');
+  // expander build-up cells (no-op when the line is collapsed)
+  var ns = 'est-bu-' + rowId;
+  estSet(ns + '-mc', srMoney(f.matCost)); estSet(ns + '-mco', srMoney(f.matCont)); estSet(ns + '-mm', srMoney(f.matMar)); estSet(ns + '-mt', srMoney(f.matTot));
+  estSet(ns + '-lc', srMoney(f.labCost)); estSet(ns + '-lco', srMoney(f.labCont)); estSet(ns + '-lm', srMoney(f.labMar)); estSet(ns + '-lt', srMoney(f.labTot));
+  estSet('est-pct-' + rowId, srPctTxt(f.pct));
+  // face: line total + margin chip
+  estSet('est-sell-' + rowId, f.sell > 0 ? srMoney(f.sell) : '—');
   var col = srMarginColour(f.margin);
-  estSet('est-diff-' + rowId, f.margin != null ? srMoney(f.margin) : ''); estPaint('est-diff-' + rowId, col);
-  estSet('est-pct-' + rowId, srPctTxt(f.pct)); estPaint('est-pct-' + rowId, col);
-  var st = document.getElementById('est-st-' + rowId); if (st){ st.textContent = srMarginWord(f.margin); st.style.color = col.ink; }
+  estSet('est-diff-' + rowId, f.margin != null ? (srMoney(f.margin) + ' ' + srMarginWord(f.margin)) : ''); estPaint('est-diff-' + rowId, col);
 }
 function estRecalcElement(L, elId){
   var el = (L.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
-  var e = estElementFigures(el, L.rates); var col = srMarginColour(e.margin);
-  estSet('est-el-mt-' + elId, srMoney(e.matTot)); estSet('est-el-lt-' + elId, srMoney(e.labTot));
-  estSet('est-el-sell-' + elId, e.priced ? srMoney(e.sell) : ''); estSet('est-el-act-' + elId, e.priced ? srMoney(e.actual) : '');
-  estSet('est-el-diff-' + elId, e.margin != null ? srMoney(e.margin) : ''); estPaint('est-el-diff-' + elId, col);
-  estSet('est-el-pct-' + elId, srPctTxt(e.pct)); estPaint('est-el-pct-' + elId, col);
-  var st = document.getElementById('est-el-st-' + elId); if (st){ st.textContent = srMarginWord(e.margin); st.style.color = col.ink; }
+  var e = estElementFigures(el, L.rates);
+  estSet('est-el-sell-' + elId, e.priced ? srMoney(e.sell) : '—');   // subtotal on the group header
 }
 function estRecalcJob(L){
   var j = estJobFigures(L); var col = srMarginColour(j.margin);
-  estSet('est-job-mt', srMoney(j.matTot)); estSet('est-job-lt', srMoney(j.labTot));
-  estSet('est-job-sell', j.priced ? srMoney(j.sell) : ''); estSet('est-job-act', j.priced ? srMoney(j.actual) : '');
-  estSet('est-job-diff', j.margin != null ? srMoney(j.margin) : ''); estPaint('est-job-diff', col);
-  estSet('est-job-pct', srPctTxt(j.pct)); estPaint('est-job-pct', col);
-  estSet('est-job-st', srMarginWord(j.margin)); estPaint('est-job-st', col);
+  estSet('est-job-sell', j.priced ? srMoney(j.sell) : '—');
+  estSet('est-job-diff', j.margin != null ? (srMoney(j.margin) + ' ' + srMarginWord(j.margin)) : ''); estPaint('est-job-diff', col);
 }
 function estElementRename(input){
   var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
@@ -8547,6 +8574,7 @@ function proposalSetAccepted(id){
 
 var PWE_RATES = { contingency: 0.04, margin: 0.35 };   // engine config, as the estimate ledger
 var pweOpen = {};   // transient UI state: which option build-ups are expanded (not persisted)
+var pweRowOpen = {};   // transient UI state: which individual line build-ups are open (keyed routeId/rowId)
 
 // element grouping order (each group becomes an estLedger element)
 var PWE_GROUP_ORDER = ['Covering and build-up','Flashing and detailing','Drainage','Fix','Consumables','Access','Hire','Waste','H&S','Labour and prelims','Welfare'];
@@ -8800,6 +8828,29 @@ function pweCatForGroup(name){
 }
 
 // --- per-option build-up editor (remove-only; reuses estRowFigures + srMoney) ---
+// default-collapse the overhead groups; keep the physical-works groups open.
+function pweGroupDefaultCollapsed(name){
+  return ['Consumables','Access','Hire','Waste','H&S','Labour and prelims','Welfare'].indexOf(name) > -1;
+}
+function pweGroupCollapsed(est, el){
+  if (est.collapsed && Object.prototype.hasOwnProperty.call(est.collapsed, el.id)) return !!est.collapsed[el.id];
+  return pweGroupDefaultCollapsed(el.name);
+}
+// hidden materials/labour build-up panel for one line (shared shape with the ledger)
+function pweBuildupHtml(idNs, f){
+  return '<div class="cl-buildup"><div class="cl-bu-row">' +
+    '<div class="cl-bu-col"><h5>Materials</h5>' +
+      '<div class="cl-bu-line"><span>Cost</span><span id="' + idNs + '-mc">' + srMoney(f.matCost) + '</span></div>' +
+      '<div class="cl-bu-line"><span>+ Contingency</span><span id="' + idNs + '-mco">' + srMoney(f.matCont) + '</span></div>' +
+      '<div class="cl-bu-line"><span>+ Margin</span><span id="' + idNs + '-mm">' + srMoney(f.matMar) + '</span></div>' +
+      '<div class="cl-bu-line tot"><span>Materials total</span><span id="' + idNs + '-mt">' + srMoney(f.matTot) + '</span></div></div>' +
+    '<div class="cl-bu-col"><h5>Labour</h5>' +
+      '<div class="cl-bu-line"><span>Cost</span><span id="' + idNs + '-lc">' + srMoney(f.labCost) + '</span></div>' +
+      '<div class="cl-bu-line"><span>+ Contingency</span><span id="' + idNs + '-lco">' + srMoney(f.labCont) + '</span></div>' +
+      '<div class="cl-bu-line"><span>+ Margin</span><span id="' + idNs + '-lm">' + srMoney(f.labMar) + '</span></div>' +
+      '<div class="cl-bu-line tot"><span>Labour total</span><span id="' + idNs + '-lt">' + srMoney(f.labTot) + '</span></div></div>';
+}
+
 function pweRenderEditor(survey, routeId){
   var est = (survey.proposal.estimates || {})[routeId];
   var open = !!pweOpen[routeId];
@@ -8817,48 +8868,56 @@ function pweRenderEditor(survey, routeId){
     '<button class="pwe-reseed" onclick="pweReseed(\'' + routeId + '\')" title="Rebuild from the system template">Reseed</button></div>';
   if (!open) return h + '</div>';
 
-  var th = 'padding:5px 7px;border:1px solid #e2e2dd;background:#434244;color:#fff;font-weight:700;font-size:10.5px;text-align:right;white-space:nowrap;';
-  var thL = th + 'text-align:left;';
-  var td = 'padding:3px 7px;border:1px solid #e8e8e3;font-size:11.5px;color:#434244;text-align:right;white-space:nowrap;';
-  var tdL = td + 'text-align:left;';
-  var inp = 'width:58px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:11.5px;';
-  h += '<div style="overflow-x:auto;margin-top:8px;"><table style="border-collapse:collapse;min-width:100%;">';
-  h += '<thead><tr><th style="' + th + 'width:26px;"></th><th style="' + thL + 'min-width:150px;">Item</th><th style="' + thL + 'min-width:90px;">Spec</th>' +
-    '<th style="' + th + '">Units</th><th style="' + thL + '">UOM</th><th style="' + th + '">Mat £/u</th><th style="' + th + '">Lab £/u</th>' +
-    '<th style="' + th + '">Days</th><th style="' + th + '">Line total</th></tr></thead><tbody>';
+  // calm scope list: collapsible element groups, calm rows, build-up behind a per-line expander
+  h += '<div class="cl-wrap" style="margin-top:10px;">';
   est.elements.forEach(function(el){
     var e = pweElementTotals(el, est.rates);
-    h += '<tr><td colspan="9" style="padding:5px 8px;background:#fbe6d4;border:1px solid #f0d8bd;font-weight:800;font-size:11px;color:#434244;">' + srEsc(el.name) +
-      '<button class="pwe-addrow" onclick="pweAddRow(\'' + routeId + '\',\'' + el.id + '\')">+ Add line</button></td></tr>';
+    var collapsed = pweGroupCollapsed(est, el);
+    h += '<div class="cl-grp' + (collapsed ? ' collapsed' : '') + '">';
+    h += '<div class="cl-grp-head" onclick="pweToggleGroup(\'' + routeId + '\',\'' + el.id + '\')">' +
+      '<span class="cl-caret">' + (collapsed ? '▸' : '▾') + '</span>' +
+      '<span class="cl-grp-name">' + srEsc(el.name) + ' <span class="cl-grp-meta">(' + e.live + ' line' + (e.live === 1 ? '' : 's') + ')</span></span>' +
+      '<span class="cl-grp-sub" id="pwe-elt-' + routeId + '-' + el.id + '">' + srMoney(e.sell) + '</span></div>';
+    h += '<div class="cl-grp-body">';
     (el.rows || []).forEach(function(r){
       var f = estRowFigures(r, est.rates);
       var d = 'data-rid="' + routeId + '" data-elid="' + el.id + '" data-rowid="' + r.id + '"';
       var struck = r.off;
-      var rowStyle = struck ? 'opacity:.45;' : '';
-      var nameStyle = struck ? 'text-decoration:line-through;' : '';
       var dis = struck ? ' disabled' : '';
-      h += '<tr style="' + rowStyle + '">';
-      h += '<td style="' + td + 'text-align:center;"><button class="pwe-strike" title="' + (struck ? 'Restore line' : 'Strike line') + '" onclick="pweStrike(\'' + routeId + '\',\'' + el.id + '\',\'' + r.id + '\')">' + (struck ? '↺' : '✕') + '</button></td>';
-      h += '<td style="' + tdL + nameStyle + '"><input type="text" ' + d + ' data-field="item" value="' + srEsc(r.item) + '" oninput="pweText(this)"' + dis + ' style="width:150px;border:1px solid #e3e3df;border-radius:4px;padding:2px 4px;font-size:11.5px;' + (struck ? 'text-decoration:line-through;' : '') + '"></td>';
-      h += '<td style="' + tdL + '"><input type="text" ' + d + ' data-field="spec" value="' + srEsc(r.spec) + '" oninput="pweText(this)"' + dis + ' placeholder="spec" style="width:90px;border:1px solid #e3e3df;border-radius:4px;padding:2px 4px;font-size:11.5px;"></td>';
-      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="units" value="' + (r.units != null ? r.units : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="0" style="' + inp + '"></td>';
-      h += '<td style="' + tdL + 'color:#999;">' + srEsc(r.uom) + '</td>';
-      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="matPerUnit" value="' + (r.matPerUnit != null ? r.matPerUnit : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="0" style="' + inp + 'background:#FFF4E8;"></td>';
-      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="labPerUnit" value="' + (r.labPerUnit != null ? r.labPerUnit : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="hand" style="' + inp + 'background:#EEF0F3;"></td>';
-      h += '<td style="' + td + '"><input type="number" step="0.25" min="0" ' + d + ' data-field="days" value="' + (r.days != null ? r.days : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="hand" style="' + inp.replace('58px','46px') + 'background:#EEF0F3;"></td>';
-      h += '<td id="pwe-lt-' + routeId + '-' + r.id + '" style="' + td + 'font-weight:700;">' + (struck ? '-' : srMoney(f.sell)) + '</td>';
-      h += '</tr>';
+      var rowOpen = !!pweRowOpen[routeId + '/' + r.id];
+      h += '<div class="cl-row' + (struck ? ' struck' : '') + '">';
+      // control: strike / restore
+      h += '<button class="cl-ctrl" title="' + (struck ? 'Restore line' : 'Strike line') + '" onclick="pweStrike(\'' + routeId + '\',\'' + el.id + '\',\'' + r.id + '\')">' + (struck ? '↺' : '✕') + '</button>';
+      // item (name + quiet spec beneath)
+      h += '<div class="cl-item"><input type="text" ' + d + ' data-field="item" value="' + srEsc(r.item) + '" oninput="pweText(this)"' + dis + ' placeholder="item">' +
+        '<input type="text" ' + d + ' data-field="spec" value="' + srEsc(r.spec) + '" oninput="pweText(this)"' + dis + ' class="cl-spec" placeholder="spec (optional)"></div>';
+      // quantity + unit
+      h += '<div class="cl-qty"><input type="number" step="0.01" min="0" ' + d + ' data-field="units" value="' + (r.units != null ? r.units : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="0"><span class="cl-uom">' + (srEsc(r.uom) || '&nbsp;') + '</span></div>';
+      // material rate (quiet)
+      h += '<div><span class="cl-rate-lbl">Mat &pound;/u</span><input type="number" step="0.01" min="0" ' + d + ' data-field="matPerUnit" value="' + (r.matPerUnit != null ? r.matPerUnit : '') + '" oninput="pweNum(this)"' + dis + ' class="cl-rate-quiet" placeholder="rate"></div>';
+      // labour + time (prominent)
+      h += '<div class="cl-labour">' +
+        '<div class="cl-field"><label>Labour &pound;/u</label><input type="number" step="0.01" min="0" ' + d + ' data-field="labPerUnit" value="' + (r.labPerUnit != null ? r.labPerUnit : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="hand"></div>' +
+        '<div class="cl-field"><label>Days</label><input type="number" step="0.25" min="0" ' + d + ' data-field="days" value="' + (r.days != null ? r.days : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="hand" style="width:58px;"></div>' +
+        '</div>';
+      // line total (bold)
+      h += '<div class="cl-line-total" id="pwe-lt-' + routeId + '-' + r.id + '">' + (struck ? '&mdash;' : srMoney(f.sell)) + '</div>';
+      // expander
+      h += '<button class="cl-expander" title="Show the cost, contingency and margin build-up" onclick="pweToggleRow(\'' + routeId + '\',\'' + r.id + '\')">' + (rowOpen ? '&times;' : '&hellip;') + '</button>';
+      // hidden build-up
+      if (rowOpen) h += pweBuildupHtml('pwe-bu-' + r.id, f) + '</div></div>';   // close cl-bu-row + cl-buildup
+      h += '</div>';   // cl-row
     });
-    h += '<tr style="background:#f4f3ef;"><td style="' + td + '"></td><td colspan="7" style="' + tdL + 'font-weight:700;">Subtotal &mdash; ' + srEsc(el.name) + '</td>' +
-      '<td id="pwe-elt-' + routeId + '-' + el.id + '" style="' + td + 'font-weight:800;">' + srMoney(e.sell) + '</td></tr>';
+    h += '<button class="cl-addrow" onclick="pweAddRow(\'' + routeId + '\',\'' + el.id + '\')">+ Add line</button>';
+    h += '</div></div>';   // cl-grp-body + cl-grp
   });
-  // option total
-  h += '<tr style="background:#434244;color:#fff;"><td style="' + td + '"></td>' +
-    '<td colspan="6" style="' + tdL.replace('#434244','#fff') + 'font-weight:800;">TOTAL TO CLIENT <span style="font-weight:400;color:#cfcfcf;font-size:10.5px;">(' + t.live + ' live, ' + (t.lines - t.live) + ' struck' + (t.days > 0 ? '; ' + (Math.round(t.days*4)/4) + ' days' : '') + ')</span></td>' +
-    '<td style="' + td + '"></td>' +
-    '<td id="pwe-tot-' + routeId + '" style="' + td + 'background:#1f7a37;color:#fff;font-weight:800;">' + proposalMoney(t.sell) + '</td></tr>';
-  h += '</tbody></table></div>';
-  h += '<div class="pwe-foot">Materials carried from the rate card where the item matches; labour and time on site by hand. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + routeId + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
+  // option total bar
+  h += '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:#434244;color:#fff;border-radius:8px;margin-top:4px;">' +
+    '<span style="font-weight:800;letter-spacing:.04em;">TOTAL TO CLIENT</span>' +
+    '<span style="font-size:11px;color:#cfcfcf;">(' + t.live + ' live, ' + (t.lines - t.live) + ' struck' + (t.days > 0 ? '; ' + (Math.round(t.days * 4) / 4) + ' days' : '') + ')</span>' +
+    '<span id="pwe-tot-' + routeId + '" style="margin-left:auto;font-weight:800;font-size:16px;background:#1f7a37;padding:4px 12px;border-radius:6px;">' + proposalMoney(t.sell) + '</span></div>';
+  h += '</div>';   // cl-wrap
+  h += '<div class="pwe-foot">Each line shows quantity, the quiet material rate (carried from the rate card), and the by-hand labour and time; the line total is on the right. Open a line (&hellip;) for its cost, contingency and margin build-up. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + routeId + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
   return h + '</div>';
 }
 
@@ -8871,6 +8930,16 @@ function pweBuild(routeId){
   srPersist(survey); proposalRender();
 }
 function pweToggle(routeId){ pweOpen[routeId] = !pweOpen[routeId]; proposalRender(); }
+function pweToggleRow(routeId, rowId){ var k = routeId + '/' + rowId; pweRowOpen[k] = !pweRowOpen[k]; proposalRender(); }
+function pweToggleGroup(routeId, elId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  if (!est.collapsed || typeof est.collapsed !== 'object') est.collapsed = {};
+  var el = (est.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
+  est.collapsed[elId] = !pweGroupCollapsed(est, el);   // toggle from the effective (default-aware) state
+  srPersist(survey);   // collapse state rides in the snapshot
+  proposalRender();
+}
 function pweReseed(routeId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   if (!window.confirm('Rebuild this estimate from the system template? Your edits to this route are replaced.')) return;
@@ -8916,7 +8985,14 @@ function pweSet(id, txt){ var el = document.getElementById(id); if (el) el.textC
 function pweRecompute(survey, routeId, elId, rowId){
   var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
   var hit = pweFindRow(est, elId, rowId);
-  if (hit && !hit.row.off) pweSet('pwe-lt-' + routeId + '-' + rowId, srMoney(estRowFigures(hit.row, est.rates).sell));
+  if (hit && !hit.row.off){
+    var f = estRowFigures(hit.row, est.rates);
+    pweSet('pwe-lt-' + routeId + '-' + rowId, srMoney(f.sell));
+    // open expander cells (no-op when the line is collapsed)
+    var ns = 'pwe-bu-' + rowId;
+    pweSet(ns + '-mc', srMoney(f.matCost)); pweSet(ns + '-mco', srMoney(f.matCont)); pweSet(ns + '-mm', srMoney(f.matMar)); pweSet(ns + '-mt', srMoney(f.matTot));
+    pweSet(ns + '-lc', srMoney(f.labCost)); pweSet(ns + '-lco', srMoney(f.labCont)); pweSet(ns + '-lm', srMoney(f.labMar)); pweSet(ns + '-lt', srMoney(f.labTot));
+  }
   var el = (est.elements || []).find(function(e){ return e.id === elId; });
   if (el) pweSet('pwe-elt-' + routeId + '-' + elId, srMoney(pweElementTotals(el, est.rates).sell));
   var t = pweOptionTotals(est);
