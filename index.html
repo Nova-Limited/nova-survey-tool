@@ -3697,6 +3697,18 @@ input.derived-field { background: #f6f8fa; color: #555; }
     </div>
   </section>
 
+  <style id="act-styles">
+    /* Survey detail action bar, grouped into three task sections (layout only). */
+    #detail-actions.act-grouped { flex-wrap: wrap; align-items: flex-start; gap: 14px; }
+    .act-group { display: flex; flex-direction: column; gap: 8px; padding: 10px 13px 12px; border: 1px solid var(--rule); border-radius: 9px; background: #faf9f6; }
+    .act-group-label { font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; color: #F7901E; }
+    .act-group-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    #detail-actions.act-grouped .act-group .btn { width: auto; min-height: 42px; padding: 0.5rem 0.95rem; font-size: 0.88rem; }
+    .act-delete { align-self: center; }
+    @media (min-width: 768px) { .act-delete { margin-left: auto; } }
+    #detail-actions.act-grouped .act-delete .btn { width: auto; min-height: 42px; padding: 0.5rem 0.95rem; font-size: 0.88rem; }
+    .act-status { font-size: 13px; color: #666; align-self: center; }
+  </style>
   <style id="np-styles">
     #view-proposal .np-controls{display:flex;flex-direction:column;gap:12px;padding:14px 16px;background:#faf9f6;border:1px solid #ece9e2;border-radius:8px;margin-bottom:20px;}
     #view-proposal .np-ctl-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
@@ -6818,22 +6830,42 @@ function renderSurveyDetail(s) {
   // button is guaranteed to render. Edit / Generate Report / Save / Delete
   // are kept on the LEFT; the status span sits between Save and Delete so
   // it stays readable next to its trigger.
+  // Action bar grouped into three labelled task sections (layout only; every
+  // button, label and action is unchanged). Section 1 the record, section 2
+  // client documents, section 3 pricing and cost control; Delete sits apart.
   const actions = document.getElementById('detail-actions');
   if (actions) {
+    actions.classList.add('act-grouped');
+    const calBtn = '<button class="btn btn-secondary" onclick="addVisitToCalendar(currentSurveyId)"' +
+      ((vi && vi.appointmentStart) ? '' : ' disabled title="Set an appointment time first"') +
+      '>Add to calendar</button>';
     actions.innerHTML =
-      '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
-      '<button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>' +
-      '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
-      '<button class="btn btn-secondary" onclick="srOpenReturns(currentSurveyId)">Subcontractor returns</button>' +
-      '<button class="btn btn-secondary" onclick="srOpenLedger(currentSurveyId)">Job cost ledger</button>' +
-      '<button class="btn btn-secondary" onclick="estOpenLedger(currentSurveyId)">Estimate cost ledger</button>' +
-      '<button class="btn btn-secondary" onclick="proposalOpen(currentSurveyId)">Works proposal</button>' +
-      '<button class="btn btn-secondary" onclick="addVisitToCalendar(currentSurveyId)"' +
-        ((vi && vi.appointmentStart) ? '' : ' disabled title="Set an appointment time first"') +
-        '>Add to calendar</button>' +
-      '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
-      '<span id="sync-at-status" style="font-size:13px;color:#666;margin-left:10px;align-self:center;"></span>' +
-      '<button class="btn btn-danger" onclick="deleteCurrent()" style="margin-left:auto;">Delete</button>';
+      '<div class="act-group">' +
+        '<div class="act-group-label">The record</div>' +
+        '<div class="act-group-btns">' +
+          '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
+          '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
+          calBtn +
+          '<span id="sync-at-status" class="act-status"></span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="act-group">' +
+        '<div class="act-group-label">Client documents</div>' +
+        '<div class="act-group-btns">' +
+          '<button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>' +
+          '<button class="btn btn-secondary" onclick="proposalOpen(currentSurveyId)">Works proposal</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="act-group">' +
+        '<div class="act-group-label">Pricing and cost control</div>' +
+        '<div class="act-group-btns">' +
+          '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
+          '<button class="btn btn-secondary" onclick="srOpenReturns(currentSurveyId)">Subcontractor returns</button>' +
+          '<button class="btn btn-secondary" onclick="estOpenLedger(currentSurveyId)">Estimate cost ledger</button>' +
+          '<button class="btn btn-secondary" onclick="srOpenLedger(currentSurveyId)">Job cost ledger</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="act-delete"><button class="btn btn-danger" onclick="deleteCurrent()">Delete</button></div>';
   }
 }
 function renderDetailBlocks(s) {
