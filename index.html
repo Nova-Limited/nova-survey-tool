@@ -3685,6 +3685,17 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <div id="ledger-body"></div>
     </div>
   </section>
+
+  <section id="view-estledger" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <h1>Estimate cost ledger</h1>
+        <div class="meta">Build the estimate item by item, grouped under elements, exactly like the MASTER Cost Breakdown tab: a materials and a labour build-up per item gives the Total to Client, then actuals as the job runs reveal the real margin. Seed from the works engine or build by hand.</div>
+      </div>
+      <div id="estledger-body"></div>
+    </div>
+  </section>
 </main>
 
 <div id="modal-overlay" class="modal-overlay" hidden>
@@ -6723,6 +6734,7 @@ function renderSurveyDetail(s) {
       '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
       '<button class="btn btn-secondary" onclick="srOpenReturns(currentSurveyId)">Subcontractor returns</button>' +
       '<button class="btn btn-secondary" onclick="srOpenLedger(currentSurveyId)">Job cost ledger</button>' +
+      '<button class="btn btn-secondary" onclick="estOpenLedger(currentSurveyId)">Estimate cost ledger</button>' +
       '<button class="btn btn-secondary" onclick="addVisitToCalendar(currentSurveyId)"' +
         ((vi && vi.appointmentStart) ? '' : ' disabled title="Set an appointment time first"') +
         '>Add to calendar</button>' +
@@ -7671,6 +7683,437 @@ function srLedgerRecalcTotals(survey){
   if (mv){ mv.textContent = (t.margin != null ? srMoney(t.margin) : ''); mv.style.background = col.bg; mv.style.color = col.ink; }
   if (mp){ mp.textContent = srPctTxt(t.pct); mp.style.background = col.bg; mp.style.color = col.ink; }
   if (st){ st.textContent = srMarginWord(t.margin); st.style.color = col.ink; }
+}
+
+// ===== NOVA ESTIMATE ITEM-BY-ITEM LEDGER - build-up per item =================
+// Estimating-path sibling of the repair ledger. Mirrors Jamie's MASTER costing
+// "Cost Breakdown" tab: ITEMS grouped under ELEMENTS (Roof 1, Roof 2, Wall...),
+// each item built up on a MATERIALS side and a LABOUR side
+//   cost/unit -> cost (= units x cost/unit) -> + contingency -> + margin -> total
+// giving a Total to Client (the per-item sell). Actuals captured per side; the
+// Difference (real margin = sell - actuals) falls out, coloured by the SAME bands
+// as the repair ledger (red < 0, amber = 0, green > 0; a blank/zero sell stays
+// neutral). Contingency and margin are configurable RATES in ONE place (defaults
+// 4% / 35%, matching DEFAULT_WORKS_CONFIG). Everything (elements, rows, units,
+// rates, estimates, actuals) rides in the survey snapshot (survey.estLedger);
+// no new Airtable fields. The build-up maths reuses priceLine() so a seeded
+// estimate reconciles EXACTLY with the works engine. Colour/word/money/pct
+// helpers are shared with the repair ledger (srMarginColour / srMarginWord /
+// srMoney / srPctTxt / srNum / srEsc). See [[nova-costing-layer-build]].
+
+var EST_CATEGORIES = ['Sheeting','Flashing','Drainage','Fix','Cons','Access','Hire','Waste','H&S','Labour'];
+var estIdSeq = 0;
+function estNewId(p){ return (p || 'e') + '-' + Date.now().toString(36) + '-' + (estIdSeq++).toString(36); }
+
+function estDefaultRates(){
+  var c = (typeof loadWorksConfig === 'function') ? loadWorksConfig() : { contingency:0.04, margin:0.35 };
+  return { contingency: c.contingency, margin: c.margin };
+}
+function estBlankRow(category){
+  return { id: estNewId('r'), category: category || EST_CATEGORIES[0], item:'', spec:'',
+    units:null, uom:'', matPerUnit:null, labPerUnit:null, matActual:null, labActual:null };
+}
+function estDefaultElement(name){
+  return { id: estNewId('el'), name: name || 'Roof 1', rows: EST_CATEGORIES.map(function(c){ return estBlankRow(c); }) };
+}
+// Lazy-init: first open seeds ONE element (Roof 1) with the 10 category rows,
+// so the surveyor always lands on a ready build-up surface (like the Excel tab).
+function estEnsureLedger(survey){
+  if (!survey.estLedger || typeof survey.estLedger !== 'object'){
+    survey.estLedger = { rates: estDefaultRates(), elements: [ estDefaultElement('Roof 1') ] };
+    return survey.estLedger;
+  }
+  var L = survey.estLedger;
+  if (!L.rates || typeof L.rates !== 'object') L.rates = estDefaultRates();
+  if (!Array.isArray(L.elements)) L.elements = [];
+  return L;
+}
+
+// Per-item build-up. A blank actual counts as 0 for the maths (cost not yet
+// incurred) so a freshly costed item reads as full margin and turns red as
+// actuals cross the sell - same convention as the repair ledger. A zero sell
+// (no cost entered) stays NEUTRAL, never a loss.
+function estRowFigures(row, rates){
+  var units = srNum(row.units);
+  var matPer = srNum(row.matPerUnit);
+  var labPer = srNum(row.labPerUnit);
+  var p = priceLine(units != null ? units : 0, matPer != null ? matPer : 0, labPer != null ? labPer : 0,
+    { contingency: rates.contingency, margin: rates.margin });
+  var matAct = srNum(row.matActual);
+  var labAct = srNum(row.labActual);
+  var hasActual = (matAct != null) || (labAct != null);
+  var actual = (matAct != null ? matAct : 0) + (labAct != null ? labAct : 0);
+  var sell = p.totalToClient;
+  var margin = (sell > 0) ? (sell - actual) : null;
+  var pct = (sell > 0) ? (margin / sell * 100) : null;
+  return {
+    units: units, matPer: matPer, labPer: labPer,
+    matCost: p.materialsCost, matCont: p.materialsContingency, matMar: p.materialsMargin, matTot: p.materialsTotal,
+    labCost: p.labourCost,    labCont: p.labourContingency,    labMar: p.labourMargin,    labTot: p.labourTotal,
+    sell: sell, matActual: matAct, labActual: labAct, actual: hasActual ? actual : null,
+    margin: margin, pct: pct
+  };
+}
+// Element subtotal / job total - margin counts ONLY items with a sell, so a
+// half-built estimate never reads as a loss (mirrors the repair ledger total).
+function estElementFigures(el, rates){
+  var matTot = 0, labTot = 0, sell = 0, actual = 0, priced = 0;
+  (el.rows || []).forEach(function(r){
+    var f = estRowFigures(r, rates);
+    matTot += f.matTot; labTot += f.labTot;
+    if (f.sell > 0){ priced++; sell += f.sell; actual += (f.actual != null ? f.actual : 0); }
+  });
+  var margin = priced ? (sell - actual) : null;
+  var pct = (priced && sell > 0) ? (margin / sell * 100) : null;
+  return { matTot: matTot, labTot: labTot, sell: sell, actual: actual, priced: priced,
+    rows: (el.rows || []).length, margin: margin, pct: pct };
+}
+function estJobFigures(L){
+  var matTot = 0, labTot = 0, sell = 0, actual = 0, priced = 0, rows = 0;
+  (L.elements || []).forEach(function(el){
+    var e = estElementFigures(el, L.rates);
+    matTot += e.matTot; labTot += e.labTot; sell += e.sell; actual += e.actual; priced += e.priced; rows += e.rows;
+  });
+  var margin = priced ? (sell - actual) : null;
+  var pct = (priced && sell > 0) ? (margin / sell * 100) : null;
+  return { matTot: matTot, labTot: labTot, sell: sell, actual: actual, priced: priced, rows: rows, margin: margin, pct: pct };
+}
+
+function estFindRow(L, elId, rowId){
+  var el = (L.elements || []).find(function(e){ return e.id === elId; });
+  if (!el) return null;
+  var row = (el.rows || []).find(function(r){ return r.id === rowId; });
+  return row ? { el: el, row: row } : null;
+}
+
+function estOpenLedger(id){
+  srCurrentSurveyId = id || currentSurveyId;
+  var survey = srLoadSurvey(srCurrentSurveyId);
+  if (survey){ estEnsureLedger(survey); srPersist(survey); }   // persist the lazy-init so it survives snapshot save/load
+  if (typeof showView === 'function') showView('estledger');
+  estRenderLedger();
+}
+
+// --- works-engine seeding ---------------------------------------------------
+// The works engine (generateWorksSchedule) is the ONLY live source of per-item
+// estimate figures. Its elementLines[] are keyed by measurementKey
+// (roofAreaM2 / wallAreaM2 / gutterLinM / rooflightM2 / flashingLinM /
+// carrierLinM) and rate-card item name, each carrying quantity,
+// materialsCostPerUnit, labourCostPerUnit at the SAME 4%/35% rates this ledger
+// uses - so a seeded row's Total to Client reconciles exactly. The engine's item
+// taxonomy is the rate-card spec list (Strip / Composite Panel / Main Fix /
+// Wall Composite / Trimline Gutter / Skylight / Eave), NOT Jamie's MASTER
+// categories, so we map each engine item onto a category and let the rest be
+// hand-entered.
+var EST_ITEM_CATEGORY = {
+  'strip':'Fix', 'composite panel':'Sheeting', 'single skin':'Sheeting', 'single skin + insulation':'Sheeting',
+  'wall composite':'Sheeting', 'main fix':'Fix', 'trimline gutter':'Drainage', 'skylight':'Sheeting',
+  'eave':'Flashing', 'steel carrier banded to concrete purlins':'Fix'
+};
+function estCategoryForItem(item){ return EST_ITEM_CATEGORY[String(item || '').trim().toLowerCase()] || 'Sheeting'; }
+
+// Derive the works-engine measurements from the survey. Roof area is the only
+// figure the survey captures for works mode (sum of slope areas, Section B2);
+// wall/gutter/rooflight/flashing are not measured at survey level, so they fall
+// to hand entry. Purlin type + carrier length seed the concrete-carrier line.
+function estDeriveMeasurements(survey){
+  var m = {};
+  var roof = (typeof surveyTotalRoofArea === 'function') ? surveyTotalRoofArea(survey.buildings) : null;
+  if (roof != null && roof > 0) m.roofAreaM2 = roof;
+  if (survey.purlinType) m.purlinType = survey.purlinType;
+  if (survey.carrierLinM != null) m.carrierLinM = survey.carrierLinM;
+  return m;
+}
+function estElementsFromSchedule(sched){
+  return (sched.elements || []).map(function(el){
+    return { id: estNewId('el'), name: el.label, rows: (el.lines || []).map(function(ln){
+      return { id: estNewId('r'), category: estCategoryForItem(ln.item), item: ln.item, spec:'',
+        units: ln.quantity, uom: ln.unit || '', matPerUnit: ln.materialsCostPerUnit,
+        labPerUnit: ln.labourCostPerUnit, matActual:null, labActual:null };
+    }) };
+  });
+}
+// "Untouched" = the lazy default, nothing keyed - safe to REPLACE on seed.
+function estLedgerUntouched(L){
+  return (L.elements || []).every(function(el){
+    return (el.rows || []).every(function(r){
+      return srNum(r.units) == null && srNum(r.matPerUnit) == null && srNum(r.labPerUnit) == null &&
+        srNum(r.matActual) == null && srNum(r.labActual) == null &&
+        !String(r.item || '').trim() && !String(r.spec || '').trim();
+    });
+  });
+}
+async function estSeedFromWorks(){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  // online-first rate-card refresh (cached fallback) so per-unit rates populate
+  var card = null;
+  try { card = await loadRateCard(); } catch (e) { card = null; }
+  var meas = estDeriveMeasurements(survey);
+  var sched;
+  try { sched = generateWorksSchedule(meas, { config: { contingency: L.rates.contingency, margin: L.rates.margin } }); }
+  catch (e){ showToast('Could not run the works estimate: ' + e.message, 'err'); return; }
+  var seeded = estElementsFromSchedule(sched);
+  if (!seeded.length){
+    showToast('The works engine produced no lines to seed - enter a roof area in Section B2, or build the ledger by hand.', 'err');
+    return;
+  }
+  var replaced;
+  if (estLedgerUntouched(L)){ L.elements = seeded; replaced = true; }
+  else {
+    if (!window.confirm('Add ' + seeded.length + ' element(s) from the works estimate below your existing ledger rows?')) return;
+    L.elements = L.elements.concat(seeded); replaced = false;
+  }
+  srPersist(survey);
+  estRenderLedger();
+  var missing = (sched.pending || []).length;
+  var noRates = !card || !card.items || !card.items.length;
+  var msg = (replaced ? 'Seeded ' : 'Added ') + seeded.length + ' element(s) from the works engine (keyed on roof area';
+  msg += (meas.purlinType && String(meas.purlinType).toLowerCase() === 'concrete' && meas.carrierLinM) ? ' + concrete carrier).' : ').';
+  if (noRates) msg += ' Rate card unavailable - per-unit rates seeded at 0, enter by hand.';
+  else if (missing) msg += ' ' + missing + ' line(s) had no rate-card match - enter those rates by hand.';
+  showToast(msg, noRates || missing ? 'warn' : 'ok');
+}
+
+// --- render -----------------------------------------------------------------
+function estRenderLedger(){
+  var host = document.getElementById('estledger-body'); if (!host) return;
+  var survey = srLoadSurvey(srCurrentSurveyId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var L = estEnsureLedger(survey);
+
+  var th  = 'padding:7px 8px;border:1px solid #e2e2dd;background:#434244;color:#fff;font-weight:700;font-size:11px;text-align:right;white-space:nowrap;';
+  var thL = th + 'text-align:left;';
+  var thC = th + 'text-align:center;';
+  var grpMat = 'padding:6px 8px;border:1px solid #e2e2dd;background:#F7901E;color:#fff;font-weight:800;font-size:11px;text-align:center;letter-spacing:.04em;';
+  var grpLab = grpMat.replace('#F7901E', '#434244');
+  var grpRes = grpMat.replace('#F7901E', '#1f7a37');
+  var td  = 'padding:4px 8px;border:1px solid #e8e8e3;font-size:12px;color:#434244;text-align:right;vertical-align:middle;white-space:nowrap;';
+  var tdL = td + 'text-align:left;';
+  var calc = td + 'background:#f7f7f4;color:#6b6c70;';      // read-only build-up cell
+  var inp  = 'width:62px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;';
+  var inpMat = inp + 'background:#FFF4E8;';                 // materials cost/unit (brand tint)
+  var inpLab = inp + 'background:#EEF0F3;';                 // labour cost/unit
+  var inpAct = inp + 'background:#EEF3FB;';                 // actuals
+
+  // rates panel + actions
+  var h = '<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:12px;padding:11px 13px;background:#faf9f6;border:1px solid #ece9e2;border-radius:8px;">';
+  h += '<div><label style="display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:3px;">Contingency %</label>'
+    + '<input type="number" step="0.5" min="0" id="est-rate-cont" value="' + (Math.round(L.rates.contingency * 1000) / 10) + '" oninput="estRateEdit()" style="width:74px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:4px 6px;font-size:13px;"></div>';
+  h += '<div><label style="display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:3px;">Margin %</label>'
+    + '<input type="number" step="0.5" min="0" id="est-rate-margin" value="' + (Math.round(L.rates.margin * 1000) / 10) + '" oninput="estRateEdit()" style="width:74px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:4px 6px;font-size:13px;"></div>';
+  h += '<div style="font-size:11px;color:#999;max-width:240px;align-self:center;">One place: these rates apply to every materials and labour build-up below.</div>';
+  h += '<div style="margin-left:auto;display:flex;gap:8px;">'
+    + '<button class="btn btn-secondary" onclick="estSeedFromWorks()">Seed estimate from works engine</button>'
+    + '<button class="btn btn-secondary" onclick="estAddElement()">+ Add element</button>'
+    + '</div>';
+  h += '</div>';
+
+  h += '<div style="overflow-x:auto;"><table style="border-collapse:collapse;min-width:100%;">';
+  // top header tier (groups)
+  h += '<thead><tr>'
+    + '<th style="' + thL + '" colspan="5">Item</th>'
+    + '<th style="' + grpMat + '" colspan="5">MATERIALS  (cost/unit &rarr; total)</th>'
+    + '<th style="' + grpLab + '" colspan="5">LABOUR  (cost/unit &rarr; total)</th>'
+    + '<th style="' + grpRes + '" colspan="1">SELL</th>'
+    + '<th style="' + grpRes + '" colspan="2">ACTUALS</th>'
+    + '<th style="' + grpRes + '" colspan="3">REAL MARGIN</th>'
+    + '<th style="' + th + '" colspan="1"></th>'
+    + '</tr><tr>'
+    + '<th style="' + thL + 'min-width:96px;">Category</th>'
+    + '<th style="' + thL + 'min-width:120px;">Item</th>'
+    + '<th style="' + thL + 'min-width:120px;">Spec</th>'
+    + '<th style="' + th + '">Units</th>'
+    + '<th style="' + thL + '">UOM</th>'
+    + '<th style="' + th + '">Cost/unit</th><th style="' + th + '">Cost</th><th style="' + th + '">+Cont</th><th style="' + th + '">+Margin</th><th style="' + th + '">Mat total</th>'
+    + '<th style="' + th + '">Cost/unit</th><th style="' + th + '">Cost</th><th style="' + th + '">+Cont</th><th style="' + th + '">+Margin</th><th style="' + th + '">Lab total</th>'
+    + '<th style="' + th + '">To client</th>'
+    + '<th style="' + th + '">Materials</th><th style="' + th + '">Labour</th>'
+    + '<th style="' + th + '">Difference</th><th style="' + th + '">Margin %</th><th style="' + thC + '">Status</th>'
+    + '<th style="' + thC + '"></th>'
+    + '</tr></thead><tbody>';
+
+  if (!L.elements.length){
+    h += '<tr><td colspan="22" style="' + tdL + 'color:#888;padding:14px;">No elements yet. Click <b>+ Add element</b> to build by hand, or <b>Seed estimate from works engine</b> to pull the costed schedule.</td></tr>';
+  }
+
+  L.elements.forEach(function(el){
+    // element header band
+    h += '<tr><td colspan="22" style="padding:7px 9px;background:#fbe6d4;border:1px solid #f0d8bd;">'
+      + '<input type="text" value="' + srEsc(el.name) + '" data-elid="' + el.id + '" oninput="estElementRename(this)" '
+      + 'style="font-weight:800;font-size:13px;color:#434244;border:none;background:transparent;min-width:160px;border-bottom:1px dashed #d9b487;padding:1px 2px;">'
+      + '<button onclick="estAddRow(\'' + el.id + '\')" style="margin-left:12px;font-size:11px;background:#fff;border:1px solid #e0c6a6;border-radius:4px;padding:2px 8px;cursor:pointer;color:#434244;">+ Add row</button>'
+      + '<button onclick="estDeleteElement(\'' + el.id + '\')" style="margin-left:6px;font-size:11px;background:#fff;border:1px solid #e6c4bd;border-radius:4px;padding:2px 8px;cursor:pointer;color:#b23a2c;">Remove element</button>'
+      + '</td></tr>';
+
+    (el.rows || []).forEach(function(row){
+      var f = estRowFigures(row, L.rates);
+      var col = srMarginColour(f.margin);
+      var d = 'data-elid="' + el.id + '" data-rid="' + row.id + '"';
+      h += '<tr>';
+      // category select
+      h += '<td style="' + tdL + '"><select ' + d + ' data-field="category" onchange="estSetText(this)" style="font-size:11px;border:1px solid #d8d8d2;border-radius:4px;padding:2px 3px;max-width:96px;">'
+        + EST_CATEGORIES.map(function(c){ return '<option' + (c === row.category ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></td>';
+      // item / spec / uom
+      h += '<td style="' + tdL + '"><input type="text" ' + d + ' data-field="item" value="' + srEsc(row.item) + '" oninput="estSetText(this)" placeholder="item" style="width:118px;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;"></td>';
+      h += '<td style="' + tdL + '"><input type="text" ' + d + ' data-field="spec" value="' + srEsc(row.spec) + '" oninput="estSetText(this)" placeholder="spec" style="width:118px;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;"></td>';
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="units" value="' + (row.units != null ? row.units : '') + '" oninput="estSetNum(this)" placeholder="0" style="' + inp + '"></td>';
+      h += '<td style="' + tdL + '"><input type="text" ' + d + ' data-field="uom" value="' + srEsc(row.uom) + '" oninput="estSetText(this)" placeholder="m2" style="width:52px;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:12px;"></td>';
+      // materials build-up
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="matPerUnit" value="' + (row.matPerUnit != null ? row.matPerUnit : '') + '" oninput="estSetNum(this)" placeholder="0" style="' + inpMat + '"></td>';
+      h += '<td id="est-mc-' + row.id + '" style="' + calc + '">' + srMoney(f.matCost) + '</td>';
+      h += '<td id="est-mco-' + row.id + '" style="' + calc + '">' + srMoney(f.matCont) + '</td>';
+      h += '<td id="est-mm-' + row.id + '" style="' + calc + '">' + srMoney(f.matMar) + '</td>';
+      h += '<td id="est-mt-' + row.id + '" style="' + td + 'font-weight:700;">' + srMoney(f.matTot) + '</td>';
+      // labour build-up
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="labPerUnit" value="' + (row.labPerUnit != null ? row.labPerUnit : '') + '" oninput="estSetNum(this)" placeholder="0" style="' + inpLab + '"></td>';
+      h += '<td id="est-lc-' + row.id + '" style="' + calc + '">' + srMoney(f.labCost) + '</td>';
+      h += '<td id="est-lco-' + row.id + '" style="' + calc + '">' + srMoney(f.labCont) + '</td>';
+      h += '<td id="est-lm-' + row.id + '" style="' + calc + '">' + srMoney(f.labMar) + '</td>';
+      h += '<td id="est-lt-' + row.id + '" style="' + td + 'font-weight:700;">' + srMoney(f.labTot) + '</td>';
+      // sell
+      h += '<td id="est-sell-' + row.id + '" style="' + td + 'font-weight:800;background:#eef6f0;">' + (f.sell > 0 ? srMoney(f.sell) : '') + '</td>';
+      // actuals
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="matActual" value="' + (row.matActual != null ? row.matActual : '') + '" oninput="estSetNum(this)" placeholder="enter" style="' + inpAct + '"></td>';
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="labActual" value="' + (row.labActual != null ? row.labActual : '') + '" oninput="estSetNum(this)" placeholder="enter" style="' + inpAct + '"></td>';
+      // margin (coloured)
+      h += '<td id="est-diff-' + row.id + '" style="' + td + 'font-weight:700;background:' + col.bg + ';color:' + col.ink + ';">' + (f.margin != null ? srMoney(f.margin) : '') + '</td>';
+      h += '<td id="est-pct-' + row.id + '" style="' + td + 'background:' + col.bg + ';color:' + col.ink + ';">' + srPctTxt(f.pct) + '</td>';
+      h += '<td id="est-st-' + row.id + '" style="' + td + 'text-align:center;font-weight:700;font-size:11px;color:' + col.ink + ';">' + srMarginWord(f.margin) + '</td>';
+      // delete row
+      h += '<td style="' + td + 'text-align:center;"><button onclick="estDeleteRow(\'' + el.id + '\',\'' + row.id + '\')" title="Remove row" style="background:none;border:none;color:#b23a2c;font-size:15px;cursor:pointer;line-height:1;">&times;</button></td>';
+      h += '</tr>';
+    });
+
+    // element subtotal
+    var e = estElementFigures(el, L.rates);
+    var ecol = srMarginColour(e.margin);
+    h += '<tr style="background:#f4f3ef;">'
+      + '<td colspan="9" style="' + tdL + 'font-weight:700;">Subtotal &mdash; ' + srEsc(el.name) + ' <span style="font-weight:400;color:#999;font-size:11px;">(' + e.priced + ' of ' + e.rows + ' priced)</span></td>'
+      + '<td id="est-el-mt-' + el.id + '" style="' + td + 'font-weight:800;">' + srMoney(e.matTot) + '</td>'
+      + '<td colspan="4" style="' + td + '"></td>'
+      + '<td id="est-el-lt-' + el.id + '" style="' + td + 'font-weight:800;">' + srMoney(e.labTot) + '</td>'
+      + '<td id="est-el-sell-' + el.id + '" style="' + td + 'font-weight:800;background:#eef6f0;">' + (e.priced ? srMoney(e.sell) : '') + '</td>'
+      + '<td id="est-el-act-' + el.id + '" colspan="2" style="' + td + 'font-weight:700;">' + (e.priced ? srMoney(e.actual) : '') + '</td>'
+      + '<td id="est-el-diff-' + el.id + '" style="' + td + 'font-weight:800;background:' + ecol.bg + ';color:' + ecol.ink + ';">' + (e.margin != null ? srMoney(e.margin) : '') + '</td>'
+      + '<td id="est-el-pct-' + el.id + '" style="' + td + 'font-weight:700;background:' + ecol.bg + ';color:' + ecol.ink + ';">' + srPctTxt(e.pct) + '</td>'
+      + '<td id="est-el-st-' + el.id + '" style="' + td + 'text-align:center;font-weight:700;font-size:11px;color:' + ecol.ink + ';">' + srMarginWord(e.margin) + '</td>'
+      + '<td style="' + td + '"></td>'
+      + '</tr>';
+  });
+
+  // job total
+  var j = estJobFigures(L);
+  var jcol = srMarginColour(j.margin);
+  h += '<tr style="background:#434244;color:#fff;">'
+    + '<td colspan="9" style="' + tdL.replace('color:#434244', 'color:#fff') + 'font-weight:800;">JOB TOTAL <span style="font-weight:400;color:#cfcfcf;font-size:11px;">(' + j.priced + ' of ' + j.rows + ' items priced)</span></td>'
+    + '<td id="est-job-mt" style="' + td.replace('color:#434244', 'color:#fff') + 'font-weight:800;">' + srMoney(j.matTot) + '</td>'
+    + '<td colspan="4" style="' + td + '"></td>'
+    + '<td id="est-job-lt" style="' + td.replace('color:#434244', 'color:#fff') + 'font-weight:800;">' + srMoney(j.labTot) + '</td>'
+    + '<td id="est-job-sell" style="' + td + 'font-weight:800;background:#1f7a37;color:#fff;">' + (j.priced ? srMoney(j.sell) : '') + '</td>'
+    + '<td id="est-job-act" colspan="2" style="' + td.replace('color:#434244', 'color:#fff') + 'font-weight:800;">' + (j.priced ? srMoney(j.actual) : '') + '</td>'
+    + '<td id="est-job-diff" style="' + td + 'font-weight:800;background:' + jcol.bg + ';color:' + jcol.ink + ';">' + (j.margin != null ? srMoney(j.margin) : '') + '</td>'
+    + '<td id="est-job-pct" style="' + td + 'font-weight:800;background:' + jcol.bg + ';color:' + jcol.ink + ';">' + srPctTxt(j.pct) + '</td>'
+    + '<td id="est-job-st" style="' + td + 'text-align:center;font-weight:800;font-size:11px;background:' + jcol.bg + ';color:' + jcol.ink + ';">' + srMarginWord(j.margin) + '</td>'
+    + '<td style="' + td + '"></td>'
+    + '</tr>';
+
+  h += '</tbody></table></div>';
+  h += '<div style="font-size:11px;color:#999;margin-top:8px;line-height:1.5;">Each item is built up on a materials and a labour side: <b>cost/unit &rarr; cost &rarr; + contingency &rarr; + margin &rarr; total</b>; the two totals give the <b>Total to Client</b> (the sell). The real margin is the <b>Difference: sell minus actuals</b> (materials + labour), coloured green for profit, amber for break-even, red for a loss. A blank sell stays neutral, and the job total counts only items with a sell so a part-built estimate never reads as a loss. Everything here saves into the survey snapshot.</div>';
+  host.innerHTML = h;
+}
+
+// --- edits (persist + recompute in place, keeping input focus) --------------
+function estRateEdit(){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  var c = srNum((document.getElementById('est-rate-cont') || {}).value);
+  var m = srNum((document.getElementById('est-rate-margin') || {}).value);
+  if (c != null) L.rates.contingency = c / 100;
+  if (m != null) L.rates.margin = m / 100;
+  srPersist(survey);
+  estRenderLedger();   // rates touch every row - full re-render is correct here
+}
+function estSetText(input){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  var hit = estFindRow(L, input.getAttribute('data-elid'), input.getAttribute('data-rid')); if (!hit) return;
+  hit.row[input.getAttribute('data-field')] = input.value;
+  srPersist(survey);   // text fields do not change the build-up - no recompute
+}
+function estSetNum(input){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  var elId = input.getAttribute('data-elid'), rowId = input.getAttribute('data-rid');
+  var hit = estFindRow(L, elId, rowId); if (!hit) return;
+  var v = srNum(input.value);
+  hit.row[input.getAttribute('data-field')] = (v == null ? null : v);
+  srPersist(survey);
+  estRecalcRow(L, rowId, hit.row);
+  estRecalcElement(L, elId);
+  estRecalcJob(L);
+}
+function estSet(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; }
+function estPaint(id, col){ var el = document.getElementById(id); if (el){ el.style.background = col.bg; el.style.color = col.ink; } }
+function estRecalcRow(L, rowId, row){
+  var f = estRowFigures(row, L.rates);
+  estSet('est-mc-' + rowId, srMoney(f.matCost)); estSet('est-mco-' + rowId, srMoney(f.matCont)); estSet('est-mm-' + rowId, srMoney(f.matMar)); estSet('est-mt-' + rowId, srMoney(f.matTot));
+  estSet('est-lc-' + rowId, srMoney(f.labCost)); estSet('est-lco-' + rowId, srMoney(f.labCont)); estSet('est-lm-' + rowId, srMoney(f.labMar)); estSet('est-lt-' + rowId, srMoney(f.labTot));
+  estSet('est-sell-' + rowId, f.sell > 0 ? srMoney(f.sell) : '');
+  var col = srMarginColour(f.margin);
+  estSet('est-diff-' + rowId, f.margin != null ? srMoney(f.margin) : ''); estPaint('est-diff-' + rowId, col);
+  estSet('est-pct-' + rowId, srPctTxt(f.pct)); estPaint('est-pct-' + rowId, col);
+  var st = document.getElementById('est-st-' + rowId); if (st){ st.textContent = srMarginWord(f.margin); st.style.color = col.ink; }
+}
+function estRecalcElement(L, elId){
+  var el = (L.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
+  var e = estElementFigures(el, L.rates); var col = srMarginColour(e.margin);
+  estSet('est-el-mt-' + elId, srMoney(e.matTot)); estSet('est-el-lt-' + elId, srMoney(e.labTot));
+  estSet('est-el-sell-' + elId, e.priced ? srMoney(e.sell) : ''); estSet('est-el-act-' + elId, e.priced ? srMoney(e.actual) : '');
+  estSet('est-el-diff-' + elId, e.margin != null ? srMoney(e.margin) : ''); estPaint('est-el-diff-' + elId, col);
+  estSet('est-el-pct-' + elId, srPctTxt(e.pct)); estPaint('est-el-pct-' + elId, col);
+  var st = document.getElementById('est-el-st-' + elId); if (st){ st.textContent = srMarginWord(e.margin); st.style.color = col.ink; }
+}
+function estRecalcJob(L){
+  var j = estJobFigures(L); var col = srMarginColour(j.margin);
+  estSet('est-job-mt', srMoney(j.matTot)); estSet('est-job-lt', srMoney(j.labTot));
+  estSet('est-job-sell', j.priced ? srMoney(j.sell) : ''); estSet('est-job-act', j.priced ? srMoney(j.actual) : '');
+  estSet('est-job-diff', j.margin != null ? srMoney(j.margin) : ''); estPaint('est-job-diff', col);
+  estSet('est-job-pct', srPctTxt(j.pct)); estPaint('est-job-pct', col);
+  estSet('est-job-st', srMarginWord(j.margin)); estPaint('est-job-st', col);
+}
+function estElementRename(input){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  var el = (L.elements || []).find(function(e){ return e.id === input.getAttribute('data-elid'); }); if (!el) return;
+  el.name = input.value; srPersist(survey);   // live, no re-render so the field keeps focus
+}
+function estAddElement(){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  L.elements.push(estDefaultElement('Element ' + (L.elements.length + 1)));
+  srPersist(survey); estRenderLedger();
+}
+function estDeleteElement(elId){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  if (!window.confirm('Remove this element and all its rows?')) return;
+  L.elements = (L.elements || []).filter(function(e){ return e.id !== elId; });
+  srPersist(survey); estRenderLedger();
+}
+function estAddRow(elId){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  var el = (L.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
+  (el.rows = el.rows || []).push(estBlankRow(EST_CATEGORIES[0]));
+  srPersist(survey); estRenderLedger();
+}
+function estDeleteRow(elId, rowId){
+  var survey = srLoadSurvey(srCurrentSurveyId); if (!survey) return;
+  var L = estEnsureLedger(survey);
+  var el = (L.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
+  el.rows = (el.rows || []).filter(function(r){ return r.id !== rowId; });
+  srPersist(survey); estRenderLedger();
 }
 
 function buildPricingReturnWorkbook(model){
