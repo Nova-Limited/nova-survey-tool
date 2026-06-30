@@ -3761,6 +3761,21 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-accept-note{font-size:13px;color:#666;margin:0 0 12px;}
     #view-proposal .np-accept-pills{display:flex;flex-wrap:wrap;gap:6px;}
     #view-proposal .np-accept-readout{font-size:14px;color:#434244;margin-top:12px;padding-top:12px;border-top:1px solid #e2e3e5;}
+    #view-proposal .np-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:4px;margin-top:6px;}
+    #view-proposal .np-badge-worked{background:#e4f3e7;color:#1f7a37;}
+    #view-proposal .np-badge-ind{background:#f4f1ea;color:#8a6400;}
+    #view-proposal .np-dhead .np-badge{margin-top:0;}
+    #view-proposal .pwe-wrap{margin-top:16px;border-top:1px dashed #e2e3e5;padding-top:12px;}
+    #view-proposal .pwe-build-btn{font-size:12.5px;font-weight:700;background:#F7901E;color:#1f1f1f;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-family:inherit;}
+    #view-proposal .pwe-hint{font-size:11.5px;color:#999;margin-left:10px;}
+    #view-proposal .pwe-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+    #view-proposal .pwe-toggle{font-size:12.5px;font-weight:700;background:#434244;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-family:inherit;}
+    #view-proposal .pwe-head-tot{font-size:13px;color:#434244;} #view-proposal .pwe-head-tot b{font-size:15px;}
+    #view-proposal .pwe-head-pm{color:#1f7a37;font-size:12px;}
+    #view-proposal .pwe-reseed{font-size:11px;background:#fff;border:1px solid #d8d8d2;border-radius:5px;padding:5px 9px;cursor:pointer;color:#666;font-family:inherit;margin-left:auto;}
+    #view-proposal .pwe-addrow{margin-left:12px;font-size:10.5px;font-weight:700;background:#fff;border:1px solid #e0c6a6;border-radius:4px;padding:2px 8px;cursor:pointer;color:#434244;font-family:inherit;}
+    #view-proposal .pwe-strike{background:none;border:none;color:#b23a2c;font-size:13px;cursor:pointer;line-height:1;padding:0;}
+    #view-proposal .pwe-foot{font-size:11px;color:#999;margin-top:8px;line-height:1.5;}
     @media(max-width:620px){ #view-proposal .np-getconsider{grid-template-columns:1fr;gap:16px;} }
   </style>
   <section id="view-proposal" class="view">
@@ -8390,33 +8405,39 @@ function proposalRender(){
   h += '<p class="np-lead">' + opts.length + ' system' + (opts.length > 1 ? 's' : '') + ' for this ' + srEsc(PROPOSAL_FAMILY_LABELS[P.family].toLowerCase()) +
     ', set side by side so the decision rests on what each route gives, not on price alone. Our recommended route is highlighted.</p>';
 
-  // comparison grid
+  // comparison grid - each headline reads the WORKED total where a build-up exists,
+  // else the flat indicative rate (pre-measure fallback). The badge marks which.
   h += '<div class="np-optgrid" style="grid-template-columns:repeat(' + opts.length + ',1fr)">';
   opts.forEach(function(s){
-    var fig = proposalFigure(area, rates[s.id]);
+    var hd = pweHeadline(survey, s.id);
+    var timeTxt = (hd.worked && hd.days > 0) ? ('~' + (Math.round(hd.days * 4) / 4) + ' days') : srEsc(s.time);
     h += '<div class="np-opt-col' + (s.recommended ? ' feature' : '') + '">' +
       (s.recommended ? '<div class="np-ribbon">Recommended</div>' : '') +
       '<div class="np-top"><div class="np-name">' + srEsc(s.name) + '</div><div class="np-for">Best for ' + srEsc(s.best) + '</div></div>' +
-      '<div class="np-price"><div class="np-amt">' + (fig != null ? proposalMoney(fig) : 'Pending measure') + ' <span class="np-vat">plus VAT</span></div>' +
-      '<div class="np-perm2">' + proposalMoney(rates[s.id]) + '/m² indicative</div></div>' +
+      '<div class="np-price"><div class="np-amt" id="np-amt-' + s.id + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-vat">plus VAT</span></div>' +
+      '<div class="np-perm2" id="np-pm-' + s.id + '">' + (hd.worked ? (hd.perM2 != null ? proposalMoney(hd.perM2) + '/m² worked' : 'worked') : (proposalMoney(hd.indicativeRate) + '/m² indicative')) + '</div>' +
+      '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '" id="np-bdg-' + s.id + '">' + (hd.worked ? 'Worked estimate' : 'Indicative') + '</span></div>' +
       '<div class="np-specs"><div class="np-r"><span class="np-k">Lifespan</span><span class="np-v">' + srEsc(s.life) + '</span></div>' +
-      '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + srEsc(s.time) + '</span></div></div></div>';
+      '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + timeTxt + '</span></div></div></div>';
   });
   h += '</div>';
-  h += '<p class="np-caption">Indicative figures, plus VAT, pending final measure. Each is the survey roof area times that route’s indicative rate; the firm price follows the detailed measure.</p>';
+  h += '<p class="np-caption">Figures plus VAT. A <b>worked</b> headline is this route’s item-by-item build-up Total to Client, with a derived £/m² (total divided by roof area). An <b>indicative</b> headline is the roof area times the flat per-system rate, pending final measure; build its estimate below to replace it.</p>';
 
   // per-option detail pages
   h += '<h2 class="np-h2 np-h2-sp">Each route in detail</h2>';
   opts.forEach(function(s){
-    var fig = proposalFigure(area, rates[s.id]);
+    var hd = pweHeadline(survey, s.id);
     h += '<div class="np-detail' + (s.recommended ? ' feature' : '') + '"><div class="np-dhead"><span class="np-dname">' + srEsc(s.name) + '</span>' +
       (s.recommended ? '<span class="np-tag-rec">Recommended</span>' : '') +
-      '<span class="np-damt">' + (fig != null ? proposalMoney(fig) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span></div>' +
+      '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '">' + (hd.worked ? 'Worked' : 'Indicative') + '</span>' +
+      '<span class="np-damt" id="np-damt-' + s.id + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span></div>' +
       '<p class="np-what">' + srEsc(s.what) + '</p>' +
       '<div class="np-getconsider">' +
       '<div class="np-gc np-get"><h4>What you get</h4><ul>' + s.get.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
       '<div class="np-gc np-consider"><h4>What to consider</h4><ul>' + s.consider.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
-      '</div></div>';
+      '</div>' +
+      pweRenderEditor(survey, s.id) +
+      '</div>';
   });
 
   // accepted option
@@ -8475,6 +8496,408 @@ function proposalSetAccepted(id){
   if (P.routes.indexOf(id) < 0) return;
   P.accepted = id;
   srPersist(survey); proposalRender();
+}
+
+// ===== NOVA PROPOSAL WORKED ESTIMATES (per option) ==========================
+// Makes the estimating document WORKED, not guessed. Each presented route gets
+// its own item-by-item estimate build-up at survey.proposal.estimates[routeId],
+// estLedger-shaped { rates, elements:[{id,name,rows:[...]}] }, so the estimate
+// ledger compute (estRowFigures -> priceLine, 4%/35%) and colour (srMarginColour)
+// are reused directly. Each row carries the estLedger row shape PLUS:
+//   basis  - how its quantity seeds (area / linear / scaffoldArea / handrailLinear / manual)
+//   days   - time on site, hand-entered per line (Jamie's rule)
+//   off    - remove-only strike (line stays visible, struck, excluded from totals)
+// The option headline reads the build-up Total to Client and a derived £/m²
+// (total / roof area); until a worked estimate exists, the flat indicative rate
+// stands as the pre-measure fallback with the indicative caption. Persists in the
+// survey snapshot under survey.proposal.estimates; no new Airtable fields.
+// See [[four-option-proposal]] and [[estimate-item-ledger]].
+
+var PWE_RATES = { contingency: 0.04, margin: 0.35 };   // engine config, as the estimate ledger
+var pweOpen = {};   // transient UI state: which option build-ups are expanded (not persisted)
+
+// element grouping order (each group becomes an estLedger element)
+var PWE_GROUP_ORDER = ['Covering and build-up','Flashing and detailing','Drainage','Fix','Consumables','Access','Hire','Waste','H&S','Labour and prelims','Welfare'];
+
+function pweDef(group, item, category, uom, basis){ return { group:group, item:item, category:category, uom:uom||'', basis:basis||'manual' }; }
+
+// --- shared line blocks (common to every system) ---
+function pweAccess(){ return [
+  pweDef('Access','Working Platform','Access','m²','scaffoldArea'),
+  pweDef('Access','Handrail','Access','m','handrailLinear'),
+  pweDef('Access','Haki Staircase','Access','nr','manual'),
+  pweDef('Access','Man Safe Nets','Access','m²','manual') ]; }
+function pweHire(){ return [
+  pweDef('Hire','Hire (general)','Hire','item','manual'),
+  pweDef('Hire','Telehandler','Hire','wk','manual'),
+  pweDef('Hire','Crane','Hire','day','manual'),
+  pweDef('Hire','MEWP','Hire','wk','manual') ]; }
+function pweWaste(){ return [
+  pweDef('Waste','General','Waste','load','manual'),
+  pweDef('Waste','Asbestos','Waste','t','manual') ]; }
+function pweHS(felt){ var a = [ pweDef('H&S','Air testing','H&S','nr','manual'), pweDef('H&S','PPE','H&S','item','manual') ];
+  if (felt) a.push(pweDef('H&S','Hot works and fire watch','H&S','day','manual')); return a; }
+function pweLabour(){ return [
+  pweDef('Labour and prelims','Site Manager','Labour','wk','manual'),
+  pweDef('Labour and prelims','Site Visits','Labour','nr','manual'),
+  pweDef('Labour and prelims','Travel','Labour','item','manual'),
+  pweDef('Labour and prelims','Accommodation','Labour','nr','manual'),
+  pweDef('Labour and prelims','Standstill','Labour','item','manual') ]; }
+function pweWelfare(){ return [ pweDef('Welfare','Welfare facilities','Labour','wk','manual') ]; }
+function pweConsMetal(){ return [
+  pweDef('Consumables','Filler Blocks','Cons','m','manual'),
+  pweDef('Consumables','Butyl Tape','Cons','roll','manual'),
+  pweDef('Consumables','Gun Grade sealant','Cons','nr','manual'),
+  pweDef('Consumables','Cutting and drilling consumables','Cons','item','manual'),
+  pweDef('Consumables','Disbursements','Cons','item','manual') ]; }
+function pweConsFlat(){ return [
+  pweDef('Consumables','Sealants','Cons','nr','manual'),
+  pweDef('Consumables','Jointing and cover tapes','Cons','roll','manual'),
+  pweDef('Consumables','Membrane cleaner and activator','Cons','nr','manual'),
+  pweDef('Consumables','Gas for torch-on / fuel for welders','Cons','nr','manual') ]; }
+function pweCommon(kind, felt){
+  return [].concat(pweAccess(), pweHire(), pweWaste(), pweHS(felt), pweLabour(), pweWelfare(),
+    (kind === 'flat' ? pweConsFlat() : pweConsMetal())); }
+
+// --- metal flashing / drainage / fix (pitched + wall) ---
+function pweMetalFlashing(){ return [
+  'Internal Ridge','External Ridge','Cap','Eave','Parapet','Barge','Soaker','Upstand'
+  ].map(function(n){ return pweDef('Flashing and detailing', n, 'Flashing', 'm', 'linear'); })
+  .concat([ pweDef('Flashing and detailing','Fabrication','Flashing','item','manual') ]); }
+function pweMetalDrainage(){ return [
+  pweDef('Drainage','Trimline Gutter','Drainage','m','linear'),
+  pweDef('Drainage','Insulated Gutter','Drainage','m','linear'),
+  pweDef('Drainage','Half-round gutter','Drainage','m','linear'),
+  pweDef('Drainage','Gutter Liner','Drainage','m','linear'),
+  pweDef('Drainage','Downpipes','Drainage','m','manual'),
+  pweDef('Drainage','Outlets','Drainage','nr','manual'),
+  pweDef('Drainage','Dektites','Drainage','nr','manual'),
+  pweDef('Drainage','Leafguards','Drainage','m','linear') ]; }
+function pweMetalFix(){ return [
+  pweDef('Fix','Bracket Fix','Fix','nr','manual'),
+  pweDef('Fix','Main Fix','Fix','m²','area'),
+  pweDef('Fix','Stitchers','Fix','nr','manual'),
+  pweDef('Fix','Ledger Plates','Fix','nr','manual') ]; }
+
+// --- flat shared detailing / drainage / fix-bond ---
+function pweFlatDetailing(){ return [
+  pweDef('Flashing and detailing','Upstands and kerbs','Flashing','m','linear'),
+  pweDef('Flashing and detailing','Drip and eaves trim','Flashing','m','linear'),
+  pweDef('Flashing and detailing','Parapet capping and coping','Flashing','m','linear'),
+  pweDef('Flashing and detailing','Termination and edge bar','Flashing','m','linear'),
+  pweDef('Flashing and detailing','Pipe collars and penetration seals','Flashing','nr','manual'),
+  pweDef('Flashing and detailing','Rooflight kerb detailing','Flashing','nr','manual'),
+  pweDef('Flashing and detailing','Movement and expansion joint','Flashing','m','linear'),
+  pweDef('Flashing and detailing','Wall abutment and chase flashing','Flashing','m','linear') ]; }
+function pweFlatDrainage(){ return [
+  pweDef('Drainage','Rainwater outlets and sumps','Drainage','nr','manual'),
+  pweDef('Drainage','Overflow and emergency outlets','Drainage','nr','manual'),
+  pweDef('Drainage','Tapered sump formers','Drainage','nr','manual'),
+  pweDef('Drainage','Gratings','Drainage','nr','manual') ]; }
+function pweFlatFix(){ return [
+  pweDef('Fix','Mechanical fixings and fasteners','Fix','m²','area'),
+  pweDef('Fix','Adhesive and bonding agent','Fix','m²','area'),
+  pweDef('Fix','Deck primer','Fix','m²','area'),
+  pweDef('Fix','Seam welding and hot-air bonding','Fix','m','linear') ]; }
+function pweFlatBase(){ return [
+  pweDef('Covering and build-up','Strip and dispose existing','Fix','m²','area'),
+  pweDef('Covering and build-up','Deck preparation and repair','Fix','m²','area'),
+  pweDef('Covering and build-up','Vapour control layer','Sheeting','m²','area'),
+  pweDef('Covering and build-up','Insulation board','Sheeting','m²','area'),
+  pweDef('Covering and build-up','Tapered insulation to falls','Sheeting','m²','area') ]; }
+
+// --- per-system templates: returns ordered [{name, lines:[def]}] of default-ON lines ---
+function pweTemplate(family, systemId){
+  var cover = [];
+  var felt = (systemId === 'felt');
+  if (family === 'pitched'){
+    if (systemId === 'composite') cover = [
+      pweDef('Covering and build-up','Strip existing','Fix','m²','area'),
+      pweDef('Covering and build-up','Composite Panel','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Insulation','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Skylight','Sheeting','nr','manual') ];
+    else if (systemId === 'builtup') cover = [
+      pweDef('Covering and build-up','Strip existing','Fix','m²','area'),
+      pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Liner','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Insulation','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Bar','Fix','m','linear'),
+      pweDef('Covering and build-up','Bracket','Fix','nr','manual') ];
+    else if (systemId === 'overclad') cover = [
+      pweDef('Covering and build-up','Composite Panel','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Bar','Fix','m','linear'),
+      pweDef('Covering and build-up','Bracket','Fix','nr','manual') ];
+    else if (systemId === 'singleskin') cover = [
+      pweDef('Covering and build-up','Strip existing','Fix','m²','area'),
+      pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Liner','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Insulation','Sheeting','m²','area') ];
+    return pweGroup(cover.concat(pweMetalFlashing(), pweMetalDrainage(), pweMetalFix(), pweCommon('metal', false)));
+  }
+  if (family === 'flat'){
+    var add = [];
+    if (systemId === 'singleply') add = [ pweDef('Covering and build-up','Single ply membrane','Sheeting','m²','area') ];
+    else if (systemId === 'felt') add = [
+      pweDef('Covering and build-up','Built-up felt base and underlay','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Built-up felt cap sheet','Sheeting','m²','area') ];
+    else if (systemId === 'liquid') add = [
+      pweDef('Covering and build-up','Liquid primer','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Liquid base coat','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Liquid reinforcement fleece','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Liquid top coat','Sheeting','m²','area') ];
+    else if (systemId === 'hotmelt') add = [
+      pweDef('Covering and build-up','Hot melt monolithic membrane','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Root barrier','Sheeting','m²','area'),
+      pweDef('Covering and build-up','Protection and ballast layer','Sheeting','m²','area') ];
+    return pweGroup(pweFlatBase().concat(add, pweFlatDetailing(), pweFlatDrainage(), pweFlatFix(), pweCommon('flat', felt)));
+  }
+  // wall
+  if (systemId === 'wallcomposite') cover = [ pweDef('Covering and build-up','Wall Composite','Sheeting','m²','area') ];
+  else cover = [
+    pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
+    pweDef('Covering and build-up','Liner','Sheeting','m²','area') ];
+  return pweGroup(cover.concat(pweMetalFlashing(), pweMetalDrainage(), pweMetalFix(), pweCommon('metal', false)));
+}
+// fold a flat list of line defs into ordered element groups
+function pweGroup(defs){
+  var byGroup = {};
+  defs.forEach(function(d){ (byGroup[d.group] = byGroup[d.group] || []).push(d); });
+  var out = [];
+  PWE_GROUP_ORDER.forEach(function(g){ if (byGroup[g]) out.push({ name: g, lines: byGroup[g] }); });
+  return out;
+}
+
+// --- quantity / rate seeding from the measured roof + rate card ---
+function pwePerimeter(survey){
+  var acc = (typeof ppDeriveAccess === 'function') ? ppDeriveAccess(survey) : { elevations: [] };
+  var sum = 0; (acc.elevations || []).forEach(function(e){ var l = Number(e.lengthM) || 0; if (l > 0) sum += l; });
+  return sum > 0 ? sum : null;
+}
+function pweScaffoldArea(survey){
+  var acc = (typeof ppDeriveAccess === 'function') ? ppDeriveAccess(survey) : { elevations: [] };
+  var sum = 0; (acc.elevations || []).forEach(function(e){ var l = Number(e.lengthM) || 0, h = Number(e.heightM) || 0; if (l > 0 && h > 0) sum += l * h; });
+  return sum > 0 ? sum : null;
+}
+function pweSeedUnits(basis, ctx){
+  if (basis === 'area') return ctx.area;
+  if (basis === 'linear') return ctx.perimeter;
+  if (basis === 'scaffoldArea') return ctx.scaffoldArea;
+  if (basis === 'handrailLinear') return ctx.perimeter;
+  return null;   // manual
+}
+function pweSeedMatRate(def, ctx){
+  if (def.basis === 'scaffoldArea') return ctx.rates.scaffoldSqm != null ? ctx.rates.scaffoldSqm : null;
+  if (def.basis === 'handrailLinear') return ctx.rates.handrailLinM != null ? ctx.rates.handrailLinM : null;
+  var it = ctx.rcIndex.get(String(def.item || '').trim().toLowerCase());
+  return (it && typeof it.materials === 'number') ? it.materials : null;   // carried from the rate card where the item matches
+}
+function pweSeedEstimate(survey, routeId){
+  var P = survey.proposal || {};
+  var groups = pweTemplate(P.family, routeId);
+  var ctx = {
+    area: proposalRoofArea(survey),
+    perimeter: pwePerimeter(survey),
+    scaffoldArea: pweScaffoldArea(survey),
+    rates: (typeof srRates === 'function') ? srRates() : { scaffoldSqm: 35, handrailLinM: 55 },
+    rcIndex: (typeof rateCardIndex === 'function') ? rateCardIndex() : new Map()
+  };
+  var est = { rates: { contingency: PWE_RATES.contingency, margin: PWE_RATES.margin }, elements: [] };
+  groups.forEach(function(g){
+    var rows = g.lines.map(function(d){
+      var u = pweSeedUnits(d.basis, ctx);
+      var mat = pweSeedMatRate(d, ctx);
+      return { id: estNewId('r'), category: d.category, item: d.item, spec: '', uom: d.uom,
+        units: (u != null ? Math.round(u * 100) / 100 : null), matPerUnit: mat, labPerUnit: null,
+        matActual: null, labActual: null, basis: d.basis, days: null, off: false };
+    });
+    est.elements.push({ id: estNewId('el'), name: g.name, rows: rows });
+  });
+  return est;
+}
+
+// --- per-option compute (reuses estRowFigures; skips struck rows) ---
+function pweOptionTotals(est){
+  if (!est) return { sell: 0, mat: 0, lab: 0, days: 0, lines: 0, live: 0 };
+  var sell = 0, mat = 0, lab = 0, days = 0, lines = 0, live = 0;
+  (est.elements || []).forEach(function(el){
+    (el.rows || []).forEach(function(r){
+      lines++;
+      if (r.off) return;
+      live++;
+      var f = estRowFigures(r, est.rates);
+      sell += f.sell; mat += f.matTot; lab += f.labTot;
+      var d = srNum(r.days); if (d != null) days += d;
+    });
+  });
+  return { sell: sell, mat: mat, lab: lab, days: days, lines: lines, live: live };
+}
+function pweElementTotals(el, rates){
+  var sell = 0, live = 0;
+  (el.rows || []).forEach(function(r){ if (r.off) return; live++; sell += estRowFigures(r, rates).sell; });
+  return { sell: sell, live: live, rows: (el.rows || []).length };
+}
+// headline: worked when an estimate exists with a real total, else indicative fallback
+function pweHeadline(survey, routeId){
+  var P = survey.proposal || {};
+  var area = proposalRoofArea(survey);
+  var rates = proposalRates();
+  var est = (P.estimates || {})[routeId];
+  var t = pweOptionTotals(est);
+  if (est && t.sell > 0){
+    return { worked: true, total: t.sell, perM2: (area > 0 ? t.sell / area : null), days: t.days };
+  }
+  var rate = rates[routeId];
+  return { worked: false, total: proposalFigure(area, rate), perM2: rate, indicativeRate: rate };
+}
+
+function pweFindRow(est, elId, rowId){
+  var el = (est.elements || []).find(function(e){ return e.id === elId; }); if (!el) return null;
+  var row = (el.rows || []).find(function(r){ return r.id === rowId; }); return row ? { el: el, row: row } : null;
+}
+function pweEstimatesStore(survey){
+  if (!survey.proposal) proposalState(survey);
+  if (!survey.proposal.estimates || typeof survey.proposal.estimates !== 'object') survey.proposal.estimates = {};
+  return survey.proposal.estimates;
+}
+function pweCatForGroup(name){
+  var m = { 'Covering and build-up':'Sheeting','Flashing and detailing':'Flashing','Drainage':'Drainage',
+    'Fix':'Fix','Consumables':'Cons','Access':'Access','Hire':'Hire','Waste':'Waste','H&S':'H&S',
+    'Labour and prelims':'Labour','Welfare':'Labour' };
+  return m[name] || 'Cons';
+}
+
+// --- per-option build-up editor (remove-only; reuses estRowFigures + srMoney) ---
+function pweRenderEditor(survey, routeId){
+  var est = (survey.proposal.estimates || {})[routeId];
+  var open = !!pweOpen[routeId];
+  var h = '<div class="pwe-wrap">';
+  if (!est){
+    h += '<button class="pwe-build-btn" onclick="pweBuild(\'' + routeId + '\')">Build worked estimate</button>' +
+      '<span class="pwe-hint">Opens this route populated with its system lines, seeded from the measured roof. Strike what does not apply, add anything extra.</span>';
+    return h + '</div>';
+  }
+  var t = pweOptionTotals(est);
+  var area = proposalRoofArea(survey);
+  h += '<div class="pwe-head"><button class="pwe-toggle" onclick="pweToggle(\'' + routeId + '\')">' + (open ? '▾ Hide' : '▸ Show') + ' worked estimate</button>' +
+    '<span class="pwe-head-tot">Total to client <b>' + proposalMoney(t.sell) + '</b> plus VAT' +
+    (area > 0 && t.sell > 0 ? ' <span class="pwe-head-pm">(' + proposalMoney(t.sell / area) + '/m² worked)</span>' : '') + '</span>' +
+    '<button class="pwe-reseed" onclick="pweReseed(\'' + routeId + '\')" title="Rebuild from the system template">Reseed</button></div>';
+  if (!open) return h + '</div>';
+
+  var th = 'padding:5px 7px;border:1px solid #e2e2dd;background:#434244;color:#fff;font-weight:700;font-size:10.5px;text-align:right;white-space:nowrap;';
+  var thL = th + 'text-align:left;';
+  var td = 'padding:3px 7px;border:1px solid #e8e8e3;font-size:11.5px;color:#434244;text-align:right;white-space:nowrap;';
+  var tdL = td + 'text-align:left;';
+  var inp = 'width:58px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;font-size:11.5px;';
+  h += '<div style="overflow-x:auto;margin-top:8px;"><table style="border-collapse:collapse;min-width:100%;">';
+  h += '<thead><tr><th style="' + th + 'width:26px;"></th><th style="' + thL + 'min-width:150px;">Item</th><th style="' + thL + 'min-width:90px;">Spec</th>' +
+    '<th style="' + th + '">Units</th><th style="' + thL + '">UOM</th><th style="' + th + '">Mat £/u</th><th style="' + th + '">Lab £/u</th>' +
+    '<th style="' + th + '">Days</th><th style="' + th + '">Line total</th></tr></thead><tbody>';
+  est.elements.forEach(function(el){
+    var e = pweElementTotals(el, est.rates);
+    h += '<tr><td colspan="9" style="padding:5px 8px;background:#fbe6d4;border:1px solid #f0d8bd;font-weight:800;font-size:11px;color:#434244;">' + srEsc(el.name) +
+      '<button class="pwe-addrow" onclick="pweAddRow(\'' + routeId + '\',\'' + el.id + '\')">+ Add line</button></td></tr>';
+    (el.rows || []).forEach(function(r){
+      var f = estRowFigures(r, est.rates);
+      var d = 'data-rid="' + routeId + '" data-elid="' + el.id + '" data-rowid="' + r.id + '"';
+      var struck = r.off;
+      var rowStyle = struck ? 'opacity:.45;' : '';
+      var nameStyle = struck ? 'text-decoration:line-through;' : '';
+      var dis = struck ? ' disabled' : '';
+      h += '<tr style="' + rowStyle + '">';
+      h += '<td style="' + td + 'text-align:center;"><button class="pwe-strike" title="' + (struck ? 'Restore line' : 'Strike line') + '" onclick="pweStrike(\'' + routeId + '\',\'' + el.id + '\',\'' + r.id + '\')">' + (struck ? '↺' : '✕') + '</button></td>';
+      h += '<td style="' + tdL + nameStyle + '"><input type="text" ' + d + ' data-field="item" value="' + srEsc(r.item) + '" oninput="pweText(this)"' + dis + ' style="width:150px;border:1px solid #e3e3df;border-radius:4px;padding:2px 4px;font-size:11.5px;' + (struck ? 'text-decoration:line-through;' : '') + '"></td>';
+      h += '<td style="' + tdL + '"><input type="text" ' + d + ' data-field="spec" value="' + srEsc(r.spec) + '" oninput="pweText(this)"' + dis + ' placeholder="spec" style="width:90px;border:1px solid #e3e3df;border-radius:4px;padding:2px 4px;font-size:11.5px;"></td>';
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="units" value="' + (r.units != null ? r.units : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="0" style="' + inp + '"></td>';
+      h += '<td style="' + tdL + 'color:#999;">' + srEsc(r.uom) + '</td>';
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="matPerUnit" value="' + (r.matPerUnit != null ? r.matPerUnit : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="0" style="' + inp + 'background:#FFF4E8;"></td>';
+      h += '<td style="' + td + '"><input type="number" step="0.01" min="0" ' + d + ' data-field="labPerUnit" value="' + (r.labPerUnit != null ? r.labPerUnit : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="hand" style="' + inp + 'background:#EEF0F3;"></td>';
+      h += '<td style="' + td + '"><input type="number" step="0.25" min="0" ' + d + ' data-field="days" value="' + (r.days != null ? r.days : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="hand" style="' + inp.replace('58px','46px') + 'background:#EEF0F3;"></td>';
+      h += '<td id="pwe-lt-' + routeId + '-' + r.id + '" style="' + td + 'font-weight:700;">' + (struck ? '-' : srMoney(f.sell)) + '</td>';
+      h += '</tr>';
+    });
+    h += '<tr style="background:#f4f3ef;"><td style="' + td + '"></td><td colspan="7" style="' + tdL + 'font-weight:700;">Subtotal &mdash; ' + srEsc(el.name) + '</td>' +
+      '<td id="pwe-elt-' + routeId + '-' + el.id + '" style="' + td + 'font-weight:800;">' + srMoney(e.sell) + '</td></tr>';
+  });
+  // option total
+  h += '<tr style="background:#434244;color:#fff;"><td style="' + td + '"></td>' +
+    '<td colspan="6" style="' + tdL.replace('#434244','#fff') + 'font-weight:800;">TOTAL TO CLIENT <span style="font-weight:400;color:#cfcfcf;font-size:10.5px;">(' + t.live + ' live, ' + (t.lines - t.live) + ' struck' + (t.days > 0 ? '; ' + (Math.round(t.days*4)/4) + ' days' : '') + ')</span></td>' +
+    '<td style="' + td + '"></td>' +
+    '<td id="pwe-tot-' + routeId + '" style="' + td + 'background:#1f7a37;color:#fff;font-weight:800;">' + proposalMoney(t.sell) + '</td></tr>';
+  h += '</tbody></table></div>';
+  h += '<div class="pwe-foot">Materials carried from the rate card where the item matches; labour and time on site by hand. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + routeId + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
+  return h + '</div>';
+}
+
+// --- editor handlers ---
+function pweBuild(routeId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var store = pweEstimatesStore(survey);
+  if (!store[routeId]) store[routeId] = pweSeedEstimate(survey, routeId);
+  pweOpen[routeId] = true;
+  srPersist(survey); proposalRender();
+}
+function pweToggle(routeId){ pweOpen[routeId] = !pweOpen[routeId]; proposalRender(); }
+function pweReseed(routeId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  if (!window.confirm('Rebuild this estimate from the system template? Your edits to this route are replaced.')) return;
+  var store = pweEstimatesStore(survey);
+  store[routeId] = pweSeedEstimate(survey, routeId);
+  pweOpen[routeId] = true;
+  srPersist(survey); proposalRender();
+}
+function pweStrike(routeId, elId, rowId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  var hit = pweFindRow(est, elId, rowId); if (!hit) return;
+  hit.row.off = !hit.row.off;
+  srPersist(survey); proposalRender();
+}
+function pweAddRow(routeId, elId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  var el = (est.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
+  el.rows.push({ id: estNewId('r'), category: pweCatForGroup(el.name), item: '', spec: '', uom: '',
+    units: null, matPerUnit: null, labPerUnit: null, matActual: null, labActual: null, basis: 'manual', days: null, off: false });
+  srPersist(survey); proposalRender();
+}
+function pweText(input){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var est = (survey.proposal.estimates || {})[input.getAttribute('data-rid')]; if (!est) return;
+  var hit = pweFindRow(est, input.getAttribute('data-elid'), input.getAttribute('data-rowid')); if (!hit) return;
+  hit.row[input.getAttribute('data-field')] = input.value;
+  srPersist(survey);   // text does not change the build-up totals - no recompute
+}
+function pweNum(input){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var routeId = input.getAttribute('data-rid');
+  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  var elId = input.getAttribute('data-elid'), rowId = input.getAttribute('data-rowid');
+  var hit = pweFindRow(est, elId, rowId); if (!hit) return;
+  var v = srNum(input.value);
+  hit.row[input.getAttribute('data-field')] = (v == null ? null : v);
+  srPersist(survey);
+  pweRecompute(survey, routeId, elId, rowId);   // in place, keep focus
+}
+function pweSet(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; }
+function pweRecompute(survey, routeId, elId, rowId){
+  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  var hit = pweFindRow(est, elId, rowId);
+  if (hit && !hit.row.off) pweSet('pwe-lt-' + routeId + '-' + rowId, srMoney(estRowFigures(hit.row, est.rates).sell));
+  var el = (est.elements || []).find(function(e){ return e.id === elId; });
+  if (el) pweSet('pwe-elt-' + routeId + '-' + elId, srMoney(pweElementTotals(el, est.rates).sell));
+  var t = pweOptionTotals(est);
+  var area = proposalRoofArea(survey);
+  pweSet('pwe-tot-' + routeId, proposalMoney(t.sell));
+  pweSet('pwe-pm-' + routeId, (area > 0 && t.sell > 0) ? (proposalMoney(t.sell / area) + '/m²') : 'pending');
+  // comparison + detail headline for this route
+  var hd = pweHeadline(survey, routeId);
+  pweSet('np-amt-' + routeId, hd.total != null ? proposalMoney(hd.total) : 'Pending measure');
+  pweSet('np-damt-' + routeId, hd.total != null ? proposalMoney(hd.total) : 'Pending measure');
+  pweSet('np-pm-' + routeId, hd.worked ? (hd.perM2 != null ? proposalMoney(hd.perM2) + '/m² worked' : 'worked') : (proposalMoney(hd.indicativeRate) + '/m² indicative'));
+  var bdg = document.getElementById('np-bdg-' + routeId);
+  if (bdg){ bdg.textContent = hd.worked ? 'Worked estimate' : 'Indicative'; bdg.className = 'np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind'); }
 }
 
 function buildPricingReturnWorkbook(model){
