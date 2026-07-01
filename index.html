@@ -3897,6 +3897,61 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-place-btn { font-size: 14px; font-weight: 700; background: #434244; color: #fff; border: none; border-radius: 8px; padding: 11px 20px; cursor: pointer; font-family: inherit; }
     #view-footprint .fp-place-btn:disabled { background: #c9c8c5; cursor: default; }
     #view-footprint .fp-actions-note { font-size: 11px; color: #999; max-width: 320px; line-height: 1.45; }
+    /* Stage 2: edge condition chips - the tappable read-back on the plan. Min 44px
+       hit height (padding + min-height), pill styled, green when set, grey when unset. */
+    #view-footprint .fp-chip { position: absolute; transform: translate(-50%, -50%); min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
+      padding: 4px 10px; border-radius: 13px; font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap; pointer-events: auto;
+      -webkit-tap-highlight-color: transparent; max-width: 108px; overflow: hidden; text-overflow: ellipsis; }
+    #view-footprint .fp-chip.unset { background: #f1f0ec; border: 1px dashed #c4c3bd; color: #8a898b; }
+    #view-footprint .fp-chip.set { background: #e4f3e7; border: 1px solid #1f7a37; color: #1f7a37; }
+    #view-footprint .fp-chip.active { outline: 2px solid #F7901E; outline-offset: 1px; }
+    #view-footprint .fp-chip-ridge.unset { background: #fbf2e6; border-color: #d9b487; color: #b06a1f; }
+    /* edge / ridge sheet */
+    #view-footprint .fp-sheet { border: 1px solid #ece9e2; border-radius: 12px; background: #faf9f6; padding: 13px 15px; margin: 10px 0; max-width: 480px; }
+    #view-footprint .fp-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    #view-footprint .fp-sheet-title { font-size: 14px; font-weight: 800; color: #434244; }
+    #view-footprint .fp-sheet-x { font-size: 12px; font-weight: 700; background: #434244; color: #fff; border: none; border-radius: 7px; padding: 8px 14px; min-height: 40px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-sheet-sub { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #8a898b; margin: 10px 0 6px; }
+    #view-footprint .fp-roles, #view-footprint .fp-opts { display: flex; flex-wrap: wrap; gap: 7px; }
+    #view-footprint .fp-role, #view-footprint .fp-opt { min-height: 44px; font-size: 12.5px; border: 1px solid #d8d8d2; border-radius: 9px; padding: 8px 13px; background: #fff; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-role.on { background: #434244; color: #fff; border-color: #434244; font-weight: 700; }
+    #view-footprint .fp-opt.on { background: #e4f3e7; border-color: #1f7a37; color: #1f7a37; font-weight: 700; }
+    #view-footprint .fp-note { font-size: 11.5px; color: #b06a1f; margin-top: 8px; }
+    #view-footprint .fp-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: #434244; }
+    #view-footprint .fp-key-btn { min-height: 44px; font-size: 12.5px; font-weight: 700; background: #F7901E; color: #1f1f1f; border: none; border-radius: 8px; padding: 8px 15px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-sheet-foot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    #view-footprint .fp-sheet-2nd { font-size: 12px; background: #fff; border: 1px solid #d8d8d2; color: #666; border-radius: 7px; padding: 8px 12px; min-height: 40px; cursor: pointer; font-family: inherit; }
+    /* on-screen keypad */
+    #view-footprint .fp-keypad { border: 1px solid #d9b487; border-radius: 12px; background: #fff; padding: 13px 15px; margin: 10px 0; max-width: 320px; }
+    #view-footprint .fp-kp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    #view-footprint .fp-kp-title { font-size: 13px; font-weight: 800; color: #434244; }
+    #view-footprint .fp-kp-hint { font-size: 10.5px; color: #999; }
+    #view-footprint .fp-kp-display { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; background: #faf9f6; border: 1px solid #ece9e2; border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+    #view-footprint #fp-kp-val { font-size: 24px; font-weight: 800; color: #434244; }
+    #view-footprint .fp-kp-unit { font-size: 13px; color: #8a898b; }
+    #view-footprint .fp-kp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    #view-footprint .fp-kp-key { min-height: 52px; font-size: 20px; font-weight: 700; background: #f4f3ef; border: 1px solid #e2e3e5; border-radius: 9px; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-kp-key:active { background: #ececE6; }
+    #view-footprint .fp-kp-del { color: #b23a2c; }
+    #view-footprint .fp-kp-actions { display: flex; gap: 8px; margin-top: 10px; }
+    #view-footprint .fp-kp-cancel { flex: 0 0 auto; min-height: 46px; font-size: 13px; background: #fff; border: 1px solid #d8d8d2; color: #666; border-radius: 8px; padding: 0 16px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-kp-done { flex: 1; min-height: 46px; font-size: 14px; font-weight: 700; background: #434244; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; }
+    /* keyed datum panel */
+    #view-footprint .fp-datum { margin-top: 16px; max-width: 480px; }
+    #view-footprint .fp-datum-rows { border: 1px solid #ece9e2; border-radius: 10px; overflow: hidden; }
+    #view-footprint .fp-datum-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid #f1f0ea; }
+    #view-footprint .fp-datum-row:first-child { border-top: none; }
+    #view-footprint .fp-datum-lbl { flex: 1; font-size: 13px; color: #434244; }
+    #view-footprint .fp-new { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: #F7901E; color: #1f1f1f; border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
+    #view-footprint .fp-datum-val { font-size: 13px; font-weight: 700; color: #434244; min-width: 56px; text-align: right; }
+    /* computed runs */
+    #view-footprint .fp-runs { margin-top: 16px; max-width: 480px; }
+    #view-footprint .fp-run-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+    #view-footprint .fp-run { background: #faf9f6; border: 1px solid #ece9e2; border-radius: 9px; padding: 10px 12px; }
+    #view-footprint .fp-run-lbl { display: block; font-size: 11px; color: #8a898b; }
+    #view-footprint .fp-run-val { display: block; font-size: 18px; font-weight: 800; color: #434244; margin-top: 2px; }
+    #view-footprint .fp-run-note { display: block; font-size: 10px; color: #b0afa9; margin-top: 2px; }
+    #view-footprint .fp-run-foot { font-size: 11px; color: #999; margin-top: 8px; line-height: 1.45; }
   </style>
   <section id="view-footprint" class="view">
     <div class="container wide">
@@ -9108,7 +9163,7 @@ function fpPointsStr(fp){ return (fp.corners || []).map(function(c){ return (Mat
 
 function fpOpen(id){
   fpCurrentId = id || currentSurveyId;
-  fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null;
+  fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null;
   if (typeof showView === 'function') showView('footprint');
   fpRender();
 }
@@ -9157,20 +9212,28 @@ function fpRender(){
     }
   } else if (fp && fp.corners && fp.corners.length >= 3){
     h += '<polygon id="fp-poly" points="' + fpPointsStr(fp) + '" fill="rgba(247,144,30,0.10)" stroke="#F7901E" stroke-width="2" stroke-linejoin="round"/>';
-    // edge-midpoint insert marks + hit targets - ONLY on edges long enough that a
-    // 44px + target cannot crowd a corner (short step/junction edges get no +, so the
-    // corner there stays the single, unambiguous target).
-    fp.corners.forEach(function(c, i){
-      var n = fp.corners[(i + 1) % fp.corners.length];
-      var mx = (c.x + n.x) / 2, my = (c.y + n.y) / 2;
-      var len = Math.sqrt((n.x - c.x) * (n.x - c.x) + (n.y - c.y) * (n.y - c.y));
-      // suppress the + unless the edge is long enough that its midpoint sits a full
-      // thumb-width clear of BOTH end corners (midpoint is len/2 from each; ~50 units
-      // maps to ~58px on a 390px phone), so no + ever crowds a corner at a junction.
-      if (len < 100) return;
-      h += '<circle cx="' + mx + '" cy="' + my + '" r="7" fill="#fff" stroke="#d9b487" stroke-width="1.2" pointer-events="none"/>' +
-        '<text x="' + mx + '" y="' + (my + 3.2) + '" text-anchor="middle" font-size="11" fill="#c07a1c" font-family="Helvetica,Arial,sans-serif" pointer-events="none">+</text>';
-      hit += '<button class="fp-hit fp-hit-edge" style="left:' + (mx / 3) + '%;top:' + (my / 3) + '%;" title="Add a corner here" aria-label="Add a corner on this edge" onclick="fpInsertCorner(' + i + ')"></button>';
+    // Stage 2: active-edge highlight (when a sheet or keypad is open on it)
+    var fpActive = (fpKeypad && fpKeypad.kind === 'edge') ? fpKeypad.i : (typeof fpEdgeSheet === 'number' ? fpEdgeSheet : null);
+    if (fpActive != null && fp.corners[fpActive]){
+      var ca = fp.corners[fpActive], na = fp.corners[(fpActive + 1) % fp.corners.length];
+      h += '<line x1="' + ca.x + '" y1="' + ca.y + '" x2="' + na.x + '" y2="' + na.y + '" stroke="#F7901E" stroke-width="6" stroke-linecap="round" opacity="0.45" pointer-events="none"/>';
+    }
+    // internal ridge line (pitched forms) + its condition chip
+    if (FP_RIDGE_FORMS.indexOf(form) > -1){
+      var rl = fpRidgeLine(fp), ridgeActive = (fpEdgeSheet === 'ridge');
+      h += '<line x1="' + rl.x1 + '" y1="' + rl.y1 + '" x2="' + rl.x2 + '" y2="' + rl.y2 + '" stroke="' + (ridgeActive ? '#F7901E' : '#c9a06a') + '" stroke-width="' + (ridgeActive ? 3 : 2) + '" stroke-dasharray="6 4" pointer-events="none"/>';
+      var rcc = (b && b.ridge) || {}, rlabel = rcc.cond ? (fpCondLabel('ridge', rcc.cond) || 'Ridge') : 'Ridge';
+      var rmx = (rl.x1 + rl.x2) / 2, rmy = (rl.y1 + rl.y2) / 2;
+      hit += '<button class="fp-chip fp-chip-ridge ' + (rcc.cond ? 'set' : 'unset') + (ridgeActive ? ' active' : '') + '" style="left:' + (rmx / 3) + '%;top:' + (rmy / 3) + '%;" onclick="fpOpenRidge()">' + escapeHtml(fpChipShort(rlabel)) + '</button>';
+    }
+    // Stage 2: per-edge condition chips - the tappable read-back. 44px, offset OUTWARD
+    // from the edge so they stay clear of the corner handles sitting on the vertices.
+    (fp.edges || []).forEach(function(e, i){
+      var role = fpEdgeRole(fp, e, i, form);
+      var setc = !!e.cond;
+      var label = setc ? (fpCondLabel(role, e.cond) || FP_ROLE_LABEL[role]) : FP_ROLE_LABEL[role];
+      var cp = fpChipPos(fp, i);
+      hit += '<button class="fp-chip ' + (setc ? 'set' : 'unset') + (fpActive === i ? ' active' : '') + '" style="left:' + (cp.x / 3) + '%;top:' + (cp.y / 3) + '%;" onclick="fpOpenEdge(' + i + ')" aria-label="Edge ' + (i + 1) + ' condition">' + escapeHtml(fpChipShort(label)) + '</button>';
     });
     // corner marks (small, decorative) + selected ring; the tappable area is the overlay
     fp.corners.forEach(function(c, i){
@@ -9197,8 +9260,13 @@ function fpRender(){
         '<button class="fp-remove-btn"' + (fp.corners.length <= 3 ? ' disabled title="A footprint needs at least three corners"' : '') + ' onclick="fpRemoveSelected()">Remove corner</button>' +
         '<button class="fp-deselect-btn" onclick="fpDeselect()">Done</button></div>';
     }
-    h += '<div class="fp-hint-txt">Drag a corner to move it &middot; tap a corner to select it, then <b>Remove</b> &middot; tap <b>+</b> on an edge to add one. ' +
+    h += '<div class="fp-hint-txt">Tap an <b>edge chip</b> to set its condition and key its run &middot; drag a corner to move it &middot; tap a corner then <b>Remove</b>. ' +
       (fp.corners.length) + ' corners, ' + fp.edges.length + ' straight edges.</div></div>';
+    // Stage 2 contextual panels: edge/ridge sheet, keypad, keyed datum, computed runs
+    h += fpRenderEdgeSheet(survey);
+    h += fpRenderKeypad();
+    h += fpRenderDatum(survey);
+    h += fpRenderRuns(survey);
   }
 
   // roof form picker
@@ -9230,10 +9298,10 @@ function fpPreset(k){
   var b = fpEnsureBuilding(survey);
   b.footprint = fpFromCorners(FP_PRESETS[k]);
   b.footprintPreset = k;
-  fpMode = 'edit'; fpDrawPts = []; fpSelected = null;
+  fpMode = 'edit'; fpDrawPts = []; fpSelected = null; fpEdgeSheet = null; fpKeypad = null;
   srPersist(survey); fpRender();
 }
-function fpStartDraw(){ fpMode = 'draw'; fpDrawPts = []; fpSelected = null; fpRender(); }
+function fpStartDraw(){ fpMode = 'draw'; fpDrawPts = []; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpRender(); }
 function fpClearDraw(){ fpMode = 'edit'; fpDrawPts = []; fpRender(); }
 function fpCanvasClick(evt){
   if (fpMode !== 'draw') return;
@@ -9250,7 +9318,7 @@ function fpTidy(){
   var b = fpEnsureBuilding(survey);
   b.footprint = { corners: tidy, edges: fpMakeEdges(tidy.length) };
   b.footprintPreset = 'freeform';
-  fpMode = 'edit'; fpDrawPts = []; fpSelected = null;
+  fpMode = 'edit'; fpDrawPts = []; fpSelected = null; fpEdgeSheet = null; fpKeypad = null;
   srPersist(survey); fpRender();
 }
 function fpTidyPoints(pts){
@@ -9332,14 +9400,14 @@ function fpInsertCorner(edgeIndex){
   var c = fp.corners[edgeIndex], n = fp.corners[(edgeIndex + 1) % fp.corners.length];
   fp.corners.splice(edgeIndex + 1, 0, { x: (c.x + n.x) / 2, y: (c.y + n.y) / 2 });
   fp.edges.splice(edgeIndex + 1, 0, { type:'straight', curvature:null });
-  fpSelected = null;   // indices shifted
+  fpSelected = null; fpEdgeSheet = null;   // indices shifted
   srPersist(survey); fpRender();
 }
 function fpDeleteCorner(i){
   var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
   if (fp.corners.length <= 3){ showToast('A footprint needs at least three corners.', 'err'); return; }
   fp.corners.splice(i, 1); fp.edges.splice(i, 1);
-  fpSelected = null;
+  fpSelected = null; fpEdgeSheet = null;
   srPersist(survey); fpRender();
 }
 function fpSetForm(form){
@@ -9354,6 +9422,245 @@ function fpPlace(){
   var b = fpBuilding(survey);
   showToast('Footprint placed - ' + fp.corners.length + ' corners, ' + (b.roofForm || 'duo-pitch') + '.', 'ok');
   if (typeof showView === 'function') showView('detail');
+}
+
+// ===== NOVA SURVEY CAPTURE REBUILD - STAGE 2: EDGE CONDITIONS + KEYED DATUM ==
+// Additive on the Stage-1 footprint. Each edge is tappable to set its condition
+// (a chip reads it back on the plan); the surveyor keys the laser datum by hand
+// onto edges/building; and the simple single-building runs (eaves gutter run,
+// perimeter, verge rake, ridge run) compute live. NEW OPTIONAL fields only:
+//   edge.role   'eaves'|'verge'|'parapet' (default derived from bbox long-axis +
+//               roof form; stored only when the surveyor overrides)
+//   edge.cond   chosen condition id for that role (null = unset)
+//   edge.lengthM  hand-keyed run length in metres (null = unset)
+//   building.datum  { spanM, eavesHeightM, ridgeHeightM, widthM, lengthM }
+//   building.ridge  { cond, lengthM }   (the internal ridge line)
+// NOTHING here writes the existing slopes or building.widthM, so surveyTotalRoofArea
+// and every live consumer are unchanged; a Stage-1 footprint with no conditions
+// loads and behaves exactly as before. Curved edges are excluded from runs (arc
+// deferred). No new Airtable fields; all rides the snapshot. See [[survey-capture-rebuild]].
+
+var fpEdgeSheet = null;   // index of the edge whose sheet is open, or 'ridge', or null
+var fpKeypad = null;      // { kind:'edge'|'ridge'|'datum', i, field, title, unit, value } when the keypad is open
+
+// condition option sets per edge role (target page 03)
+var FP_COND = {
+  eaves:   [ { id:'trimline', label:'Trimline gutter' }, { id:'halfround', label:'Half-round gutter' },
+             { id:'parapet-box', label:'Parapet or box gutter' }, { id:'none', label:'No gutter (party/abutting)' } ],
+  verge:   [ { id:'barge', label:'Barge / verge' }, { id:'hipped', label:'Hipped end' } ],
+  ridge:   [ { id:'standard', label:'Standard ridge' }, { id:'lowpitch', label:'Low-pitch oversized' },
+             { id:'mono', label:'Mono ridge' }, { id:'hip', label:'Hip line' } ],
+  parapet: [ { id:'capping', label:'Capping and coping' }, { id:'cavitytray', label:'Cavity tray' },
+             { id:'upstand', label:'Upstand to higher wall' }, { id:'stepped', label:'Stepped flashing' } ]
+};
+var FP_ROLE_LABEL = { eaves:'Eaves', verge:'Verge', parapet:'Parapet / abutment', ridge:'Ridge' };
+var FP_ROLE_OVERRIDE = ['eaves','verge','parapet'];   // roles the surveyor can switch a perimeter edge to
+var FP_RIDGE_FORMS = ['duo-pitch','mono','hipped','half-hipped'];   // forms that carry an internal ridge line
+function fpCondLabel(role, id){ var s = (FP_COND[role] || []).filter(function(o){ return o.id === id; })[0]; return s ? s.label : null; }
+// compact label for the on-plan chip
+function fpChipShort(s){
+  s = String(s);
+  if (s.indexOf('No gutter') === 0) return 'No gutter';
+  return s.replace(' or box gutter', ' box').replace(' gutter', '').replace(' end', '').replace(' flashing', '')
+    .replace(' and coping', '').replace(' to higher wall', '').replace(' / verge', '').replace(' / abutment', '');
+}
+
+// --- geometry helpers ---
+function fpBBox(fp){
+  var xs = fp.corners.map(function(c){ return c.x; }), ys = fp.corners.map(function(c){ return c.y; });
+  var minx = Math.min.apply(null, xs), maxx = Math.max.apply(null, xs), miny = Math.min.apply(null, ys), maxy = Math.max.apply(null, ys);
+  return { minx:minx, miny:miny, maxx:maxx, maxy:maxy, w:maxx - minx, h:maxy - miny };
+}
+function fpCentroid(fp){
+  var sx = 0, sy = 0, n = fp.corners.length;
+  fp.corners.forEach(function(c){ sx += c.x; sy += c.y; });
+  return { x: sx / n, y: sy / n };
+}
+function fpEdgeMid(fp, i){ var c = fp.corners[i], n = fp.corners[(i + 1) % fp.corners.length]; return { x:(c.x + n.x) / 2, y:(c.y + n.y) / 2 }; }
+function fpEdgeLenUnits(fp, i){ var c = fp.corners[i], n = fp.corners[(i + 1) % fp.corners.length]; return Math.sqrt((n.x - c.x) * (n.x - c.x) + (n.y - c.y) * (n.y - c.y)); }
+function fpEdgeIsHoriz(fp, i){ var c = fp.corners[i], n = fp.corners[(i + 1) % fp.corners.length]; return Math.abs(n.x - c.x) >= Math.abs(n.y - c.y); }
+// chip position: edge midpoint pushed OUTWARD (away from the centroid) so the chip
+// sits outside the polygon, clear of the corner handles that sit on the vertices.
+function fpChipPos(fp, i){
+  var m = fpEdgeMid(fp, i), ctr = fpCentroid(fp);
+  var dx = m.x - ctr.x, dy = m.y - ctr.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+  var off = 24;
+  return { x: Math.max(10, Math.min(290, m.x + dx / d * off)), y: Math.max(10, Math.min(290, m.y + dy / d * off)) };
+}
+
+// form-to-edge-role mapping: EAVES = edges parallel to the building's long axis
+// (gutters run along them); VERGE = the perpendicular gable ends. Flat/multi-bay
+// default all edges to eaves. The surveyor can re-role any edge in its sheet
+// (e.g. an abutting wall becomes Parapet). Stored role wins over the default.
+function fpDefaultRole(fp, i, form){
+  if (form === 'flat' || form === 'multi-bay') return 'eaves';
+  var bb = fpBBox(fp);
+  var longAxisX = bb.w >= bb.h;
+  var horiz = fpEdgeIsHoriz(fp, i);
+  var parallelToLong = (longAxisX && horiz) || (!longAxisX && !horiz);
+  return parallelToLong ? 'eaves' : 'verge';
+}
+function fpEdgeRole(fp, edge, i, form){ return (edge && edge.role) ? edge.role : fpDefaultRole(fp, i, form); }
+// the metres-run label for an edge's role
+function fpEdgeRunLabel(role){ return role === 'eaves' ? 'Eaves length' : role === 'verge' ? 'Verge (rake) length' : 'Edge length'; }
+
+// internal ridge line endpoints (along the long axis, at the perpendicular centre)
+function fpRidgeLine(fp){
+  var bb = fpBBox(fp), inset = 22;
+  if (bb.w >= bb.h){ var y = (bb.miny + bb.maxy) / 2; return { x1: bb.minx + inset, y1: y, x2: bb.maxx - inset, y2: y }; }
+  var x = (bb.minx + bb.maxx) / 2; return { x1: x, y1: bb.miny + inset, x2: x, y2: bb.maxy - inset };
+}
+
+// --- the simple, honest single-building runs (metres). Curved edges excluded. ---
+function fpRuns(survey){
+  var b = fpBuilding(survey), fp = fpFootprint(survey); if (!fp) return null;
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var d = (b && b.datum) || {};
+  var perimeter = 0, gutterRun = 0, vergeCount = 0, keyedEdges = 0;
+  (fp.edges || []).forEach(function(e, i){
+    if (e.type === 'curved') return;
+    var L = srNum(e.lengthM);
+    if (L != null){ perimeter += L; keyedEdges++; }
+    var role = fpEdgeRole(fp, e, i, form);
+    if (role === 'eaves' && L != null && e.cond && e.cond !== 'none') gutterRun += L;   // party/abutting suppresses the gutter
+    if (role === 'verge') vergeCount++;
+  });
+  var span = srNum(d.spanM), eh = srNum(d.eavesHeightM), rh = srNum(d.ridgeHeightM);
+  var rake = (span != null && eh != null && rh != null) ? Math.sqrt((rh - eh) * (rh - eh) + span * span) : null;
+  var ridge = (b && b.ridge) || {};
+  var ridgeRun = (ridge.cond === 'standard' || ridge.cond === 'mono') ? srNum(ridge.lengthM) : null;
+  return { perimeter: keyedEdges ? perimeter : null, gutterRun: gutterRun || null, rake: rake, vergeCount: vergeCount, ridgeRun: ridgeRun, keyedEdges: keyedEdges, totalEdges: (fp.edges || []).length };
+}
+function fpM(n){ return (n == null) ? '—' : (Math.round(n * 100) / 100) + ' m'; }
+
+// --- edge sheet / ridge sheet / keypad / datum handlers ---
+function fpOpenEdge(i){ fpEdgeSheet = i; fpKeypad = null; fpRender(); }
+function fpOpenRidge(){ fpEdgeSheet = 'ridge'; fpKeypad = null; fpRender(); }
+function fpCloseSheet(){ fpEdgeSheet = null; fpKeypad = null; fpRender(); }
+function fpSetRole(i, role){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  var e = fp.edges[i]; if (!e) return;
+  e.role = role;
+  // clear a condition that no longer belongs to the new role
+  if (e.cond && !fpCondLabel(role, e.cond)) e.cond = null;
+  srPersist(survey); fpRender();
+}
+function fpSetCond(i, id){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  var e = fp.edges[i]; if (!e) return;
+  e.cond = (e.cond === id) ? null : id;   // tap again to clear
+  srPersist(survey); fpRender();
+}
+function fpClearCond(i){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  if (fp.edges[i]) fp.edges[i].cond = null;
+  srPersist(survey); fpRender();
+}
+function fpSetRidgeCond(id){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); if (!b) return;
+  if (!b.ridge) b.ridge = { cond:null, lengthM:null };
+  b.ridge.cond = (b.ridge.cond === id) ? null : id;
+  srPersist(survey); fpRender();
+}
+function fpAddCornerFromSheet(i){ fpEdgeSheet = null; fpInsertCorner(i); }   // fold the old standalone + into the sheet
+// keypad
+function fpOpenKeypad(kind, i, field, title, unit, current){
+  fpKeypad = { kind: kind, i: i, field: field, title: title, unit: unit || 'm', value: (current != null ? String(current) : '') };
+  fpRender();
+}
+function fpKeypadPress(k){
+  if (!fpKeypad) return;
+  if (k === 'del') fpKeypad.value = fpKeypad.value.slice(0, -1);
+  else if (k === '.'){ if (fpKeypad.value.indexOf('.') < 0) fpKeypad.value += (fpKeypad.value === '' ? '0.' : '.'); }
+  else fpKeypad.value += k;
+  var disp = document.getElementById('fp-kp-val'); if (disp) disp.textContent = (fpKeypad.value || '0');
+}
+function fpKeypadDone(){
+  if (!fpKeypad) return;
+  var v = srNum(fpKeypad.value);
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); var b = fpBuilding(survey);
+  if (fpKeypad.kind === 'edge' && fp && fp.edges[fpKeypad.i]) fp.edges[fpKeypad.i].lengthM = v;
+  else if (fpKeypad.kind === 'ridge' && b){ if (!b.ridge) b.ridge = { cond:null, lengthM:null }; b.ridge.lengthM = v; }
+  else if (fpKeypad.kind === 'datum' && b){ if (!b.datum) b.datum = {}; b.datum[fpKeypad.field] = v; }
+  srPersist(survey); fpKeypad = null; fpRender();
+}
+function fpKeypadCancel(){ fpKeypad = null; fpRender(); }
+
+// --- render helpers appended below the canvas ---
+function fpRenderEdgeSheet(survey){
+  if (fpEdgeSheet == null) return '';
+  var b = fpBuilding(survey), fp = fpFootprint(survey); if (!fp) return '';
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var h = '<div class="fp-sheet">';
+  if (fpEdgeSheet === 'ridge'){
+    var rc = (b && b.ridge) || {};
+    h += '<div class="fp-sheet-head"><span class="fp-sheet-title">Ridge &middot; roof line</span><button class="fp-sheet-x" onclick="fpCloseSheet()">Done</button></div>';
+    h += '<div class="fp-sheet-sub">Choose the ridge type. This is the only line offered here; nothing else.</div>';
+    h += '<div class="fp-opts">';
+    FP_COND.ridge.forEach(function(o){ h += '<button class="fp-opt' + (rc.cond === o.id ? ' on' : '') + '" onclick="fpSetRidgeCond(\'' + o.id + '\')">' + escapeHtml(o.label) + '</button>'; });
+    h += '</div>';
+    h += '<div class="fp-key-row"><span>Ridge run: <b>' + fpM(srNum(rc.lengthM)) + '</b></span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'ridge\',null,null,\'Ridge run\',\'m\',' + (srNum(rc.lengthM) != null ? rc.lengthM : 'null') + ')">Key dimension</button></div>';
+    return h + '</div>';
+  }
+  var i = fpEdgeSheet, e = fp.edges[i]; if (!e){ fpEdgeSheet = null; return ''; }
+  var role = fpEdgeRole(fp, e, i, form);
+  h += '<div class="fp-sheet-head"><span class="fp-sheet-title">Edge ' + (i + 1) + ' &middot; ' + escapeHtml(FP_ROLE_LABEL[role]) + '</span><button class="fp-sheet-x" onclick="fpCloseSheet()">Done</button></div>';
+  // role selector (default from geometry + form; override where the building abuts, etc.)
+  h += '<div class="fp-sheet-sub">This edge is a</div><div class="fp-roles">';
+  FP_ROLE_OVERRIDE.forEach(function(r){ h += '<button class="fp-role' + (role === r ? ' on' : '') + '" onclick="fpSetRole(' + i + ',\'' + r + '\')">' + escapeHtml(FP_ROLE_LABEL[r]) + '</button>'; });
+  h += '</div>';
+  // ONLY this role's condition options
+  h += '<div class="fp-sheet-sub">Set its condition</div><div class="fp-opts">';
+  (FP_COND[role] || []).forEach(function(o){ h += '<button class="fp-opt' + (e.cond === o.id ? ' on' : '') + '" onclick="fpSetCond(' + i + ',\'' + o.id + '\')">' + escapeHtml(o.label) + '</button>'; });
+  h += '</div>';
+  if (e.cond === 'none') h += '<div class="fp-note">Party / abutting: this edge is suppressed from the gutter run.</div>';
+  // hand-keyed run for this edge
+  h += '<div class="fp-key-row"><span>' + escapeHtml(fpEdgeRunLabel(role)) + ': <b>' + fpM(srNum(e.lengthM)) + '</b></span>' +
+    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'edge\',' + i + ',null,\'' + escapeHtml(fpEdgeRunLabel(role)) + '\',\'m\',' + (srNum(e.lengthM) != null ? e.lengthM : 'null') + ')">Key dimension</button></div>';
+  h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpAddCornerFromSheet(' + i + ')">Add a corner on this edge</button>' +
+    (e.cond ? '<button class="fp-sheet-2nd" onclick="fpClearCond(' + i + ')">Clear condition</button>' : '') + '</div>';
+  return h + '</div>';
+}
+function fpRenderKeypad(){
+  if (!fpKeypad) return '';
+  var keys = ['1','2','3','4','5','6','7','8','9','.','0','del'];
+  var h = '<div class="fp-keypad"><div class="fp-kp-head"><span class="fp-kp-title">' + escapeHtml(fpKeypad.title) + ' (' + escapeHtml(fpKeypad.unit) + ')</span>' +
+    '<span class="fp-kp-hint">Key the laser reading</span></div>';
+  h += '<div class="fp-kp-display"><span id="fp-kp-val">' + (escapeHtml(fpKeypad.value) || '0') + '</span><span class="fp-kp-unit">' + escapeHtml(fpKeypad.unit) + '</span></div>';
+  h += '<div class="fp-kp-grid">';
+  keys.forEach(function(k){ h += '<button class="fp-kp-key' + (k === 'del' ? ' fp-kp-del' : '') + '" onclick="fpKeypadPress(\'' + k + '\')">' + (k === 'del' ? '&#9003;' : k) + '</button>'; });
+  h += '</div><div class="fp-kp-actions"><button class="fp-kp-cancel" onclick="fpKeypadCancel()">Cancel</button><button class="fp-kp-done" onclick="fpKeypadDone()">Set dimension</button></div></div>';
+  return h;
+}
+function fpRenderDatum(survey){
+  var b = fpBuilding(survey); if (!b) return '';
+  var d = b.datum || {};
+  var rows = [
+    { f:'spanM', label:'Span (eaves to apex)' }, { f:'eavesHeightM', label:'Eaves height' },
+    { f:'ridgeHeightM', label:'Ridge height' }, { f:'widthM', label:'Building width' },
+    { f:'lengthM', label:'Building length / depth', neu:true }
+  ];
+  var h = '<div class="fp-datum"><div class="fp-tools-lbl">Keyed dimensions (m) &middot; laser, by hand</div><div class="fp-datum-rows">';
+  rows.forEach(function(r){
+    var v = srNum(d[r.f]);
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">' + escapeHtml(r.label) + (r.neu ? ' <span class="fp-new">new</span>' : '') + '</span>' +
+      '<span class="fp-datum-val">' + fpM(v) + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'datum\',null,\'' + r.f + '\',\'' + escapeHtml(r.label) + '\',\'m\',' + (v != null ? v : 'null') + ')">Key</button></div>';
+  });
+  h += '</div></div>';
+  return h;
+}
+function fpRenderRuns(survey){
+  var r = fpRuns(survey); if (!r) return '';
+  var cell = function(label, val, note){ return '<div class="fp-run"><span class="fp-run-lbl">' + escapeHtml(label) + '</span><span class="fp-run-val">' + val + '</span>' + (note ? '<span class="fp-run-note">' + escapeHtml(note) + '</span>' : '') + '</div>'; };
+  var h = '<div class="fp-runs"><div class="fp-tools-lbl">Computed runs &middot; the honest single-building subset</div><div class="fp-run-grid">';
+  h += cell('Eaves gutter run', fpM(r.gutterRun), 'sum of eaves edges with a gutter');
+  h += cell('Roof perimeter', fpM(r.perimeter), r.keyedEdges + ' of ' + r.totalEdges + ' edges keyed');
+  h += cell('Verge (rake) length', fpM(r.rake), r.vergeCount + ' verge edge' + (r.vergeCount === 1 ? '' : 's'));
+  h += cell('Ridge run', fpM(r.ridgeRun), 'when a standard / mono ridge is set');
+  h += '</div><div class="fp-run-foot">Valleys, bay repeats and areas come in later stages; nothing here feeds the estimate yet.</div></div>';
+  return h;
 }
 
 function buildPricingReturnWorkbook(model){
