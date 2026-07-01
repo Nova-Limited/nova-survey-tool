@@ -3872,11 +3872,14 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-draw-live { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
     #view-footprint .fp-draw-note { font-size: 12px; color: #8a898b; }
     #view-footprint .fp-clear-btn { font-size: 12px; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 8px 12px; cursor: pointer; color: #666; font-family: inherit; }
-    #view-footprint .fp-canvas-wrap { position: relative; border: 1px solid #e2e3e5; border-radius: 12px; overflow: hidden; background: #fbfbf9; max-width: 460px; }
+    /* touch-action:none on the WHOLE drawing region (wrap + svg + hit layer + handles)
+       so a gesture that begins anywhere on the canvas never pans or zooms the page on a
+       phone; the ontouchmove handler on the wrap is the belt-and-braces for iOS pinch. */
+    #view-footprint .fp-canvas-wrap { position: relative; border: 1px solid #e2e3e5; border-radius: 12px; overflow: hidden; background: #fbfbf9; max-width: 460px; touch-action: none; }
     #view-footprint .fp-svg { display: block; width: 100%; height: auto; touch-action: none; }
     /* HTML hit layer: real-px touch targets that DO NOT scale with the canvas, so
        every handle stays >= 44px on a phone even though the drawn dot is smaller. */
-    #view-footprint .fp-hit-layer { position: absolute; inset: 0; pointer-events: none; }
+    #view-footprint .fp-hit-layer { position: absolute; inset: 0; pointer-events: none; touch-action: none; }
     #view-footprint .fp-hit { position: absolute; width: 44px; height: 44px; transform: translate(-50%, -50%); border: none; background: transparent; padding: 0; margin: 0; pointer-events: auto; cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent; border-radius: 50%; }
     #view-footprint .fp-hit-corner:active { cursor: grabbing; }
     #view-footprint .fp-hit-corner.sel { background: rgba(247,144,30,0.14); }
@@ -9196,7 +9199,10 @@ function fpRender(){
 
   // canvas
   if (fp && fpSelected != null && (!fp.corners || fpSelected >= fp.corners.length)) fpSelected = null;   // clamp stale selection
-  h += '<div class="fp-canvas-wrap"><svg id="fp-svg" viewBox="0 0 300 300" class="fp-svg"' +
+  // ontouchmove preventDefault (non-passive, scoped to the canvas) stops the page
+  // panning/zooming for any gesture that starts on the drawing surface, while touches
+  // that begin outside the wrap never reach this handler so page scrolling still works.
+  h += '<div class="fp-canvas-wrap" ontouchmove="fpCanvasTouchMove(event)"><svg id="fp-svg" viewBox="0 0 300 300" class="fp-svg"' +
     (drawing ? ' onclick="fpCanvasClick(event)" style="cursor:crosshair;"' : '') + '>';
   // grid
   h += '<defs><pattern id="fp-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#efeee9" stroke-width="1"/></pattern></defs>';
@@ -9350,6 +9356,11 @@ function fpDropCollinear(q){
 }
 
 // --- corner drag / add / delete ---
+// Capture canvas gestures: a touchmove anywhere on the wrap cancels the page's native
+// pan / pinch-zoom so the shape stays put and only the grabbed corner moves. Bound on
+// the wrap element, so it only fires for touches that began on the drawing surface -
+// touches that start above or below the canvas never reach it and scroll normally.
+function fpCanvasTouchMove(evt){ if (evt && evt.cancelable) evt.preventDefault(); }
 function fpClientToVb(evt){
   var svg = document.getElementById('fp-svg'); if (!svg) return null;
   var pt = svg.createSVGPoint();
@@ -9357,7 +9368,11 @@ function fpClientToVb(evt){
   pt.x = t.clientX; pt.y = t.clientY;
   var m = svg.getScreenCTM(); if (!m) return null;
   var pr = pt.matrixTransform(m.inverse());
-  return { x: Math.max(0, Math.min(300, pr.x)), y: Math.max(0, Math.min(300, pr.y)) };
+  // Keep points a full handle-radius inside the canvas so a corner (esp. a freeform or
+  // dragged one) never lands ON the boundary where overflow:hidden would clip its 44px
+  // hit target and make it hard to grab. Presets are already well inset; this brings
+  // freeform to parity.
+  return { x: Math.max(20, Math.min(280, pr.x)), y: Math.max(20, Math.min(280, pr.y)) };
 }
 // A corner press begins a POTENTIAL drag; it only becomes a move once the pointer
 // travels past a small threshold. A press that releases in place is a TAP, which
