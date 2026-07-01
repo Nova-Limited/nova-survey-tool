@@ -3872,8 +3872,21 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-draw-live { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
     #view-footprint .fp-draw-note { font-size: 12px; color: #8a898b; }
     #view-footprint .fp-clear-btn { font-size: 12px; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 8px 12px; cursor: pointer; color: #666; font-family: inherit; }
-    #view-footprint .fp-canvas-wrap { border: 1px solid #e2e3e5; border-radius: 12px; overflow: hidden; background: #fbfbf9; max-width: 460px; }
+    #view-footprint .fp-canvas-wrap { position: relative; border: 1px solid #e2e3e5; border-radius: 12px; overflow: hidden; background: #fbfbf9; max-width: 460px; }
     #view-footprint .fp-svg { display: block; width: 100%; height: auto; touch-action: none; }
+    /* HTML hit layer: real-px touch targets that DO NOT scale with the canvas, so
+       every handle stays >= 44px on a phone even though the drawn dot is smaller. */
+    #view-footprint .fp-hit-layer { position: absolute; inset: 0; pointer-events: none; }
+    #view-footprint .fp-hit { position: absolute; width: 44px; height: 44px; transform: translate(-50%, -50%); border: none; background: transparent; padding: 0; margin: 0; pointer-events: auto; cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent; border-radius: 50%; }
+    #view-footprint .fp-hit-corner:active { cursor: grabbing; }
+    #view-footprint .fp-hit-corner.sel { background: rgba(247,144,30,0.14); }
+    #view-footprint .fp-hit-edge { cursor: copy; }
+    #view-footprint .fp-sel-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+    #view-footprint .fp-sel-row span { font-size: 12px; font-weight: 700; color: #b8700f; }
+    #view-footprint .fp-remove-btn { font-size: 12px; font-weight: 700; background: #fff; border: 1px solid #e6c4bd; color: #b23a2c; border-radius: 7px; padding: 8px 13px; min-height: 40px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-remove-btn:disabled { color: #c9b7b4; border-color: #eee; cursor: default; }
+    #view-footprint .fp-deselect-btn { font-size: 12px; background: #fff; border: 1px solid #d8d8d2; color: #666; border-radius: 7px; padding: 8px 12px; min-height: 40px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-hint-txt { font-size: 11.5px; color: #999; line-height: 1.5; }
     #view-footprint .fp-canvas-hint { font-size: 11.5px; color: #999; margin: 8px 0 4px; line-height: 1.5; max-width: 460px; }
     #view-footprint .fp-form-pills { display: flex; flex-wrap: wrap; gap: 7px; }
     #view-footprint .fp-form-pill { font-size: 12.5px; border: 1px solid #d8d8d2; border-radius: 16px; padding: 6px 13px; cursor: pointer; background: #fff; color: #434244; font-family: inherit; }
@@ -9059,7 +9072,8 @@ function pweRecompute(survey, routeId, elId, rowId){
 var fpCurrentId = null;
 var fpMode = 'edit';     // 'edit' | 'draw'
 var fpDrawPts = [];      // freeform points while drawing
-var fpDrag = null;       // { i, survey, fp } during a corner drag
+var fpDrag = null;       // { i, survey, fp, sx, sy, moved } during a corner drag
+var fpSelected = null;   // index of the tapped/selected corner (for select-then-remove)
 
 // preset polygons in the 0..300 canvas viewBox (corners as [x,y] pairs)
 var FP_PRESETS = {
@@ -9094,7 +9108,7 @@ function fpPointsStr(fp){ return (fp.corners || []).map(function(c){ return (Mat
 
 function fpOpen(id){
   fpCurrentId = id || currentSurveyId;
-  fpMode = 'edit'; fpDrawPts = []; fpDrag = null;
+  fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null;
   if (typeof showView === 'function') showView('footprint');
   fpRender();
 }
@@ -9126,12 +9140,13 @@ function fpRender(){
   h += '</div>';
 
   // canvas
-  h += '<div class="fp-canvas-wrap"><svg id="fp-svg" viewBox="0 0 300 300" class="fp-svg" ' +
-    'onpointermove="fpCanvasMove(event)" onpointerup="fpCanvasUp(event)" onpointerleave="fpCanvasUp(event)"' +
+  if (fp && fpSelected != null && (!fp.corners || fpSelected >= fp.corners.length)) fpSelected = null;   // clamp stale selection
+  h += '<div class="fp-canvas-wrap"><svg id="fp-svg" viewBox="0 0 300 300" class="fp-svg"' +
     (drawing ? ' onclick="fpCanvasClick(event)" style="cursor:crosshair;"' : '') + '>';
   // grid
   h += '<defs><pattern id="fp-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#efeee9" stroke-width="1"/></pattern></defs>';
   h += '<rect x="0" y="0" width="300" height="300" fill="url(#fp-grid)"/>';
+  var hit = '';   // HTML overlay: real-px hit targets, scale-independent
 
   if (drawing){
     if (fpDrawPts.length){
@@ -9142,31 +9157,48 @@ function fpRender(){
     }
   } else if (fp && fp.corners && fp.corners.length >= 3){
     h += '<polygon id="fp-poly" points="' + fpPointsStr(fp) + '" fill="rgba(247,144,30,0.10)" stroke="#F7901E" stroke-width="2" stroke-linejoin="round"/>';
-    // edge-midpoint insert handles
+    // edge-midpoint insert marks + hit targets - ONLY on edges long enough that a
+    // 44px + target cannot crowd a corner (short step/junction edges get no +, so the
+    // corner there stays the single, unambiguous target).
     fp.corners.forEach(function(c, i){
       var n = fp.corners[(i + 1) % fp.corners.length];
       var mx = (c.x + n.x) / 2, my = (c.y + n.y) / 2;
-      h += '<g class="fp-ins" onclick="fpInsertCorner(' + i + ')" style="cursor:copy;"><circle cx="' + mx + '" cy="' + my + '" r="7" fill="#fff" stroke="#d9b487" stroke-width="1.2"/>' +
-        '<text x="' + mx + '" y="' + (my + 3.2) + '" text-anchor="middle" font-size="11" fill="#c07a1c" font-family="Helvetica,Arial,sans-serif">+</text></g>';
+      var len = Math.sqrt((n.x - c.x) * (n.x - c.x) + (n.y - c.y) * (n.y - c.y));
+      // suppress the + unless the edge is long enough that its midpoint sits a full
+      // thumb-width clear of BOTH end corners (midpoint is len/2 from each; ~50 units
+      // maps to ~58px on a 390px phone), so no + ever crowds a corner at a junction.
+      if (len < 100) return;
+      h += '<circle cx="' + mx + '" cy="' + my + '" r="7" fill="#fff" stroke="#d9b487" stroke-width="1.2" pointer-events="none"/>' +
+        '<text x="' + mx + '" y="' + (my + 3.2) + '" text-anchor="middle" font-size="11" fill="#c07a1c" font-family="Helvetica,Arial,sans-serif" pointer-events="none">+</text>';
+      hit += '<button class="fp-hit fp-hit-edge" style="left:' + (mx / 3) + '%;top:' + (my / 3) + '%;" title="Add a corner here" aria-label="Add a corner on this edge" onclick="fpInsertCorner(' + i + ')"></button>';
     });
-    // corner handles (draggable) + delete dots
+    // corner marks (small, decorative) + selected ring; the tappable area is the overlay
     fp.corners.forEach(function(c, i){
-      h += '<circle id="fp-c-' + i + '" cx="' + c.x + '" cy="' + c.y + '" r="9" fill="#fff" stroke="#F7901E" stroke-width="2.5" style="cursor:grab;" onpointerdown="fpCornerDown(event,' + i + ')"/>';
-      if (fp.corners.length > 3){
-        h += '<g id="fp-d-g-' + i + '" onclick="fpDeleteCorner(' + i + ')" style="cursor:pointer;"><circle id="fp-d-' + i + '" cx="' + (c.x + 12) + '" cy="' + (c.y - 12) + '" r="6.5" fill="#b23a2c"/>' +
-          '<text x="' + (c.x + 12) + '" y="' + (c.y - 12 + 3.2) + '" text-anchor="middle" font-size="10" fill="#fff" font-family="Helvetica,Arial,sans-serif">&#215;</text></g>';
-      }
+      var sel = (fpSelected === i);
+      if (sel) h += '<circle cx="' + c.x + '" cy="' + c.y + '" r="16" fill="none" stroke="#F7901E" stroke-width="1.6" stroke-dasharray="3 3" pointer-events="none"/>';
+      h += '<circle id="fp-cv-' + i + '" cx="' + c.x + '" cy="' + c.y + '" r="8" fill="#fff" stroke="#F7901E" stroke-width="2.5" pointer-events="none"/>';
+      hit += '<button id="fp-hit-c-' + i + '" class="fp-hit fp-hit-corner' + (sel ? ' sel' : '') + '" style="left:' + (c.x / 3) + '%;top:' + (c.y / 3) + '%;" aria-label="Corner ' + (i + 1) + ' - drag to move, tap to select" ' +
+        'onpointerdown="fpCornerDown(event,' + i + ')" onpointermove="fpCornerMove(event)" onpointerup="fpCornerUp(event)"></button>';
     });
   } else {
     h += '<text x="150" y="145" text-anchor="middle" fill="#b8b8b4" font-size="13" font-family="Helvetica,Arial,sans-serif">Pick a quick-start shape above,</text>' +
       '<text x="150" y="165" text-anchor="middle" fill="#b8b8b4" font-size="13" font-family="Helvetica,Arial,sans-serif">or draw a rough outline.</text>';
   }
-  h += '</svg></div>';
+  h += '</svg>';
+  if (hit) h += '<div class="fp-hit-layer">' + hit + '</div>';
+  h += '</div>';
 
-  // corner count + hint
+  // select-then-remove controls + hint (delete is a deliberate two-step, never an
+  // always-on dot beside the corner, so move and delete cannot be confused).
   if (fp && !drawing){
-    h += '<div class="fp-canvas-hint">Drag a corner to move it &middot; tap <b>+</b> on an edge to add a corner &middot; tap a corner&rsquo;s red dot to remove it. ' +
-      (fp.corners.length) + ' corners, ' + fp.edges.length + ' straight edges.</div>';
+    h += '<div class="fp-canvas-hint">';
+    if (fpSelected != null){
+      h += '<div class="fp-sel-row"><span>Corner ' + (fpSelected + 1) + ' selected</span>' +
+        '<button class="fp-remove-btn"' + (fp.corners.length <= 3 ? ' disabled title="A footprint needs at least three corners"' : '') + ' onclick="fpRemoveSelected()">Remove corner</button>' +
+        '<button class="fp-deselect-btn" onclick="fpDeselect()">Done</button></div>';
+    }
+    h += '<div class="fp-hint-txt">Drag a corner to move it &middot; tap a corner to select it, then <b>Remove</b> &middot; tap <b>+</b> on an edge to add one. ' +
+      (fp.corners.length) + ' corners, ' + fp.edges.length + ' straight edges.</div></div>';
   }
 
   // roof form picker
@@ -9198,10 +9230,10 @@ function fpPreset(k){
   var b = fpEnsureBuilding(survey);
   b.footprint = fpFromCorners(FP_PRESETS[k]);
   b.footprintPreset = k;
-  fpMode = 'edit'; fpDrawPts = [];
+  fpMode = 'edit'; fpDrawPts = []; fpSelected = null;
   srPersist(survey); fpRender();
 }
-function fpStartDraw(){ fpMode = 'draw'; fpDrawPts = []; fpRender(); }
+function fpStartDraw(){ fpMode = 'draw'; fpDrawPts = []; fpSelected = null; fpRender(); }
 function fpClearDraw(){ fpMode = 'edit'; fpDrawPts = []; fpRender(); }
 function fpCanvasClick(evt){
   if (fpMode !== 'draw') return;
@@ -9218,7 +9250,7 @@ function fpTidy(){
   var b = fpEnsureBuilding(survey);
   b.footprint = { corners: tidy, edges: fpMakeEdges(tidy.length) };
   b.footprintPreset = 'freeform';
-  fpMode = 'edit'; fpDrawPts = [];
+  fpMode = 'edit'; fpDrawPts = []; fpSelected = null;
   srPersist(survey); fpRender();
 }
 function fpTidyPoints(pts){
@@ -9259,40 +9291,55 @@ function fpClientToVb(evt){
   var pr = pt.matrixTransform(m.inverse());
   return { x: Math.max(0, Math.min(300, pr.x)), y: Math.max(0, Math.min(300, pr.y)) };
 }
+// A corner press begins a POTENTIAL drag; it only becomes a move once the pointer
+// travels past a small threshold. A press that releases in place is a TAP, which
+// selects the corner (so Remove can act on it). Move and delete are therefore
+// reliably distinct on a single finger.
 function fpCornerDown(evt, i){
   evt.preventDefault(); evt.stopPropagation();
   var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
-  fpDrag = { i: i, survey: survey, fp: fp };
-  try { evt.target.setPointerCapture && evt.target.setPointerCapture(evt.pointerId); } catch (e) {}
+  fpDrag = { i: i, survey: survey, fp: fp, sx: evt.clientX, sy: evt.clientY, moved: false };
+  try { evt.currentTarget.setPointerCapture && evt.currentTarget.setPointerCapture(evt.pointerId); } catch (e) {}
 }
-function fpCanvasMove(evt){
+function fpCornerMove(evt){
   if (!fpDrag) return;
+  var dx = evt.clientX - fpDrag.sx, dy = evt.clientY - fpDrag.sy;
+  if (!fpDrag.moved && (dx * dx + dy * dy) < 36) return;   // < 6px travel: still a tap, not a drag
+  fpDrag.moved = true;
   var p = fpClientToVb(evt); if (!p) return;
   fpDrag.fp.corners[fpDrag.i] = { x: p.x, y: p.y };
   var poly = document.getElementById('fp-poly'); if (poly) poly.setAttribute('points', fpPointsStr(fpDrag.fp));
-  var c = document.getElementById('fp-c-' + fpDrag.i); if (c){ c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); }
-  var dg = document.getElementById('fp-d-' + fpDrag.i); if (dg){ dg.setAttribute('cx', p.x + 12); dg.setAttribute('cy', p.y - 12); }
+  var cv = document.getElementById('fp-cv-' + fpDrag.i); if (cv){ cv.setAttribute('cx', p.x); cv.setAttribute('cy', p.y); }
+  var hb = document.getElementById('fp-hit-c-' + fpDrag.i); if (hb){ hb.style.left = (p.x / 3) + '%'; hb.style.top = (p.y / 3) + '%'; }
 }
-function fpCanvasUp(evt){
+function fpCornerUp(evt){
   if (!fpDrag) return;
-  // snap the released corner to the grid for clean coordinates
-  var G = 10, i = fpDrag.i, c = fpDrag.fp.corners[i];
-  fpDrag.fp.corners[i] = { x: Math.round(c.x / G) * G, y: Math.round(c.y / G) * G };
-  srPersist(fpDrag.survey);
+  var i = fpDrag.i, survey = fpDrag.survey, fp = fpDrag.fp, moved = fpDrag.moved;
   fpDrag = null;
-  fpRender();
+  if (moved){
+    var G = 10, c = fp.corners[i];
+    fp.corners[i] = { x: Math.round(c.x / G) * G, y: Math.round(c.y / G) * G };   // snap to grid
+    fpSelected = null; srPersist(survey); fpRender();
+  } else {
+    fpSelected = (fpSelected === i) ? null : i;   // tap toggles selection
+    fpRender();
+  }
 }
+function fpDeselect(){ fpSelected = null; fpRender(); }
+function fpRemoveSelected(){ if (fpSelected == null) return; var i = fpSelected; fpSelected = null; fpDeleteCorner(i); }
 function fpInsertCorner(edgeIndex){
   var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
   var c = fp.corners[edgeIndex], n = fp.corners[(edgeIndex + 1) % fp.corners.length];
   fp.corners.splice(edgeIndex + 1, 0, { x: (c.x + n.x) / 2, y: (c.y + n.y) / 2 });
   fp.edges.splice(edgeIndex + 1, 0, { type:'straight', curvature:null });
+  fpSelected = null;   // indices shifted
   srPersist(survey); fpRender();
 }
 function fpDeleteCorner(i){
   var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
   if (fp.corners.length <= 3){ showToast('A footprint needs at least three corners.', 'err'); return; }
   fp.corners.splice(i, 1); fp.edges.splice(i, 1);
+  fpSelected = null;
   srPersist(survey); fpRender();
 }
 function fpSetForm(form){
