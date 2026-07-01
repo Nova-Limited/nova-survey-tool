@@ -3859,6 +3859,42 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <div id="proposal-body"></div>
     </div>
   </section>
+
+  <style id="fp-styles">
+    #view-footprint .fp-wrap { max-width: 640px; }
+    #view-footprint .fp-tools, #view-footprint .fp-forms { margin-bottom: 14px; }
+    #view-footprint .fp-tools-lbl { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #8a898b; margin-bottom: 8px; }
+    #view-footprint .fp-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    #view-footprint .fp-preset { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 78px; padding: 9px 4px; border: 1px solid #e2e3e5; border-radius: 9px; background: #fff; color: #434244; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 600; }
+    #view-footprint .fp-preset:hover { border-color: #F7901E; }
+    #view-footprint .fp-preset.on { border: 2px solid #F7901E; background: #fff7ef; color: #b8700f; }
+    #view-footprint .fp-draw-btn, #view-footprint .fp-tidy-btn { font-size: 12.5px; font-weight: 700; background: #F7901E; color: #1f1f1f; border: none; border-radius: 7px; padding: 9px 15px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-draw-live { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    #view-footprint .fp-draw-note { font-size: 12px; color: #8a898b; }
+    #view-footprint .fp-clear-btn { font-size: 12px; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 8px 12px; cursor: pointer; color: #666; font-family: inherit; }
+    #view-footprint .fp-canvas-wrap { border: 1px solid #e2e3e5; border-radius: 12px; overflow: hidden; background: #fbfbf9; max-width: 460px; }
+    #view-footprint .fp-svg { display: block; width: 100%; height: auto; touch-action: none; }
+    #view-footprint .fp-canvas-hint { font-size: 11.5px; color: #999; margin: 8px 0 4px; line-height: 1.5; max-width: 460px; }
+    #view-footprint .fp-form-pills { display: flex; flex-wrap: wrap; gap: 7px; }
+    #view-footprint .fp-form-pill { font-size: 12.5px; border: 1px solid #d8d8d2; border-radius: 16px; padding: 6px 13px; cursor: pointer; background: #fff; color: #434244; font-family: inherit; }
+    #view-footprint .fp-form-pill.on { background: #F7901E; border-color: #F7901E; color: #1f1f1f; font-weight: 700; }
+    #view-footprint .fp-form-pill .fp-later { font-size: 10px; color: #b06a1f; margin-left: 4px; }
+    #view-footprint .fp-form-pill.on .fp-later { color: #7a4a12; }
+    #view-footprint .fp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; }
+    #view-footprint .fp-place-btn { font-size: 14px; font-weight: 700; background: #434244; color: #fff; border: none; border-radius: 8px; padding: 11px 20px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-place-btn:disabled { background: #c9c8c5; cursor: default; }
+    #view-footprint .fp-actions-note { font-size: 11px; color: #999; max-width: 320px; line-height: 1.45; }
+  </style>
+  <section id="view-footprint" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <h1>Building footprint</h1>
+        <div class="meta">Draw the building as a footprint: pick a quick-start shape or draw a rough outline that tidies to squared corners, adjust the corners, then set the roof form. The plan is the surface. Straight edges this stage.</div>
+      </div>
+      <div id="footprint-body"></div>
+    </div>
+  </section>
 </main>
 
 <div id="modal-overlay" class="modal-overlay" hidden>
@@ -6903,6 +6939,7 @@ function renderSurveyDetail(s) {
         '<div class="act-group-label">The record</div>' +
         '<div class="act-group-btns">' +
           '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
+          '<button class="btn btn-secondary" onclick="fpOpen(currentSurveyId)">Footprint plan (beta)</button>' +
           '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
           calBtn +
           '<span id="sync-at-status" class="act-status"></span>' +
@@ -9006,6 +9043,270 @@ function pweRecompute(survey, routeId, elId, rowId){
   pweSet('np-pm-' + routeId, hd.worked ? (hd.perM2 != null ? proposalMoney(hd.perM2) + '/m² worked' : 'worked') : (proposalMoney(hd.indicativeRate) + '/m² indicative'));
   var bdg = document.getElementById('np-bdg-' + routeId);
   if (bdg){ bdg.textContent = hd.worked ? 'Worked estimate' : 'Indicative'; bdg.className = 'np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind'); }
+}
+
+// ===== NOVA SURVEY CAPTURE REBUILD - STAGE 1: FOOTPRINT DRAWING =============
+// The footprint drawing surface: pick a preset OR draw a rough outline that tidies
+// to clean straight edges and squared corners, adjust corners, pick the roof form,
+// then Place. STAGE 1 ONLY - straight edges are drawn; edge.type can hold 'curved'
+// and a curvature field for a later arc stage but no arc is drawn now. This surface
+// is ADDITIVE: it writes footprint/footprintPreset/roofForm onto the survey's first
+// building and never touches slopes, so surveyTotalRoofArea and every downstream
+// consumer (report, both ledgers, proposal, pack) are unaffected this stage. Nothing
+// reads the footprint for quantities yet - that is Stage 5. Canvas units are an
+// abstract 0..300 viewBox (not metres); real dimensions arrive in Stage 2.
+
+var fpCurrentId = null;
+var fpMode = 'edit';     // 'edit' | 'draw'
+var fpDrawPts = [];      // freeform points while drawing
+var fpDrag = null;       // { i, survey, fp } during a corner drag
+
+// preset polygons in the 0..300 canvas viewBox (corners as [x,y] pairs)
+var FP_PRESETS = {
+  rectangle: [[60,90],[240,90],[240,210],[60,210]],
+  L:         [[60,60],[180,60],[180,150],[240,150],[240,240],[60,240]],
+  T:         [[60,60],[240,60],[240,120],[180,120],[180,240],[120,240],[120,120],[60,120]],
+  U:         [[60,60],[120,60],[120,170],[180,170],[180,60],[240,60],[240,240],[60,240]],
+  stepped:   [[60,90],[170,90],[170,150],[240,150],[240,240],[60,240]]
+};
+var FP_PRESET_ORDER = ['rectangle','L','T','U','stepped'];
+var FP_PRESET_LABELS = { rectangle:'Rectangle', L:'L-shape', T:'T-shape', U:'U-shape', stepped:'Stepped' };
+var FP_FORMS = [
+  { id:'duo-pitch', label:'Duo-pitch' }, { id:'mono', label:'Mono' }, { id:'hipped', label:'Hipped' },
+  { id:'half-hipped', label:'Half-hipped' }, { id:'lean-to', label:'Lean-to' },
+  { id:'flat', label:'Flat', later:true }, { id:'multi-bay', label:'Multi-bay', later:true }
+];
+
+function fpMakeEdges(n){ var e = []; for (var i = 0; i < n; i++) e.push({ type:'straight', curvature:null }); return e; }
+function fpFromCorners(arr){ return { corners: arr.map(function(p){ return { x:p[0], y:p[1] }; }), edges: fpMakeEdges(arr.length) }; }
+function fpBuilding(survey){ return (survey && Array.isArray(survey.buildings) && survey.buildings.length) ? survey.buildings[0] : null; }
+function fpFootprint(survey){ var b = fpBuilding(survey); return b ? (b.footprint || null) : null; }
+// create buildings[0] on first draw so the footprint has a home; a blank building
+// has no slope dimensions, so surveyTotalRoofArea stays null and area is unaffected.
+function fpEnsureBuilding(survey){
+  if (!Array.isArray(survey.buildings)) survey.buildings = [];
+  if (!survey.buildings.length) survey.buildings.push(makeBlankBuilding('B1'));
+  var b = survey.buildings[0];
+  if (typeof b.roofForm !== 'string') b.roofForm = 'duo-pitch';
+  return b;
+}
+function fpPointsStr(fp){ return (fp.corners || []).map(function(c){ return (Math.round(c.x*10)/10) + ',' + (Math.round(c.y*10)/10); }).join(' '); }
+
+function fpOpen(id){
+  fpCurrentId = id || currentSurveyId;
+  fpMode = 'edit'; fpDrawPts = []; fpDrag = null;
+  if (typeof showView === 'function') showView('footprint');
+  fpRender();
+}
+
+function fpRender(){
+  var host = document.getElementById('footprint-body'); if (!host) return;
+  var survey = srLoadSurvey(fpCurrentId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var b = fpBuilding(survey);
+  var fp = fpFootprint(survey);
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var drawing = (fpMode === 'draw');
+
+  var h = '<div class="fp-wrap">';
+  // toolbar: presets + freeform
+  h += '<div class="fp-tools"><div class="fp-tools-lbl">Quick start</div><div class="fp-presets">';
+  FP_PRESET_ORDER.forEach(function(k){
+    var on = (b && b.footprintPreset === k && !drawing);
+    h += '<button class="fp-preset' + (on ? ' on' : '') + '" onclick="fpPreset(\'' + k + '\')">' + fpPresetGlyph(k) + '<span>' + FP_PRESET_LABELS[k] + '</span></button>';
+  });
+  h += '</div>';
+  if (!drawing){
+    h += '<button class="fp-draw-btn" onclick="fpStartDraw()">' + (fp ? 'Redraw freeform' : 'Draw freeform') + '</button>';
+  } else {
+    h += '<div class="fp-draw-live"><span class="fp-draw-note">Tap the canvas to drop points around the outline, then Tidy.</span>' +
+      '<button class="fp-tidy-btn" onclick="fpTidy()">Tidy to squared edges</button>' +
+      '<button class="fp-clear-btn" onclick="fpClearDraw()">Cancel</button></div>';
+  }
+  h += '</div>';
+
+  // canvas
+  h += '<div class="fp-canvas-wrap"><svg id="fp-svg" viewBox="0 0 300 300" class="fp-svg" ' +
+    'onpointermove="fpCanvasMove(event)" onpointerup="fpCanvasUp(event)" onpointerleave="fpCanvasUp(event)"' +
+    (drawing ? ' onclick="fpCanvasClick(event)" style="cursor:crosshair;"' : '') + '>';
+  // grid
+  h += '<defs><pattern id="fp-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#efeee9" stroke-width="1"/></pattern></defs>';
+  h += '<rect x="0" y="0" width="300" height="300" fill="url(#fp-grid)"/>';
+
+  if (drawing){
+    if (fpDrawPts.length){
+      h += '<polyline points="' + fpDrawPts.map(function(p){ return p.x + ',' + p.y; }).join(' ') + '" fill="rgba(247,144,30,0.06)" stroke="#F7901E" stroke-width="1.5" stroke-dasharray="4 3"/>';
+      fpDrawPts.forEach(function(p){ h += '<circle cx="' + p.x + '" cy="' + p.y + '" r="4" fill="#F7901E"/>'; });
+    } else {
+      h += '<text x="150" y="150" text-anchor="middle" fill="#b8b8b4" font-size="13" font-family="Helvetica,Arial,sans-serif">Tap to start the outline</text>';
+    }
+  } else if (fp && fp.corners && fp.corners.length >= 3){
+    h += '<polygon id="fp-poly" points="' + fpPointsStr(fp) + '" fill="rgba(247,144,30,0.10)" stroke="#F7901E" stroke-width="2" stroke-linejoin="round"/>';
+    // edge-midpoint insert handles
+    fp.corners.forEach(function(c, i){
+      var n = fp.corners[(i + 1) % fp.corners.length];
+      var mx = (c.x + n.x) / 2, my = (c.y + n.y) / 2;
+      h += '<g class="fp-ins" onclick="fpInsertCorner(' + i + ')" style="cursor:copy;"><circle cx="' + mx + '" cy="' + my + '" r="7" fill="#fff" stroke="#d9b487" stroke-width="1.2"/>' +
+        '<text x="' + mx + '" y="' + (my + 3.2) + '" text-anchor="middle" font-size="11" fill="#c07a1c" font-family="Helvetica,Arial,sans-serif">+</text></g>';
+    });
+    // corner handles (draggable) + delete dots
+    fp.corners.forEach(function(c, i){
+      h += '<circle id="fp-c-' + i + '" cx="' + c.x + '" cy="' + c.y + '" r="9" fill="#fff" stroke="#F7901E" stroke-width="2.5" style="cursor:grab;" onpointerdown="fpCornerDown(event,' + i + ')"/>';
+      if (fp.corners.length > 3){
+        h += '<g id="fp-d-g-' + i + '" onclick="fpDeleteCorner(' + i + ')" style="cursor:pointer;"><circle id="fp-d-' + i + '" cx="' + (c.x + 12) + '" cy="' + (c.y - 12) + '" r="6.5" fill="#b23a2c"/>' +
+          '<text x="' + (c.x + 12) + '" y="' + (c.y - 12 + 3.2) + '" text-anchor="middle" font-size="10" fill="#fff" font-family="Helvetica,Arial,sans-serif">&#215;</text></g>';
+      }
+    });
+  } else {
+    h += '<text x="150" y="145" text-anchor="middle" fill="#b8b8b4" font-size="13" font-family="Helvetica,Arial,sans-serif">Pick a quick-start shape above,</text>' +
+      '<text x="150" y="165" text-anchor="middle" fill="#b8b8b4" font-size="13" font-family="Helvetica,Arial,sans-serif">or draw a rough outline.</text>';
+  }
+  h += '</svg></div>';
+
+  // corner count + hint
+  if (fp && !drawing){
+    h += '<div class="fp-canvas-hint">Drag a corner to move it &middot; tap <b>+</b> on an edge to add a corner &middot; tap a corner&rsquo;s red dot to remove it. ' +
+      (fp.corners.length) + ' corners, ' + fp.edges.length + ' straight edges.</div>';
+  }
+
+  // roof form picker
+  h += '<div class="fp-forms"><div class="fp-tools-lbl">Roof form</div><div class="fp-form-pills">';
+  FP_FORMS.forEach(function(f){
+    var on = (form === f.id);
+    h += '<button class="fp-form-pill' + (on ? ' on' : '') + (f.later ? ' later' : '') + '" onclick="fpSetForm(\'' + f.id + '\')">' + escapeHtml(f.label) + (f.later ? ' <span class="fp-later">opens more later</span>' : '') + '</button>';
+  });
+  h += '</div></div>';
+
+  // place / done
+  h += '<div class="fp-actions">' +
+    '<button class="fp-place-btn"' + (fp ? '' : ' disabled') + ' onclick="fpPlace()">Place footprint</button>' +
+    '<span class="fp-actions-note">Straight edges this stage. Curved edges, real dimensions, edge conditions and features come next; nothing here changes your roof area yet.</span></div>';
+
+  h += '</div>';
+  host.innerHTML = h;
+}
+
+function fpPresetGlyph(k){
+  var d = { rectangle:'M4 5H16V13H4Z', L:'M4 3H11V9H16V15H4Z', T:'M3 3H15V7H11V15H7V7H3Z', U:'M3 3H6V11H12V3H15V15H3Z', stepped:'M4 5H11V9H16V15H4Z' }[k] || '';
+  return '<svg viewBox="0 0 19 18" width="24" height="22" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+}
+
+// --- preset + freeform ---
+function fpPreset(k){
+  if (!FP_PRESETS[k]) return;
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpEnsureBuilding(survey);
+  b.footprint = fpFromCorners(FP_PRESETS[k]);
+  b.footprintPreset = k;
+  fpMode = 'edit'; fpDrawPts = [];
+  srPersist(survey); fpRender();
+}
+function fpStartDraw(){ fpMode = 'draw'; fpDrawPts = []; fpRender(); }
+function fpClearDraw(){ fpMode = 'edit'; fpDrawPts = []; fpRender(); }
+function fpCanvasClick(evt){
+  if (fpMode !== 'draw') return;
+  var p = fpClientToVb(evt); if (!p) return;
+  fpDrawPts.push({ x: Math.round(p.x), y: Math.round(p.y) });
+  fpRender();
+}
+// tidy a rough outline to a rectilinear polygon with squared corners
+function fpTidy(){
+  var pts = fpDrawPts.slice();
+  var tidy = fpTidyPoints(pts);
+  if (!tidy){ showToast('Add at least three points around the outline, then Tidy.', 'err'); return; }
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpEnsureBuilding(survey);
+  b.footprint = { corners: tidy, edges: fpMakeEdges(tidy.length) };
+  b.footprintPreset = 'freeform';
+  fpMode = 'edit'; fpDrawPts = [];
+  srPersist(survey); fpRender();
+}
+function fpTidyPoints(pts){
+  var G = 20;
+  var p = pts.map(function(a){ return { x: Math.round(a.x / G) * G, y: Math.round(a.y / G) * G }; });
+  var q = [];
+  for (var i = 0; i < p.length; i++){ var prev = q[q.length - 1]; if (!prev || prev.x !== p[i].x || prev.y !== p[i].y) q.push(p[i]); }
+  if (q.length > 1){ var f = q[0], l = q[q.length - 1]; if (f.x === l.x && f.y === l.y) q.pop(); }
+  if (q.length < 3) return null;
+  // axis-align each edge to horizontal or vertical (dominant delta wins)
+  for (var j = 0; j < q.length - 1; j++){
+    var a = q[j], bb = q[j + 1];
+    if (Math.abs(bb.x - a.x) >= Math.abs(bb.y - a.y)) bb.y = a.y; else bb.x = a.x;
+  }
+  // rectilinear closure: if last and first differ on both axes, insert a squared corner
+  var last = q[q.length - 1], first = q[0];
+  if (last.x !== first.x && last.y !== first.y) q.push({ x: first.x, y: last.y });
+  q = fpDropCollinear(q);
+  return q.length >= 3 ? q : null;
+}
+function fpDropCollinear(q){
+  var out = [], n = q.length;
+  for (var i = 0; i < n; i++){
+    var prev = q[(i - 1 + n) % n], cur = q[i], next = q[(i + 1) % n];
+    if ((prev.x === cur.x && cur.x === next.x) || (prev.y === cur.y && cur.y === next.y)) continue;  // redundant point on a straight run
+    out.push(cur);
+  }
+  return out.length >= 3 ? out : q;
+}
+
+// --- corner drag / add / delete ---
+function fpClientToVb(evt){
+  var svg = document.getElementById('fp-svg'); if (!svg) return null;
+  var pt = svg.createSVGPoint();
+  var t = (evt.touches && evt.touches[0]) || evt;
+  pt.x = t.clientX; pt.y = t.clientY;
+  var m = svg.getScreenCTM(); if (!m) return null;
+  var pr = pt.matrixTransform(m.inverse());
+  return { x: Math.max(0, Math.min(300, pr.x)), y: Math.max(0, Math.min(300, pr.y)) };
+}
+function fpCornerDown(evt, i){
+  evt.preventDefault(); evt.stopPropagation();
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  fpDrag = { i: i, survey: survey, fp: fp };
+  try { evt.target.setPointerCapture && evt.target.setPointerCapture(evt.pointerId); } catch (e) {}
+}
+function fpCanvasMove(evt){
+  if (!fpDrag) return;
+  var p = fpClientToVb(evt); if (!p) return;
+  fpDrag.fp.corners[fpDrag.i] = { x: p.x, y: p.y };
+  var poly = document.getElementById('fp-poly'); if (poly) poly.setAttribute('points', fpPointsStr(fpDrag.fp));
+  var c = document.getElementById('fp-c-' + fpDrag.i); if (c){ c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); }
+  var dg = document.getElementById('fp-d-' + fpDrag.i); if (dg){ dg.setAttribute('cx', p.x + 12); dg.setAttribute('cy', p.y - 12); }
+}
+function fpCanvasUp(evt){
+  if (!fpDrag) return;
+  // snap the released corner to the grid for clean coordinates
+  var G = 10, i = fpDrag.i, c = fpDrag.fp.corners[i];
+  fpDrag.fp.corners[i] = { x: Math.round(c.x / G) * G, y: Math.round(c.y / G) * G };
+  srPersist(fpDrag.survey);
+  fpDrag = null;
+  fpRender();
+}
+function fpInsertCorner(edgeIndex){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  var c = fp.corners[edgeIndex], n = fp.corners[(edgeIndex + 1) % fp.corners.length];
+  fp.corners.splice(edgeIndex + 1, 0, { x: (c.x + n.x) / 2, y: (c.y + n.y) / 2 });
+  fp.edges.splice(edgeIndex + 1, 0, { type:'straight', curvature:null });
+  srPersist(survey); fpRender();
+}
+function fpDeleteCorner(i){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  if (fp.corners.length <= 3){ showToast('A footprint needs at least three corners.', 'err'); return; }
+  fp.corners.splice(i, 1); fp.edges.splice(i, 1);
+  srPersist(survey); fpRender();
+}
+function fpSetForm(form){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpEnsureBuilding(survey);
+  b.roofForm = form;
+  srPersist(survey); fpRender();
+}
+function fpPlace(){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey);
+  if (!fp){ showToast('Pick a shape or draw an outline first.', 'err'); return; }
+  var b = fpBuilding(survey);
+  showToast('Footprint placed - ' + fp.corners.length + ' corners, ' + (b.roofForm || 'duo-pitch') + '.', 'ok');
+  if (typeof showView === 'function') showView('detail');
 }
 
 function buildPricingReturnWorkbook(model){
@@ -12511,7 +12812,13 @@ function makeBlankSlope(id) {
   return { id: id || 'S1', pitch: 'Pitched', length: '', span: '', eaves: '', ridge: '', roofType: '', notes: '' };
 }
 function makeBlankBuilding(id) {
-  return { id, name: '', slopeCount: 2, allEqual: true, widthM: null, slopes: [makeBlankSlope('S1')] };
+  // footprint / footprintPreset / roofForm are Stage-1 survey-capture-rebuild fields:
+  // ADDITIVE and OPTIONAL. footprint is a polygon (corners + per-edge type, straight|
+  // curved, curvature reserved for a later arc stage); null = legacy rectangle. roofForm
+  // records the building's form (duo-pitch default). None of these feed roof area yet -
+  // slopes remain the sole roof-area source - so existing surveys are unaffected.
+  return { id, name: '', slopeCount: 2, allEqual: true, widthM: null, slopes: [makeBlankSlope('S1')],
+    footprint: null, footprintPreset: null, roofForm: 'duo-pitch' };
 }
 
 // Calculations. All inputs may be strings (from form) or numbers (loaded).
@@ -13447,6 +13754,11 @@ function spNewFault(id, number, lat, lng) {
     sizeEach: '', sizeUnit: '', sizeUnitOther: '',
     faultImage: '', faultImageKey: '', faultImageW: 0, faultImageH: 0,
     faultMarkerX: null, faultMarkerY: null,
+    // Stage-1 survey-capture-rebuild: OPTIONAL point on a building footprint,
+    // { bi, x, y } in footprint canvas units. Null = no footprint location (the
+    // default). Plotting is built in Stage 4; the model only holds it now, and it
+    // never disturbs the existing lat/lng or faultMarkerX/Y placement.
+    footprintLoc: null,
     // When true the fault is logged but cannot be placed on the master
     // overview (interior, hidden under structure, etc). The report shows
     // it in the fault index flagged as "internal / not visible from
