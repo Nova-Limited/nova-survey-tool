@@ -9455,6 +9455,9 @@ function fpPlace(){
 //               spanM is the OVERRIDE slot for the eaves-to-apex slope run: normally
 //               the run DERIVES from heights + width (see fpSlopeRun); a keyed spanM
 //               wins (roof-access jobs, and legacy snapshots keyed before the derive).
+//               eavesLengthM is RETIRED from the panel: length + width are keyed once
+//               and every perimeter edge INHERITS (see fpEdgeLen; keyed edge wins);
+//               an old eavesLengthM value stands in for a missing lengthM (fpDatumLength).
 //   building.ridge  { cond, lengthM }   (the internal ridge line)
 // NOTHING here writes the existing slopes or building.widthM, so surveyTotalRoofArea
 // and every live consumer are unchanged; a Stage-1 footprint with no conditions
@@ -9554,24 +9557,69 @@ function fpSlopeRun(b){
   return { value: Math.sqrt(rise * rise + run * run), source: 'derived' };
 }
 
+// --- edge lengths INHERIT from the keyed building dimensions (key once, derive
+// everywhere; a keyed edge always wins). The drawn footprint knows every edge's
+// proportion, so the polygon scales ANISOTROPICALLY: the bounding box maps to the
+// keyed building length (long axis) and width (short axis), giving per-axis scale
+// factors sx / sy; an edge of drawn extent (dx, dy) derives
+//   sqrt((dx*sx)^2 + (dy*sy)^2)
+// EXACT on the rectangle (eaves edges = building length, verges = width) and
+// proportional on L / T / U / stepped / freeform. An axis-aligned edge needs only
+// its own axis's dimension; a diagonal needs both; a degenerate or unclosed
+// footprint derives nothing rather than guessing.
+function fpDatumLength(b){
+  // Migration rule: the retired separate eaves-length datum serves as the building
+  // length ONLY when building length is absent (it was the length wearing another
+  // name); ignored otherwise. The snapshot is never rewritten.
+  var d = (b && b.datum) || {};
+  var L = srNum(d.lengthM);
+  return L != null ? L : srNum(d.eavesLengthM);
+}
+function fpEdgeScales(fp, b){
+  if (!fp || !fp.corners || fp.corners.length < 3) return { sx: null, sy: null };
+  var bb = fpBBox(fp);
+  var L = fpDatumLength(b), W = srNum(((b && b.datum) || {}).widthM);
+  var longX = bb.w >= bb.h;
+  var dimX = longX ? L : W, dimY = longX ? W : L;
+  return { sx: (dimX != null && dimX > 0 && bb.w > 0) ? dimX / bb.w : null,
+           sy: (dimY != null && dimY > 0 && bb.h > 0) ? dimY / bb.h : null };
+}
+function fpEdgeLen(fp, i, b){
+  var e = fp.edges[i]; if (!e) return { value: null, source: null };
+  var keyed = srNum(e.lengthM);
+  if (keyed != null) return { value: keyed, source: 'keyed' };
+  if (!fp.corners || fp.corners.length < 3 || !fp.corners[i]) return { value: null, source: null };
+  var c = fp.corners[i], n = fp.corners[(i + 1) % fp.corners.length];
+  var dx = Math.abs(n.x - c.x), dy = Math.abs(n.y - c.y);
+  var s = fpEdgeScales(fp, b);
+  if (dy === 0) return (s.sx != null) ? { value: dx * s.sx, source: 'derived' } : { value: null, source: null };
+  if (dx === 0) return (s.sy != null) ? { value: dy * s.sy, source: 'derived' } : { value: null, source: null };
+  if (s.sx != null && s.sy != null) return { value: Math.sqrt(dx * s.sx * dx * s.sx + dy * s.sy * dy * s.sy), source: 'derived' };
+  return { value: null, source: null };
+}
+
 // --- the simple, honest single-building runs (metres). Curved edges excluded. ---
 function fpRuns(survey){
   var b = fpBuilding(survey), fp = fpFootprint(survey); if (!fp) return null;
   var form = (b && b.roofForm) || 'duo-pitch';
-  var d = (b && b.datum) || {};
-  var perimeter = 0, gutterRun = 0, vergeCount = 0, keyedEdges = 0;
+  var perimeter = 0, gutterRun = 0, vergeCount = 0, keyedEdges = 0, derivedEdges = 0;
   (fp.edges || []).forEach(function(e, i){
     if (e.type === 'curved') return;
-    var L = srNum(e.lengthM);
-    if (L != null){ perimeter += L; keyedEdges++; }
+    var el = fpEdgeLen(fp, i, b);   // effective: keyed wins, else inherited from building dims
+    if (el.value != null){ perimeter += el.value; if (el.source === 'keyed') keyedEdges++; else derivedEdges++; }
     var role = fpEdgeRole(fp, e, i, form);
-    if (role === 'eaves' && L != null && e.cond && e.cond !== 'none') gutterRun += L;   // party/abutting suppresses the gutter
+    if (role === 'eaves' && el.value != null && e.cond && e.cond !== 'none') gutterRun += el.value;   // party/abutting suppresses the gutter
     if (role === 'verge') vergeCount++;
   });
   var sr = fpSlopeRun(b);   // verge rake = the slope run (keyed override wins over derived)
   var ridge = (b && b.ridge) || {};
-  var ridgeRun = (ridge.cond === 'standard' || ridge.cond === 'mono') ? srNum(ridge.lengthM) : null;
-  return { perimeter: keyedEdges ? perimeter : null, gutterRun: gutterRun || null, rake: sr.value, rakeSource: sr.source, vergeCount: vergeCount, ridgeRun: ridgeRun, keyedEdges: keyedEdges, totalEdges: (fp.edges || []).length };
+  var ridgeRun = null, ridgeSource = null;
+  if (ridge.cond === 'standard' || ridge.cond === 'mono'){
+    var rk = srNum(ridge.lengthM);
+    if (rk != null){ ridgeRun = rk; ridgeSource = 'keyed'; }
+    else { ridgeRun = fpDatumLength(b); ridgeSource = (ridgeRun != null) ? 'derived' : null; }   // a standard/mono ridge runs the building length
+  }
+  return { perimeter: (keyedEdges + derivedEdges) ? perimeter : null, gutterRun: gutterRun || null, rake: sr.value, rakeSource: sr.source, vergeCount: vergeCount, ridgeRun: ridgeRun, ridgeSource: ridgeSource, keyedEdges: keyedEdges, derivedEdges: derivedEdges, totalEdges: (fp.edges || []).length };
 }
 function fpM(n){ return (n == null) ? '—' : (Math.round(n * 100) / 100) + ' m'; }
 
@@ -9641,8 +9689,15 @@ function fpRenderEdgeSheet(survey){
     h += '<div class="fp-opts">';
     FP_COND.ridge.forEach(function(o){ h += '<button class="fp-opt' + (rc.cond === o.id ? ' on' : '') + '" onclick="fpSetRidgeCond(\'' + o.id + '\')">' + escapeHtml(o.label) + '</button>'; });
     h += '</div>';
-    h += '<div class="fp-key-row"><span>Ridge run: <b>' + fpM(srNum(rc.lengthM)) + '</b></span>' +
-      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'ridge\',null,null,\'Ridge run\',\'m\',' + (srNum(rc.lengthM) != null ? rc.lengthM : 'null') + ')">Key dimension</button></div>';
+    // ridge run inherits the building length (a standard/mono ridge runs it);
+    // keyed wins, Clear returns to derived
+    var rrKeyed = srNum(rc.lengthM), rrDerived = fpDatumLength(b);
+    var rrVal = rrKeyed != null ? rrKeyed : rrDerived;
+    var rrSrc = rrKeyed != null ? 'keyed' : (rrDerived != null ? 'derived' : null);
+    var rrTag = rrSrc ? ' <span class="fp-src-tag' + (rrSrc === 'keyed' ? ' fp-src-keyed' : '') + '">' + rrSrc + '</span>' : '';
+    h += '<div class="fp-key-row"><span>Ridge run: <b>' + fpM(rrVal) + '</b>' + rrTag + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'ridge\',null,null,\'Ridge run\',\'m\',' + (rrKeyed != null ? rc.lengthM : 'null') + ')">Key dimension</button>' +
+      (rrSrc === 'keyed' ? '<button class="fp-key-btn" onclick="fpClearRidgeLen()">Clear</button>' : '') + '</div>';
     return h + '</div>';
   }
   var i = fpEdgeSheet, e = fp.edges[i]; if (!e){ fpEdgeSheet = null; return ''; }
@@ -9657,9 +9712,14 @@ function fpRenderEdgeSheet(survey){
   (FP_COND[role] || []).forEach(function(o){ h += '<button class="fp-opt' + (e.cond === o.id ? ' on' : '') + '" onclick="fpSetCond(' + i + ',\'' + o.id + '\')">' + escapeHtml(o.label) + '</button>'; });
   h += '</div>';
   if (e.cond === 'none') h += '<div class="fp-note">Party / abutting: this edge is suppressed from the gutter run.</div>';
-  // hand-keyed run for this edge
-  h += '<div class="fp-key-row"><span>' + escapeHtml(fpEdgeRunLabel(role)) + ': <b>' + fpM(srNum(e.lengthM)) + '</b></span>' +
-    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'edge\',' + i + ',null,\'' + escapeHtml(fpEdgeRunLabel(role)) + '\',\'m\',' + (srNum(e.lengthM) != null ? e.lengthM : 'null') + ')">Key dimension</button></div>';
+  // effective run for this edge: inherited from the keyed building dimensions,
+  // marked derived; keying here overrides (marked keyed), Clear returns to derived
+  var el = fpEdgeLen(fp, i, b);
+  var elTag = el.source ? ' <span class="fp-src-tag' + (el.source === 'keyed' ? ' fp-src-keyed' : '') + '">' + el.source + '</span>' : '';
+  h += '<div class="fp-key-row"><span>' + escapeHtml(fpEdgeRunLabel(role)) + ': <b>' + fpM(el.value) + '</b>' + elTag + '</span>' +
+    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'edge\',' + i + ',null,\'' + escapeHtml(fpEdgeRunLabel(role)) + '\',\'m\',' + (srNum(e.lengthM) != null ? e.lengthM : 'null') + ')">Key dimension</button>' +
+    (el.source === 'keyed' ? '<button class="fp-key-btn" onclick="fpClearEdgeLen(' + i + ')">Clear</button>' : '') + '</div>';
+  if (el.source === 'derived') h += '<div class="fp-note">Inherited from the keyed building dimensions; key it here only where the site differs.</div>';
   h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpAddCornerFromSheet(' + i + ')">Add a corner on this edge</button>' +
     (e.cond ? '<button class="fp-sheet-2nd" onclick="fpClearCond(' + i + ')">Clear condition</button>' : '') + '</div>';
   return h + '</div>';
@@ -9680,19 +9740,31 @@ function fpClearSpan(){
   b.datum.spanM = null;
   srPersist(survey); fpRender();
 }
+function fpClearEdgeLen(i){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp || !fp.edges[i]) return;
+  fp.edges[i].lengthM = null;
+  srPersist(survey); fpRender();
+}
+function fpClearRidgeLen(){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); if (!b || !b.ridge) return;
+  b.ridge.lengthM = null;
+  srPersist(survey); fpRender();
+}
 function fpRenderDatum(survey){
   var b = fpBuilding(survey); if (!b) return '';
   var d = b.datum || {};
-  // only what the surveyor can laser from the ground; the slope run derives below
+  // only what the surveyor can laser from the ground, keyed ONCE: length and
+  // width feed the edge runs (the retired separate eaves-length entry was the
+  // building length wearing another name; fpDatumLength migrates old snapshots)
   var rows = [
-    { f:'eavesLengthM', label:'Eaves length', neu:true }, { f:'eavesHeightM', label:'Eaves height' },
-    { f:'ridgeHeightM', label:'Ridge height' }, { f:'widthM', label:'Building width (full, as lasered)' },
+    { f:'eavesHeightM', label:'Eaves height' }, { f:'ridgeHeightM', label:'Ridge height' },
+    { f:'widthM', label:'Building width (full, as lasered)' },
     { f:'lengthM', label:'Building length / depth' }
   ];
-  var h = '<div class="fp-datum"><div class="fp-tools-lbl">Keyed dimensions (m) &middot; laser, from the ground</div><div class="fp-datum-rows">';
+  var h = '<div class="fp-datum"><div class="fp-tools-lbl">Keyed dimensions (m) &middot; laser, from the ground &middot; keyed once, the edges inherit</div><div class="fp-datum-rows">';
   rows.forEach(function(r){
-    var v = srNum(d[r.f]);
-    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">' + escapeHtml(r.label) + (r.neu ? ' <span class="fp-new">new</span>' : '') + '</span>' +
+    var v = (r.f === 'lengthM') ? fpDatumLength(b) : srNum(d[r.f]);
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">' + escapeHtml(r.label) + '</span>' +
       '<span class="fp-datum-val">' + fpM(v) + '</span>' +
       '<button class="fp-key-btn" onclick="fpOpenKeypad(\'datum\',null,\'' + r.f + '\',\'' + escapeHtml(r.label) + '\',\'m\',' + (v != null ? v : 'null') + ')">Key</button></div>';
   });
@@ -9718,9 +9790,9 @@ function fpRenderRuns(survey){
   var cell = function(label, val, note){ return '<div class="fp-run"><span class="fp-run-lbl">' + escapeHtml(label) + '</span><span class="fp-run-val">' + val + '</span>' + (note ? '<span class="fp-run-note">' + escapeHtml(note) + '</span>' : '') + '</div>'; };
   var h = '<div class="fp-runs"><div class="fp-tools-lbl">Computed runs &middot; the honest single-building subset</div><div class="fp-run-grid">';
   h += cell('Eaves gutter run', fpM(r.gutterRun), 'sum of eaves edges with a gutter');
-  h += cell('Roof perimeter', fpM(r.perimeter), r.keyedEdges + ' of ' + r.totalEdges + ' edges keyed');
+  h += cell('Roof perimeter', fpM(r.perimeter), (r.keyedEdges + r.derivedEdges) ? (r.derivedEdges + ' derived · ' + r.keyedEdges + ' keyed of ' + r.totalEdges + ' edges') : 'key the building length and width');
   h += cell('Verge (rake) length', fpM(r.rake), (r.rakeSource === 'keyed' ? 'keyed slope run' : r.rakeSource === 'derived' ? 'derived slope run' : 'from the slope run') + ' · ' + r.vergeCount + ' verge edge' + (r.vergeCount === 1 ? '' : 's'));
-  h += cell('Ridge run', fpM(r.ridgeRun), 'when a standard / mono ridge is set');
+  h += cell('Ridge run', fpM(r.ridgeRun), r.ridgeSource === 'derived' ? 'derived · runs the building length' : r.ridgeSource === 'keyed' ? 'keyed ridge run' : 'when a standard / mono ridge is set');
   h += '</div><div class="fp-run-foot">Valleys, bay repeats and areas come in later stages; nothing here feeds the estimate yet.</div></div>';
   return h;
 }
