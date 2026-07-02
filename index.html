@@ -3971,6 +3971,32 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-bay-asb.on { background: #fbf2e6; border-style: solid; border-color: #b06a1f; color: #7a4a12; }
     #view-footprint .fp-bay-add { font-size: 12.5px; font-weight: 700; background: #F7901E; color: #1f1f1f; border: none; border-radius: 7px; padding: 11px 15px; min-height: 44px; cursor: pointer; font-family: inherit; }
     #view-footprint .fp-bay-total { margin-top: 10px; font-size: 13px; color: #434244; }
+    /* stage 4: tap-to-place toolbar */
+    #view-footprint .fp-place-row { display: flex; gap: 8px; margin: 10px 0; }
+    #view-footprint .fp-place-btn { font-size: 12.5px; font-weight: 700; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 9px 13px; min-height: 44px; cursor: pointer; color: #434244; font-family: inherit; }
+    #view-footprint .fp-place-btn.on { background: #F7901E; border-color: #F7901E; color: #1f1f1f; }
+    #view-footprint .fp-place-hint { font-size: 12px; color: #8a898b; margin-bottom: 10px; }
+    #view-footprint .fp-place-hint a { color: #F7901E; font-weight: 700; }
+    #view-footprint .fp-feat-chip { background: #e3f1f3; border: 1px solid #2b8a99; color: #1f6570; }
+    #view-footprint .fp-feat-chip.has-photo::after { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #2b8a99; margin-left: 5px; }
+    #view-footprint .fp-fault-chip { background: #fbe8e6; border: 1px solid #c0392b; color: #a23325; font-weight: 800; }
+    #view-footprint .fp-place-picker { min-width: 170px; z-index: 5; }
+    /* stage 4: wall elevations */
+    #view-footprint .fp-elevs { margin-top: 16px; max-width: 480px; }
+    #view-footprint .fp-elev-card { border: 1px solid #ece9e2; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
+    #view-footprint .fp-elev-face { position: relative; margin-top: 8px; border: 1px solid #ece9e2; border-radius: 8px; overflow: hidden; cursor: pointer; background: #fbfbf9; }
+    #view-footprint .fp-elev-face-svg { display: block; width: 100%; height: auto; }
+    #view-footprint .fp-op-chip { position: absolute; transform: translate(-50%, -50%); min-height: 30px; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; background: #fff7ef; border: 1px solid #F7901E; color: #b8700f; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    #view-footprint .fp-elev-picker { position: absolute; transform: translate(-50%, 8px); background: #fff; border: 1px solid #e2e3e5; border-radius: 10px; padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
+    #view-footprint .fp-elev-area { display: flex; flex-direction: column; align-items: flex-start; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f0ea; }
+    #view-footprint .fp-elev-area-lbl { font-size: 11px; color: #8a898b; }
+    #view-footprint .fp-elev-area-val { font-size: 18px; font-weight: 800; color: #434244; margin-top: 2px; }
+    #view-footprint .fp-feat-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    #view-footprint .fp-feat-photo { position: relative; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; background: #f1f0ec; }
+    #view-footprint .fp-feat-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #view-footprint .fp-feat-photo-ph { width: 100%; height: 100%; }
+    #view-footprint .fp-feat-photo-x { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; border: none; font-size: 13px; line-height: 1; cursor: pointer; }
+    #view-footprint .fp-feat-photo-add { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; margin-top: 8px; font-size: 12.5px; font-weight: 700; background: #fff; border: 1px dashed #c4c3bd; border-radius: 7px; color: #434244; cursor: pointer; }
     /* computed runs */
     #view-footprint .fp-runs { margin-top: 16px; max-width: 480px; }
     #view-footprint .fp-run-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
@@ -9221,13 +9247,16 @@ function fpRender(){
   }
   h += '</div>';
 
+  // Stage 4: tap-to-place toolbar (features + fault pins), only once a footprint exists
+  if (fp && !drawing) h += fpRenderPlaceToolbar();
+
   // canvas
   if (fp && fpSelected != null && (!fp.corners || fpSelected >= fp.corners.length)) fpSelected = null;   // clamp stale selection
   // ontouchmove preventDefault (non-passive, scoped to the canvas) stops the page
   // panning/zooming for any gesture that starts on the drawing surface, while touches
   // that begin outside the wrap never reach this handler so page scrolling still works.
   h += '<div class="fp-canvas-wrap" ontouchmove="fpCanvasTouchMove(event)"><svg id="fp-svg" viewBox="0 0 300 300" class="fp-svg"' +
-    (drawing ? ' onclick="fpCanvasClick(event)" style="cursor:crosshair;"' : '') + '>';
+    ((drawing || (fp && fpPlaceMode)) ? ' onclick="fpCanvasClick(event)" style="cursor:crosshair;"' : '') + '>';
   // grid
   h += '<defs><pattern id="fp-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#efeee9" stroke-width="1"/></pattern></defs>';
   h += '<rect x="0" y="0" width="300" height="300" fill="url(#fp-grid)"/>';
@@ -9285,6 +9314,30 @@ function fpRender(){
       var cp = fpChipPos(fp, i);
       hit += '<button class="fp-chip ' + (setc ? 'set' : 'unset') + (fpActive === i ? ' active' : '') + '" style="left:' + (cp.x / 3) + '%;top:' + (cp.y / 3) + '%;" onclick="fpOpenEdge(' + i + ')" aria-label="Edge ' + (i + 1) + ' condition">' + escapeHtml(fpChipShort(label)) + '</button>';
     });
+    // Stage 4: placed feature markers + plotted fault markers - visually distinct
+    // (teal feature, red fault) so a surveyor never confuses the two at a glance
+    (fpFeatures(b) || []).forEach(function(ft, fi){
+      var lbl = ft.type + (ft.count > 1 ? ' ×' + ft.count : '');
+      hit += '<button class="fp-chip fp-feat-chip' + (ft.photos && ft.photos.length ? ' has-photo' : '') + '" style="left:' + (ft.x / 3) + '%;top:' + (ft.y / 3) + '%;" onclick="fpOpenFeature(' + fi + ')">' + escapeHtml(fpChipShort(lbl)) + '</button>';
+    });
+    fpPlottedFaults(survey, 0).forEach(function(fl){
+      hit += '<button class="fp-chip fp-fault-chip" style="left:' + (fl.footprintLoc.x / 3) + '%;top:' + (fl.footprintLoc.y / 3) + '%;" onclick="fpFaultOpenId=\'' + fl.id + '\';fpRender();">Fault ' + (fl.number || '') + '</button>';
+    });
+    // tap-to-place pickers - a small popover at the tapped point
+    if (fpFeaturePick){
+      hit += '<div class="fp-elev-picker fp-place-picker" style="left:' + (fpFeaturePick.x / 3) + '%;top:' + (fpFeaturePick.y / 3) + '%;">';
+      FP_FEATURE_TYPES.forEach(function(t){ hit += '<button class="fp-opt" onclick="fpFeatureAddType(\'' + t.replace(/'/g, "\\'") + '\')">' + escapeHtml(t) + '</button>'; });
+      hit += '<button class="fp-sheet-2nd" onclick="fpFeatureCancelPick()">Cancel</button></div>';
+    }
+    if (fpFaultPick){
+      var existingFaults = fpFaultsForBuilding(survey);
+      hit += '<div class="fp-elev-picker fp-place-picker" style="left:' + (fpFaultPick.x / 3) + '%;top:' + (fpFaultPick.y / 3) + '%;">';
+      hit += '<button class="fp-opt" onclick="fpFaultPinNew()">+ New fault here</button>';
+      existingFaults.forEach(function(fl){
+        hit += '<button class="fp-opt" onclick="fpFaultPin(\'' + fl.id + '\')">Fault ' + (fl.number || '') + (fl.faultType ? ' &middot; ' + escapeHtml(fl.faultType) : '') + (fl.footprintLoc ? ' (move pin)' : '') + '</button>';
+      });
+      hit += '<button class="fp-sheet-2nd" onclick="fpFaultCancelPick()">Cancel</button></div>';
+    }
     // corner marks (small, decorative) + selected ring; the tappable area is the overlay
     fp.corners.forEach(function(c, i){
       var sel = (fpSelected === i);
@@ -9315,8 +9368,11 @@ function fpRender(){
     // Stage 2 contextual panels: edge/ridge sheet, keypad, keyed datum, computed runs
     h += fpRenderEdgeSheet(survey);
     h += fpRenderKeypad();
+    h += fpRenderFeatureSheet(survey);   // Stage 4: placed-feature edit sheet
+    h += fpRenderFaultUnpinSheet(survey); // Stage 4: plotted-fault quick sheet
     h += fpRenderDatum(survey);
     h += fpRenderBays(survey);   // Stage 3: bay definition (multi-bay only)
+    h += fpRenderElevations(survey);   // Stage 4: wall elevations
     h += fpRenderRuns(survey);
   }
 
@@ -9355,10 +9411,16 @@ function fpPreset(k){
 function fpStartDraw(){ fpMode = 'draw'; fpDrawPts = []; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpRender(); }
 function fpClearDraw(){ fpMode = 'edit'; fpDrawPts = []; fpRender(); }
 function fpCanvasClick(evt){
-  if (fpMode !== 'draw') return;
-  var p = fpClientToVb(evt); if (!p) return;
-  fpDrawPts.push({ x: Math.round(p.x), y: Math.round(p.y) });
-  fpRender();
+  if (fpMode === 'draw'){
+    var p = fpClientToVb(evt); if (!p) return;
+    fpDrawPts.push({ x: Math.round(p.x), y: Math.round(p.y) });
+    fpRender();
+    return;
+  }
+  if (fpPlaceMode){
+    var q = fpClientToVb(evt); if (!q) return;
+    fpPlaceAt(q.x, q.y);
+  }
 }
 // tidy a rough outline to a rectilinear polygon with squared corners
 function fpTidy(){
@@ -9723,6 +9785,25 @@ function fpKeypadDone(){
       else bay[f] = v;
     }
   }
+  else if (fpKeypad.kind === 'elev' && fp){
+    var elev4 = fpEnsureElevation(fp, fpKeypad.i);
+    elev4[fpKeypad.field] = v;
+  }
+  else if (fpKeypad.kind === 'elevOp' && fp){
+    var elev5 = fpEnsureElevation(fp, fpKeypad.i);
+    var opParts = fpKeypad.field.split(':'), op = (elev5.openings || [])[parseInt(opParts[0], 10)];
+    if (op){
+      if (opParts[1] === 'count') op.count = (v == null) ? 0 : Math.max(0, Math.round(v));
+      else op[opParts[1]] = v;
+    }
+  }
+  else if (fpKeypad.kind === 'feat' && b){
+    var feat = (fpFeatures(b) || [])[fpKeypad.i];
+    if (feat){
+      if (fpKeypad.field === 'count') feat.count = (v == null) ? 1 : Math.max(0, Math.round(v));
+      else feat[fpKeypad.field] = v;
+    }
+  }
   srPersist(survey); fpKeypad = null; fpRender();
 }
 function fpKeypadCancel(){ fpKeypad = null; fpRender(); }
@@ -10010,6 +10091,387 @@ function fpRenderBays(survey){
   h += '</div>';
   return h;
 }
+
+// ===== NOVA SURVEY CAPTURE REBUILD - STAGE 4: WALL ELEVATIONS + PLOTTED FEATURES
+// AND FAULTS ===================================================================
+// PART A - elevations. One per perimeter edge, stored ON the edge object (like
+// edge.cond/edge.role/edge.lengthM already are) so they naturally stay aligned
+// through corner add/move/delete - no separate index to keep in sync.
+//   edge.elevation { shape:'straight'|'gable', cladding, lengthM, heightM,
+//                    apexHeightM, dadoM, openings:[{id,type,count,wM,hM,x,y}] }
+// DERIVE, DON'T ASK (stage-2/3 discipline): length inherits the edge's own
+// effective length (fpEdgeLen - itself already keyed-edge-length-or-building-
+// dims); height inherits datum eaves height; a gable apex inherits datum ridge
+// height. Each shows derived; a keyed value on the ELEVATION wins, Clear reverts.
+// Cladding area = rect (length x height) + gable triangle (0.5 x length x
+// (apex-height)) minus placed openings (count x width x height, summed) - a
+// readout only, feeds nothing (the join is stage 5).
+//
+// PART B - plane features + plotted faults, both tap-to-place on the roof plan.
+//   building.features [{id,type,count,wM,hM,x,y,photos:[]}]   NEW, optional.
+// Faults are unchanged (survey.siteFaultMarkers, spNewFault shape); this stage
+// only SETS the already-modelled fault.footprintLoc {bi,x,y} via a pin action.
+// Placing is optional throughout; nothing here disturbs existing fault fields,
+// the fault report/pack/costing path, or any live consumer.
+
+var FP_ELEV_SHAPES = [ { id:'straight', label:'Straight-top' }, { id:'gable', label:'Gable' } ];
+var FP_CLADDING_TYPES = [ 'Composite', 'Single-skin and liner', 'Built-up', 'Brick / masonry', 'Render', 'Curtain walling' ];
+var FP_OPENING_TYPES = [ 'Roller shutter door', 'Personnel door', 'Window', 'Louvre / vent', 'Wall light', 'Dock leveller' ];
+var FP_FEATURE_TYPES = [ 'Rooflight', 'Penetration / Dektite', 'Soil vent / flue', 'Rainwater outlet', 'Plant / AHU plinth', 'Walkway', 'Defect photo point' ];
+var fpPlaceMode = null;       // null | 'feature' | 'fault' - tap-to-place armed on the plan
+var fpFeatureSheet = null;    // index into building.features when its edit sheet is open
+var fpElevOpSheet = null;     // { edgeIndex, opIdx } when an opening's edit sheet is open
+var fpFaultPick = null;       // { x, y } when the "pin a fault here" picker is open
+
+function fpEnsureElevation(fp, i){
+  var e = fp.edges[i]; if (!e) return null;
+  if (!e.elevation) e.elevation = { shape:'straight', cladding:'', lengthM:null, heightM:null, apexHeightM:null, dadoM:null, openings:[] };
+  if (!Array.isArray(e.elevation.openings)) e.elevation.openings = [];
+  return e.elevation;
+}
+function fpElevLength(fp, i, b){
+  var elev = (fp.edges[i] && fp.edges[i].elevation) || {};
+  var keyed = srNum(elev.lengthM);
+  if (keyed != null) return { value: keyed, source: 'keyed' };
+  var el = fpEdgeLen(fp, i, b);   // inherits the edge's own effective length
+  return (el.value != null) ? { value: el.value, source: 'derived' } : { value: null, source: null };
+}
+function fpElevHeight(b, elev){
+  var keyed = srNum(elev.heightM);
+  if (keyed != null) return { value: keyed, source: 'keyed' };
+  var eh = srNum(((b && b.datum) || {}).eavesHeightM);
+  return (eh != null) ? { value: eh, source: 'derived' } : { value: null, source: null };
+}
+function fpElevApex(b, elev){
+  var keyed = srNum(elev.apexHeightM);
+  if (keyed != null) return { value: keyed, source: 'keyed' };
+  var rh = srNum(((b && b.datum) || {}).ridgeHeightM);
+  return (rh != null) ? { value: rh, source: 'derived' } : { value: null, source: null };
+}
+function fpElevOpeningsArea(elev){
+  var sum = 0;
+  (elev.openings || []).forEach(function(o){
+    var c = Math.max(0, Math.round(srNum(o.count) || 0));
+    var w = srNum(o.wM), h = srNum(o.hM);
+    if (c > 0 && w != null && h != null) sum += c * w * h;
+  });
+  return sum;
+}
+// gross + net cladding area for one elevation. READOUT ONLY.
+function fpElevArea(fp, i, b){
+  var elev = (fp.edges[i] && fp.edges[i].elevation) || {};
+  var shape = elev.shape || 'straight';
+  var L = fpElevLength(fp, i, b), H = fpElevHeight(b, elev);
+  var rect = (L.value != null && H.value != null) ? L.value * H.value : null;
+  var triangle = null, A = null;
+  if (shape === 'gable'){
+    A = fpElevApex(b, elev);
+    if (L.value != null && H.value != null && A.value != null && A.value > H.value) triangle = 0.5 * L.value * (A.value - H.value);
+  }
+  var gross = (rect != null) ? rect + (triangle || 0) : null;
+  var openings = fpElevOpeningsArea(elev);
+  var net = (gross != null) ? Math.max(0, gross - openings) : null;
+  return { L: L, H: H, A: A, rect: rect, triangle: triangle, gross: gross, openings: openings, net: net, shape: shape };
+}
+// --- elevation handlers ---
+function fpElevSetShape(edgeIndex, shape){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  fpEnsureElevation(fp, edgeIndex).shape = shape;
+  srPersist(survey); fpRender();
+}
+function fpElevSetCladding(edgeIndex, val){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  fpEnsureElevation(fp, edgeIndex).cladding = val;
+  srPersist(survey); fpRender();
+}
+function fpElevClearField(edgeIndex, field){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  fpEnsureElevation(fp, edgeIndex)[field] = null;
+  srPersist(survey); fpRender();
+}
+// tap the elevation face to add an opening at that point (a fixed schematic
+// frame, not to-scale - the area calc uses count/width/height, not position)
+function fpElevFaceClick(edgeIndex, evt){
+  var host = evt.currentTarget || evt.target;
+  var rect = host.getBoundingClientRect();
+  var t = (evt.touches && evt.touches[0]) || evt;
+  var x = Math.round((t.clientX - rect.left) / rect.width * 260);
+  var y = Math.round((t.clientY - rect.top) / rect.height * 170);
+  x = Math.max(20, Math.min(240, x)); y = Math.max(18, Math.min(155, y));
+  fpElevOpenPicker = { edgeIndex: edgeIndex, x: x, y: y };
+  fpRender();
+}
+var fpElevOpenPicker = null;   // { edgeIndex, x, y } when the "choose opening type" picker is open
+function fpElevPickType(type){
+  if (!fpElevOpenPicker) return;
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  var elev = fpEnsureElevation(fp, fpElevOpenPicker.edgeIndex);
+  var id = 'op' + Date.now() + Math.round(Math.random() * 999);
+  elev.openings.push({ id: id, type: type, count: 1, wM: null, hM: null, x: fpElevOpenPicker.x, y: fpElevOpenPicker.y });
+  var edgeIndex = fpElevOpenPicker.edgeIndex, opIdx = elev.openings.length - 1;
+  fpElevOpenPicker = null;
+  srPersist(survey);
+  fpElevOpSheet = { edgeIndex: edgeIndex, opIdx: opIdx };
+  fpRender();
+}
+function fpElevCancelPicker(){ fpElevOpenPicker = null; fpRender(); }
+function fpElevOpenOpening(edgeIndex, opIdx){ fpElevOpSheet = { edgeIndex: edgeIndex, opIdx: opIdx }; fpRender(); }
+function fpElevCloseOpSheet(){ fpElevOpSheet = null; fpRender(); }
+function fpElevRemoveOpening(edgeIndex, opIdx){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
+  var elev = fpEnsureElevation(fp, edgeIndex);
+  elev.openings.splice(opIdx, 1);
+  fpElevOpSheet = null;
+  srPersist(survey); fpRender();
+}
+// --- render: one card per straight perimeter edge (curved excluded, as runs are) ---
+function fpRenderElevations(survey){
+  var b = fpBuilding(survey), fp = fpFootprint(survey); if (!fp) return '';
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var h = '<div class="fp-elevs"><div class="fp-tools-lbl">Wall elevations &middot; length and eaves height inherit, key only where the site differs</div>';
+  (fp.edges || []).forEach(function(e, i){
+    if (e.type === 'curved') return;
+    var role = fpEdgeRole(fp, e, i, form);
+    var elev = fpEnsureElevation(fp, i);
+    var ar = fpElevArea(fp, i, b);
+    h += '<div class="fp-elev-card">';
+    h += '<div class="fp-bay-head"><span class="fp-bay-title">Elevation ' + (i + 1) + ' &middot; ' + escapeHtml(FP_ROLE_LABEL[role]) + '</span></div>';
+    h += '<div class="fp-roles">';
+    FP_ELEV_SHAPES.forEach(function(s){ h += '<button class="fp-role' + (elev.shape === s.id ? ' on' : '') + '" onclick="fpElevSetShape(' + i + ',\'' + s.id + '\')">' + escapeHtml(s.label) + '</button>'; });
+    h += '</div>';
+    h += '<div class="fp-bay-srow"><span>Cladding</span><select class="fp-bay-cover" onchange="fpElevSetCladding(' + i + ', this.value)">' +
+      '<option value="">Choose</option>' + FP_CLADDING_TYPES.map(function(c){ return '<option' + (elev.cladding === c ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') + '</select></div>';
+    h += '<div class="fp-datum-rows">';
+    var lenTag = ar.L.source ? ' <span class="fp-src-tag' + (ar.L.source === 'keyed' ? ' fp-src-keyed' : '') + '">' + ar.L.source + '</span>' : '';
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Length' + lenTag + '</span><span class="fp-datum-val">' + fpM(ar.L.value) + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'elev\',' + i + ',\'lengthM\',\'Elevation length\',\'m\',' + (srNum(elev.lengthM) != null ? elev.lengthM : 'null') + ')">Key</button>' +
+      (ar.L.source === 'keyed' ? '<button class="fp-key-btn" onclick="fpElevClearField(' + i + ',\'lengthM\')">Clear</button>' : '') + '</div>';
+    var hgtTag = ar.H.source ? ' <span class="fp-src-tag' + (ar.H.source === 'keyed' ? ' fp-src-keyed' : '') + '">' + ar.H.source + '</span>' : '';
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Eaves height' + hgtTag + '</span><span class="fp-datum-val">' + fpM(ar.H.value) + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'elev\',' + i + ',\'heightM\',\'Elevation eaves height\',\'m\',' + (srNum(elev.heightM) != null ? elev.heightM : 'null') + ')">Key</button>' +
+      (ar.H.source === 'keyed' ? '<button class="fp-key-btn" onclick="fpElevClearField(' + i + ',\'heightM\')">Clear</button>' : '') + '</div>';
+    if (elev.shape === 'gable'){
+      var apxTag = ar.A && ar.A.source ? ' <span class="fp-src-tag' + (ar.A.source === 'keyed' ? ' fp-src-keyed' : '') + '">' + ar.A.source + '</span>' : '';
+      h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Apex height' + apxTag + '</span><span class="fp-datum-val">' + fpM(ar.A ? ar.A.value : null) + '</span>' +
+        '<button class="fp-key-btn" onclick="fpOpenKeypad(\'elev\',' + i + ',\'apexHeightM\',\'Elevation apex height\',\'m\',' + (srNum(elev.apexHeightM) != null ? elev.apexHeightM : 'null') + ')">Key</button>' +
+        ((ar.A && ar.A.source === 'keyed') ? '<button class="fp-key-btn" onclick="fpElevClearField(' + i + ',\'apexHeightM\')">Clear</button>' : '') + '</div>';
+    }
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Brickwork / dado height</span><span class="fp-datum-val">' + fpM(srNum(elev.dadoM)) + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'elev\',' + i + ',\'dadoM\',\'Brickwork / dado height\',\'m\',' + (srNum(elev.dadoM) != null ? elev.dadoM : 'null') + ')">Key</button></div>';
+    h += '</div>';
+    // the face: a fixed schematic frame (not to scale) - tap it to add an opening
+    h += '<div class="fp-elev-face" onclick="fpElevFaceClick(' + i + ',event)"><svg viewBox="0 0 260 170" class="fp-elev-face-svg">';
+    if (elev.shape === 'gable') h += '<polygon points="20,30 240,30 130,10" fill="#f1ede4" stroke="#c9a06a" stroke-width="1.5"/>';
+    h += '<rect x="20" y="30" width="220" height="120" fill="#fbf9f5" stroke="#F7901E" stroke-width="1.5"/>';
+    h += '</svg>';
+    var faceHit = '';
+    (elev.openings || []).forEach(function(o, oi){
+      var lbl = o.type + (o.count > 1 ? ' ×' + o.count : '');
+      faceHit += '<button class="fp-op-chip" style="left:' + (o.x / 260 * 100) + '%;top:' + (o.y / 170 * 100) + '%;" onclick="event.stopPropagation();fpElevOpenOpening(' + i + ',' + oi + ')">' + escapeHtml(fpChipShort(lbl)) + '</button>';
+    });
+    if (fpElevOpenPicker && fpElevOpenPicker.edgeIndex === i){
+      h += '<div class="fp-elev-picker" style="left:' + (fpElevOpenPicker.x / 260 * 100) + '%;top:' + (fpElevOpenPicker.y / 170 * 100) + '%;">';
+      FP_OPENING_TYPES.forEach(function(t){ h += '<button class="fp-opt" onclick="event.stopPropagation();fpElevPickType(\'' + t.replace(/'/g, "\\'") + '\')">' + escapeHtml(t) + '</button>'; });
+      h += '<button class="fp-sheet-2nd" onclick="event.stopPropagation();fpElevCancelPicker()">Cancel</button></div>';
+    }
+    h += faceHit;
+    h += '</div>';
+    h += '<div class="fp-note">Tap the face to add an opening &middot; ' + (elev.openings || []).length + ' placed</div>';
+    // opening edit sheet, inline under the face when open for this edge
+    if (fpElevOpSheet && fpElevOpSheet.edgeIndex === i){
+      var op = elev.openings[fpElevOpSheet.opIdx];
+      if (op){
+        h += '<div class="fp-sheet"><div class="fp-sheet-head"><span class="fp-sheet-title">' + escapeHtml(op.type) + '</span><button class="fp-sheet-x" onclick="fpElevCloseOpSheet()">Done</button></div>';
+        var cnt = Math.max(0, Math.round(srNum(op.count) || 0));
+        h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Count</span><span class="fp-datum-val">' + cnt + '</span>' +
+          '<button class="fp-key-btn" onclick="fpOpenKeypad(\'elevOp\',' + i + ',\'' + fpElevOpSheet.opIdx + ':count\',\'Count\',\'off\',' + cnt + ')">Key</button></div>';
+        h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Width</span><span class="fp-datum-val">' + fpM(srNum(op.wM)) + '</span>' +
+          '<button class="fp-key-btn" onclick="fpOpenKeypad(\'elevOp\',' + i + ',\'' + fpElevOpSheet.opIdx + ':wM\',\'Width\',\'m\',' + (srNum(op.wM) != null ? op.wM : 'null') + ')">Key</button></div>';
+        h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Height</span><span class="fp-datum-val">' + fpM(srNum(op.hM)) + '</span>' +
+          '<button class="fp-key-btn" onclick="fpOpenKeypad(\'elevOp\',' + i + ',\'' + fpElevOpSheet.opIdx + ':hM\',\'Height\',\'m\',' + (srNum(op.hM) != null ? op.hM : 'null') + ')">Key</button></div>';
+        h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpElevRemoveOpening(' + i + ',' + fpElevOpSheet.opIdx + ')">Remove opening</button></div>';
+        h += '</div>';
+      }
+    }
+    // area readout - readout only, feeds nothing this stage
+    var parts = [ fpM(ar.rect) + ' rect' ];
+    if (ar.shape === 'gable') parts.push((ar.triangle != null ? fpM(ar.triangle) : '—') + ' triangle');
+    parts.push('&minus; ' + fpM(ar.openings) + ' openings');
+    h += '<div class="fp-elev-area"><span class="fp-elev-area-lbl">Cladding area <span class="fp-src-tag">derived</span></span>' +
+      '<span class="fp-elev-area-val">' + fpM(ar.net) + '</span><span class="fp-run-note">' + parts.join(' + ').replace('+ &minus;', '&minus;') + '</span></div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+// --- Part B: plane features + plotted faults ---
+function fpFeatures(b){ return (b && Array.isArray(b.features)) ? b.features : null; }
+function fpEnsureFeatures(b){ if (!Array.isArray(b.features)) b.features = []; return b.features; }
+function fpTogglePlace(mode){
+  fpPlaceMode = (fpPlaceMode === mode) ? null : mode;
+  fpFaultPick = null;
+  fpRender();
+}
+// clamp a tapped point away from the frame edge, where corner handles and edge
+// chips already live (the stage-1 discipline: real hit targets never collide)
+function fpClampInterior(x, y){ return { x: Math.max(24, Math.min(276, x)), y: Math.max(24, Math.min(276, y)) }; }
+function fpPlaceAt(rawX, rawY){
+  var p = fpClampInterior(rawX, rawY);
+  if (fpPlaceMode === 'feature'){
+    fpFeaturePick = { x: p.x, y: p.y };
+    fpFaultPick = null;
+  } else if (fpPlaceMode === 'fault'){
+    fpFaultPick = { x: p.x, y: p.y };
+    fpFeaturePick = null;
+  }
+  fpRender();
+}
+var fpFeaturePick = null;   // { x, y } when the "choose feature type" picker is open
+function fpFeatureAddType(type){
+  if (!fpFeaturePick) return;
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); if (!b) return;
+  var feats = fpEnsureFeatures(b);
+  var id = 'ft' + Date.now() + Math.round(Math.random() * 999);
+  feats.push({ id: id, type: type, count: 1, wM: null, hM: null, x: fpFeaturePick.x, y: fpFeaturePick.y, photos: [] });
+  var idx = feats.length - 1;
+  fpFeaturePick = null; fpPlaceMode = null;
+  srPersist(survey);
+  fpFeatureSheet = idx;
+  fpRender();
+}
+function fpFeatureCancelPick(){ fpFeaturePick = null; fpRender(); }
+function fpOpenFeature(idx){ fpFeatureSheet = idx; fpElevOpSheet = null; fpRender(); }
+function fpCloseFeature(){ fpFeatureSheet = null; fpRender(); }
+function fpRemoveFeature(idx){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); if (!b) return;
+  var feats = fpFeatures(b); if (!feats) return;
+  feats.splice(idx, 1);
+  fpFeatureSheet = null;
+  srPersist(survey); fpRender();
+}
+function fpFeatureAddPhoto(input){
+  if (fpFeatureSheet == null) return;
+  var files = Array.prototype.slice.call(input.files || []); if (!files.length) return;
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); var feats = b && fpFeatures(b);
+  var feat = feats && feats[fpFeatureSheet]; if (!feat) return;
+  if (!Array.isArray(feat.photos)) feat.photos = [];
+  files.forEach(function(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = async function(){
+        var maxW = 1280, w = img.width, h = img.height;
+        if (w > maxW){ h = Math.round(h * maxW / w); w = maxW; }
+        var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        var fullDataUrl = cv.toDataURL('image/jpeg', 0.7);
+        var entry = { data: fullDataUrl, key: '', pendingUpload: false };
+        feat.photos.push(entry);
+        srPersist(survey); fpRender();
+        var novaId = novaSurveyIdFor({ id: fpCurrentId });
+        if (novaId && navigator.onLine !== false){
+          try {
+            var key = await uploadPhotoToWorker(novaId, fullDataUrl);
+            var thumb = await makeThumbnail(fullDataUrl);
+            entry.key = key; entry.data = thumb || fullDataUrl;
+            srPersist(survey); fpRender();
+          } catch (err){ entry.pendingUpload = true; srPersist(survey); }
+        } else { entry.pendingUpload = true; srPersist(survey); }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+function fpRemoveFeaturePhoto(pidx){
+  if (fpFeatureSheet == null) return;
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); var feats = b && fpFeatures(b);
+  var feat = feats && feats[fpFeatureSheet]; if (!feat || !feat.photos) return;
+  feat.photos.splice(pidx, 1);
+  srPersist(survey); fpRender();
+}
+// faults: unchanged model, this stage only sets/clears footprintLoc via a pin
+function fpFaultsForBuilding(survey){ return (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers : []; }
+function fpPlottedFaults(survey, bi){ return fpFaultsForBuilding(survey).filter(function(f){ return f.footprintLoc && f.footprintLoc.bi === bi; }); }
+function fpNewFaultId(survey){
+  var max = 0;
+  fpFaultsForBuilding(survey).forEach(function(f){ var m = String(f.id || '').match(/^f(\d+)$/); if (m) max = Math.max(max, parseInt(m[1], 10)); });
+  return { id: 'f' + (max + 1), number: max + 1 };
+}
+function fpFaultPin(faultId){
+  if (!fpFaultPick) return;
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var faults = fpFaultsForBuilding(survey);
+  var f = faults.find(function(x){ return x.id === faultId; }); if (!f) return;
+  f.footprintLoc = { bi: 0, x: fpFaultPick.x, y: fpFaultPick.y };
+  survey.siteFaultMarkers = faults;
+  fpFaultPick = null; fpPlaceMode = null;
+  srPersist(survey); fpRender();
+}
+function fpFaultPinNew(){
+  if (!fpFaultPick) return;
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var idn = fpNewFaultId(survey);
+  var f = { id: idn.id, number: idn.number, lat: null, lng: null, severity: '', faultType: '', location: '', area: '',
+    description: '', recommendation: '', dbDesc: false, dbRec: false, photos: [], qtyCount: '', qtyWhat: '', qtyWhatOther: '',
+    sizeEach: '', sizeUnit: '', sizeUnitOther: '', faultImage: '', faultImageKey: '', faultImageW: 0, faultImageH: 0,
+    faultMarkerX: null, faultMarkerY: null, footprintLoc: { bi: 0, x: fpFaultPick.x, y: fpFaultPick.y }, unlocatable: false };
+  var faults = fpFaultsForBuilding(survey); faults.push(f);
+  survey.siteFaultMarkers = faults;
+  fpFaultPick = null; fpPlaceMode = null;
+  srPersist(survey); fpRender();
+}
+function fpFaultUnpin(faultId){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var faults = fpFaultsForBuilding(survey);
+  var f = faults.find(function(x){ return x.id === faultId; }); if (!f) return;
+  f.footprintLoc = null;
+  survey.siteFaultMarkers = faults;
+  srPersist(survey); fpRender();
+}
+function fpFaultCancelPick(){ fpFaultPick = null; fpRender(); }
+// --- render: the place-toolbar row above the canvas + the feature/opening sheets ---
+function fpRenderPlaceToolbar(){
+  var h = '<div class="fp-place-row">';
+  h += '<button class="fp-place-btn' + (fpPlaceMode === 'feature' ? ' on' : '') + '" onclick="fpTogglePlace(\'feature\')">Place feature</button>';
+  h += '<button class="fp-place-btn' + (fpPlaceMode === 'fault' ? ' on' : '') + '" onclick="fpTogglePlace(\'fault\')">Pin fault</button>';
+  h += '</div>';
+  if (fpPlaceMode) h += '<div class="fp-place-hint">Tap the plan to ' + (fpPlaceMode === 'feature' ? 'place a feature' : 'pin a fault') + ' &middot; <a href="#" onclick="event.preventDefault();fpTogglePlace(\'' + fpPlaceMode + '\')">Cancel</a></div>';
+  return h;
+}
+function fpRenderFeatureSheet(survey){
+  if (fpFeatureSheet == null) return '';
+  var b = fpBuilding(survey); var feats = b && fpFeatures(b); var feat = feats && feats[fpFeatureSheet]; if (!feat){ fpFeatureSheet = null; return ''; }
+  var h = '<div class="fp-sheet"><div class="fp-sheet-head"><span class="fp-sheet-title">' + escapeHtml(feat.type) + '</span><button class="fp-sheet-x" onclick="fpCloseFeature()">Done</button></div>';
+  var cnt = Math.max(0, Math.round(srNum(feat.count) || 0));
+  h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Count</span><span class="fp-datum-val">' + cnt + '</span>' +
+    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'count\',\'Count\',\'off\',' + cnt + ')">Key</button></div>';
+  h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Width (if sized)</span><span class="fp-datum-val">' + fpM(srNum(feat.wM)) + '</span>' +
+    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'wM\',\'Width\',\'m\',' + (srNum(feat.wM) != null ? feat.wM : 'null') + ')">Key</button></div>';
+  h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Height (if sized)</span><span class="fp-datum-val">' + fpM(srNum(feat.hM)) + '</span>' +
+    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'hM\',\'Height\',\'m\',' + (srNum(feat.hM) != null ? feat.hM : 'null') + ')">Key</button></div>';
+  h += '<div class="fp-sheet-sub">Photo</div><div class="fp-feat-photos">';
+  (feat.photos || []).forEach(function(p, pi){
+    var src = imgSrcFor(p);
+    h += '<div class="fp-feat-photo">' + (src ? '<img src="' + src + '">' : '<div class="fp-feat-photo-ph"></div>') + '<button class="fp-feat-photo-x" onclick="fpRemoveFeaturePhoto(' + pi + ')">&times;</button></div>';
+  });
+  h += '</div><label class="fp-feat-photo-add">Add photo<input type="file" accept="image/*" capture="environment" multiple onchange="fpFeatureAddPhoto(this)" style="display:none;"></label>';
+  h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpRemoveFeature(' + fpFeatureSheet + ')">Remove feature</button></div>';
+  h += '</div>';
+  return h;
+}
+function fpRenderFaultUnpinSheet(survey){
+  if (!fpFaultOpenId) return '';
+  var f = fpFaultsForBuilding(survey).find(function(x){ return x.id === fpFaultOpenId; });
+  if (!f){ fpFaultOpenId = null; return ''; }
+  var h = '<div class="fp-sheet"><div class="fp-sheet-head"><span class="fp-sheet-title">Fault ' + (f.number || '') + (f.faultType ? ' &middot; ' + escapeHtml(f.faultType) : '') + '</span><button class="fp-sheet-x" onclick="fpFaultOpenId=null;fpRender();">Done</button></div>';
+  h += '<div class="fp-sheet-sub">Pinned on the roof plan. The full fault record (severity, description, photos) is edited from the fault list; this pin only marks where it sits.</div>';
+  h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultUnpin(\'' + f.id + '\')">Unpin from plan</button></div></div>';
+  return h;
+}
+var fpFaultOpenId = null;   // id of a plotted fault marker whose quick sheet is open
 
 function buildPricingReturnWorkbook(model){
   if (typeof XLSX === 'undefined') throw new Error('SheetJS (XLSX) not loaded');
