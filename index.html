@@ -8331,19 +8331,26 @@ function estCapturedRidgeRun(survey){
 // slope) - its physical length is the slope run (fpSlopeRun, the same figure
 // fpRuns already uses for "Verge (rake) length"), NOT the verge edge's flat
 // plan-view length (which is just the building width and unrelated to the
-// pitch). One slope run per building, so each barge-flagged verge edge on
-// that building contributes the same slope run value.
+// pitch). On a CENTRE-RIDGE form (duo-pitch, hipped, half-hipped - the same
+// FP_SLOPE_HALF_WIDTH list stage 2 already uses to halve the width for the
+// slope-run derivation) a gable end's barge runs up ONE slope to the apex and
+// down the OTHER, so the quantity is TWO rakes per barge-set verge edge; a
+// single-slope form (mono, lean-to - FP_SLOPE_FULL_WIDTH) has only the one
+// rake. This is a correction to the planning brief (which originally read as
+// one rake per edge); the verge-rake READOUT in the runs panel is unaffected,
+// only the seeded barge QUANTITY doubles on centre-ridge forms.
 function estCapturedBargeRun(survey){
   var sum = 0, any = false;
   (survey.buildings || []).forEach(function(b){
     var fp = b.footprint; if (!fp || !Array.isArray(fp.edges)) return;
     var form = b.roofForm || 'duo-pitch';
     var sr = fpSlopeRun(b); if (sr.value == null) return;
+    var mult = FP_SLOPE_HALF_WIDTH.indexOf(form) >= 0 ? 2 : 1;
     fp.edges.forEach(function(e, i){
       if (e.type === 'curved') return;
       if (fpEdgeRole(fp, e, i, form) !== 'verge') return;
       if (e.cond !== 'barge') return;
-      sum += sr.value; any = true;
+      sum += sr.value * mult; any = true;
     });
   });
   return any ? sum : null;
