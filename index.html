@@ -8194,25 +8194,30 @@ function estRenderCapturedPanel(survey){
       '<span class="cl-cap-val">' + val + (unit ? ' ' + unit : '') + '</span>' +
       '<span class="cl-cap-tag">' + (seeded ? 'seeded' : 'no matching line yet') + '</span></div>';
   };
-  var m2 = function(v){ return Math.round(v * 100) / 100; };
+  // Display only - the rounding itself already happened once, at the seed
+  // boundary inside each estCaptured* function (estRoundUp). This just
+  // formats the fixed decimal places so an estimator sees "42.0", not a
+  // browser-trimmed "42" - what shows here is exactly what seeded.
+  var fArea = function(v){ return v.toFixed(0); };
+  var fLin = function(v){ return v.toFixed(1); };
   var h = '<div class="cl-cap-panel"><div class="cl-cap-title">Captured from the survey</div><div class="cl-cap-grid">';
-  if (s.roofAreaM2.captured) h += chip('Roof area', m2(s.roofAreaM2.value), 'm&sup2;', true);
-  if (s.wallAreaM2Composite.captured) h += chip('Wall cladding (composite)', m2(s.wallAreaM2Composite.value), 'm&sup2;', true);
-  if (s.wallAreaM2SingleSkin.captured) h += chip('Wall cladding (single skin)', m2(s.wallAreaM2SingleSkin.value), 'm&sup2;', true);
-  if (s.gutterLinMTrimline.captured) h += chip('Eaves gutter run (Trimline)', m2(s.gutterLinMTrimline.value), 'm', true);
-  if (s.gutterLinMHalfRound.captured) h += chip('Eaves gutter run (half-round)', m2(s.gutterLinMHalfRound.value), 'm', true);
-  if (s.rooflightM2.captured) h += chip('Rooflight area', m2(s.rooflightM2.value), 'm&sup2;', true);
+  if (s.roofAreaM2.captured) h += chip('Roof area', fArea(s.roofAreaM2.value), 'm&sup2;', true);
+  if (s.wallAreaM2Composite.captured) h += chip('Wall cladding (composite)', fArea(s.wallAreaM2Composite.value), 'm&sup2;', true);
+  if (s.wallAreaM2SingleSkin.captured) h += chip('Wall cladding (single skin)', fArea(s.wallAreaM2SingleSkin.value), 'm&sup2;', true);
+  if (s.gutterLinMTrimline.captured) h += chip('Eaves gutter run (Trimline)', fLin(s.gutterLinMTrimline.value), 'm', true);
+  if (s.gutterLinMHalfRound.captured) h += chip('Eaves gutter run (half-round)', fLin(s.gutterLinMHalfRound.value), 'm', true);
+  if (s.rooflightM2.captured) h += chip('Rooflight area', fArea(s.rooflightM2.value), 'm&sup2;', true);
   if (s.rooflightCountNr.captured) h += chip('Rooflight count', s.rooflightCountNr.value, '&times;', s.rooflightCountNr.seeded);
   if (s.dektiteCountNr.captured) h += chip('Penetrations / soil vents', s.dektiteCountNr.value, '&times;', true);
   if (s.outletCountNr.captured) h += chip('Rainwater outlets', s.outletCountNr.value, '&times;', true);
-  if (s.ridgeRun.captured) h += chip('Ridge run', m2(s.ridgeRun.value), 'm', true);
-  if (s.bargeRun.captured) h += chip('Barge (verge) run', m2(s.bargeRun.value), 'm', true);
-  if (s.eaveFlashLinM.captured) h += chip('Eave flashing run', m2(s.eaveFlashLinM.value), 'm', true);
-  if (s.parapetLinM.captured) h += chip('Parapet flashing run', m2(s.parapetLinM.value), 'm', true);
-  if (s.valleyRunTotal.captured) h += chip('Valley gutter run', m2(s.valleyRunTotal.value), 'm', true);
-  if (s.asbestosT.captured) h += chip('Asbestos waste', m2(s.asbestosT.value), 't', true);
-  if (s.vergeRake.captured) h += chip('Verge (rake) length', m2(s.vergeRake.value), 'm', false);
-  if (s.perimeter.captured) h += chip('Roof perimeter', m2(s.perimeter.value), 'm', false);
+  if (s.ridgeRun.captured) h += chip('Ridge run', fLin(s.ridgeRun.value), 'm', true);
+  if (s.bargeRun.captured) h += chip('Barge (verge) run', fLin(s.bargeRun.value), 'm', true);
+  if (s.eaveFlashLinM.captured) h += chip('Eave flashing run', fLin(s.eaveFlashLinM.value), 'm', true);
+  if (s.parapetLinM.captured) h += chip('Parapet flashing run', fLin(s.parapetLinM.value), 'm', true);
+  if (s.valleyRunTotal.captured) h += chip('Valley gutter run', fLin(s.valleyRunTotal.value), 'm', true);
+  if (s.asbestosT.captured) h += chip('Asbestos waste', fLin(s.asbestosT.value), 't', true);
+  if (s.vergeRake.captured) h += chip('Verge (rake) length', fLin(s.vergeRake.value), 'm', false);
+  if (s.perimeter.captured) h += chip('Roof perimeter', fLin(s.perimeter.value), 'm', false);
   Object.keys(s.featureCounts).forEach(function(type){
     var alreadyShown = (type === 'Rooflight') || (type === 'Penetration / Dektite') || (type === 'Soil vent / flue') || (type === 'Rainwater outlet');
     if (!alreadyShown) h += chip(type, s.featureCounts[type], '&times;', false);
@@ -8255,6 +8260,23 @@ function estCategoryForItem(item){ return EST_ITEM_CATEGORY[String(item || '').t
 // NOT seed a works-engine quantity; estCapturedSummary still surfaces them
 // (computed + labelled "no matching estimate line yet") so nothing captured is
 // silently dropped from view, even where it has nowhere to seed.
+//
+// ROUND-UP-ONCE AT THE SEED BOUNDARY: this is an estimating tool, not a
+// technical drawing - a seeded quantity must read like an estimator wrote
+// it. Every capture function below derives at full precision internally
+// (slope run, apex split, bay geometry, elevation maths all stay exact
+// throughout) and rounds UP exactly once, at its return - the seed
+// boundary where a computed figure becomes an estimating quantity. The
+// same rounded value is what both the works-engine seed AND the Captured
+// from the survey panel read, so what shows is what seeds. Never round
+// early, never round down. decimals: 1 for linear runs and tonnage
+// (41.998 -> 42.0), 0 for areas (156.58 -> 157); counts round via
+// Math.round elsewhere (already whole, never fractional).
+function estRoundUp(value, decimals){
+  if (value == null) return null;
+  var f = Math.pow(10, decimals);
+  return Math.ceil(value * f - 1e-6) / f;
+}
 function estCapturedWallArea(survey, claddingType){
   var sum = 0, any = false;
   (survey.buildings || []).forEach(function(b){
@@ -8266,7 +8288,7 @@ function estCapturedWallArea(survey, claddingType){
       if (ar.net != null){ sum += ar.net; any = true; }
     });
   });
-  return any ? sum : null;
+  return any ? estRoundUp(sum, 0) : null;
 }
 function estCapturedGutterRun(survey, condId){
   var sum = 0, any = false;
@@ -8281,7 +8303,7 @@ function estCapturedGutterRun(survey, condId){
       if (el.value != null){ sum += el.value; any = true; }
     });
   });
-  return any ? sum : null;
+  return any ? estRoundUp(sum, 1) : null;
 }
 function estCapturedRooflightArea(survey){
   var sum = 0, any = false;
@@ -8293,7 +8315,7 @@ function estCapturedRooflightArea(survey){
       if (c > 0 && w != null && h != null){ sum += c * w * h; any = true; }
     });
   });
-  return any ? sum : null;
+  return any ? estRoundUp(sum, 0) : null;
 }
 // ===== ELEMENT-MAP WIDENING: the captured quantities below, joining lines
 // added to WORKS_ELEMENT_MAP above. Same discipline as stage 5 - multi-
@@ -8324,7 +8346,7 @@ function estCapturedRidgeRun(survey){
     var val = keyed != null ? keyed : fpDatumLength(b);
     if (val != null){ sum += val; any = true; if (ridge.cond === 'lowpitch') hasLowPitch = true; }
   });
-  return { value: any ? sum : null, hasLowPitch: hasLowPitch };
+  return { value: any ? estRoundUp(sum, 1) : null, hasLowPitch: hasLowPitch };
 }
 // Barge (verge edges with the barge condition; hipped ends never seed a barge).
 // A barge board is fixed along the roof's RAKING edge (eave to ridge, up the
@@ -8353,7 +8375,7 @@ function estCapturedBargeRun(survey){
       sum += sr.value * mult; any = true;
     });
   });
-  return any ? sum : null;
+  return any ? estRoundUp(sum, 1) : null;
 }
 // Eave flashing vs parapet flashing: an eaves edge's condition splits it -
 // party/abutting ('none') has no eave detail at all, parapet-box routes to
@@ -8372,7 +8394,7 @@ function estCapturedEaveSplit(survey){
       else if (e.cond && e.cond !== 'none'){ eave += el.value; eaveAny = true; }
     });
   });
-  return { eave: eaveAny ? eave : null, parapet: parapetAny ? parapet : null };
+  return { eave: eaveAny ? estRoundUp(eave, 1) : null, parapet: parapetAny ? estRoundUp(parapet, 1) : null };
 }
 // Valley run from the multi-bay repeat, summed across every multi-bay
 // building (a mixed survey's valley total is not dropped just because the
@@ -8384,7 +8406,7 @@ function estCapturedValleyRun(survey){
     var bf = fpBayFigures(b);
     if (bf.valleyRunTotal != null){ sum += bf.valleyRunTotal; any = true; }
   });
-  return any ? sum : null;
+  return any ? estRoundUp(sum, 1) : null;
 }
 // Asbestos-flagged area on any bay side, converted to tonnes at the SAME
 // 1.5t/100m² rule already documented on the standing Waste: asbestos
@@ -8404,7 +8426,7 @@ function estCapturedAsbestosTonnes(survey){
       });
     });
   });
-  return any ? areaSum * 0.015 : null;
+  return any ? estRoundUp(areaSum * 0.015, 1) : null;
 }
 // Every captured quantity, whether or not it currently has a matching works-
 // engine line - the full picture for review, independent of what got seeded.
@@ -8432,7 +8454,11 @@ function estCapturedSummary(survey){
   var asbestosT = estCapturedAsbestosTonnes(survey);
   // verge rake / perimeter: no matching line exists for these (unlike ridge,
   // widened above) - still single-building (fpRuns, buildings[0]), unchanged.
+  // Rounded for panel display per the round-up rule (explicitly named as a
+  // linear run / slope-run-derived figure) even though neither seeds a line.
   var runs = (typeof fpRuns === 'function') ? fpRuns(survey) : null;
+  var rakeRounded = (runs && runs.rake != null) ? estRoundUp(runs.rake, 1) : null;
+  var perimeterRounded = (runs && runs.perimeter != null) ? estRoundUp(runs.perimeter, 1) : null;
   return {
     roofAreaM2: { value: roofRes.total, seeded: roofRes.total != null, captured: roofRes.anyCaptured },
     wallAreaM2Composite: { value: wallComposite, seeded: wallComposite != null, captured: wallComposite != null },
@@ -8449,8 +8475,8 @@ function estCapturedSummary(survey){
     parapetLinM: { value: eaveSplit.parapet, seeded: eaveSplit.parapet != null, captured: eaveSplit.parapet != null },
     valleyRunTotal: { value: valleyTotal, seeded: valleyTotal != null, captured: valleyTotal != null },
     asbestosT: { value: asbestosT, seeded: asbestosT != null, captured: asbestosT != null },
-    vergeRake: { value: runs ? runs.rake : null, seeded: false, captured: !!(runs && runs.rake != null) },
-    perimeter: { value: runs ? runs.perimeter : null, seeded: false, captured: !!(runs && runs.perimeter != null) },
+    vergeRake: { value: rakeRounded, seeded: false, captured: !!(runs && runs.rake != null) },
+    perimeter: { value: perimeterRounded, seeded: false, captured: !!(runs && runs.perimeter != null) },
     featureCounts: featureCounts
   };
 }
@@ -14456,7 +14482,13 @@ function fpBuildingCapturedArea(b){
 // Survey-level resolution: per building, captured area wins where it exists,
 // else the legacy slopes figure (buildingTotalArea - the SAME function
 // surveyTotalRoofArea already sums), so a survey with no capture data anywhere
-// returns bit-identical to surveyTotalRoofArea by construction.
+// returns bit-identical to surveyTotalRoofArea by construction. The combined
+// total is the seed boundary for roof area (feeding the ledger, the proposal
+// and syncSurveyToAirtable alike, since all three read this one function) -
+// rounded up to the whole m² ONLY when at least one building's figure came
+// from capture; a pure-legacy survey's total is returned exactly as
+// surveyTotalRoofArea would give it, untouched, so the 417.61 fixture stays
+// byte-identical (it never crosses the capture seed boundary at all).
 function estResolveRoofArea(survey){
   var buildings = (survey && Array.isArray(survey.buildings)) ? survey.buildings : [];
   var any = false, sum = 0, anyCaptured = false, breakdown = [];
@@ -14468,7 +14500,8 @@ function estResolveRoofArea(survey){
     if (value != null){ sum += value; any = true; if (source === 'captured') anyCaptured = true; }
     breakdown.push({ id: b.id, name: b.name, value: value, source: source });
   });
-  return { total: any ? sum : null, anyCaptured: anyCaptured, breakdown: breakdown };
+  var total = any ? (anyCaptured ? estRoundUp(sum, 0) : sum) : null;
+  return { total: total, anyCaptured: anyCaptured, breakdown: breakdown };
 }
 
 // Display formatters — slope length is rounded, areas are truncated to match
