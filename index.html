@@ -3724,7 +3724,23 @@ input.derived-field { background: #f6f8fa; color: #555; }
     .cl-item input.cl-spec { font-size: 11px; color: #9a9a96; border-color: #efeee9; padding: 1px 5px; }
     .cl-item .cl-cat { font-size: 11px; border: 1px solid #e3e3df; border-radius: 4px; padding: 2px 4px; color: #6b6c70; font-family: inherit; max-width: 110px; }
     .cl-item-head { display: flex; gap: 5px; align-items: center; }
-    .cl-qty { display: flex; align-items: center; gap: 5px; }
+    .cl-qty { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    /* stage 5: captured-quantity provenance tag on a row's qty cell */
+    .cl-prov { flex-basis: 100%; font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .cl-prov:empty { display: none; }
+    .cl-prov.cl-prov-captured { color: #b8700f; }
+    .cl-prov.cl-prov-edited { color: #5a6b8a; }
+    /* stage 5: "captured from the survey" transparency panel above the ledger */
+    .cl-cap-panel { margin-bottom: 12px; padding: 11px 13px; background: #fff7ef; border: 1px solid #f0dcc0; border-radius: 8px; }
+    .cl-cap-title { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #b8700f; margin-bottom: 8px; }
+    .cl-cap-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .cl-cap-chip { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; background: #fff; border: 1px solid #ece9e2; border-radius: 7px; min-width: 120px; }
+    .cl-cap-chip.cl-cap-seeded { border-color: #F7901E; }
+    .cl-cap-lbl { font-size: 10px; color: #8a898b; }
+    .cl-cap-val { font-size: 14px; font-weight: 800; color: #434244; }
+    .cl-cap-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #b0afa9; }
+    .cl-cap-chip.cl-cap-seeded .cl-cap-tag { color: #b8700f; }
+    .cl-cap-foot { font-size: 10.5px; color: #a08252; margin-top: 8px; line-height: 1.4; }
     .cl-qty input { width: 64px; text-align: right; border: 1px solid #d8d8d2; border-radius: 4px; padding: 3px 5px; font-size: 12px; font-family: inherit; }
     .cl-uom { font-size: 11px; color: #9a9a96; white-space: nowrap; }
     /* material rate: quiet, de-emphasised (carried from the rate card) */
@@ -6535,10 +6551,12 @@ async function syncSurveyToAirtable() {
   if (lifeAsStands  !== '' && lifeAsStands  != null && Number.isFinite(Number(lifeAsStands)))  fields['fldgE59AVWqu29UAM'] = Number(lifeAsStands);
   if (lifePostWorks !== '' && lifePostWorks != null && Number.isFinite(Number(lifePostWorks))) fields['fld3Cxef6UnQi7CcT'] = Number(lifePostWorks);
 
-  // Indicative roof area — sum of slope areas across all buildings. Only sent
-  // when the geometry has enough fields to compute a real total.
+  // Indicative roof area — per building, captured footprint/datum/bay geometry
+  // wins where it exists (stage 5), else the slopes figure stands; same field,
+  // no new Airtable columns. Falls back to the raw slopes sum if the capture
+  // resolver is unavailable for any reason.
   const buildings = Array.isArray(s.buildings) ? s.buildings : [];
-  const roofTot = surveyTotalRoofArea(buildings);
+  const roofTot = (typeof estResolveRoofArea === 'function') ? estResolveRoofArea(s).total : surveyTotalRoofArea(buildings);
   if (roofTot != null && Number.isFinite(roofTot)) {
     fields['fld87eG2Ln0JgWyOV'] = Math.round(roofTot);
   }
@@ -8135,6 +8153,32 @@ function estOpenLedger(id){
   if (typeof showView === 'function') showView('estledger');
   estRenderLedger();
 }
+// STAGE 5: what the survey capture has ready, seeded or not - transparency for
+// figures without a matching estimate line yet (ridge/verge/valley/perimeter/
+// counts), not just what "Seed estimate from works engine" actually pulled in.
+function estRenderCapturedPanel(survey){
+  var s = (typeof estCapturedSummary === 'function') ? estCapturedSummary(survey) : null; if (!s) return '';
+  var any = s.roofAreaM2.captured || s.wallAreaM2Composite.captured || s.gutterLinMTrimline.captured || s.rooflightM2.captured ||
+    s.ridgeRun.captured || s.vergeRake.captured || s.perimeter.captured || s.valleyRunTotal.captured || Object.keys(s.featureCounts).length;
+  if (!any) return '';
+  var chip = function(label, val, unit, seeded){
+    return '<div class="cl-cap-chip' + (seeded ? ' cl-cap-seeded' : '') + '"><span class="cl-cap-lbl">' + escapeHtml(label) + '</span>' +
+      '<span class="cl-cap-val">' + val + (unit ? ' ' + unit : '') + '</span>' +
+      '<span class="cl-cap-tag">' + (seeded ? 'seeded' : 'no matching line yet') + '</span></div>';
+  };
+  var h = '<div class="cl-cap-panel"><div class="cl-cap-title">Captured from the survey</div><div class="cl-cap-grid">';
+  if (s.roofAreaM2.captured) h += chip('Roof area', Math.round(s.roofAreaM2.value * 100) / 100, 'm&sup2;', true);
+  if (s.wallAreaM2Composite.captured) h += chip('Wall cladding (composite)', Math.round(s.wallAreaM2Composite.value * 100) / 100, 'm&sup2;', true);
+  if (s.gutterLinMTrimline.captured) h += chip('Eaves gutter run (Trimline)', Math.round(s.gutterLinMTrimline.value * 100) / 100, 'm', true);
+  if (s.rooflightM2.captured) h += chip('Rooflight area', Math.round(s.rooflightM2.value * 100) / 100, 'm&sup2;', true);
+  if (s.ridgeRun.captured) h += chip('Ridge run', Math.round(s.ridgeRun.value * 100) / 100, 'm', false);
+  if (s.vergeRake.captured) h += chip('Verge (rake) length', Math.round(s.vergeRake.value * 100) / 100, 'm', false);
+  if (s.perimeter.captured) h += chip('Roof perimeter', Math.round(s.perimeter.value * 100) / 100, 'm', false);
+  if (s.valleyRunTotal.captured) h += chip('Valley gutter run', Math.round(s.valleyRunTotal.value * 100) / 100, 'm', false);
+  Object.keys(s.featureCounts).forEach(function(type){ h += chip(type, s.featureCounts[type], '&times;', type === 'Rooflight' && s.rooflightM2.captured); });
+  h += '</div><div class="cl-cap-foot">Seeded figures came in via <b>Seed estimate from works engine</b>, marked <b>Captured</b> on their row. Figures with no matching estimate line yet are shown for visibility only.</div></div>';
+  return h;
+}
 
 // --- works-engine seeding ---------------------------------------------------
 // The works engine (generateWorksSchedule) is the ONLY live source of per-item
@@ -8154,24 +8198,131 @@ var EST_ITEM_CATEGORY = {
 };
 function estCategoryForItem(item){ return EST_ITEM_CATEGORY[String(item || '').trim().toLowerCase()] || 'Sheeting'; }
 
-// Derive the works-engine measurements from the survey. Roof area is the only
-// figure the survey captures for works mode (sum of slope areas, Section B2);
-// wall/gutter/rooflight/flashing are not measured at survey level, so they fall
-// to hand entry. Purlin type + carrier length seed the concrete-carrier line.
+// ===== STAGE 5: capture -> works-measurement wiring ===========================
+// Capture data seeds ONLY where a matching WORKS_ELEMENT_MAP line already
+// exists (the signed-off red-pen checklist, not a new taxonomy this stage
+// invents): roofAreaM2 (any form), wallAreaM2 (the sole matching line is 'Wall
+// Composite', so only Composite-clad elevations seed it), gutterLinM (the sole
+// matching line is 'Trimline Gutter', so only Trimline-condition eaves seed
+// it), rooflightM2 (an AREA line - a placed Rooflight feature seeds it only
+// when it carries a keyed width+height; a bare count has no area to offer).
+// Ridge run, verge/barge rake, valley run, perimeter, and every other placed-
+// feature/opening count have NO matching line in the map today, so they do
+// NOT seed a works-engine quantity; estCapturedSummary still surfaces them
+// (computed + labelled "no matching estimate line yet") so nothing captured is
+// silently dropped from view, even where it has nowhere to seed.
+function estCapturedWallArea(survey, claddingType){
+  var sum = 0, any = false;
+  (survey.buildings || []).forEach(function(b){
+    var fp = b.footprint; if (!fp || !Array.isArray(fp.edges)) return;
+    fp.edges.forEach(function(e, i){
+      if (e.type === 'curved' || !e.elevation) return;
+      if ((e.elevation.cladding || '') !== claddingType) return;
+      var ar = fpElevArea(fp, i, b);
+      if (ar.net != null){ sum += ar.net; any = true; }
+    });
+  });
+  return any ? sum : null;
+}
+function estCapturedGutterRun(survey, condId){
+  var sum = 0, any = false;
+  (survey.buildings || []).forEach(function(b){
+    var fp = b.footprint; if (!fp || !Array.isArray(fp.edges)) return;
+    var form = b.roofForm || 'duo-pitch';
+    fp.edges.forEach(function(e, i){
+      if (e.type === 'curved') return;
+      if (fpEdgeRole(fp, e, i, form) !== 'eaves') return;
+      if (e.cond !== condId) return;
+      var el = fpEdgeLen(fp, i, b);
+      if (el.value != null){ sum += el.value; any = true; }
+    });
+  });
+  return any ? sum : null;
+}
+function estCapturedRooflightArea(survey){
+  var sum = 0, any = false;
+  (survey.buildings || []).forEach(function(b){
+    (fpFeatures(b) || []).forEach(function(ft){
+      if (ft.type !== 'Rooflight') return;
+      var c = Math.max(0, Math.round(srNum(ft.count) || 0));
+      var w = srNum(ft.wM), h = srNum(ft.hM);
+      if (c > 0 && w != null && h != null){ sum += c * w * h; any = true; }
+    });
+  });
+  return any ? sum : null;
+}
+// Every captured quantity, whether or not it currently has a matching works-
+// engine line - the full picture for review, independent of what got seeded.
+function estCapturedSummary(survey){
+  var roofRes = estResolveRoofArea(survey);
+  var wallComposite = estCapturedWallArea(survey, 'Composite');
+  var trimGutter = estCapturedGutterRun(survey, 'trimline');
+  var rlArea = estCapturedRooflightArea(survey);
+  var featureCounts = {};
+  (survey.buildings || []).forEach(function(b){
+    (fpFeatures(b) || []).forEach(function(ft){
+      var c = Math.max(0, Math.round(srNum(ft.count) || 0));
+      featureCounts[ft.type] = (featureCounts[ft.type] || 0) + c;
+    });
+  });
+  // ridge / verge / perimeter: single-building runs already computed by fpRuns
+  // (stage 2-3), which reads fpBuilding(survey) = buildings[0] - the same
+  // building the footprint surface edits. A second building's ridge/verge/
+  // perimeter is not visible in this panel; this mirrors fpRuns' own existing
+  // single-building scope (unchanged by this stage) rather than a new gap.
+  // Valley run, unlike fpRuns, is cheap to sum correctly across every multi-
+  // bay building (fpBayFigures is already per-building), so it is - a mixed
+  // survey's valley total is not silently dropped just because the multi-bay
+  // building happens not to be buildings[0].
+  var runs = (typeof fpRuns === 'function') ? fpRuns(survey) : null;
+  var valleyTotal = 0, valleyAny = false;
+  (survey.buildings || []).forEach(function(b){
+    if (b.roofForm !== 'multi-bay') return;
+    var bf = fpBayFigures(b);
+    if (bf.valleyRunTotal != null){ valleyTotal += bf.valleyRunTotal; valleyAny = true; }
+  });
+  return {
+    roofAreaM2: { value: roofRes.total, seeded: roofRes.total != null, captured: roofRes.anyCaptured },
+    wallAreaM2Composite: { value: wallComposite, seeded: wallComposite != null, captured: wallComposite != null },
+    gutterLinMTrimline: { value: trimGutter, seeded: trimGutter != null, captured: trimGutter != null },
+    rooflightM2: { value: rlArea, seeded: rlArea != null, captured: rlArea != null },
+    ridgeRun: { value: runs ? runs.ridgeRun : null, seeded: false, captured: !!(runs && runs.ridgeRun != null) },
+    vergeRake: { value: runs ? runs.rake : null, seeded: false, captured: !!(runs && runs.rake != null) },
+    perimeter: { value: runs ? runs.perimeter : null, seeded: false, captured: !!(runs && runs.perimeter != null) },
+    valleyRunTotal: { value: valleyAny ? valleyTotal : null, seeded: false, captured: valleyAny },
+    featureCounts: featureCounts
+  };
+}
+
+// Derive the works-engine measurements from the survey. Roof area, wall area
+// (Composite), gutter run (Trimline) and rooflight area now prefer capture
+// data where it exists (stage 5); everything else falls to hand entry exactly
+// as before. m.__capturedKeys marks which measurement keys came from capture,
+// so seeded rows can carry visible provenance - it is not itself a measurement
+// key and generateWorksSchedule never reads it (only WORKS_ELEMENT_MAP keys).
 function estDeriveMeasurements(survey){
-  var m = {};
-  var roof = (typeof surveyTotalRoofArea === 'function') ? surveyTotalRoofArea(survey.buildings) : null;
-  if (roof != null && roof > 0) m.roofAreaM2 = roof;
+  var m = {}, capturedKeys = {};
+  var roofRes = estResolveRoofArea(survey);
+  if (roofRes.total != null && roofRes.total > 0){ m.roofAreaM2 = roofRes.total; if (roofRes.anyCaptured) capturedKeys.roofAreaM2 = true; }
+  var wallComposite = estCapturedWallArea(survey, 'Composite');
+  if (wallComposite != null && wallComposite > 0){ m.wallAreaM2 = wallComposite; capturedKeys.wallAreaM2 = true; }
+  var trimGutter = estCapturedGutterRun(survey, 'trimline');
+  if (trimGutter != null && trimGutter > 0){ m.gutterLinM = trimGutter; capturedKeys.gutterLinM = true; }
+  var rlArea = estCapturedRooflightArea(survey);
+  if (rlArea != null && rlArea > 0){ m.rooflightM2 = rlArea; capturedKeys.rooflightM2 = true; }
   if (survey.purlinType) m.purlinType = survey.purlinType;
   if (survey.carrierLinM != null) m.carrierLinM = survey.carrierLinM;
+  m.__capturedKeys = capturedKeys;
   return m;
 }
-function estElementsFromSchedule(sched){
+function estElementsFromSchedule(sched, capturedKeys){
+  var ck = capturedKeys || {};
   return (sched.elements || []).map(function(el){
     return { id: estNewId('el'), name: el.label, rows: (el.lines || []).map(function(ln){
       return { id: estNewId('r'), category: estCategoryForItem(ln.item), item: ln.item, spec:'',
         units: ln.quantity, uom: ln.unit || '', matPerUnit: ln.materialsCostPerUnit,
-        labPerUnit: ln.labourCostPerUnit, matActual:null, labActual:null };
+        labPerUnit: ln.labourCostPerUnit, matActual:null, labActual:null,
+        qtySource: ck[ln.measurementKey] ? 'captured' : null };
     }) };
   });
 }
@@ -8195,11 +8346,21 @@ async function estSeedFromWorks(){
   var sched;
   try { sched = generateWorksSchedule(meas, { config: { contingency: L.rates.contingency, margin: L.rates.margin } }); }
   catch (e){ showToast('Could not run the works estimate: ' + e.message, 'err'); return; }
-  var seeded = estElementsFromSchedule(sched);
+  // STAGE 5: pass through which measurement keys came from the footprint capture
+  // so seeded rows carry visible provenance (estElementsFromSchedule tags each
+  // row qtySource:'captured' when its measurementKey is in this set).
+  var seeded = estElementsFromSchedule(sched, meas.__capturedKeys);
   if (!seeded.length){
     showToast('The works engine produced no lines to seed - enter a roof area in Section B2, or build the ledger by hand.', 'err');
     return;
   }
+  // Reseed-over-edits: the existing untouched-vs-touched rule already IS the
+  // safe answer - once ANY row has been edited (units/rates/actuals/item/spec
+  // keyed), the ledger is no longer "untouched" and a reseed ADDS a fresh
+  // element set below rather than overwriting in place, so edited values
+  // (captured or hand-typed) are never clobbered by a later reseed. No new
+  // merge logic needed; a captured row that is itself later edited flips to
+  // qtySource:'edited' (estSetNum) and survives exactly the same way.
   var replaced;
   if (estLedgerUntouched(L)){ L.elements = seeded; replaced = true; }
   else {
@@ -8210,8 +8371,10 @@ async function estSeedFromWorks(){
   estRenderLedger();
   var missing = (sched.pending || []).length;
   var noRates = !card || !card.items || !card.items.length;
+  var capturedCount = Object.keys(meas.__capturedKeys || {}).length;
   var msg = (replaced ? 'Seeded ' : 'Added ') + seeded.length + ' element(s) from the works engine (keyed on roof area';
   msg += (meas.purlinType && String(meas.purlinType).toLowerCase() === 'concrete' && meas.carrierLinM) ? ' + concrete carrier).' : ').';
+  if (capturedCount) msg += ' ' + capturedCount + ' measurement(s) came from the survey capture (marked captured on the ledger).';
   if (noRates) msg += ' Rate card unavailable - per-unit rates seeded at 0, enter by hand.';
   else if (missing) msg += ' ' + missing + ' line(s) had no rate-card match - enter those rates by hand.';
   showToast(msg, noRates || missing ? 'warn' : 'ok');
@@ -8251,6 +8414,10 @@ function estRenderLedger(){
     + '</div>';
   h += '</div>';
 
+  // STAGE 5: what the survey capture has to offer, seeded or not - transparency
+  // for anything without a matching estimate line yet, not just what got seeded.
+  h += estRenderCapturedPanel(survey);
+
   // calm scope list: collapsible element groups, calm rows, build-up + actuals behind a per-line expander
   h += '<div class="cl-wrap">';
   if (!L.elements.length){
@@ -8286,7 +8453,8 @@ function estRenderLedger(){
         '<input type="text" ' + d + ' data-field="spec" value="' + srEsc(row.spec) + '" oninput="estSetText(this)" class="cl-spec" placeholder="spec (optional)"></div>';
       // quantity + unit (uom editable inline as the unit)
       h += '<div class="cl-qty"><input type="number" step="0.01" min="0" ' + d + ' data-field="units" value="' + (row.units != null ? row.units : '') + '" oninput="estSetNum(this)" placeholder="0">' +
-        '<input type="text" ' + d + ' data-field="uom" value="' + srEsc(row.uom) + '" oninput="estSetText(this)" placeholder="unit" class="cl-uom" style="width:42px;border:1px solid #efeee9;border-radius:4px;padding:2px 4px;color:#9a9a96;font-family:inherit;"></div>';
+        '<input type="text" ' + d + ' data-field="uom" value="' + srEsc(row.uom) + '" oninput="estSetText(this)" placeholder="unit" class="cl-uom" style="width:42px;border:1px solid #efeee9;border-radius:4px;padding:2px 4px;color:#9a9a96;font-family:inherit;">' +
+        (row.qtySource ? '<span class="cl-prov cl-prov-' + row.qtySource + '" id="est-prov-' + row.id + '">' + (row.qtySource === 'captured' ? 'Captured' : 'Edited') + '</span>' : '<span class="cl-prov" id="est-prov-' + row.id + '"></span>') + '</div>';
       // material rate (quiet)
       h += '<div><span class="cl-rate-lbl">Mat &pound;/u</span><input type="number" step="0.01" min="0" ' + d + ' data-field="matPerUnit" value="' + (row.matPerUnit != null ? row.matPerUnit : '') + '" oninput="estSetNum(this)" class="cl-rate-quiet" placeholder="rate"></div>';
       // labour rate (prominent)
@@ -8349,8 +8517,14 @@ function estSetNum(input){
   var L = estEnsureLedger(survey);
   var elId = input.getAttribute('data-elid'), rowId = input.getAttribute('data-rid');
   var hit = estFindRow(L, elId, rowId); if (!hit) return;
+  var field = input.getAttribute('data-field');
   var v = srNum(input.value);
-  hit.row[input.getAttribute('data-field')] = (v == null ? null : v);
+  hit.row[field] = (v == null ? null : v);
+  // STAGE 5: editing a captured quantity is a starting value, not a lock - it
+  // behaves exactly like editing any hand-entered quantity, the provenance
+  // mark just flips from captured to edited (patched in place, no re-render,
+  // so the input keeps focus like every other edit here).
+  if (field === 'units' && hit.row.qtySource === 'captured'){ hit.row.qtySource = 'edited'; estPaintProv(rowId, 'edited'); }
   srPersist(survey);
   estRecalcRow(L, rowId, hit.row);
   estRecalcElement(L, elId);
@@ -8358,6 +8532,11 @@ function estSetNum(input){
 }
 function estSet(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; }
 function estPaint(id, col){ var el = document.getElementById(id); if (el){ el.style.background = col.bg; el.style.color = col.ink; } }
+function estPaintProv(rowId, source){
+  var el = document.getElementById('est-prov-' + rowId); if (!el) return;
+  el.className = 'cl-prov cl-prov-' + source;
+  el.textContent = source === 'captured' ? 'Captured' : 'Edited';
+}
 // calm-surface UI state: per-line expander (transient) + group collapse (persisted in L.collapsed)
 var estRowOpen = {};
 function estGroupCollapsed(L, elId){ return !!(L.collapsed && L.collapsed[elId]); }   // estimate-ledger elements default open (user-created)
@@ -8528,7 +8707,17 @@ function proposalSetRate(id, value){
 
 // roof area = the Section B derived total (sum of slope areas), the same figure the
 // estimate ledger seeds from. Returns null when nothing is measured yet.
+// STAGE 5: prefers the capture-resolved area (per-building captured-or-legacy,
+// see estResolveRoofArea) so the proposal's indicative figure AND the worked
+// estimates (pweSeedEstimate reads ctx.area from this same function) inherit
+// captured geometry automatically - no changes to either engine, only to the
+// area they already both consume upstream. Falls back to the raw slopes total
+// when estResolveRoofArea is unavailable for any reason.
 function proposalRoofArea(survey){
+  if (typeof estResolveRoofArea === 'function'){
+    var r = estResolveRoofArea(survey);
+    return r.total;
+  }
   return (typeof surveyTotalRoofArea === 'function') ? surveyTotalRoofArea(survey && survey.buildings) : null;
 }
 // roof type drives the family: if every measured slope is Flat -> flat, else pitched.
@@ -14034,6 +14223,59 @@ function surveyTotalRoofArea(buildings) {
     sum += t; any = true;
   }
   return any ? sum : null;
+}
+
+// ===== NOVA SURVEY CAPTURE REBUILD - STAGE 5: WIRE CAPTURED QUANTITIES INTO THE
+// ESTIMATE SEEDING ==============================================================
+// Per-building roof area from the footprint capture, when it exists, IN PLACE OF
+// the slopes figure for that building only (a mixed survey seeds each building
+// correctly). Two derivations, matching the capture model exactly as built:
+//   MULTI-BAY: the bay-derived area already computed in fpBayFigures (stage 3).
+//   STANDARD FORMS (duo-pitch/mono/hipped/half-hipped/lean-to) with a footprint +
+//     datum: slope run (fpSlopeRun, stage 2) x the effective length of each
+//     EAVES-role edge (fpEdgeLen, stage-2 edge-inherit), summed - one slope per
+//     eaves edge. On a rectangle duo-pitch this is exactly "slope run x length x
+//     2 slopes" since both eaves edges share the building length.
+//   FLAT has no slope run (nothing to derive from); a building with no footprint
+//   or no roofForm returns null - the caller falls back to buildingTotalArea, so
+//   a legacy building is completely unaffected.
+function fpBuildingCapturedArea(b){
+  if (!b) return { value: null, source: null };
+  if (b.roofForm === 'multi-bay'){
+    var bf = (typeof fpBayFigures === 'function') ? fpBayFigures(b) : { areaTotal: null };
+    return (bf.areaTotal != null) ? { value: bf.areaTotal, source: 'captured' } : { value: null, source: null };
+  }
+  var fp = b.footprint;
+  if (!fp || !Array.isArray(fp.edges) || b.roofForm === 'flat') return { value: null, source: null };
+  var sr = (typeof fpSlopeRun === 'function') ? fpSlopeRun(b) : { value: null };
+  if (sr.value == null) return { value: null, source: null };
+  var form = b.roofForm || 'duo-pitch';
+  var sumLen = 0, any = false;
+  fp.edges.forEach(function(e, i){
+    if (e.type === 'curved') return;
+    if (fpEdgeRole(fp, e, i, form) !== 'eaves') return;
+    var el = fpEdgeLen(fp, i, b);
+    if (el.value != null){ sumLen += el.value; any = true; }
+  });
+  if (!any) return { value: null, source: null };
+  return { value: sr.value * sumLen, source: 'captured' };
+}
+// Survey-level resolution: per building, captured area wins where it exists,
+// else the legacy slopes figure (buildingTotalArea - the SAME function
+// surveyTotalRoofArea already sums), so a survey with no capture data anywhere
+// returns bit-identical to surveyTotalRoofArea by construction.
+function estResolveRoofArea(survey){
+  var buildings = (survey && Array.isArray(survey.buildings)) ? survey.buildings : [];
+  var any = false, sum = 0, anyCaptured = false, breakdown = [];
+  buildings.forEach(function(b){
+    var capt = fpBuildingCapturedArea(b);
+    var legacy = buildingTotalArea(b);
+    var value = (capt.value != null) ? capt.value : legacy;
+    var source = (capt.value != null) ? 'captured' : (legacy != null ? 'legacy' : null);
+    if (value != null){ sum += value; any = true; if (source === 'captured') anyCaptured = true; }
+    breakdown.push({ id: b.id, name: b.name, value: value, source: source });
+  });
+  return { total: any ? sum : null, anyCaptured: anyCaptured, breakdown: breakdown };
 }
 
 // Display formatters — slope length is rounded, areas are truncated to match
