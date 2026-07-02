@@ -59,7 +59,7 @@
   size: 297mm 210mm;
   margin: 16mm 16mm 20mm 16mm;
   @bottom-left {
-    content: "The honest view from above.";
+    content: "The truth from above.";
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 8pt;
     font-weight: bold;
@@ -3950,6 +3950,27 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-datum-derived { background: #faf9f6; }
     #view-footprint .fp-src-tag { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: #e7e4dc; color: #6b6c70; border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
     #view-footprint .fp-src-tag.fp-src-keyed { background: #F7901E; color: #1f1f1f; }
+    /* stage 3: multi-bay definition + derived valley read-backs */
+    #view-footprint .fp-chip-valley { pointer-events: none; background: #eef2f6; border: 1px dashed #7d8ea0; color: #4d6275; font-weight: 700; max-width: none; }
+    #view-footprint .fp-bays { margin-top: 16px; max-width: 480px; }
+    #view-footprint .fp-bay-card { border: 1px solid #ece9e2; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
+    #view-footprint .fp-bay-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    #view-footprint .fp-bay-title { font-size: 13px; font-weight: 800; color: #434244; }
+    #view-footprint .fp-bay-remove { font-size: 12px; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 6px 10px; min-height: 34px; cursor: pointer; color: #a33; font-family: inherit; }
+    #view-footprint .fp-bay-step { display: inline-flex; align-items: center; gap: 8px; }
+    #view-footprint .fp-bay-stepbtn { width: 44px; height: 44px; font-size: 20px; font-weight: 700; background: #fff; border: 1px solid #d8d8d2; border-radius: 8px; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-bay-count { font-size: 15px; font-weight: 800; color: #434244; min-width: 34px; text-align: center; }
+    #view-footprint .fp-bay-sides { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-top: 10px; }
+    #view-footprint .fp-bay-side { background: #faf9f6; border: 1px solid #ece9e2; border-radius: 9px; padding: 9px 10px; }
+    #view-footprint .fp-bay-side-t { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #8a898b; margin-bottom: 6px; }
+    #view-footprint .fp-bay-srow { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #434244; margin-top: 6px; flex-wrap: wrap; }
+    #view-footprint .fp-bay-srow > span:first-child { flex: 1; min-width: 52px; }
+    #view-footprint .fp-bay-srow b { font-size: 13px; }
+    #view-footprint .fp-bay-cover { font-size: 13px; min-height: 40px; border: 1px solid #d8d8d2; border-radius: 7px; background: #fff; color: #434244; font-family: inherit; max-width: 150px; }
+    #view-footprint .fp-bay-asb { margin-top: 8px; width: 100%; min-height: 40px; font-size: 12px; font-weight: 700; background: #fff; border: 1px dashed #c4a36a; border-radius: 7px; color: #8a6a35; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-bay-asb.on { background: #fbf2e6; border-style: solid; border-color: #b06a1f; color: #7a4a12; }
+    #view-footprint .fp-bay-add { font-size: 12.5px; font-weight: 700; background: #F7901E; color: #1f1f1f; border: none; border-radius: 7px; padding: 11px 15px; min-height: 44px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-bay-total { margin-top: 10px; font-size: 13px; color: #434244; }
     /* computed runs */
     #view-footprint .fp-runs { margin-top: 16px; max-width: 480px; }
     #view-footprint .fp-run-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
@@ -7324,7 +7345,7 @@ function ppIsFixed(line){ return line.qty != null; }
 function renderPricingPackHTML(model){
   var m = model.meta;
   var logo = 'assets/nova-mark-transparent.png';
-  var foot = function(sec){ return '<div class="pp-foot"><div>&middot; The honest view from above.</div>'
+  var foot = function(sec){ return '<div class="pp-foot"><div>&middot; The truth from above.</div>'
     + '<div>' + ppEsc(m.surveyRef) + ' &middot; Subcontractor pricing pack &middot; ' + ppEsc(sec) + '</div></div>'; };
   var topbar = '<div class="pp-top"><img class="pp-logo" src="' + logo + '" alt="Nova"><div class="pp-rule"></div></div>';
 
@@ -9149,7 +9170,7 @@ var FP_PRESET_LABELS = { rectangle:'Rectangle', L:'L-shape', T:'T-shape', U:'U-s
 var FP_FORMS = [
   { id:'duo-pitch', label:'Duo-pitch' }, { id:'mono', label:'Mono' }, { id:'hipped', label:'Hipped' },
   { id:'half-hipped', label:'Half-hipped' }, { id:'lean-to', label:'Lean-to' },
-  { id:'flat', label:'Flat', later:true }, { id:'multi-bay', label:'Multi-bay', later:true }
+  { id:'flat', label:'Flat', later:true }, { id:'multi-bay', label:'Multi-bay' }
 ];
 
 function fpMakeEdges(n){ var e = []; for (var i = 0; i < n; i++) e.push({ type:'straight', curvature:null }); return e; }
@@ -9235,6 +9256,26 @@ function fpRender(){
       var rmx = (rl.x1 + rl.x2) / 2, rmy = (rl.y1 + rl.y2) / 2;
       hit += '<button class="fp-chip fp-chip-ridge ' + (rcc.cond ? 'set' : 'unset') + (ridgeActive ? ' active' : '') + '" style="left:' + (rmx / 3) + '%;top:' + (rmy / 3) + '%;" onclick="fpOpenRidge()">' + escapeHtml(fpChipShort(rlabel)) + '</button>';
     }
+    // Stage 3: the multi-bay repeat - repeated bay strips with DERIVED valley lines
+    // (target page 08). Valleys are derived junctions, never tappable edges; the
+    // chip is a read-back only. Drawn lines capped for sanity on very long runs.
+    if (form === 'multi-bay'){
+      var bfv = fpBayFigures(b);
+      if (bfv.totalBays >= 2){
+        var bbv = fpBBox(fp), vIns = 12;
+        var nStrips = Math.min(bfv.totalBays, 49);   // cap: 48 drawn valley lines
+        for (var vi = 1; vi < nStrips; vi++){
+          if (bbv.w >= bbv.h){
+            var vx = bbv.minx + bbv.w * vi / nStrips;
+            h += '<line x1="' + vx + '" y1="' + (bbv.miny + vIns) + '" x2="' + vx + '" y2="' + (bbv.maxy - vIns) + '" stroke="#7d8ea0" stroke-width="1" stroke-dasharray="3 3" pointer-events="none"/>';
+          } else {
+            var vy = bbv.miny + bbv.h * vi / nStrips;
+            h += '<line x1="' + (bbv.minx + vIns) + '" y1="' + vy + '" x2="' + (bbv.maxx - vIns) + '" y2="' + vy + '" stroke="#7d8ea0" stroke-width="1" stroke-dasharray="3 3" pointer-events="none"/>';
+          }
+        }
+        hit += '<span class="fp-chip fp-chip-valley" style="left:50%;top:50%;">Valley gutter &times;' + bfv.valleys + ' &middot; derived</span>';
+      }
+    }
     // Stage 2: per-edge condition chips - the tappable read-back. 44px, offset OUTWARD
     // from the edge so they stay clear of the corner handles sitting on the vertices.
     (fp.edges || []).forEach(function(e, i){
@@ -9275,6 +9316,7 @@ function fpRender(){
     h += fpRenderEdgeSheet(survey);
     h += fpRenderKeypad();
     h += fpRenderDatum(survey);
+    h += fpRenderBays(survey);   // Stage 3: bay definition (multi-bay only)
     h += fpRenderRuns(survey);
   }
 
@@ -9455,6 +9497,9 @@ function fpPlace(){
 //               spanM is the OVERRIDE slot for the eaves-to-apex slope run: normally
 //               the run DERIVES from heights + width (see fpSlopeRun); a keyed spanM
 //               wins (roof-access jobs, and legacy snapshots keyed before the derive).
+//               eavesLengthM is RETIRED from the panel: length + width are keyed once
+//               and every perimeter edge INHERITS (see fpEdgeLen; keyed edge wins);
+//               an old eavesLengthM value stands in for a missing lengthM (fpDatumLength).
 //   building.ridge  { cond, lengthM }   (the internal ridge line)
 // NOTHING here writes the existing slopes or building.widthM, so surveyTotalRoofArea
 // and every live consumer are unchanged; a Stage-1 footprint with no conditions
@@ -9554,24 +9599,69 @@ function fpSlopeRun(b){
   return { value: Math.sqrt(rise * rise + run * run), source: 'derived' };
 }
 
+// --- edge lengths INHERIT from the keyed building dimensions (key once, derive
+// everywhere; a keyed edge always wins). The drawn footprint knows every edge's
+// proportion, so the polygon scales ANISOTROPICALLY: the bounding box maps to the
+// keyed building length (long axis) and width (short axis), giving per-axis scale
+// factors sx / sy; an edge of drawn extent (dx, dy) derives
+//   sqrt((dx*sx)^2 + (dy*sy)^2)
+// EXACT on the rectangle (eaves edges = building length, verges = width) and
+// proportional on L / T / U / stepped / freeform. An axis-aligned edge needs only
+// its own axis's dimension; a diagonal needs both; a degenerate or unclosed
+// footprint derives nothing rather than guessing.
+function fpDatumLength(b){
+  // Migration rule: the retired separate eaves-length datum serves as the building
+  // length ONLY when building length is absent (it was the length wearing another
+  // name); ignored otherwise. The snapshot is never rewritten.
+  var d = (b && b.datum) || {};
+  var L = srNum(d.lengthM);
+  return L != null ? L : srNum(d.eavesLengthM);
+}
+function fpEdgeScales(fp, b){
+  if (!fp || !fp.corners || fp.corners.length < 3) return { sx: null, sy: null };
+  var bb = fpBBox(fp);
+  var L = fpDatumLength(b), W = srNum(((b && b.datum) || {}).widthM);
+  var longX = bb.w >= bb.h;
+  var dimX = longX ? L : W, dimY = longX ? W : L;
+  return { sx: (dimX != null && dimX > 0 && bb.w > 0) ? dimX / bb.w : null,
+           sy: (dimY != null && dimY > 0 && bb.h > 0) ? dimY / bb.h : null };
+}
+function fpEdgeLen(fp, i, b){
+  var e = fp.edges[i]; if (!e) return { value: null, source: null };
+  var keyed = srNum(e.lengthM);
+  if (keyed != null) return { value: keyed, source: 'keyed' };
+  if (!fp.corners || fp.corners.length < 3 || !fp.corners[i]) return { value: null, source: null };
+  var c = fp.corners[i], n = fp.corners[(i + 1) % fp.corners.length];
+  var dx = Math.abs(n.x - c.x), dy = Math.abs(n.y - c.y);
+  var s = fpEdgeScales(fp, b);
+  if (dy === 0) return (s.sx != null) ? { value: dx * s.sx, source: 'derived' } : { value: null, source: null };
+  if (dx === 0) return (s.sy != null) ? { value: dy * s.sy, source: 'derived' } : { value: null, source: null };
+  if (s.sx != null && s.sy != null) return { value: Math.sqrt(dx * s.sx * dx * s.sx + dy * s.sy * dy * s.sy), source: 'derived' };
+  return { value: null, source: null };
+}
+
 // --- the simple, honest single-building runs (metres). Curved edges excluded. ---
 function fpRuns(survey){
   var b = fpBuilding(survey), fp = fpFootprint(survey); if (!fp) return null;
   var form = (b && b.roofForm) || 'duo-pitch';
-  var d = (b && b.datum) || {};
-  var perimeter = 0, gutterRun = 0, vergeCount = 0, keyedEdges = 0;
+  var perimeter = 0, gutterRun = 0, vergeCount = 0, keyedEdges = 0, derivedEdges = 0;
   (fp.edges || []).forEach(function(e, i){
     if (e.type === 'curved') return;
-    var L = srNum(e.lengthM);
-    if (L != null){ perimeter += L; keyedEdges++; }
+    var el = fpEdgeLen(fp, i, b);   // effective: keyed wins, else inherited from building dims
+    if (el.value != null){ perimeter += el.value; if (el.source === 'keyed') keyedEdges++; else derivedEdges++; }
     var role = fpEdgeRole(fp, e, i, form);
-    if (role === 'eaves' && L != null && e.cond && e.cond !== 'none') gutterRun += L;   // party/abutting suppresses the gutter
+    if (role === 'eaves' && el.value != null && e.cond && e.cond !== 'none') gutterRun += el.value;   // party/abutting suppresses the gutter
     if (role === 'verge') vergeCount++;
   });
   var sr = fpSlopeRun(b);   // verge rake = the slope run (keyed override wins over derived)
   var ridge = (b && b.ridge) || {};
-  var ridgeRun = (ridge.cond === 'standard' || ridge.cond === 'mono') ? srNum(ridge.lengthM) : null;
-  return { perimeter: keyedEdges ? perimeter : null, gutterRun: gutterRun || null, rake: sr.value, rakeSource: sr.source, vergeCount: vergeCount, ridgeRun: ridgeRun, keyedEdges: keyedEdges, totalEdges: (fp.edges || []).length };
+  var ridgeRun = null, ridgeSource = null;
+  if (ridge.cond === 'standard' || ridge.cond === 'mono'){
+    var rk = srNum(ridge.lengthM);
+    if (rk != null){ ridgeRun = rk; ridgeSource = 'keyed'; }
+    else { ridgeRun = fpDatumLength(b); ridgeSource = (ridgeRun != null) ? 'derived' : null; }   // a standard/mono ridge runs the building length
+  }
+  return { perimeter: (keyedEdges + derivedEdges) ? perimeter : null, gutterRun: gutterRun || null, rake: sr.value, rakeSource: sr.source, vergeCount: vergeCount, ridgeRun: ridgeRun, ridgeSource: ridgeSource, keyedEdges: keyedEdges, derivedEdges: derivedEdges, totalEdges: (fp.edges || []).length };
 }
 function fpM(n){ return (n == null) ? '—' : (Math.round(n * 100) / 100) + ' m'; }
 
@@ -9624,6 +9714,15 @@ function fpKeypadDone(){
   if (fpKeypad.kind === 'edge' && fp && fp.edges[fpKeypad.i]) fp.edges[fpKeypad.i].lengthM = v;
   else if (fpKeypad.kind === 'ridge' && b){ if (!b.ridge) b.ridge = { cond:null, lengthM:null }; b.ridge.lengthM = v; }
   else if (fpKeypad.kind === 'datum' && b){ if (!b.datum) b.datum = {}; b.datum[fpKeypad.field] = v; }
+  else if (fpKeypad.kind === 'bay' && b){
+    var bay = (b.bays || [])[fpKeypad.i];
+    if (bay){
+      var f = fpKeypad.field;
+      if (f === 'count') bay.count = (v == null) ? 0 : Math.max(0, Math.round(v));
+      else if (f.indexOf('s0.') === 0 || f.indexOf('s1.') === 0) bay.sides[f.charAt(1) === '0' ? 0 : 1][f.slice(3)] = v;
+      else bay[f] = v;
+    }
+  }
   srPersist(survey); fpKeypad = null; fpRender();
 }
 function fpKeypadCancel(){ fpKeypad = null; fpRender(); }
@@ -9641,8 +9740,15 @@ function fpRenderEdgeSheet(survey){
     h += '<div class="fp-opts">';
     FP_COND.ridge.forEach(function(o){ h += '<button class="fp-opt' + (rc.cond === o.id ? ' on' : '') + '" onclick="fpSetRidgeCond(\'' + o.id + '\')">' + escapeHtml(o.label) + '</button>'; });
     h += '</div>';
-    h += '<div class="fp-key-row"><span>Ridge run: <b>' + fpM(srNum(rc.lengthM)) + '</b></span>' +
-      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'ridge\',null,null,\'Ridge run\',\'m\',' + (srNum(rc.lengthM) != null ? rc.lengthM : 'null') + ')">Key dimension</button></div>';
+    // ridge run inherits the building length (a standard/mono ridge runs it);
+    // keyed wins, Clear returns to derived
+    var rrKeyed = srNum(rc.lengthM), rrDerived = fpDatumLength(b);
+    var rrVal = rrKeyed != null ? rrKeyed : rrDerived;
+    var rrSrc = rrKeyed != null ? 'keyed' : (rrDerived != null ? 'derived' : null);
+    var rrTag = rrSrc ? ' <span class="fp-src-tag' + (rrSrc === 'keyed' ? ' fp-src-keyed' : '') + '">' + rrSrc + '</span>' : '';
+    h += '<div class="fp-key-row"><span>Ridge run: <b>' + fpM(rrVal) + '</b>' + rrTag + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'ridge\',null,null,\'Ridge run\',\'m\',' + (rrKeyed != null ? rc.lengthM : 'null') + ')">Key dimension</button>' +
+      (rrSrc === 'keyed' ? '<button class="fp-key-btn" onclick="fpClearRidgeLen()">Clear</button>' : '') + '</div>';
     return h + '</div>';
   }
   var i = fpEdgeSheet, e = fp.edges[i]; if (!e){ fpEdgeSheet = null; return ''; }
@@ -9657,9 +9763,14 @@ function fpRenderEdgeSheet(survey){
   (FP_COND[role] || []).forEach(function(o){ h += '<button class="fp-opt' + (e.cond === o.id ? ' on' : '') + '" onclick="fpSetCond(' + i + ',\'' + o.id + '\')">' + escapeHtml(o.label) + '</button>'; });
   h += '</div>';
   if (e.cond === 'none') h += '<div class="fp-note">Party / abutting: this edge is suppressed from the gutter run.</div>';
-  // hand-keyed run for this edge
-  h += '<div class="fp-key-row"><span>' + escapeHtml(fpEdgeRunLabel(role)) + ': <b>' + fpM(srNum(e.lengthM)) + '</b></span>' +
-    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'edge\',' + i + ',null,\'' + escapeHtml(fpEdgeRunLabel(role)) + '\',\'m\',' + (srNum(e.lengthM) != null ? e.lengthM : 'null') + ')">Key dimension</button></div>';
+  // effective run for this edge: inherited from the keyed building dimensions,
+  // marked derived; keying here overrides (marked keyed), Clear returns to derived
+  var el = fpEdgeLen(fp, i, b);
+  var elTag = el.source ? ' <span class="fp-src-tag' + (el.source === 'keyed' ? ' fp-src-keyed' : '') + '">' + el.source + '</span>' : '';
+  h += '<div class="fp-key-row"><span>' + escapeHtml(fpEdgeRunLabel(role)) + ': <b>' + fpM(el.value) + '</b>' + elTag + '</span>' +
+    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'edge\',' + i + ',null,\'' + escapeHtml(fpEdgeRunLabel(role)) + '\',\'m\',' + (srNum(e.lengthM) != null ? e.lengthM : 'null') + ')">Key dimension</button>' +
+    (el.source === 'keyed' ? '<button class="fp-key-btn" onclick="fpClearEdgeLen(' + i + ')">Clear</button>' : '') + '</div>';
+  if (el.source === 'derived') h += '<div class="fp-note">Inherited from the keyed building dimensions; key it here only where the site differs.</div>';
   h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpAddCornerFromSheet(' + i + ')">Add a corner on this edge</button>' +
     (e.cond ? '<button class="fp-sheet-2nd" onclick="fpClearCond(' + i + ')">Clear condition</button>' : '') + '</div>';
   return h + '</div>';
@@ -9680,19 +9791,31 @@ function fpClearSpan(){
   b.datum.spanM = null;
   srPersist(survey); fpRender();
 }
+function fpClearEdgeLen(i){
+  var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp || !fp.edges[i]) return;
+  fp.edges[i].lengthM = null;
+  srPersist(survey); fpRender();
+}
+function fpClearRidgeLen(){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); if (!b || !b.ridge) return;
+  b.ridge.lengthM = null;
+  srPersist(survey); fpRender();
+}
 function fpRenderDatum(survey){
   var b = fpBuilding(survey); if (!b) return '';
   var d = b.datum || {};
-  // only what the surveyor can laser from the ground; the slope run derives below
+  // only what the surveyor can laser from the ground, keyed ONCE: length and
+  // width feed the edge runs (the retired separate eaves-length entry was the
+  // building length wearing another name; fpDatumLength migrates old snapshots)
   var rows = [
-    { f:'eavesLengthM', label:'Eaves length', neu:true }, { f:'eavesHeightM', label:'Eaves height' },
-    { f:'ridgeHeightM', label:'Ridge height' }, { f:'widthM', label:'Building width (full, as lasered)' },
+    { f:'eavesHeightM', label:'Eaves height' }, { f:'ridgeHeightM', label:'Ridge height' },
+    { f:'widthM', label:'Building width (full, as lasered)' },
     { f:'lengthM', label:'Building length / depth' }
   ];
-  var h = '<div class="fp-datum"><div class="fp-tools-lbl">Keyed dimensions (m) &middot; laser, from the ground</div><div class="fp-datum-rows">';
+  var h = '<div class="fp-datum"><div class="fp-tools-lbl">Keyed dimensions (m) &middot; laser, from the ground &middot; keyed once, the edges inherit</div><div class="fp-datum-rows">';
   rows.forEach(function(r){
-    var v = srNum(d[r.f]);
-    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">' + escapeHtml(r.label) + (r.neu ? ' <span class="fp-new">new</span>' : '') + '</span>' +
+    var v = (r.f === 'lengthM') ? fpDatumLength(b) : srNum(d[r.f]);
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">' + escapeHtml(r.label) + '</span>' +
       '<span class="fp-datum-val">' + fpM(v) + '</span>' +
       '<button class="fp-key-btn" onclick="fpOpenKeypad(\'datum\',null,\'' + r.f + '\',\'' + escapeHtml(r.label) + '\',\'m\',' + (v != null ? v : 'null') + ')">Key</button></div>';
   });
@@ -9702,6 +9825,7 @@ function fpRenderDatum(survey){
   var srNote = (form === 'flat') ? 'flat roof &middot; no slope run'
     : (sr.source === 'keyed') ? '<span class="fp-src-tag fp-src-keyed">keyed</span>'
     : (sr.source === 'derived') ? '<span class="fp-src-tag">derived</span>'
+    : (form === 'multi-bay') ? 'multi-bay &middot; slopes live in the bay definition'
     : 'needs eaves + ridge height + width';
   h += '<div class="fp-datum-row fp-datum-derived"><span class="fp-datum-lbl">Slope run (eaves to apex) ' + srNote + '</span>' +
     '<span class="fp-datum-val">' + fpM(sr.value) + '</span>';
@@ -9718,10 +9842,172 @@ function fpRenderRuns(survey){
   var cell = function(label, val, note){ return '<div class="fp-run"><span class="fp-run-lbl">' + escapeHtml(label) + '</span><span class="fp-run-val">' + val + '</span>' + (note ? '<span class="fp-run-note">' + escapeHtml(note) + '</span>' : '') + '</div>'; };
   var h = '<div class="fp-runs"><div class="fp-tools-lbl">Computed runs &middot; the honest single-building subset</div><div class="fp-run-grid">';
   h += cell('Eaves gutter run', fpM(r.gutterRun), 'sum of eaves edges with a gutter');
-  h += cell('Roof perimeter', fpM(r.perimeter), r.keyedEdges + ' of ' + r.totalEdges + ' edges keyed');
+  h += cell('Roof perimeter', fpM(r.perimeter), (r.keyedEdges + r.derivedEdges) ? (r.derivedEdges + ' derived · ' + r.keyedEdges + ' keyed of ' + r.totalEdges + ' edges') : 'key the building length and width');
   h += cell('Verge (rake) length', fpM(r.rake), (r.rakeSource === 'keyed' ? 'keyed slope run' : r.rakeSource === 'derived' ? 'derived slope run' : 'from the slope run') + ' · ' + r.vergeCount + ' verge edge' + (r.vergeCount === 1 ? '' : 's'));
-  h += cell('Ridge run', fpM(r.ridgeRun), 'when a standard / mono ridge is set');
-  h += '</div><div class="fp-run-foot">Valleys, bay repeats and areas come in later stages; nothing here feeds the estimate yet.</div></div>';
+  h += cell('Ridge run', fpM(r.ridgeRun), r.ridgeSource === 'derived' ? 'derived · runs the building length' : r.ridgeSource === 'keyed' ? 'keyed ridge run' : 'when a standard / mono ridge is set');
+  // Stage 3: bay-derived readouts (multi-bay only). READOUT ONLY - none of this
+  // feeds surveyTotalRoofArea, the estimate seeding, the proposal or any live
+  // consumer; the quantity join is stage 5.
+  if (((fpBuilding(survey) || {}).roofForm) === 'multi-bay'){
+    var bf = fpBayFigures(fpBuilding(survey));
+    if (bf.totalBays >= 1){
+      h += cell('Valley gutters', bf.valleys ? ('&times;' + bf.valleys) : '—', 'derived · total bays minus one');
+      h += cell('Valley run total', fpM(bf.valleyRunTotal), bf.valleys + ' valleys × run length' + (bf.runsDiffer ? ' (longest run used)' : ''));
+      h += cell('Roof area (bay-derived)', bf.areaTotal != null ? (Math.round(bf.areaTotal * 100) / 100) + ' m²' : '—',
+        'derived · joins the estimate in stage 5' + (bf.incompleteTypes ? ' · ' + bf.incompleteTypes + ' bay type' + (bf.incompleteTypes === 1 ? '' : 's') + ' incomplete' : ''));
+    }
+  }
+  h += '</div><div class="fp-run-foot">Wall elevations and the estimate join come in later stages; nothing here feeds the estimate yet.</div></div>';
+  return h;
+}
+
+// ===== NOVA SURVEY CAPTURE REBUILD - STAGE 3: MULTI-BAY REPEAT + DERIVED VALLEYS
+// A bay is a repeating unit WITHIN one building, never a building. The surveyor
+// defines ONE bay per type; the plan repeats it and DERIVES the junctions.
+//   building.bays  [ { id, widthM, runM, count,
+//                      sides:[ { pitchDeg, covering, asbestos, slopeM }, x2 ] } ]
+// Per-side slope derivation (derive, don't ask - stage-2 discipline): the two
+// sides of a bay rise from valley level to a shared apex, so with bay width W
+// and pitches p1/p2 (degrees), rise h = w1·tan(p1) = w2·tan(p2), w1 + w2 = W:
+//   w1 = W·tan(p2) / (tan(p1) + tan(p2))     slope s1 = w1 / cos(p1)
+//   w2 = W·tan(p1) / (tan(p1) + tan(p2))     slope s2 = w2 / cos(p2)
+// A keyed side slope length (slopeM) WINS over the derived one. One bay's area =
+// (s1 + s2) × run; the bay-derived roof area readout = Σ over types (area × count).
+// Valleys: total bays N = Σ counts; internal valley gutters = N − 1 (DERIVED,
+// never drawn as edges), each the run length; if types key different runs the
+// longest is used (a valley runs the full roof) and the readout says so.
+// ADDITIVE: bays is a new optional key riding the snapshot; no new Airtable
+// fields; a building without bays behaves exactly as before; NOTHING here feeds
+// surveyTotalRoofArea or any live consumer (the join is stage 5).
+
+var FP_BAY_COVERINGS = ['Glazed', 'Sheeted'].concat(ROOF_TYPE_OPTIONS);
+function fpBays(b){ return (b && Array.isArray(b.bays)) ? b.bays : []; }
+function fpMakeBayType(n){
+  return { id: 'BT' + n, widthM: null, runM: null, count: 1,
+    sides: [ { pitchDeg: null, covering: '', asbestos: false, slopeM: null },
+             { pitchDeg: null, covering: '', asbestos: false, slopeM: null } ] };
+}
+// one side's slope length: keyed wins, else derive from bay width + BOTH pitches
+function fpBaySideSlope(bay, j){
+  var side = bay.sides[j] || {};
+  var keyed = srNum(side.slopeM);
+  if (keyed != null) return { len: keyed, src: 'keyed' };
+  var W = srNum(bay.widthM);
+  var p1 = srNum((bay.sides[0] || {}).pitchDeg), p2 = srNum((bay.sides[1] || {}).pitchDeg);
+  if (W == null || W <= 0 || p1 == null || p2 == null || p1 <= 0 || p2 <= 0 || p1 >= 89 || p2 >= 89) return { len: null, src: null };
+  var t1 = Math.tan(p1 * Math.PI / 180), t2 = Math.tan(p2 * Math.PI / 180);
+  var w = (j === 0) ? W * t2 / (t1 + t2) : W * t1 / (t1 + t2);
+  var p = (j === 0) ? p1 : p2;
+  return { len: w / Math.cos(p * Math.PI / 180), src: 'derived' };
+}
+function fpBayFigures(b){
+  var bays = fpBays(b);
+  var totalBays = 0, areaTotal = null, incompleteTypes = 0, runs = [], types = [];
+  bays.forEach(function(bay){
+    var count = Math.max(0, Math.round(srNum(bay.count) || 0));
+    totalBays += count;
+    var run = srNum(bay.runM);
+    if (run != null && count > 0) runs.push(run);
+    var s1 = fpBaySideSlope(bay, 0), s2 = fpBaySideSlope(bay, 1);
+    var areaPerBay = (s1.len != null && s2.len != null && run != null) ? (s1.len + s2.len) * run : null;
+    if (areaPerBay != null && count > 0){ areaTotal = (areaTotal || 0) + areaPerBay * count; }
+    else if (count > 0) incompleteTypes++;
+    types.push({ s1: s1, s2: s2, areaPerBay: areaPerBay, count: count });
+  });
+  var valleys = Math.max(totalBays - 1, 0);
+  var runEach = runs.length ? Math.max.apply(null, runs) : null;
+  return { totalBays: totalBays, valleys: valleys, valleyRunEach: runEach,
+    valleyRunTotal: (valleys && runEach != null) ? valleys * runEach : null,
+    runsDiffer: runs.length > 1 && Math.min.apply(null, runs) !== runEach,
+    areaTotal: areaTotal, incompleteTypes: incompleteTypes, types: types };
+}
+// --- bay handlers ---
+function fpAddBayType(){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpEnsureBuilding(survey);
+  if (!Array.isArray(b.bays)) b.bays = [];
+  var max = 0;
+  b.bays.forEach(function(bay){ var m = String(bay.id || '').match(/^BT(\d+)$/); if (m) max = Math.max(max, parseInt(m[1], 10)); });
+  b.bays.push(fpMakeBayType(max + 1));
+  srPersist(survey); fpRender();
+}
+function fpRemoveBayType(i){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); if (!b || !b.bays || !b.bays[i]) return;
+  if (!confirm('Remove bay type ' + (i + 1) + ' and its definition?')) return;
+  b.bays.splice(i, 1);
+  srPersist(survey); fpRender();
+}
+function fpBayCount(i, delta){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); var bay = b && b.bays && b.bays[i]; if (!bay) return;
+  bay.count = Math.max(0, Math.round(srNum(bay.count) || 0) + delta);
+  srPersist(survey); fpRender();
+}
+function fpBaySetCovering(i, j, val){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); var bay = b && b.bays && b.bays[i]; if (!bay || !bay.sides[j]) return;
+  bay.sides[j].covering = val;
+  srPersist(survey); fpRender();
+}
+function fpBayToggleAsbestos(i, j){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); var bay = b && b.bays && b.bays[i]; if (!bay || !bay.sides[j]) return;
+  bay.sides[j].asbestos = !bay.sides[j].asbestos;
+  srPersist(survey); fpRender();
+}
+function fpBayClearSlope(i, j){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); var bay = b && b.bays && b.bays[i]; if (!bay || !bay.sides[j]) return;
+  bay.sides[j].slopeM = null;
+  srPersist(survey); fpRender();
+}
+// --- the bay definition surface (target page 07), rendered for multi-bay only ---
+function fpRenderBays(survey){
+  var b = fpBuilding(survey); if (!b || b.roofForm !== 'multi-bay') return '';
+  var bays = fpBays(b);
+  var bf = fpBayFigures(b);
+  var h = '<div class="fp-bays"><div class="fp-tools-lbl">Bay definition &middot; define one bay per type, the plan repeats it</div>';
+  var deg = function(v){ return v == null ? '—' : (Math.round(v * 10) / 10) + '°'; };
+  bays.forEach(function(bay, i){
+    h += '<div class="fp-bay-card">';
+    h += '<div class="fp-bay-head"><span class="fp-bay-title">Bay type ' + (i + 1) + '</span>' +
+      '<button class="fp-bay-remove" onclick="fpRemoveBayType(' + i + ')">Remove</button></div>';
+    h += '<div class="fp-datum-rows">';
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Bay width (across both pitches)</span>' +
+      '<span class="fp-datum-val">' + fpM(srNum(bay.widthM)) + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'bay\',' + i + ',\'widthM\',\'Bay width\',\'m\',' + (srNum(bay.widthM) != null ? bay.widthM : 'null') + ')">Key</button></div>';
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Run length (along the valley)</span>' +
+      '<span class="fp-datum-val">' + fpM(srNum(bay.runM)) + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'bay\',' + i + ',\'runM\',\'Run length\',\'m\',' + (srNum(bay.runM) != null ? bay.runM : 'null') + ')">Key</button></div>';
+    var cnt = Math.max(0, Math.round(srNum(bay.count) || 0));
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">How many of this bay</span>' +
+      '<span class="fp-bay-step"><button class="fp-bay-stepbtn" onclick="fpBayCount(' + i + ',-1)" aria-label="One fewer">&minus;</button>' +
+      '<span class="fp-bay-count">' + cnt + '</span>' +
+      '<button class="fp-bay-stepbtn" onclick="fpBayCount(' + i + ',1)" aria-label="One more">+</button></span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'bay\',' + i + ',\'count\',\'How many of this bay\',\'bays\',' + cnt + ')">Key</button></div>';
+    h += '</div>';
+    // the two sides, set independently (north-light: glazed steep one side,
+    // sheeted flagged asbestos cement the other)
+    h += '<div class="fp-bay-sides">';
+    bay.sides.forEach(function(side, j){
+      var sl = fpBaySideSlope(bay, j);
+      h += '<div class="fp-bay-side"><div class="fp-bay-side-t">Side ' + (j === 0 ? 'A' : 'B') + '</div>';
+      h += '<div class="fp-bay-srow"><span>Pitch</span><b>' + deg(srNum(side.pitchDeg)) + '</b>' +
+        '<button class="fp-key-btn" onclick="fpOpenKeypad(\'bay\',' + i + ',\'s' + j + '.pitchDeg\',\'Side ' + (j === 0 ? 'A' : 'B') + ' pitch\',\'deg\',' + (srNum(side.pitchDeg) != null ? side.pitchDeg : 'null') + ')">Key</button></div>';
+      h += '<div class="fp-bay-srow"><span>Covering</span><select class="fp-bay-cover" onchange="fpBaySetCovering(' + i + ',' + j + ', this.value)">' +
+        '<option value="">Choose</option>' +
+        FP_BAY_COVERINGS.map(function(c){ return '<option' + (side.covering === c ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('') +
+        '</select></div>';
+      h += '<button class="fp-bay-asb' + (side.asbestos ? ' on' : '') + '" onclick="fpBayToggleAsbestos(' + i + ',' + j + ')">Asbestos cement' + (side.asbestos ? ' ✓' : '') + '</button>';
+      h += '<div class="fp-bay-srow fp-bay-slope"><span>Slope' + (sl.src ? ' <span class="fp-src-tag' + (sl.src === 'keyed' ? ' fp-src-keyed' : '') + '">' + sl.src + '</span>' : '') + '</span><b>' + fpM(sl.len) + '</b>' +
+        '<button class="fp-key-btn" onclick="fpOpenKeypad(\'bay\',' + i + ',\'s' + j + '.slopeM\',\'Side ' + (j === 0 ? 'A' : 'B') + ' slope length\',\'m\',' + (srNum(side.slopeM) != null ? side.slopeM : 'null') + ')">Key</button>' +
+        (sl.src === 'keyed' ? '<button class="fp-key-btn" onclick="fpBayClearSlope(' + i + ',' + j + ')">Clear</button>' : '') + '</div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+  });
+  h += '<button class="fp-bay-add" onclick="fpAddBayType()">Add bay type</button>';
+  if (bf.totalBays >= 1){
+    h += '<div class="fp-bay-total">Total bays <b>' + bf.totalBays + '</b>' +
+      (bf.valleys ? ' &middot; valley gutters <b>&times;' + bf.valleys + '</b> <span class="fp-src-tag">derived</span>' : '') + '</div>';
+  }
+  h += '</div>';
   return h;
 }
 
@@ -9792,7 +10078,7 @@ function buildPricingReturnWorkbook(model){
   push(['','Estimated time on site (duration)','','','','',''],'delivery'); merges.push({ s:{r:aoa.length-1,c:2}, e:{r:aoa.length-1,c:4} });
   push(['','','','','','',''],'');
 
-  push(['Standards: ' + model.standards + ' The honest view from above.','','','','','',''],'note'); merges.push({ s:{r:aoa.length-1,c:0}, e:{r:aoa.length+1,c:6} });
+  push(['Standards: ' + model.standards + ' The truth from above.','','','','','',''],'note'); merges.push({ s:{r:aoa.length-1,c:0}, e:{r:aoa.length+1,c:6} });
 
   var ws = XLSX.utils.aoa_to_sheet(aoa);
   var maxR = aoa.length - 1; merges.forEach(function(mg){ if (mg.e.r > maxR) maxR = mg.e.r; });
@@ -9880,7 +10166,7 @@ function ppPackPageStyle(surveyRef){
   var st = document.createElement('style'); st.id = 'pp-active-page';
   st.textContent = '@page{size:210mm 297mm;margin:16mm 14mm 18mm 14mm;'
     + '@top-left{content:none}@top-center{content:none}@top-right{content:none}@bottom-center{content:none}'
-    + '@bottom-left{content:"The honest view from above.";font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6}'
+    + '@bottom-left{content:"The truth from above.";font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6}'
     + '@bottom-right{content:"' + ref + '  \\00B7  Subcontractor pricing pack  \\00B7  Page " counter(page) " of " counter(pages);font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6;text-align:right}}';
   document.head.appendChild(st);
 }
@@ -10174,7 +10460,7 @@ function slRenderCover(survey) {
         '</div>' +
       '</div>' +
       '<div class="cv-foot">' +
-        '<div class="tag">The honest view from above.</div>' +
+        '<div class="tag">The truth from above.</div>' +
         '<div class="co">' + escapeHtml(ref) + '</div>' +
       '</div>' +
     '</div>' +
@@ -10238,7 +10524,7 @@ function slRenderExec(survey) {
   // takes page 1 and the rating panel takes page 2 (eyebrow "… (continued)"). The
   // background row prefers page 1 but flows to page 2 if it does not fit there.
   const burst = slBurst('ink', 'top:50%;right:-180px;width:460px;transform:translateY(-50%);opacity:.12;z-index:1;');
-  const foot  = '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
+  const foot  = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
   const ctaHtml = slExecCTA(condition, lifeNow, lifeWorks);
   const topHtml =
     '<div class="ex-top">' +
@@ -10304,7 +10590,7 @@ function slRenderAreasOverview(survey) {
         ', ' + stats.total + ' fault' + (stats.total === 1 ? '' : 's') + '.</h2>' +
       '<div class="areas" style="margin-top:18px;">' + rows + '</div>' +
     '</div>' +
-    '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
+    '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
   '</section>';
 }
 
@@ -10477,7 +10763,7 @@ function slRenderSchedule(survey, costInfo, opts) {
   const siteShort = slSchedSiteLabel(s);
   const eyebrowBase = '02 &middot; Condition schedule' + (siteShort ? ' &middot; ' + escapeHtml(siteShort) : '');
   const ref = (typeof novaSurveyIdFor === 'function') ? novaSurveyIdFor(s) : '';
-  const foot = '<div class="foot"><div class="tag">The honest view from above.</div><div>' +
+  const foot = '<div class="foot"><div class="tag">The truth from above.</div><div>' +
     (ref ? escapeHtml(ref) + ' &middot; ' : '') + 'Condition schedule</div></div>';
   const numTag = function(n) { return (totalSheets > 1) ? ' &middot; ' + n + '/' + totalSheets : ''; };
   const sheet = function(eyebrow, h2, inner, subline) {
@@ -12927,7 +13213,7 @@ function slRenderCards(survey, opts) {
   // a continuation page is just its two cards (as before). The burst repeats
   // bottom-right on every card page.
   const cburst = slBurst('ink', 'bottom:-120px;right:-120px;width:480px;opacity:.12;z-index:1;');
-  const cfoot  = '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
+  const cfoot  = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
   const chead  =
       '<div class="eyebrow">03 · Priority faults in detail</div>' +
       '<h2><span class="gt">&raquo;</span>The serious few, up close.</h2>' +
@@ -13036,7 +13322,7 @@ function slRenderFindings(survey, costInfo) {
         '<div class="fnote">Priced line by line in the condition schedule. Subject to access and to no concealed defects being found on opening up.</div>' +
       '</div>' +
     '</div>' +
-    '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
+    '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
   '</section>';
 }
 
@@ -13115,7 +13401,7 @@ function slRenderFindingsNext(survey) {
         '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
+    '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
   '</section>';
 }
 
@@ -13140,7 +13426,7 @@ function slRenderBack(survey) {
       '</div>' +
     '</div>' +
     '<div class="bk-foot">' +
-      '<div class="tag">The honest view from above.</div>' +
+      '<div class="tag">The truth from above.</div>' +
       '<div class="rg">Nova (SW) Limited &middot; Registered in England &amp; Wales &middot; Company No. 16369950 &middot; nova-limited.com</div>' +
     '</div>' +
   '</section>';
