@@ -4974,7 +4974,33 @@ const WORKS_ELEMENT_MAP = {
   rooflightM2:  { label: 'Rooflights', lines: [
     { item: 'Skylight', basis: 'area' } ] },
   flashingLinM: { label: 'Flashings', lines: [
-    { item: 'Eave', basis: 'length', tradeConfirm: 'flashing subtype mix (Eave/Ridge/Barge/Cap) not in a single measurement' } ] }
+    { item: 'Eave', basis: 'length', tradeConfirm: 'flashing subtype mix (Eave/Ridge/Barge/Cap) not in a single measurement' } ] },
+  // ===== rate-card element map widening: the captured quantities below join
+  // lines already in Jamie's MASTER Cost Breakdown (see pweMetalFlashing /
+  // pweMetalDrainage / pweTemplate, the same vocabulary the worked-estimate
+  // templates draw on) - no new elements or items are invented here.
+  ridgeLinM:        { label: 'Ridge flashing', lines: [
+    { item: 'External Ridge', basis: 'length', tradeConfirm: 'external ridge cap; the low-pitch-oversized condition is carried as the line spec' } ] },
+  bargeLinM:        { label: 'Barge flashing', lines: [
+    { item: 'Barge', basis: 'length' } ] },
+  valleyLinM:       { label: 'Valley gutter (multi-bay)', lines: [
+    { item: 'Insulated Gutter', basis: 'length', tradeConfirm: 'the internal valley run between bays - a major cost item, confirm the specified gutter type' } ] },
+  eaveFlashLinM:    { label: 'Eave flashing', lines: [
+    { item: 'Eave', basis: 'length' } ] },
+  parapetLinM:      { label: 'Parapet flashing', lines: [
+    { item: 'Parapet', basis: 'length' } ] },
+  halfRoundGutterLinM: { label: 'Gutter renewal (half-round)', lines: [
+    { item: 'Half-round gutter', basis: 'length' } ] },
+  rooflightCountNr: { label: 'Rooflights (count)', lines: [
+    { item: 'Skylight', basis: 'count', tradeConfirm: 'counted, not measured - no size was keyed on the placed rooflight(s)' } ] },
+  dektiteCountNr:   { label: 'Roof penetrations', lines: [
+    { item: 'Dektites', basis: 'count', tradeConfirm: 'soil vents/flues route to the same Dektites line - the map does not distinguish them' } ] },
+  outletCountNr:    { label: 'Rainwater outlets', lines: [
+    { item: 'Outlets', basis: 'count' } ] },
+  wallSingleSkinM2: { label: 'Wall re-clad (single skin)', lines: [
+    { item: 'Single Skin', basis: 'area' } ] },
+  asbestosT:        { label: 'Asbestos waste', lines: [
+    { item: 'Asbestos', basis: 'weight', tradeConfirm: 'tonnage derived from the flagged asbestos-cement area at 1.5t per 100m² (the rate already documented on the standing Waste: asbestos checklist item)' } ] }
 };
 
 // Whole-job standing elements a re-roof always carries (brief s5). PLACEHOLDER:
@@ -8158,24 +8184,39 @@ function estOpenLedger(id){
 // counts), not just what "Seed estimate from works engine" actually pulled in.
 function estRenderCapturedPanel(survey){
   var s = (typeof estCapturedSummary === 'function') ? estCapturedSummary(survey) : null; if (!s) return '';
-  var any = s.roofAreaM2.captured || s.wallAreaM2Composite.captured || s.gutterLinMTrimline.captured || s.rooflightM2.captured ||
-    s.ridgeRun.captured || s.vergeRake.captured || s.perimeter.captured || s.valleyRunTotal.captured || Object.keys(s.featureCounts).length;
+  var keys = ['roofAreaM2', 'wallAreaM2Composite', 'wallAreaM2SingleSkin', 'gutterLinMTrimline', 'gutterLinMHalfRound',
+    'rooflightM2', 'rooflightCountNr', 'dektiteCountNr', 'outletCountNr', 'ridgeRun', 'bargeRun', 'eaveFlashLinM',
+    'parapetLinM', 'valleyRunTotal', 'asbestosT', 'vergeRake', 'perimeter'];
+  var any = keys.some(function(k){ return s[k].captured; }) || Object.keys(s.featureCounts).length;
   if (!any) return '';
   var chip = function(label, val, unit, seeded){
     return '<div class="cl-cap-chip' + (seeded ? ' cl-cap-seeded' : '') + '"><span class="cl-cap-lbl">' + escapeHtml(label) + '</span>' +
       '<span class="cl-cap-val">' + val + (unit ? ' ' + unit : '') + '</span>' +
       '<span class="cl-cap-tag">' + (seeded ? 'seeded' : 'no matching line yet') + '</span></div>';
   };
+  var m2 = function(v){ return Math.round(v * 100) / 100; };
   var h = '<div class="cl-cap-panel"><div class="cl-cap-title">Captured from the survey</div><div class="cl-cap-grid">';
-  if (s.roofAreaM2.captured) h += chip('Roof area', Math.round(s.roofAreaM2.value * 100) / 100, 'm&sup2;', true);
-  if (s.wallAreaM2Composite.captured) h += chip('Wall cladding (composite)', Math.round(s.wallAreaM2Composite.value * 100) / 100, 'm&sup2;', true);
-  if (s.gutterLinMTrimline.captured) h += chip('Eaves gutter run (Trimline)', Math.round(s.gutterLinMTrimline.value * 100) / 100, 'm', true);
-  if (s.rooflightM2.captured) h += chip('Rooflight area', Math.round(s.rooflightM2.value * 100) / 100, 'm&sup2;', true);
-  if (s.ridgeRun.captured) h += chip('Ridge run', Math.round(s.ridgeRun.value * 100) / 100, 'm', false);
-  if (s.vergeRake.captured) h += chip('Verge (rake) length', Math.round(s.vergeRake.value * 100) / 100, 'm', false);
-  if (s.perimeter.captured) h += chip('Roof perimeter', Math.round(s.perimeter.value * 100) / 100, 'm', false);
-  if (s.valleyRunTotal.captured) h += chip('Valley gutter run', Math.round(s.valleyRunTotal.value * 100) / 100, 'm', false);
-  Object.keys(s.featureCounts).forEach(function(type){ h += chip(type, s.featureCounts[type], '&times;', type === 'Rooflight' && s.rooflightM2.captured); });
+  if (s.roofAreaM2.captured) h += chip('Roof area', m2(s.roofAreaM2.value), 'm&sup2;', true);
+  if (s.wallAreaM2Composite.captured) h += chip('Wall cladding (composite)', m2(s.wallAreaM2Composite.value), 'm&sup2;', true);
+  if (s.wallAreaM2SingleSkin.captured) h += chip('Wall cladding (single skin)', m2(s.wallAreaM2SingleSkin.value), 'm&sup2;', true);
+  if (s.gutterLinMTrimline.captured) h += chip('Eaves gutter run (Trimline)', m2(s.gutterLinMTrimline.value), 'm', true);
+  if (s.gutterLinMHalfRound.captured) h += chip('Eaves gutter run (half-round)', m2(s.gutterLinMHalfRound.value), 'm', true);
+  if (s.rooflightM2.captured) h += chip('Rooflight area', m2(s.rooflightM2.value), 'm&sup2;', true);
+  if (s.rooflightCountNr.captured) h += chip('Rooflight count', s.rooflightCountNr.value, '&times;', s.rooflightCountNr.seeded);
+  if (s.dektiteCountNr.captured) h += chip('Penetrations / soil vents', s.dektiteCountNr.value, '&times;', true);
+  if (s.outletCountNr.captured) h += chip('Rainwater outlets', s.outletCountNr.value, '&times;', true);
+  if (s.ridgeRun.captured) h += chip('Ridge run', m2(s.ridgeRun.value), 'm', true);
+  if (s.bargeRun.captured) h += chip('Barge (verge) run', m2(s.bargeRun.value), 'm', true);
+  if (s.eaveFlashLinM.captured) h += chip('Eave flashing run', m2(s.eaveFlashLinM.value), 'm', true);
+  if (s.parapetLinM.captured) h += chip('Parapet flashing run', m2(s.parapetLinM.value), 'm', true);
+  if (s.valleyRunTotal.captured) h += chip('Valley gutter run', m2(s.valleyRunTotal.value), 'm', true);
+  if (s.asbestosT.captured) h += chip('Asbestos waste', m2(s.asbestosT.value), 't', true);
+  if (s.vergeRake.captured) h += chip('Verge (rake) length', m2(s.vergeRake.value), 'm', false);
+  if (s.perimeter.captured) h += chip('Roof perimeter', m2(s.perimeter.value), 'm', false);
+  Object.keys(s.featureCounts).forEach(function(type){
+    var alreadyShown = (type === 'Rooflight') || (type === 'Penetration / Dektite') || (type === 'Soil vent / flue') || (type === 'Rainwater outlet');
+    if (!alreadyShown) h += chip(type, s.featureCounts[type], '&times;', false);
+  });
   h += '</div><div class="cl-cap-foot">Seeded figures came in via <b>Seed estimate from works engine</b>, marked <b>Captured</b> on their row. Figures with no matching estimate line yet are shown for visibility only.</div></div>';
   return h;
 }
@@ -8194,7 +8235,10 @@ function estRenderCapturedPanel(survey){
 var EST_ITEM_CATEGORY = {
   'strip':'Fix', 'composite panel':'Sheeting', 'single skin':'Sheeting', 'single skin + insulation':'Sheeting',
   'wall composite':'Sheeting', 'main fix':'Fix', 'trimline gutter':'Drainage', 'skylight':'Sheeting',
-  'eave':'Flashing', 'steel carrier banded to concrete purlins':'Fix'
+  'eave':'Flashing', 'steel carrier banded to concrete purlins':'Fix',
+  'external ridge':'Flashing', 'internal ridge':'Flashing', 'barge':'Flashing', 'parapet':'Flashing',
+  'insulated gutter':'Drainage', 'half-round gutter':'Drainage', 'dektites':'Drainage', 'outlets':'Drainage',
+  'asbestos':'Waste'
 };
 function estCategoryForItem(item){ return EST_ITEM_CATEGORY[String(item || '').trim().toLowerCase()] || 'Sheeting'; }
 
@@ -8251,13 +8295,122 @@ function estCapturedRooflightArea(survey){
   });
   return any ? sum : null;
 }
+// ===== ELEMENT-MAP WIDENING: the captured quantities below, joining lines
+// added to WORKS_ELEMENT_MAP above. Same discipline as stage 5 - multi-
+// building-aware where the underlying edge/bay data already is (all of
+// these iterate survey.buildings directly, not the single-building fpRuns).
+function estCapturedFeatureCount(survey, types){
+  var sum = 0, any = false;
+  (survey.buildings || []).forEach(function(b){
+    (fpFeatures(b) || []).forEach(function(ft){
+      if (types.indexOf(ft.type) < 0) return;
+      var c = Math.max(0, Math.round(srNum(ft.count) || 0));
+      if (c > 0){ sum += c; any = true; }
+    });
+  });
+  return any ? sum : null;
+}
+// Ridge run: sums every building whose ridge condition is standard, low-pitch
+// oversized or mono (fpRuns' own readout only ever covers standard/mono, for
+// buildings[0]; this seeding function is deliberately wider, per this brief,
+// and multi-building). hasLowPitch flags when the low-pitch-oversized
+// condition is present anywhere, carried through as the seeded line's spec.
+function estCapturedRidgeRun(survey){
+  var sum = 0, any = false, hasLowPitch = false;
+  (survey.buildings || []).forEach(function(b){
+    var ridge = b.ridge || {};
+    if (['standard', 'lowpitch', 'mono'].indexOf(ridge.cond) < 0) return;
+    var keyed = srNum(ridge.lengthM);
+    var val = keyed != null ? keyed : fpDatumLength(b);
+    if (val != null){ sum += val; any = true; if (ridge.cond === 'lowpitch') hasLowPitch = true; }
+  });
+  return { value: any ? sum : null, hasLowPitch: hasLowPitch };
+}
+// Barge (verge edges with the barge condition; hipped ends never seed a barge).
+// A barge board is fixed along the roof's RAKING edge (eave to ridge, up the
+// slope) - its physical length is the slope run (fpSlopeRun, the same figure
+// fpRuns already uses for "Verge (rake) length"), NOT the verge edge's flat
+// plan-view length (which is just the building width and unrelated to the
+// pitch). One slope run per building, so each barge-flagged verge edge on
+// that building contributes the same slope run value.
+function estCapturedBargeRun(survey){
+  var sum = 0, any = false;
+  (survey.buildings || []).forEach(function(b){
+    var fp = b.footprint; if (!fp || !Array.isArray(fp.edges)) return;
+    var form = b.roofForm || 'duo-pitch';
+    var sr = fpSlopeRun(b); if (sr.value == null) return;
+    fp.edges.forEach(function(e, i){
+      if (e.type === 'curved') return;
+      if (fpEdgeRole(fp, e, i, form) !== 'verge') return;
+      if (e.cond !== 'barge') return;
+      sum += sr.value; any = true;
+    });
+  });
+  return any ? sum : null;
+}
+// Eave flashing vs parapet flashing: an eaves edge's condition splits it -
+// party/abutting ('none') has no eave detail at all, parapet-box routes to
+// the Parapet line, everything else (trimline/half-round) gets an eave
+// flashing run regardless of which gutter type it also carries.
+function estCapturedEaveSplit(survey){
+  var eave = 0, eaveAny = false, parapet = 0, parapetAny = false;
+  (survey.buildings || []).forEach(function(b){
+    var fp = b.footprint; if (!fp || !Array.isArray(fp.edges)) return;
+    var form = b.roofForm || 'duo-pitch';
+    fp.edges.forEach(function(e, i){
+      if (e.type === 'curved') return;
+      if (fpEdgeRole(fp, e, i, form) !== 'eaves') return;
+      var el = fpEdgeLen(fp, i, b); if (el.value == null) return;
+      if (e.cond === 'parapet-box'){ parapet += el.value; parapetAny = true; }
+      else if (e.cond && e.cond !== 'none'){ eave += el.value; eaveAny = true; }
+    });
+  });
+  return { eave: eaveAny ? eave : null, parapet: parapetAny ? parapet : null };
+}
+// Valley run from the multi-bay repeat, summed across every multi-bay
+// building (a mixed survey's valley total is not dropped just because the
+// multi-bay building is not buildings[0] - shared with the captured panel).
+function estCapturedValleyRun(survey){
+  var sum = 0, any = false;
+  (survey.buildings || []).forEach(function(b){
+    if (b.roofForm !== 'multi-bay') return;
+    var bf = fpBayFigures(b);
+    if (bf.valleyRunTotal != null){ sum += bf.valleyRunTotal; any = true; }
+  });
+  return any ? sum : null;
+}
+// Asbestos-flagged area on any bay side, converted to tonnes at the SAME
+// 1.5t/100m² rule already documented on the standing Waste: asbestos
+// checklist item - not a new/invented rate, the existing one applied here.
+function estCapturedAsbestosTonnes(survey){
+  var areaSum = 0, any = false;
+  (survey.buildings || []).forEach(function(b){
+    (b.bays || []).forEach(function(bay){
+      var count = Math.max(0, Math.round(srNum(bay.count) || 0));
+      var run = srNum(bay.runM);
+      if (count <= 0 || run == null) return;
+      [0, 1].forEach(function(j){
+        var side = bay.sides && bay.sides[j];
+        if (!side || !side.asbestos) return;
+        var sl = fpBaySideSlope(bay, j);
+        if (sl.len != null){ areaSum += sl.len * run * count; any = true; }
+      });
+    });
+  });
+  return any ? areaSum * 0.015 : null;
+}
 // Every captured quantity, whether or not it currently has a matching works-
 // engine line - the full picture for review, independent of what got seeded.
 function estCapturedSummary(survey){
   var roofRes = estResolveRoofArea(survey);
   var wallComposite = estCapturedWallArea(survey, 'Composite');
+  var wallSingleSkin = estCapturedWallArea(survey, 'Single-skin and liner');
   var trimGutter = estCapturedGutterRun(survey, 'trimline');
+  var halfRoundGutter = estCapturedGutterRun(survey, 'halfround');
   var rlArea = estCapturedRooflightArea(survey);
+  var rlCount = estCapturedFeatureCount(survey, ['Rooflight']);
+  var dektites = estCapturedFeatureCount(survey, ['Penetration / Dektite', 'Soil vent / flue']);
+  var outlets = estCapturedFeatureCount(survey, ['Rainwater outlet']);
   var featureCounts = {};
   (survey.buildings || []).forEach(function(b){
     (fpFeatures(b) || []).forEach(function(ft){
@@ -8265,61 +8418,93 @@ function estCapturedSummary(survey){
       featureCounts[ft.type] = (featureCounts[ft.type] || 0) + c;
     });
   });
-  // ridge / verge / perimeter: single-building runs already computed by fpRuns
-  // (stage 2-3), which reads fpBuilding(survey) = buildings[0] - the same
-  // building the footprint surface edits. A second building's ridge/verge/
-  // perimeter is not visible in this panel; this mirrors fpRuns' own existing
-  // single-building scope (unchanged by this stage) rather than a new gap.
-  // Valley run, unlike fpRuns, is cheap to sum correctly across every multi-
-  // bay building (fpBayFigures is already per-building), so it is - a mixed
-  // survey's valley total is not silently dropped just because the multi-bay
-  // building happens not to be buildings[0].
+  var ridge = estCapturedRidgeRun(survey);
+  var barge = estCapturedBargeRun(survey);
+  var eaveSplit = estCapturedEaveSplit(survey);
+  var valleyTotal = estCapturedValleyRun(survey);
+  var asbestosT = estCapturedAsbestosTonnes(survey);
+  // verge rake / perimeter: no matching line exists for these (unlike ridge,
+  // widened above) - still single-building (fpRuns, buildings[0]), unchanged.
   var runs = (typeof fpRuns === 'function') ? fpRuns(survey) : null;
-  var valleyTotal = 0, valleyAny = false;
-  (survey.buildings || []).forEach(function(b){
-    if (b.roofForm !== 'multi-bay') return;
-    var bf = fpBayFigures(b);
-    if (bf.valleyRunTotal != null){ valleyTotal += bf.valleyRunTotal; valleyAny = true; }
-  });
   return {
     roofAreaM2: { value: roofRes.total, seeded: roofRes.total != null, captured: roofRes.anyCaptured },
     wallAreaM2Composite: { value: wallComposite, seeded: wallComposite != null, captured: wallComposite != null },
+    wallAreaM2SingleSkin: { value: wallSingleSkin, seeded: wallSingleSkin != null, captured: wallSingleSkin != null },
     gutterLinMTrimline: { value: trimGutter, seeded: trimGutter != null, captured: trimGutter != null },
+    gutterLinMHalfRound: { value: halfRoundGutter, seeded: halfRoundGutter != null, captured: halfRoundGutter != null },
     rooflightM2: { value: rlArea, seeded: rlArea != null, captured: rlArea != null },
-    ridgeRun: { value: runs ? runs.ridgeRun : null, seeded: false, captured: !!(runs && runs.ridgeRun != null) },
+    rooflightCountNr: { value: rlCount, seeded: rlArea == null && rlCount != null, captured: rlCount != null },
+    dektiteCountNr: { value: dektites, seeded: dektites != null, captured: dektites != null },
+    outletCountNr: { value: outlets, seeded: outlets != null, captured: outlets != null },
+    ridgeRun: { value: ridge.value, seeded: ridge.value != null, captured: ridge.value != null },
+    bargeRun: { value: barge, seeded: barge != null, captured: barge != null },
+    eaveFlashLinM: { value: eaveSplit.eave, seeded: eaveSplit.eave != null, captured: eaveSplit.eave != null },
+    parapetLinM: { value: eaveSplit.parapet, seeded: eaveSplit.parapet != null, captured: eaveSplit.parapet != null },
+    valleyRunTotal: { value: valleyTotal, seeded: valleyTotal != null, captured: valleyTotal != null },
+    asbestosT: { value: asbestosT, seeded: asbestosT != null, captured: asbestosT != null },
     vergeRake: { value: runs ? runs.rake : null, seeded: false, captured: !!(runs && runs.rake != null) },
     perimeter: { value: runs ? runs.perimeter : null, seeded: false, captured: !!(runs && runs.perimeter != null) },
-    valleyRunTotal: { value: valleyAny ? valleyTotal : null, seeded: false, captured: valleyAny },
     featureCounts: featureCounts
   };
 }
 
 // Derive the works-engine measurements from the survey. Roof area, wall area
-// (Composite), gutter run (Trimline) and rooflight area now prefer capture
-// data where it exists (stage 5); everything else falls to hand entry exactly
-// as before. m.__capturedKeys marks which measurement keys came from capture,
-// so seeded rows can carry visible provenance - it is not itself a measurement
-// key and generateWorksSchedule never reads it (only WORKS_ELEMENT_MAP keys).
+// (Composite / Single Skin), gutter run (Trimline / half-round), rooflights
+// (area, or count when no size is keyed), ridge, barge, eave/parapet
+// flashing, valley run, penetration/outlet counts and asbestos tonnage all
+// now prefer capture data where it exists; everything else falls to hand
+// entry exactly as before. m.__capturedKeys marks which measurement keys
+// came from capture, so seeded rows can carry visible provenance - it is not
+// itself a measurement key and generateWorksSchedule never reads it (only
+// WORKS_ELEMENT_MAP keys). m.__rowNotes carries a per-key line note (only the
+// ridge line uses this today, for the low-pitch-oversized condition).
 function estDeriveMeasurements(survey){
-  var m = {}, capturedKeys = {};
+  var m = {}, capturedKeys = {}, rowNotes = {};
   var roofRes = estResolveRoofArea(survey);
   if (roofRes.total != null && roofRes.total > 0){ m.roofAreaM2 = roofRes.total; if (roofRes.anyCaptured) capturedKeys.roofAreaM2 = true; }
   var wallComposite = estCapturedWallArea(survey, 'Composite');
   if (wallComposite != null && wallComposite > 0){ m.wallAreaM2 = wallComposite; capturedKeys.wallAreaM2 = true; }
+  var wallSingleSkin = estCapturedWallArea(survey, 'Single-skin and liner');
+  if (wallSingleSkin != null && wallSingleSkin > 0){ m.wallSingleSkinM2 = wallSingleSkin; capturedKeys.wallSingleSkinM2 = true; }
   var trimGutter = estCapturedGutterRun(survey, 'trimline');
   if (trimGutter != null && trimGutter > 0){ m.gutterLinM = trimGutter; capturedKeys.gutterLinM = true; }
+  var halfRoundGutter = estCapturedGutterRun(survey, 'halfround');
+  if (halfRoundGutter != null && halfRoundGutter > 0){ m.halfRoundGutterLinM = halfRoundGutter; capturedKeys.halfRoundGutterLinM = true; }
   var rlArea = estCapturedRooflightArea(survey);
   if (rlArea != null && rlArea > 0){ m.rooflightM2 = rlArea; capturedKeys.rooflightM2 = true; }
+  else {
+    var rlCount = estCapturedFeatureCount(survey, ['Rooflight']);
+    if (rlCount != null && rlCount > 0){ m.rooflightCountNr = rlCount; capturedKeys.rooflightCountNr = true; }
+  }
+  var dektites = estCapturedFeatureCount(survey, ['Penetration / Dektite', 'Soil vent / flue']);
+  if (dektites != null && dektites > 0){ m.dektiteCountNr = dektites; capturedKeys.dektiteCountNr = true; }
+  var outlets = estCapturedFeatureCount(survey, ['Rainwater outlet']);
+  if (outlets != null && outlets > 0){ m.outletCountNr = outlets; capturedKeys.outletCountNr = true; }
+  var ridge = estCapturedRidgeRun(survey);
+  if (ridge.value != null && ridge.value > 0){
+    m.ridgeLinM = ridge.value; capturedKeys.ridgeLinM = true;
+    if (ridge.hasLowPitch) rowNotes.ridgeLinM = 'Low-pitch oversized';
+  }
+  var barge = estCapturedBargeRun(survey);
+  if (barge != null && barge > 0){ m.bargeLinM = barge; capturedKeys.bargeLinM = true; }
+  var eaveSplit = estCapturedEaveSplit(survey);
+  if (eaveSplit.eave != null && eaveSplit.eave > 0){ m.eaveFlashLinM = eaveSplit.eave; capturedKeys.eaveFlashLinM = true; }
+  if (eaveSplit.parapet != null && eaveSplit.parapet > 0){ m.parapetLinM = eaveSplit.parapet; capturedKeys.parapetLinM = true; }
+  var valleyTotal = estCapturedValleyRun(survey);
+  if (valleyTotal != null && valleyTotal > 0){ m.valleyLinM = valleyTotal; capturedKeys.valleyLinM = true; }
+  var asbestosT = estCapturedAsbestosTonnes(survey);
+  if (asbestosT != null && asbestosT > 0){ m.asbestosT = asbestosT; capturedKeys.asbestosT = true; }
   if (survey.purlinType) m.purlinType = survey.purlinType;
   if (survey.carrierLinM != null) m.carrierLinM = survey.carrierLinM;
   m.__capturedKeys = capturedKeys;
+  m.__rowNotes = rowNotes;
   return m;
 }
-function estElementsFromSchedule(sched, capturedKeys){
-  var ck = capturedKeys || {};
+function estElementsFromSchedule(sched, capturedKeys, rowNotes){
+  var ck = capturedKeys || {}, rn = rowNotes || {};
   return (sched.elements || []).map(function(el){
     return { id: estNewId('el'), name: el.label, rows: (el.lines || []).map(function(ln){
-      return { id: estNewId('r'), category: estCategoryForItem(ln.item), item: ln.item, spec:'',
+      return { id: estNewId('r'), category: estCategoryForItem(ln.item), item: ln.item, spec: rn[ln.measurementKey] || '',
         units: ln.quantity, uom: ln.unit || '', matPerUnit: ln.materialsCostPerUnit,
         labPerUnit: ln.labourCostPerUnit, matActual:null, labActual:null,
         qtySource: ck[ln.measurementKey] ? 'captured' : null };
@@ -8348,8 +8533,9 @@ async function estSeedFromWorks(){
   catch (e){ showToast('Could not run the works estimate: ' + e.message, 'err'); return; }
   // STAGE 5: pass through which measurement keys came from the footprint capture
   // so seeded rows carry visible provenance (estElementsFromSchedule tags each
-  // row qtySource:'captured' when its measurementKey is in this set).
-  var seeded = estElementsFromSchedule(sched, meas.__capturedKeys);
+  // row qtySource:'captured' when its measurementKey is in this set), plus any
+  // per-key line note (the ridge line's low-pitch-oversized condition).
+  var seeded = estElementsFromSchedule(sched, meas.__capturedKeys, meas.__rowNotes);
   if (!seeded.length){
     showToast('The works engine produced no lines to seed - enter a roof area in Section B2, or build the ledger by hand.', 'err');
     return;
