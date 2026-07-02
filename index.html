@@ -59,7 +59,7 @@
   size: 297mm 210mm;
   margin: 16mm 16mm 20mm 16mm;
   @bottom-left {
-    content: "The honest view from above.";
+    content: "The truth from above.";
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 8pt;
     font-weight: bold;
@@ -7345,7 +7345,7 @@ function ppIsFixed(line){ return line.qty != null; }
 function renderPricingPackHTML(model){
   var m = model.meta;
   var logo = 'assets/nova-mark-transparent.png';
-  var foot = function(sec){ return '<div class="pp-foot"><div>&middot; The honest view from above.</div>'
+  var foot = function(sec){ return '<div class="pp-foot"><div>&middot; The truth from above.</div>'
     + '<div>' + ppEsc(m.surveyRef) + ' &middot; Subcontractor pricing pack &middot; ' + ppEsc(sec) + '</div></div>'; };
   var topbar = '<div class="pp-top"><img class="pp-logo" src="' + logo + '" alt="Nova"><div class="pp-rule"></div></div>';
 
@@ -10078,7 +10078,7 @@ function buildPricingReturnWorkbook(model){
   push(['','Estimated time on site (duration)','','','','',''],'delivery'); merges.push({ s:{r:aoa.length-1,c:2}, e:{r:aoa.length-1,c:4} });
   push(['','','','','','',''],'');
 
-  push(['Standards: ' + model.standards + ' The honest view from above.','','','','','',''],'note'); merges.push({ s:{r:aoa.length-1,c:0}, e:{r:aoa.length+1,c:6} });
+  push(['Standards: ' + model.standards + ' The truth from above.','','','','','',''],'note'); merges.push({ s:{r:aoa.length-1,c:0}, e:{r:aoa.length+1,c:6} });
 
   var ws = XLSX.utils.aoa_to_sheet(aoa);
   var maxR = aoa.length - 1; merges.forEach(function(mg){ if (mg.e.r > maxR) maxR = mg.e.r; });
@@ -10166,7 +10166,7 @@ function ppPackPageStyle(surveyRef){
   var st = document.createElement('style'); st.id = 'pp-active-page';
   st.textContent = '@page{size:210mm 297mm;margin:16mm 14mm 18mm 14mm;'
     + '@top-left{content:none}@top-center{content:none}@top-right{content:none}@bottom-center{content:none}'
-    + '@bottom-left{content:"The honest view from above.";font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6}'
+    + '@bottom-left{content:"The truth from above.";font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6}'
     + '@bottom-right{content:"' + ref + '  \\00B7  Subcontractor pricing pack  \\00B7  Page " counter(page) " of " counter(pages);font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#9aa0a6;text-align:right}}';
   document.head.appendChild(st);
 }
@@ -10460,7 +10460,7 @@ function slRenderCover(survey) {
         '</div>' +
       '</div>' +
       '<div class="cv-foot">' +
-        '<div class="tag">The honest view from above.</div>' +
+        '<div class="tag">The truth from above.</div>' +
         '<div class="co">' + escapeHtml(ref) + '</div>' +
       '</div>' +
     '</div>' +
@@ -10524,7 +10524,7 @@ function slRenderExec(survey) {
   // takes page 1 and the rating panel takes page 2 (eyebrow "… (continued)"). The
   // background row prefers page 1 but flows to page 2 if it does not fit there.
   const burst = slBurst('ink', 'top:50%;right:-180px;width:460px;transform:translateY(-50%);opacity:.12;z-index:1;');
-  const foot  = '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
+  const foot  = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
   const ctaHtml = slExecCTA(condition, lifeNow, lifeWorks);
   const topHtml =
     '<div class="ex-top">' +
@@ -10590,7 +10590,7 @@ function slRenderAreasOverview(survey) {
         ', ' + stats.total + ' fault' + (stats.total === 1 ? '' : 's') + '.</h2>' +
       '<div class="areas" style="margin-top:18px;">' + rows + '</div>' +
     '</div>' +
-    '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
+    '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
   '</section>';
 }
 
@@ -10763,7 +10763,7 @@ function slRenderSchedule(survey, costInfo, opts) {
   const siteShort = slSchedSiteLabel(s);
   const eyebrowBase = '02 &middot; Condition schedule' + (siteShort ? ' &middot; ' + escapeHtml(siteShort) : '');
   const ref = (typeof novaSurveyIdFor === 'function') ? novaSurveyIdFor(s) : '';
-  const foot = '<div class="foot"><div class="tag">The honest view from above.</div><div>' +
+  const foot = '<div class="foot"><div class="tag">The truth from above.</div><div>' +
     (ref ? escapeHtml(ref) + ' &middot; ' : '') + 'Condition schedule</div></div>';
   const numTag = function(n) { return (totalSheets > 1) ? ' &middot; ' + n + '/' + totalSheets : ''; };
   const sheet = function(eyebrow, h2, inner, subline) {
@@ -13213,7 +13213,7 @@ function slRenderCards(survey, opts) {
   // a continuation page is just its two cards (as before). The burst repeats
   // bottom-right on every card page.
   const cburst = slBurst('ink', 'bottom:-120px;right:-120px;width:480px;opacity:.12;z-index:1;');
-  const cfoot  = '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
+  const cfoot  = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
   const chead  =
       '<div class="eyebrow">03 · Priority faults in detail</div>' +
       '<h2><span class="gt">&raquo;</span>The serious few, up close.</h2>' +
@@ -13322,7 +13322,7 @@ function slRenderFindings(survey, costInfo) {
         '<div class="fnote">Priced line by line in the condition schedule. Subject to access and to no concealed defects being found on opening up.</div>' +
       '</div>' +
     '</div>' +
-    '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
+    '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
   '</section>';
 }
 
@@ -13401,7 +13401,7 @@ function slRenderFindingsNext(survey) {
         '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="foot"><div class="tag">The honest view from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
+    '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
   '</section>';
 }
 
@@ -13426,7 +13426,7 @@ function slRenderBack(survey) {
       '</div>' +
     '</div>' +
     '<div class="bk-foot">' +
-      '<div class="tag">The honest view from above.</div>' +
+      '<div class="tag">The truth from above.</div>' +
       '<div class="rg">Nova (SW) Limited &middot; Registered in England &amp; Wales &middot; Company No. 16369950 &middot; nova-limited.com</div>' +
     '</div>' +
   '</section>';
