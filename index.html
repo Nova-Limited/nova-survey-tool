@@ -1,4 +1,18 @@
 <!doctype html>
+<!--
+  INDEX — major section boundaries (search "SECTION:" to jump)
+    styles              — :root tokens, layout, component CSS
+    markup: home        — saved-survey list landing view
+    markup: form        — the condition survey form (Sections A-E, capture stages)
+    markup: detail      — saved survey detail panel
+    markup: report      — Tier 1 report / print view
+    script              — everything below the single <script> tag
+    script: survey-list-detail — renderSurveyList, renderSurveyDetail, renderDetailBlocks
+    script: pricing-pack        — renderPricingPackHTML
+    script: pack-access         — renderPackAccess
+    script: tier1-report        — renderTier1Report
+    script: buildings-slopes    — renderBuildings, renderSlope* (capture stages 1-5)
+-->
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
@@ -12,6 +26,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
   crossorigin=""></script>
+<!-- SECTION: styles -->
 <style>
 :root {
   /* Section 1d brand tokens. */
@@ -2912,6 +2927,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
 <!-- SheetJS (xlsx-js-style: SheetJS API + cell styles) for the pricing return .xlsx -->
 <script src="assets/xlsx-style.min.js"></script>
 </head>
+<!-- SECTION: markup -->
 <body>
 <header class="topbar no-print">
   <span class="brand-name">nova</span>
@@ -4047,6 +4063,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
 
 <div id="toast" hidden></div>
 
+<!-- SECTION: script -->
 <script>
 // ============================================================
 // Nova Survey Tool — single-file, localStorage-backed.
@@ -7047,6 +7064,7 @@ function stopAutoSave() {
 }
 
 // ---- Home survey list ----
+<!-- SECTION: script: survey-list-detail -->
 function renderSurveyList() {
   const el = document.getElementById('survey-list');
   const surveys = loadSurveys().slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
@@ -7412,6 +7430,7 @@ function ppQtyCell(line){ return (line.qty == null) ? 'rate only' : String(line.
 function ppIsFixed(line){ return line.qty != null; }
 
 // ---- PDF PACK (Paged.js, A4 portrait). Returns an HTML string for #pp-body.
+<!-- SECTION: script: pricing-pack -->
 function renderPricingPackHTML(model){
   var m = model.meta;
   var logo = 'assets/nova-mark-transparent.png';
@@ -11095,6 +11114,7 @@ function ppElevationsFromSlopes(){
       accessType: 'platform', lengthM: len || '', heightM: h || '' }); }); });
   return out;
 }
+<!-- SECTION: script: pack-access -->
 function renderPackAccess(){
   var list = document.getElementById('pack-access-list'); if (!list) return;
   var els = currentPackAccess.elevations || [];
@@ -14322,6 +14342,7 @@ function slRenderBack(survey) {
 //     (handled inside the component renderers).
 // costInfo may be null (renders the cost-less / condition-document variant).
 // ============================================================
+<!-- SECTION: script: tier1-report -->
 function renderTier1Report(survey, costInfo) {
   const s = survey || {};
   const faultCount = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.length : 0;
@@ -14545,6 +14566,7 @@ function removeBuilding(idx) {
 }
 
 // ---- Building rendering ----
+<!-- SECTION: script: buildings-slopes -->
 function renderBuildings() {
   const list = document.getElementById('buildings-list');
   if (!list) return;
