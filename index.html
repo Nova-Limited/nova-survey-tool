@@ -4137,6 +4137,15 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-feat-photo-ph { width: 100%; height: 100%; }
     #view-footprint .fp-feat-photo-x { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; border: none; font-size: 13px; line-height: 1; cursor: pointer; }
     #view-footprint .fp-feat-photo-add { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; margin-top: 8px; font-size: 12.5px; font-weight: 700; background: #fff; border: 1px dashed #c4c3bd; border-radius: 7px; color: #434244; cursor: pointer; }
+    /* F4 one-act defect-photo card: severity chips + note */
+    #view-footprint .fp-fault-sevs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    #view-footprint .fp-fault-sev { min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1.5px solid #d8d8d2; background: #fff; color: #434244; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-fault-sev.on.sev-critical { background: #dc2626; border-color: #dc2626; color: #fff; }
+    #view-footprint .fp-fault-sev.on.sev-poor { background: #F7901E; border-color: #F7901E; color: #1f1f1f; }
+    #view-footprint .fp-fault-sev.on.sev-fair { background: #eab308; border-color: #eab308; color: #1f1f1f; }
+    #view-footprint .fp-fault-sev.on.sev-monitor { background: #16a34a; border-color: #16a34a; color: #fff; }
+    #view-footprint .fp-fault-note { width: 100%; margin-top: 4px; border: 1px solid #d8d8d2; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px; color: #434244; resize: vertical; box-sizing: border-box; }
+    #view-footprint .fp-fault-plane-note { font-size: 12px; color: #8a898b; margin-top: 8px; }
     /* computed runs */
     #view-footprint .fp-runs { margin-top: 16px; max-width: 480px; }
     #view-footprint .fp-run-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
@@ -9957,7 +9966,7 @@ function fpRender(){
     if (fpFaultPick){
       var existingFaults = fpFaultsForBuilding(survey);
       hit += '<div class="fp-elev-picker fp-place-picker" style="left:' + (fpFaultPick.x / 3) + '%;top:' + (fpFaultPick.y / 3) + '%;">';
-      hit += '<button class="fp-opt" onclick="fpFaultPinNew()">+ New fault here</button>';
+      hit += '<button class="fp-opt" onclick="fpFaultPinNew()">+ New defect photo here</button>';
       existingFaults.forEach(function(fl){
         hit += '<button class="fp-opt" onclick="fpFaultPin(\'' + fl.id + '\')">Fault ' + (fl.number || '') + (fl.faultType ? ' &middot; ' + escapeHtml(fl.faultType) : '') + (fl.footprintLoc ? ' (move pin)' : '') + '</button>';
       });
@@ -10768,7 +10777,13 @@ function fpRenderBays(survey){
 var FP_ELEV_SHAPES = [ { id:'straight', label:'Straight-top' }, { id:'gable', label:'Gable' } ];
 var FP_CLADDING_TYPES = [ 'Composite', 'Single-skin and liner', 'Built-up', 'Brick / masonry', 'Render', 'Curtain walling' ];
 var FP_OPENING_TYPES = [ 'Roller shutter door', 'Personnel door', 'Window', 'Louvre / vent', 'Wall light', 'Dock leveller' ];
-var FP_FEATURE_TYPES = [ 'Rooflight', 'Penetration / Dektite', 'Soil vent / flue', 'Rainwater outlet', 'Plant / AHU plinth', 'Walkway', 'Defect photo point' ];
+// F4: 'Defect photo point' is RETIRED from this picker - a defect photo is now
+// one act that creates a FAULT (photo + location + severity + note), not a
+// separate feature. Legacy features already stored with that type are untouched
+// and still render (the plane loop and feature sheet are data-driven); only the
+// picker no longer offers it going forward. The other feature types are unchanged.
+var FP_FEATURE_TYPES = [ 'Rooflight', 'Penetration / Dektite', 'Soil vent / flue', 'Rainwater outlet', 'Plant / AHU plinth', 'Walkway' ];
+var FP_FAULT_SEVS = [ { id:'critical', label:'Critical' }, { id:'poor', label:'Poor' }, { id:'fair', label:'Fair' }, { id:'monitor', label:'Monitor' } ];
 var fpPlaceMode = null;       // null | 'feature' | 'fault' - tap-to-place armed on the plan
 var fpFeatureSheet = null;    // index into building.features when its edit sheet is open
 var fpElevOpSheet = null;     // { edgeIndex, opIdx } when an opening's edit sheet is open
@@ -11073,6 +11088,7 @@ function fpFaultPinNew(){
   survey.siteFaultMarkers = faults;
   survey.noFaultsFound = false;   // Amendment 2: a genuinely new fault clears the declaration
   fpFaultPick = null; fpPlaceMode = null;
+  fpFaultOpenId = f.id;   // F4: open the one-act card so photo / severity / note are entered on the spot
   srPersist(survey); fpRender();
 }
 function fpFaultUnpin(faultId){
@@ -11088,9 +11104,9 @@ function fpFaultCancelPick(){ fpFaultPick = null; fpRender(); }
 function fpRenderPlaceToolbar(){
   var h = '<div class="fp-place-row">';
   h += '<button class="fp-place-btn' + (fpPlaceMode === 'feature' ? ' on' : '') + '" onclick="fpTogglePlace(\'feature\')">Place feature</button>';
-  h += '<button class="fp-place-btn' + (fpPlaceMode === 'fault' ? ' on' : '') + '" onclick="fpTogglePlace(\'fault\')">Pin fault</button>';
+  h += '<button class="fp-place-btn' + (fpPlaceMode === 'fault' ? ' on' : '') + '" onclick="fpTogglePlace(\'fault\')">Pin a defect photo</button>';
   h += '</div>';
-  if (fpPlaceMode) h += '<div class="fp-place-hint">Tap the plan to ' + (fpPlaceMode === 'feature' ? 'place a feature' : 'pin a fault') + ' &middot; <a href="#" onclick="event.preventDefault();fpTogglePlace(\'' + fpPlaceMode + '\')">Cancel</a></div>';
+  if (fpPlaceMode) h += '<div class="fp-place-hint">Tap the plan to ' + (fpPlaceMode === 'feature' ? 'place a feature' : 'pin a defect photo') + ' &middot; <a href="#" onclick="event.preventDefault();fpTogglePlace(\'' + fpPlaceMode + '\')">Cancel</a></div>';
   return h;
 }
 function fpRenderFeatureSheet(survey){
@@ -11114,16 +11130,115 @@ function fpRenderFeatureSheet(survey){
   h += '</div>';
   return h;
 }
+// F4: the one act. A pinned defect photo IS a fault (photo + location + severity
+// + note), captured on the spot from this card - photo thumbnail, title, severity
+// chip, note, slope/plane note, "Add another". The same object appears as a pin
+// on the plane AND as a fault in the fault list, the schedule, the report and the
+// repair costing; there are not two objects. Editing here mutates the fault in
+// siteFaultMarkers directly (srLoadSurvey/srPersist off fpCurrentId), so every
+// consumer sees it with no special-casing.
 function fpRenderFaultUnpinSheet(survey){
   if (!fpFaultOpenId) return '';
   var f = fpFaultsForBuilding(survey).find(function(x){ return x.id === fpFaultOpenId; });
   if (!f){ fpFaultOpenId = null; return ''; }
-  var h = '<div class="fp-sheet"><div class="fp-sheet-head"><span class="fp-sheet-title">Fault ' + (f.number || '') + (f.faultType ? ' &middot; ' + escapeHtml(f.faultType) : '') + '</span><button class="fp-sheet-x" onclick="fpFaultOpenId=null;fpRender();">Done</button></div>';
-  h += '<div class="fp-sheet-sub">Pinned on the roof plan. The full fault record (severity, description, photos) is edited from the fault list; this pin only marks where it sits.</div>';
-  h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultUnpin(\'' + f.id + '\')">Unpin from plan</button></div></div>';
+  var b = fpBuilding(survey);
+  var planeName = (b && b.name) ? (b.name + '’s roof plan') : 'the roof plan';
+  var h = '<div class="fp-sheet fp-fault-card"><div class="fp-sheet-head"><span class="fp-sheet-title">Defect photo &middot; Fault ' + (f.number || '') + '</span><button class="fp-sheet-x" onclick="fpFaultOpenId=null;fpRender();">Done</button></div>';
+  h += '<div class="fp-sheet-sub">One entry. It is the fault and the photo, on the plane and in the fault list.</div>';
+  // photo(s) - the existing fault photo mechanism
+  h += '<div class="fp-feat-photos">';
+  (f.photos || []).forEach(function(p, pi){
+    var src = imgSrcFor(p);
+    h += '<div class="fp-feat-photo">' + (src ? '<img src="' + src + '">' : '<div class="fp-feat-photo-ph"></div>') + '<button class="fp-feat-photo-x" onclick="fpFaultRemovePhoto(' + pi + ')">&times;</button></div>';
+  });
+  h += '</div><label class="fp-feat-photo-add">Add photo<input type="file" accept="image/*" capture="environment" multiple onchange="fpFaultAddPhoto(this)" style="display:none;"></label>';
+  // severity chips - the established fault vocabulary + colours
+  h += '<div class="fp-sheet-sub">Severity</div><div class="fp-fault-sevs">';
+  FP_FAULT_SEVS.forEach(function(sv){
+    var on = (f.severity === sv.id);
+    h += '<button type="button" class="fp-fault-sev' + (on ? ' on sev-' + sv.id : '') + '" onclick="fpFaultSetSeverity(\'' + sv.id + '\')">' + escapeHtml(sv.label) + '</button>';
+  });
+  h += '</div>';
+  // note (the fault description) - persisted live, no re-render so typing stays smooth
+  h += '<div class="fp-sheet-sub">Note</div>';
+  h += '<textarea class="fp-fault-note" rows="2" placeholder="Add a note" oninput="fpFaultSetField(\'description\', this.value)">' + escapeHtml(f.description || '') + '</textarea>';
+  h += '<div class="fp-fault-plane-note">Pinned on ' + escapeHtml(planeName) + '.</div>';
+  h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultAddAnother()">Add another</button>' +
+    '<button class="fp-sheet-2nd" onclick="fpFaultUnpin(\'' + f.id + '\')">Unpin from plan</button></div></div>';
   return h;
 }
-var fpFaultOpenId = null;   // id of a plotted fault marker whose quick sheet is open
+var fpFaultOpenId = null;   // id of a plotted fault marker whose one-act card is open
+// --- F4 one-act card helpers: all target the open fault (fpFaultOpenId), mutate
+// siteFaultMarkers via srLoadSurvey/srPersist off fpCurrentId, exactly as the
+// existing pin/unpin do. The note persists without a re-render (keeps the caret);
+// severity and photos re-render so the card reflects the change. ---
+function fpFaultSetField(field, val){
+  if (!fpFaultOpenId) return;
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var f = fpFaultsForBuilding(survey).find(function(x){ return x.id === fpFaultOpenId; }); if (!f) return;
+  f[field] = val;
+  survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+  srPersist(survey);
+}
+function fpFaultSetSeverity(sev){
+  if (!fpFaultOpenId) return;
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var f = fpFaultsForBuilding(survey).find(function(x){ return x.id === fpFaultOpenId; }); if (!f) return;
+  f.severity = (f.severity === sev) ? '' : sev;   // re-tap to clear
+  survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+  srPersist(survey); fpRender();
+}
+function fpFaultAddPhoto(input){
+  if (!fpFaultOpenId) return;
+  var files = Array.prototype.slice.call(input.files || []); if (!files.length) return;
+  var survey = srLoadSurvey(fpCurrentId);
+  var f = survey && fpFaultsForBuilding(survey).find(function(x){ return x.id === fpFaultOpenId; }); if (!f) return;
+  if (!Array.isArray(f.photos)) f.photos = [];
+  files.forEach(function(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = async function(){
+        var maxW = 1280, w = img.width, ph = img.height;
+        if (w > maxW){ ph = Math.round(ph * maxW / w); w = maxW; }
+        var cv = document.createElement('canvas'); cv.width = w; cv.height = ph;
+        cv.getContext('2d').drawImage(img, 0, 0, w, ph);
+        var fullDataUrl = cv.toDataURL('image/jpeg', 0.7);
+        var entry = { data: fullDataUrl, key: '', pendingUpload: false };
+        f.photos.push(entry);
+        survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+        srPersist(survey); fpRender();
+        var novaId = novaSurveyIdFor({ id: fpCurrentId });
+        if (novaId && navigator.onLine !== false){
+          try {
+            var key = await uploadPhotoToWorker(novaId, fullDataUrl);
+            var thumb = await makeThumbnail(fullDataUrl);
+            entry.key = key; entry.data = thumb || fullDataUrl;
+            survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+            srPersist(survey); fpRender();
+          } catch (err){ entry.pendingUpload = true; srPersist(survey); }
+        } else { entry.pendingUpload = true; srPersist(survey); }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+function fpFaultRemovePhoto(pidx){
+  if (!fpFaultOpenId) return;
+  var survey = srLoadSurvey(fpCurrentId);
+  var f = survey && fpFaultsForBuilding(survey).find(function(x){ return x.id === fpFaultOpenId; }); if (!f || !f.photos) return;
+  f.photos.splice(pidx, 1);
+  survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+  srPersist(survey); fpRender();
+}
+function fpFaultAddAnother(){
+  fpFaultOpenId = null;
+  fpPlaceMode = 'fault';   // re-arm the pin so the next tap places another defect photo
+  fpFaultPick = null;
+  fpRender();
+}
 
 // ===== NOVA UNIFIED FLOW - STAGE F1: VISIT PURPOSE + GUIDED SEQUENCE + HANDOFF
 // The approved 8-page flow target's chrome only, purely additive over the
@@ -16382,10 +16497,14 @@ function spRenderFaultChips() {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'sp-fault-chip';
-    var offPlan = (f.lat == null || f.lng == null);
+    // F4: a footprint-pinned fault (a defect photo) is placed ON the roof plan,
+    // so it reads "(on plan)", not "(off plan)"; only a fault with neither map
+    // coords nor a footprint pin is genuinely off plan.
+    var onPlan = !!(f.footprintLoc && f.footprintLoc.x != null);
+    var offPlan = (f.lat == null || f.lng == null) && !onPlan;
     btn.innerHTML = '<span class="sp-fault-chip-dot" style="background:' + col + ';"></span>' +
       'F' + (f.number || '?') +
-      (offPlan ? '<span class="sp-fault-chip-suffix">(off plan)</span>' : '');
+      (onPlan ? '<span class="sp-fault-chip-suffix">(on plan)</span>' : (offPlan ? '<span class="sp-fault-chip-suffix">(off plan)</span>' : ''));
     btn.addEventListener('click', function() {
       spActiveFaultId = f.id;
       spOpenFaultPanel(f.id);
