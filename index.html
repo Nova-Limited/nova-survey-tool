@@ -2550,6 +2550,21 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .rp-leg-dot{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);flex:0 0 auto;}
   .sl-report .rp-leg-hatch{width:16px;height:16px;flex:0 0 auto;border:1px solid var(--line);background:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(67,66,68,.42) 2px,rgba(67,66,68,.42) 3px);}
   .sl-report .rp-legnote{font-size:11px;color:var(--grey);margin-top:8px;line-height:1.55;max-width:300px;}
+  /* D2 site-plan figure sheet: plan frame(s) on the left, a small drawing key on
+     the right; landscape sheet, same furniture and print rules as the fault sheet. */
+  .sl-report .sl-siteplan .rp-figcap{font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--ink);margin:14px 0 12px;}
+  .sl-report .sp-frames{display:flex;flex-direction:column;gap:16px;flex:0 0 auto;}
+  .sl-report .sp-panel{display:flex;flex-direction:column;gap:9px;}
+  .sl-report .sp-frame{width:544px;height:414px;}
+  .sl-report .sp-frame .sp-svg{width:100%;height:100%;display:block;}
+  .sl-report .sp-panel-cap{font-size:12px;font-weight:600;color:var(--ink);max-width:544px;line-height:1.5;}
+  .sl-report .sp-frames.sp-multi .sp-frame{width:360px;height:272px;}
+  .sl-report .sp-frames.sp-multi .sp-panel-cap{max-width:360px;font-size:11px;}
+  .sl-report .sp-key{flex:1;padding-top:6px;display:flex;flex-direction:column;gap:12px;}
+  .sl-report .sp-key-item{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);font-weight:600;}
+  .sl-report .sp-key-line{width:18px;height:0;border-top:2px solid var(--ink);flex:0 0 auto;}
+  .sl-report .sp-key-dim{width:18px;height:0;border-top:2px solid var(--orange);flex:0 0 auto;}
+  .sl-report .sp-key-note{font-size:11px;color:var(--grey);line-height:1.55;max-width:280px;margin-top:6px;}
   .sl-report .aerial .aerial-plan{position:absolute;inset:0;background:#faf9f6;}
   /* the plan is constrained to the area ABOVE the badge strip (26px) so the whole
      drawing (every marker, wherever pinned) sits clear of the badge; the badge
@@ -3951,6 +3966,16 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-h2{font-size:22px;font-weight:700;letter-spacing:-.2px;margin:0 0 10px;color:#434244;}
     #view-proposal .np-h2-sp{margin-top:34px;}
     #view-proposal .np-lead{font-size:15px;color:#444;margin:0 0 16px;line-height:1.5;}
+
+    /* D2: the measured site-plan panel above the route comparison (once) */
+    #view-proposal .np-siteplan{border:1px solid #ece9e2;border-radius:8px;padding:14px 16px;margin:0 0 20px;background:#faf9f6;}
+    #view-proposal .np-sp-h{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#F7901E;margin-bottom:12px;}
+    #view-proposal .np-sp-row{display:flex;flex-wrap:wrap;gap:18px;}
+    #view-proposal .np-sp-panel{display:flex;flex-direction:column;gap:7px;}
+    #view-proposal .np-sp-frame{width:280px;height:230px;border:1px solid #e4e4e6;border-radius:6px;background:#fff;overflow:hidden;}
+    #view-proposal .np-sp-frame .sp-svg{width:100%;height:100%;display:block;}
+    #view-proposal .np-sp-cap{font-size:12px;color:#434244;font-weight:600;max-width:280px;line-height:1.45;}
+    #view-proposal .np-sp-note{font-size:11.5px;color:#6b6c70;margin-top:12px;line-height:1.5;}
 
     #view-proposal .np-optgrid{display:grid;gap:12px;}
     #view-proposal .np-opt-col{border:1px solid #e2e3e5;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;}
@@ -9275,6 +9300,10 @@ function proposalRender(){
   h += '<p class="np-lead">' + opts.length + ' system' + (opts.length > 1 ? 's' : '') + ' for this ' + srEsc(PROPOSAL_FAMILY_LABELS[P.family].toLowerCase()) +
     ', set side by side so the decision rests on what each route gives, not on price alone. Our recommended route is highlighted.</p>';
 
+  // D2: the measured site plan, once, above the route comparison - lends the
+  // indicative figures a measured base. '' when no footprint (proposal unchanged).
+  h += proposalSitePlanPanel(survey);
+
   // comparison grid - each headline reads the WORKED total where a build-up exists,
   // else the flat indicative rate (pre-measure fallback). The badge marks which.
   h += '<div class="np-optgrid" style="grid-template-columns:repeat(' + opts.length + ',1fr)">';
@@ -12396,7 +12425,7 @@ function slRenderFaultPlanFigure(survey){
     '<div class="pad">' +
       '<div class="eyebrow">04 &middot; Findings and costs</div>' +
       '<h2><span class="gt">&raquo;</span>The roof plan, and where the faults are.</h2>' +
-      '<div class="rp-figcap">Figure 4.1 &middot; Roof plan, faults &middot; not to scale' + (capNote ? ' &middot; ' + capNote : '') + '</div>' +
+      '<div class="rp-figcap">Figure 4.2 &middot; Roof plan, faults &middot; not to scale' + (capNote ? ' &middot; ' + capNote : '') + '</div>' +
       '<div class="rp-figwrap">' +
         '<div class="rp-frame">' + svg + '</div>' +
         '<div class="rp-legend">' + legend +
@@ -12405,6 +12434,195 @@ function slRenderFaultPlanFigure(survey){
       '</div>' +
     '</div>' + foot +
   '</section>';
+}
+
+// ===== DOCUMENTS BUILD STAGE D2: THE SITE PLAN =====================
+// The captured footprint drawn as a clean measured technical drawing, read-only.
+// Canon drawing rules: ink structure lines; orange reserved exclusively for the
+// datum dimensions; asbestos = the same light-ink hatch D1 shipped; edge
+// conditions labelled per the tap-an-edge record; multi-bay drawn as a legible
+// TEXTURE (capped) with the true counts carried in the caption (the caption is
+// the authority, the texture indicates). Shares the fp* primitives + the D1
+// hatch/ink/paper conventions. Renders one building; the survey-level figure
+// renders one panel per captured building (between-building junctions are not in
+// the capture and NOT in D2 scope).
+function slCapturedBuildings(survey){
+  var bs = (survey && Array.isArray(survey.buildings)) ? survey.buildings : [];
+  return bs.filter(function(b){ return b && b.footprint && Array.isArray(b.footprint.corners) && b.footprint.corners.length >= 3; });
+}
+function slHasCapturedFootprint(survey){ return slCapturedBuildings(survey).length > 0; }
+function slSitePlanSVG(b, opts){
+  opts = opts || {};
+  var idp = 'sp-' + (opts.idSuffix || 'a');
+  var fp = b && b.footprint;
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var INK = '#434244', ORANGE = '#F7901E', PAPER = '#faf9f6', LINE = '#8a8d91';
+  var hasAsb = (typeof f5BuildingHasAsbestos === 'function') ? !!f5BuildingHasAsbestos(b) : false;
+  var d1r = function(v){ return (v == null) ? null : (Math.round(v * 10) / 10); };   // linear to 0.1 m (seed convention)
+  var dimTxt = function(v){ var r = d1r(srNum(v)); return (r == null) ? null : (r.toFixed(1) + ' m'); };
+
+  var h = '<svg class="sp-svg" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">';
+  h += '<defs><pattern id="' + idp + '-asb" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+    + '<line x1="0" y1="0" x2="0" y2="9" stroke="' + INK + '" stroke-width="0.9" opacity="0.26"/></pattern></defs>';
+  h += '<rect x="0" y="0" width="300" height="300" fill="' + PAPER + '"/>';
+
+  if (!fp || !fp.corners || fp.corners.length < 3){
+    h += '<rect x="40" y="40" width="220" height="220" fill="none" stroke="' + INK + '" stroke-width="1.5" stroke-dasharray="4 4"/>';
+    h += '<text x="150" y="156" text-anchor="middle" fill="' + LINE + '" font-family="Helvetica,Arial,sans-serif" font-size="12">Footprint pending</text>';
+    return h + '</svg>';
+  }
+  // remap the footprint bbox into a centred target box so dimensions and labels
+  // have margins (it is not to scale; a clean centred plan reads best).
+  var bb = fpBBox(fp);
+  var TX0 = 74, TY0 = 66, TW = 152, TH = 150;
+  var sc = Math.min(TW / (bb.w || 1), TH / (bb.h || 1));
+  var dw = (bb.w || 1) * sc, dh = (bb.h || 1) * sc;
+  var ox = TX0 + (TW - dw) / 2, oy = TY0 + (TH - dh) / 2;
+  var TX = function(x){ return ox + (x - bb.minx) * sc; };
+  var TY = function(y){ return oy + (y - bb.miny) * sc; };
+  var wideX = dw >= dh;
+
+  var pts = fp.corners.map(function(c){ return (Math.round(TX(c.x) * 10) / 10) + ',' + (Math.round(TY(c.y) * 10) / 10); }).join(' ');
+  if (hasAsb) h += '<polygon points="' + pts + '" fill="url(#' + idp + '-asb)" stroke="none"/>';
+  h += '<polygon points="' + pts + '" fill="' + (hasAsb ? 'none' : 'rgba(67,66,68,0.04)') + '" stroke="' + INK + '" stroke-width="2" stroke-linejoin="round"/>';
+
+  // multi-bay: a LEGIBLE texture (density capped), the caption carries true counts
+  var bf = (form === 'multi-bay' && typeof fpBayFigures === 'function') ? fpBayFigures(b) : null;
+  if (bf && bf.totalBays >= 2){
+    var drawn = Math.min(bf.totalBays, 8);
+    for (var i = 1; i < drawn; i++){
+      if (wideX){ var vx = ox + dw * i / drawn; h += '<line x1="' + vx + '" y1="' + (oy + 8) + '" x2="' + vx + '" y2="' + (oy + dh - 8) + '" stroke="' + LINE + '" stroke-width="0.8" stroke-dasharray="3 3"/>'; }
+      else { var vy = oy + dh * i / drawn; h += '<line x1="' + (ox + 8) + '" y1="' + vy + '" x2="' + (ox + dw - 8) + '" y2="' + vy + '" stroke="' + LINE + '" stroke-width="0.8" stroke-dasharray="3 3"/>'; }
+    }
+  }
+  // ridge line (centre-ridge pitched forms), subtle
+  if (typeof FP_RIDGE_FORMS !== 'undefined' && FP_RIDGE_FORMS.indexOf(form) > -1){
+    if (wideX){ var ry = oy + dh / 2; h += '<line x1="' + (ox + 14) + '" y1="' + ry + '" x2="' + (ox + dw - 14) + '" y2="' + ry + '" stroke="#c9a06a" stroke-width="1.4" stroke-dasharray="6 4"/>'; }
+    else { var rx = ox + dw / 2; h += '<line x1="' + rx + '" y1="' + (oy + 14) + '" x2="' + rx + '" y2="' + (oy + dh - 14) + '" stroke="#c9a06a" stroke-width="1.4" stroke-dasharray="6 4"/>'; }
+  }
+
+  // edge condition labels (INK), placed just inside each edge the record holds a
+  // cond for. Side (vertical) edges anchor so the text grows INWARD and never
+  // crosses the linework; top/bottom edges sit inside, centred.
+  var ctrx = ox + dw / 2, ctry = oy + dh / 2;
+  (fp.edges || []).forEach(function(e, i){
+    if (e.type === 'curved' || !e.cond) return;
+    var role = (typeof fpEdgeRole === 'function') ? fpEdgeRole(fp, e, i, form) : (e.role || 'eaves');
+    var label = (typeof fpCondLabel === 'function') ? fpCondLabel(role, e.cond) : null;
+    if (!label) return;
+    var shortL = (typeof fpChipShort === 'function') ? fpChipShort(label) : label;
+    var c = fp.corners[i], nc = fp.corners[(i + 1) % fp.corners.length];
+    var mx = TX((c.x + nc.x) / 2), my = TY((c.y + nc.y) / 2);
+    var evx = TX(nc.x) - TX(c.x), evy = TY(nc.y) - TY(c.y);
+    var vertical = Math.abs(evy) > Math.abs(evx);
+    var tx, ty, anchor;
+    if (vertical){ if (mx < ctrx){ anchor = 'start'; tx = mx + 6; } else { anchor = 'end'; tx = mx - 6; } ty = my + 3; }
+    else { anchor = 'middle'; tx = mx; ty = (my < ctry) ? (my + 13) : (my - 8); }
+    h += '<text x="' + Math.round(tx) + '" y="' + Math.round(ty) + '" text-anchor="' + anchor + '" fill="' + INK + '" font-family="Helvetica,Arial,sans-serif" font-size="8.5" font-weight="600">' + escapeHtml(shortL) + '</text>';
+  });
+
+  // ORANGE datum dimensions - from the keyed datum, never scaled from the drawing
+  var dimLine = function(x1, y1, x2, y2, vertical){
+    var g = '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + ORANGE + '" stroke-width="1"/>';
+    if (vertical){ g += '<line x1="' + (x1-3) + '" y1="' + y1 + '" x2="' + (x1+3) + '" y2="' + y1 + '" stroke="' + ORANGE + '" stroke-width="1"/><line x1="' + (x2-3) + '" y1="' + y2 + '" x2="' + (x2+3) + '" y2="' + y2 + '" stroke="' + ORANGE + '" stroke-width="1"/>'; }
+    else { g += '<line x1="' + x1 + '" y1="' + (y1-3) + '" x2="' + x1 + '" y2="' + (y1+3) + '" stroke="' + ORANGE + '" stroke-width="1"/><line x1="' + x2 + '" y1="' + (y2-3) + '" x2="' + x2 + '" y2="' + (y2+3) + '" stroke="' + ORANGE + '" stroke-width="1"/>'; }
+    return g;
+  };
+  var lenTxt = (typeof fpDatumLength === 'function') ? dimTxt(fpDatumLength(b)) : null;
+  var depthTxt = dimTxt(((b && b.datum) || {}).widthM);
+  if (lenTxt){
+    var ly2 = oy + dh + 20;
+    h += dimLine(ox, ly2, ox + dw, ly2, false);
+    h += '<text x="' + (ox + dw/2) + '" y="' + (ly2 + 13) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="700">' + escapeHtml(lenTxt) + '</text>';
+  }
+  if (depthTxt){
+    var dx2 = ox - 20;
+    h += dimLine(dx2, oy, dx2, oy + dh, true);
+    h += '<text x="' + (dx2 - 4) + '" y="' + (oy + dh/2) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="700" transform="rotate(-90 ' + (dx2-4) + ' ' + (oy+dh/2) + ')">' + escapeHtml(depthTxt) + '</text>';
+  }
+  if (bf && bf.totalBays >= 2){
+    var bwTxt = dimTxt((b.bays && b.bays[0] && b.bays[0].widthM));
+    if (bwTxt){
+      var drawn2 = Math.min(bf.totalBays, 8), bx2 = ox + dw / drawn2, by2 = oy - 16;
+      h += dimLine(ox, by2, bx2, by2, false);
+      h += '<text x="' + ((ox + bx2)/2) + '" y="' + (by2 - 5) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="9" font-weight="700">' + escapeHtml(bwTxt) + ' bay</text>';
+    }
+  }
+
+  // north arrow + not to scale (ink furniture)
+  h += '<g transform="translate(280,20)"><line x1="0" y1="14" x2="0" y2="-5" stroke="' + INK + '" stroke-width="1.6"/><path d="M0,-11 L4.2,-2 L-4.2,-2 Z" fill="' + INK + '"/><text x="0" y="26" text-anchor="middle" fill="' + INK + '" font-family="Helvetica,Arial,sans-serif" font-size="11" font-weight="700">N</text></g>';
+  if (!opts.hideNotToScale) h += '<text x="20" y="291" fill="' + LINE + '" font-family="Helvetica,Arial,sans-serif" font-size="11" font-style="italic">Not to scale</text>';
+  return h + '</svg>';
+}
+// Per-building caption: name, the counts (bays + valleys where multi-bay), "not to
+// scale", and the datum note. The caption is the authority for the true counts.
+function slSitePlanCaption(b){
+  var name = (b && b.name) ? b.name : ('Building ' + ((b && b.id) || ''));
+  var parts = [name];
+  if ((b && b.roofForm) === 'multi-bay' && typeof fpBayFigures === 'function'){
+    var bf = fpBayFigures(b);
+    if (bf.totalBays >= 1) parts.push(bf.totalBays + ' bay' + (bf.totalBays === 1 ? '' : 's') + ' repeated');
+    if (bf.valleys >= 1) parts.push(bf.valleys + ' internal valley gutter' + (bf.valleys === 1 ? '' : 's'));
+  }
+  parts.push('not to scale');
+  parts.push('Datum: laser &middot; principal dimensions');
+  return parts.map(function(p, i){ return i === 0 ? escapeHtml(p) : p; }).join(' &middot; ');
+}
+// Section 4 site-plan figure sheet - a dedicated landscape sheet placed IMMEDIATELY
+// BEFORE the fault-plan sheet (so the documents read site plan then fault plan).
+// Site plan is Figure 4.1, fault plan renumbered to 4.2. One panel per captured
+// building. Renders ONLY when a footprint exists; else '' and the report is
+// byte-identical to today.
+function slRenderSitePlanFigure(survey){
+  var s = survey || {};
+  var blds = slCapturedBuildings(s);
+  if (!blds.length) return '';
+  var multi = blds.length > 1;
+  var anyAsb = blds.some(function(b){ return (typeof f5BuildingHasAsbestos === 'function') && !!f5BuildingHasAsbestos(b); });
+  var frames = blds.map(function(b){
+    return '<div class="sp-panel">' +
+      '<div class="rp-frame sp-frame">' + slSitePlanSVG(b, { idSuffix: 'fig-' + (b.id || '0') }) + '</div>' +
+      '<div class="sp-panel-cap">' + slSitePlanCaption(b) + '</div>' +
+    '</div>';
+  }).join('');
+  var key = '<div class="sp-key">' +
+    '<div class="sp-key-item"><span class="sp-key-line"></span>Ink &middot; structure and edges</div>' +
+    '<div class="sp-key-item"><span class="sp-key-dim"></span>Orange &middot; principal dimensions, from the laser datum</div>' +
+    (anyAsb ? '<div class="sp-key-item"><span class="rp-leg-hatch"></span>Asbestos, hatched</div>' : '') +
+    '<div class="sp-key-note">Edge conditions are labelled as the survey holds them. A multi-bay repeat is indicated as a texture; the caption carries the true bay and valley counts. Not to scale.</div>' +
+  '</div>';
+  var foot = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
+  return '<section class="sheet sl-siteplan">' +
+    '<div class="pad">' +
+      '<div class="eyebrow">04 &middot; Findings and costs</div>' +
+      '<h2><span class="gt">&raquo;</span>The site plan.</h2>' +
+      '<div class="rp-figcap">Figure 4.1 &middot; Site plan &middot; the captured footprint, measured</div>' +
+      '<div class="rp-figwrap"><div class="sp-frames' + (multi ? ' sp-multi' : '') + '">' + frames + '</div>' + key + '</div>' +
+    '</div>' + foot +
+  '</section>';
+}
+// The proposal's measured panel (on-screen, np-styled): the site plan above the
+// route comparison, lending the indicative figures a measured base. Once, not per
+// option. '' when no footprint -> proposal byte-identical.
+function proposalSitePlanPanel(survey){
+  var blds = slCapturedBuildings(survey);
+  if (!blds.length) return '';
+  var panels = blds.map(function(b){
+    var counts = '';
+    if ((b.roofForm === 'multi-bay') && typeof fpBayFigures === 'function'){
+      var bf = fpBayFigures(b);
+      var cparts = [];
+      if (bf.totalBays >= 1) cparts.push(bf.totalBays + ' bays');
+      if (bf.valleys >= 1) cparts.push(bf.valleys + ' valleys');
+      counts = cparts.join(' &middot; ');
+    }
+    var nm = (b.name ? b.name : ('Building ' + (b.id || '')));
+    return '<div class="np-sp-panel"><div class="np-sp-frame">' + slSitePlanSVG(b, { idSuffix: 'np-' + (b.id || '0') }) + '</div>' +
+      '<div class="np-sp-cap">' + srEsc(nm) + (counts ? ' &middot; ' + counts : '') + ' &middot; not to scale</div></div>';
+  }).join('');
+  return '<div class="np-siteplan"><div class="np-sp-h">The measured roof, from the capture</div>' +
+    '<div class="np-sp-row">' + panels + '</div>' +
+    '<div class="np-sp-note">Principal dimensions from the ground laser. The indicative figures below rest on this measured base.</div></div>';
 }
 
 function slRenderExec(survey) {
@@ -15427,7 +15645,8 @@ function renderTier1Report(survey, costInfo) {
     (showAreas ? slRenderAreasOverview(s) : '') +
     slRenderSchedule(s, costInfo, scheduleOpts) +
     (criticalCount > 0 ? slRenderCards(s, { criticalOnly: true }) : '') +
-    slRenderFaultPlanFigure(s) +   // D1: Figure 4.1 - roof plan, faults (only when a fault is located)
+    slRenderSitePlanFigure(s) +    // D2: Figure 4.1 - site plan (only when a footprint exists); before the fault plan
+    slRenderFaultPlanFigure(s) +   // D1: Figure 4.2 - roof plan, faults (only when a fault is located)
     slRenderFindings(s, costInfo) +
     slRenderFindingsNext(s) +
     slRenderBack(s) +
