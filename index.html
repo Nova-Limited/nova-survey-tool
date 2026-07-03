@@ -1505,6 +1505,16 @@ input.derived-field { background: #f6f8fa; color: #555; }
 .f3a-readout-val { font-size: 1.05rem; font-weight: 900; color: var(--gold); }
 .f3a-readout-sub { font-size: 0.72rem; color: rgba(255,255,255,0.7); width: 100%; }
 
+/* F5 roof composition - the derived readout that replaces the survey-level roof
+   type single-select. Phone-first pills, one per roof type present. */
+#roof-composition-readout .f5-comp { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; }
+.f5-comp-item { display: inline-flex; align-items: baseline; gap: 0.4rem; padding: 0.35rem 0.7rem; background: var(--light); border: 1px solid var(--rule); border-radius: 999px; }
+.f5-comp-type { font-weight: 700; font-size: 0.85rem; color: var(--ink); }
+.f5-comp-area { font-weight: 800; font-size: 0.85rem; color: var(--gold); white-space: nowrap; }
+.f5-comp-prov { font-size: 0.72rem; color: var(--muted); font-weight: 600; margin-top: 0.4rem; }
+.f5-comp-empty { font-size: 0.82rem; color: var(--muted); }
+.f5-mat-select { min-height: 40px; border: 1px solid var(--rule); border-radius: 6px; padding: 0.2rem 0.5rem; font-family: inherit; font-size: 0.88rem; background: #fff; color: var(--ink); }
+
 /* SEVERITY PILL (form / list) */
 .pill {
   display: inline-block; padding: 0.18rem 0.55rem; border-radius: 999px;
@@ -3471,23 +3481,28 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <details class="section" id="section-b">
         <summary>Section B — Building Overview</summary>
         <div class="section-body">
-          <div class="field-row">
-            <div class="field">
-              <label for="f-roof-type">Roof type</label>
-              <select id="f-roof-type">
-                <option value="">—</option>
-                <option>Asbestos Cement</option>
-                <option>Metal Profile</option>
-                <option>Composite</option>
-                <option>Flat Membrane</option>
-                <option>Mastic Asphalt</option>
-                <option>Slate or Tile</option>
-                <option>Mixed</option>
-                <option>GRP / Fibreglass</option>
-                <option>Other</option>
-              </select>
-            </div>
-            <div class="field">
+          <!-- F5: the survey-level roof type is retired to a derived composition.
+               The single-select is kept HIDDEN purely so an existing survey's
+               stored value round-trips unchanged through FIELD_MAP and stays the
+               per-building fallback; it drives nothing on the surface. -->
+          <div class="field" id="roof-composition-wrap" style="margin-bottom:0.9rem;">
+            <label>Roof composition</label>
+            <div id="roof-composition-readout"></div>
+            <select id="f-roof-type" hidden aria-hidden="true" tabindex="-1">
+              <option value="">—</option>
+              <option>Asbestos Cement</option>
+              <option>Metal Profile</option>
+              <option>Composite</option>
+              <option>Flat Membrane</option>
+              <option>Mastic Asphalt</option>
+              <option>Slate or Tile</option>
+              <option>Mixed</option>
+              <option>GRP / Fibreglass</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field-row" id="roof-area-row">
+            <div class="field" id="roof-area-field-wrap">
               <label for="f-roof-area">Approx. roof area (m²)</label>
               <input type="number" id="f-roof-area" min="0" inputmode="numeric">
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:6px;">
@@ -3496,6 +3511,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
               </label>
               <span class="hint" id="f-roof-area-hint"></span>
             </div>
+            <div class="field"></div>
           </div>
           <div class="field-row">
             <div class="field">
@@ -15381,6 +15397,21 @@ function renderCapturedGeometryHtml(b, idx){
     if (bf.runsDiffer) h += '<div class="geo-note">Bay types key different runs; the longest is used.</div>';
   }
 
+  // F5: roof material as a per-building fact. Multi-bay derives it from the bay
+  // coverings / asbestos flag (no manual entry); every other captured form gets a
+  // small selector bound to building-level b.roofType, which the survey-level
+  // composition then names.
+  if (isMultiBay){
+    var mbType = f5BuildingRoofType(b, null);
+    h += '<div class="geo-row"><span class="geo-lbl">Roof material</span><span class="geo-val" style="font-size:0.82rem;font-weight:600;color:var(--muted);">' + escapeHtml(mbType.label && mbType.label !== 'Unspecified' ? (mbType.label + ' · from bay coverings') : 'from bay coverings') + '</span></div>';
+  } else {
+    h += '<div class="geo-row"><span class="geo-lbl">Roof material</span>'
+      + '<select class="f5-mat-select" onchange="f5SetBuildingRoofType(' + idx + ', this.value)">'
+      + '<option value="">Not set</option>'
+      + ROOF_TYPE_OPTIONS.map(function(o){ return '<option' + (b.roofType === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('')
+      + '</select></div>';
+  }
+
   h += '<div class="geo-row"><span class="geo-lbl">Eaves height</span><span class="geo-val">' + fpM(eh) + '</span></div>';
   if (!isMultiBay) h += '<div class="geo-row"><span class="geo-lbl">Ridge height</span><span class="geo-val">' + fpM(rh) + '</span></div>';
 
@@ -15631,6 +15662,7 @@ function updateSurveyRoofTotalDisplay() {
   if (el) el.textContent = res.total == null ? '— m²' : fmtAreaDisp(res.total);
   if (prov) prov.textContent = geoProvenanceLabel(res.breakdown);
   updateDerivedRoofArea();   // keep Section B's roof area in step with B2
+  if (typeof f5UpdateRoofSurfaces === 'function') f5UpdateRoofSurfaces();   // F5: composition + retire the redundant area ask
 }
 
 // Section B "Approx. roof area" is captured once in B2 (Buildings & Slopes) and
@@ -15658,6 +15690,128 @@ function updateDerivedRoofArea() {
   if (hint) hint.textContent = (total == null)
     ? 'Derived from Section B2 — add buildings and slopes there, or tick Override to enter manually.'
     : ((prov || 'Derived from Section B2 (total of all slope areas)') + '. Tick Override to adjust manually.');
+}
+
+// ===== FLOW BUILD STAGE F5: ROOF TYPE AS A PER-BUILDING FACT ===================
+// The survey-level single-select is retired; the survey level DERIVES a
+// composition from each building's own roof type and its resolved area. Type per
+// building, in priority order (the fallback rule, reported in the writeup):
+//   1. multi-bay with any asbestos-flagged bay side -> 'Asbestos Cement'
+//   2. multi-bay otherwise -> the dominant bay covering (by side count)
+//   3. building-level b.roofType (NEW optional, set on the captured read-back)
+//   4. the dominant non-empty slope.roofType across the building's slopes
+//   5. the stored survey-level s['f-roof-type'] (the retired select) as the
+//      fallback for a building lacking its own - the snapshot is never rewritten
+//   6. else 'Unspecified'
+// roofForm is geometry (duo-pitch/multi-bay/...), never a material, so it is not
+// used as a type. Nothing here feeds element selection or waste: those already
+// read the per-building capture (coverings + asbestos flags) directly, unchanged.
+function f5DominantBayCovering(b){
+  var counts = {}, best = null, bestN = 0;
+  (b.bays || []).forEach(function(bay){
+    var c = Math.max(0, Math.round(srNum(bay.count) || 0));
+    (bay.sides || []).forEach(function(side){
+      var cov = (side && side.covering) ? String(side.covering).trim() : '';
+      if (!cov) return;
+      counts[cov] = (counts[cov] || 0) + c;
+      if (counts[cov] > bestN){ bestN = counts[cov]; best = cov; }
+    });
+  });
+  return best;
+}
+function f5BuildingHasAsbestos(b){
+  return (b.bays || []).some(function(bay){
+    return (bay.sides || []).some(function(side){ return side && side.asbestos; });
+  });
+}
+function f5DominantSlopeRoofType(b){
+  var counts = {}, best = null, bestN = 0;
+  (b.slopes || []).forEach(function(sl){
+    var t = (sl && sl.roofType) ? String(sl.roofType).trim() : '';
+    if (!t) return;
+    counts[t] = (counts[t] || 0) + 1;
+    if (counts[t] > bestN){ bestN = counts[t]; best = t; }
+  });
+  return best;
+}
+function f5BuildingRoofType(b, survey){
+  if (!b) return { label: null, source: null };
+  if (b.roofForm === 'multi-bay' && Array.isArray(b.bays) && b.bays.length){
+    if (f5BuildingHasAsbestos(b)) return { label: 'Asbestos Cement', source: 'asbestos flag' };
+    var cov = f5DominantBayCovering(b);
+    if (cov) return { label: cov, source: 'bay covering' };
+  }
+  if (b.roofType && String(b.roofType).trim()) return { label: String(b.roofType).trim(), source: 'building' };
+  var sl = f5DominantSlopeRoofType(b);
+  if (sl) return { label: sl, source: 'slope' };
+  var lvl = (survey && survey['f-roof-type']) ? String(survey['f-roof-type']).trim() : '';
+  if (lvl && lvl !== 'Mixed') return { label: lvl, source: 'survey fallback' };
+  return { label: 'Unspecified', source: null };
+}
+// Aggregate a survey into an ordered composition: each roof type present with its
+// summed resolved area (captured footprint area wins per building, else legacy
+// slopes - the same estResolveRoofArea logic, per building), largest area first.
+function f5RoofComposition(survey){
+  var buildings = (survey && survey.buildings) || [];
+  var map = {}, order = [], anyCaptured = false, anyLegacy = false, anyArea = false;
+  buildings.forEach(function(b){
+    var capt = fpBuildingCapturedArea(b);
+    var area = (capt.value != null) ? capt.value : buildingTotalArea(b);
+    if (capt.value != null) anyCaptured = true; else if (area != null) anyLegacy = true;
+    var t = f5BuildingRoofType(b, survey);
+    var key = t.label || 'Unspecified';
+    if (!map[key]){ map[key] = { type: key, area: 0, hasArea: false, captured: false, sources: {} }; order.push(key); }
+    if (area != null){ map[key].area += area; map[key].hasArea = true; anyArea = true; if (capt.value != null) map[key].captured = true; }
+    if (t.source) map[key].sources[t.source] = true;
+  });
+  var list = order.map(function(k){ return map[k]; }).sort(function(a, b){ return (b.area || 0) - (a.area || 0); });
+  var provenance = (anyCaptured && anyLegacy) ? 'Mixed - capture + slopes' : anyCaptured ? 'From the capture' : anyLegacy ? 'From the slopes' : '';
+  return { list: list, provenance: provenance, anyArea: anyArea, empty: buildings.length === 0 };
+}
+// The dominant-by-area type - the single label a consumer that genuinely needs
+// one would use (no such consumer today; roof type is written to no Airtable
+// field). Exposed so a future single-field write can use composition, not a
+// retired hand-picked label.
+function f5DominantRoofType(survey){
+  var comp = f5RoofComposition(survey);
+  var withArea = comp.list.filter(function(c){ return c.hasArea && c.type !== 'Unspecified'; });
+  return withArea.length ? withArea[0].type : (comp.list[0] ? comp.list[0].type : null);
+}
+function renderRoofComposition(){
+  var host = document.getElementById('roof-composition-readout'); if (!host) return;
+  var typeEl = document.getElementById('f-roof-type');
+  var survey = { buildings: currentBuildings, 'f-roof-type': typeEl ? (typeEl.value || '') : '' };
+  var comp = f5RoofComposition(survey);
+  if (comp.empty || !comp.list.length){
+    host.innerHTML = '<div class="f5-comp-empty">No buildings yet. Add them in Section B2; the roof composition derives from each building.</div>';
+    return;
+  }
+  var rows = comp.list.map(function(c){
+    // Match estResolveRoofArea's convention: round up only where captured area
+    // contributed; a pure-legacy type shows its slopes total unrounded (417.61).
+    var areaTxt = c.hasArea ? fmtAreaDisp(c.captured ? estRoundUp(c.area, 0) : c.area) : '—';
+    return '<span class="f5-comp-item"><span class="f5-comp-type">' + escapeHtml(c.type) + '</span>'
+      + '<span class="f5-comp-area">' + areaTxt + '</span></span>';
+  }).join('');
+  host.innerHTML = '<div class="f5-comp">' + rows + '</div>'
+    + (comp.provenance ? '<div class="f5-comp-prov">' + escapeHtml(comp.provenance) + '</div>' : '');
+}
+// Keep the two retired survey-level asks in step with the buildings: the derived
+// composition always shows; the redundant AREA hand-entry is hidden wherever a
+// resolved figure exists (any building captured or with slopes), shown only for a
+// genuinely blank early survey. A stored area value stays in the snapshot (the
+// input keeps its value and round-trips) exactly as today.
+function f5UpdateRoofSurfaces(){
+  renderRoofComposition();
+  var wrap = document.getElementById('roof-area-field-wrap'); if (!wrap) return;
+  var res = (typeof estResolveRoofArea === 'function') ? estResolveRoofArea({ buildings: currentBuildings }) : { total: null };
+  wrap.style.display = (res.total != null) ? 'none' : '';
+}
+function f5SetBuildingRoofType(bIdx, val){
+  var b = currentBuildings[bIdx]; if (!b) return;
+  b.roofType = val || '';
+  if (typeof persistCurrentEdit === 'function') persistCurrentEdit();
+  renderRoofComposition();
 }
 
 // ---- Building-width auto-span helpers ----
