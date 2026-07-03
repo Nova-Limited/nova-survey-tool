@@ -1462,6 +1462,49 @@ input.derived-field { background: #f6f8fa; color: #555; }
 .geo-open-btn { margin-top: 0.9rem; }
 .roof-total-provenance { font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.75); display: block; margin-top: 2px; }
 
+/* F3 access and scaffold, derived — the classic form's captured-building access
+   panel, replacing the hand-entry list. Reuses the geo-* tag idiom; own layout
+   for the per-elevation length/height override rows. */
+.f3a-banner {
+  background: #FFF4E8; border: 1px solid var(--orange); border-radius: 6px;
+  padding: 0.6rem 0.8rem; font-size: 0.82rem; font-weight: 600; color: var(--ink);
+  margin-bottom: 0.9rem;
+}
+.f3a-bldg-label {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--gold); margin: 1rem 0 0.4rem;
+}
+.f3a-elev {
+  border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.85rem;
+  margin-bottom: 0.7rem; background: var(--paper);
+}
+.f3a-elev-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+.f3a-elev-name { flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: 0.9rem; color: var(--ink); }
+.f3a-elev-role { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+.f3a-dim {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.6rem;
+  padding: 0.45rem 0; border-top: 1px solid var(--rule);
+}
+.f3a-dim-lbl { flex: 0 0 5.2rem; font-size: 0.82rem; color: var(--ink); font-weight: 600; }
+.f3a-dim-val { font-size: 0.95rem; font-weight: 800; color: var(--ink); min-width: 3.6rem; }
+.f3a-dim-input {
+  width: 5rem; min-height: 44px; text-align: right; border: 1px solid var(--rule);
+  border-radius: 6px; padding: 0.3rem 0.5rem; font-size: 0.9rem; font-family: inherit; background: #fff;
+}
+.f3a-held { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+.f3a-clear-btn {
+  min-height: 36px; font-size: 12px; font-weight: 700; background: #fff; color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 7px; padding: 0 12px; cursor: pointer; font-family: inherit;
+}
+.f3a-clear-btn:hover { border-color: var(--orange); color: var(--orange); }
+.f3a-readout {
+  margin-top: 0.9rem; padding: 0.8rem 1rem; background: var(--dark); color: #fff;
+  border-radius: 6px; display: flex; flex-wrap: wrap; gap: 0.3rem 1.4rem; align-items: baseline;
+}
+.f3a-readout-lbl { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.7); }
+.f3a-readout-val { font-size: 1.05rem; font-weight: 900; color: var(--gold); }
+.f3a-readout-sub { font-size: 0.72rem; color: rgba(255,255,255,0.7); width: 100%; }
+
 /* SEVERITY PILL (form / list) */
 .pill {
   display: inline-block; padding: 0.18rem 0.55rem; border-radius: 999px;
@@ -3510,9 +3553,9 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <details class="section" id="section-b3">
         <summary>Section B3 — Access for pricing pack</summary>
         <div class="section-body">
-          <p class="section-hint">Per elevation needing scaffold or a working platform. Suggestions are pulled from the roof slopes (length and eave height) and are fully editable — slopes are not equated with elevations. This drives Section B of the subcontractor pricing pack; it does not change the roof measurements.</p>
+          <p class="section-hint" id="pack-access-hint">Per elevation needing scaffold or a working platform. Suggestions are pulled from the roof slopes (length and eave height) and are fully editable — slopes are not equated with elevations. This drives Section B of the subcontractor pricing pack; it does not change the roof measurements.</p>
           <div id="pack-access-list"></div>
-          <div class="add-building-row">
+          <div class="add-building-row" id="pack-access-handentry">
             <button type="button" class="btn btn-ghost" onclick="ppAddElevation()">+ Add elevation</button>
             <button type="button" class="btn btn-ghost" onclick="ppSuggestFromSlopes()">Suggest from roof slopes</button>
           </div>
@@ -11563,8 +11606,101 @@ function buildPricingReturnWorkbook(model){
 // if present; otherwise SUGGEST one from the roof slopes (length -> elevation
 // length, eave height -> working height) as editable defaults. Slopes are never
 // equated with elevations in the data model — this only borrows their values.
+// ===== FLOW BUILD STAGE F3: SCAFFOLD AND ACCESS DERIVED FROM CAPTURED ELEVATIONS
+// Where a building is captured (the SAME fpBuildingCapturedArea gate F2 uses), its
+// access runs are DERIVED, one per perimeter edge: length = the edge's effective
+// length (fpEdgeLen, the edge-inherit logic), eave height = the elevation/datum
+// eaves height (fpElevHeight). A per-elevation ACCESS-REALITY override rides on
+// edge.access {heightM, lengthM} - a NEW optional key, separate from the stage-4
+// edge.elevation cladding model, so keying a scaffold height never disturbs the
+// cladding-area readout. Keyed wins, tagged keyed; Clear restores the captured
+// value (held underneath). Keyed access LENGTH scopes partial scaffold (e.g. a run
+// that stops short, or 0 for a wall not scaffolded) without touching the geometry.
+// Nothing here changes the scaffold cost maths or rates: the effective (keyed-else-
+// derived) length and height flow through the unchanged ppDeriveAccess -> elevations
+// shape that srSectionBDerived and the pricing pack already consume.
+function f3AccessRunsForBuilding(b, bIdx){
+  var fp = b && b.footprint; if (!fp || !Array.isArray(fp.edges)) return [];
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var label = (b && b.name) ? b.name : ('Building ' + ((b && b.id) || (bIdx + 1)));
+  var runs = [];
+  fp.edges.forEach(function(e, i){
+    if (e.type === 'curved') return;
+    var role = fpEdgeRole(fp, e, i, form);
+    var elev = e.elevation || {};
+    var dLen = fpEdgeLen(fp, i, b);        // edge-inherit effective length (keyed edge dim or derived)
+    var dHgt = fpElevHeight(b, elev);      // elevation keyed height, else datum eaves height
+    var acc = (e.access && typeof e.access === 'object') ? e.access : {};
+    var keyLen = srNum(acc.lengthM), keyHgt = srNum(acc.heightM);
+    var effLen = (keyLen != null) ? keyLen : dLen.value;
+    var effHgt = (keyHgt != null) ? keyHgt : dHgt.value;
+    runs.push({
+      bIdx: bIdx, edgeIdx: i, role: role, roleLabel: FP_ROLE_LABEL[role] || 'Edge',
+      name: label + ' · Elevation ' + (i + 1),
+      accessType: 'platform',
+      derivedLength: dLen.value, derivedHeight: dHgt.value,
+      keyedLength: keyLen, keyedHeight: keyHgt,
+      lengthM: effLen, heightM: effHgt,
+      lengthSource: (keyLen != null) ? 'keyed' : 'derived',
+      heightSource: (keyHgt != null) ? 'keyed' : 'derived'
+    });
+  });
+  return runs;
+}
+function f3AnyCaptured(sLike){
+  var bs = (sLike && sLike.buildings) || [];
+  return bs.some(function(b){ return fpBuildingCapturedArea(b).value != null; });
+}
+// Scaffold run / area / cost readout from the effective (keyed-else-derived)
+// dimensions of the captured buildings. Cost matches srSectionBDerived's platform
+// sum exactly (length x height x scaffoldSqm), the unchanged area method.
+function f3ScaffoldTotals(sLike){
+  var buildings = (sLike && sLike.buildings) || [];
+  var run = 0, area = 0, anyRun = false, anyArea = false;
+  buildings.forEach(function(b, bIdx){
+    if (fpBuildingCapturedArea(b).value == null) return;
+    f3AccessRunsForBuilding(b, bIdx).forEach(function(r){
+      if (r.lengthM != null){ run += r.lengthM; anyRun = true; }
+      if (r.lengthM != null && r.heightM != null){ area += r.lengthM * r.heightM; anyArea = true; }
+    });
+  });
+  var rt = (typeof srRates === 'function') ? srRates() : { scaffoldSqm: 35 };
+  var cost = (anyArea && rt.scaffoldSqm != null) ? area * rt.scaffoldSqm : null;
+  return { run: anyRun ? run : null, area: anyArea ? area : null, cost: cost, rate: rt.scaffoldSqm };
+}
 function ppDeriveAccess(s){
   s = s || {};
+  var buildings = (s.buildings) || [];
+  var anyCaptured = buildings.some(function(b){ return fpBuildingCapturedArea(b).value != null; });
+  // CAPTURE PATH: a survey with any captured building derives its access from the
+  // capture. Legacy buildings in the same survey keep their slope-derived rows. A
+  // pre-existing hand-entered packAccess elevation list is preserved on the
+  // snapshot but no longer drives access (capture supersedes it - the migration
+  // rule); its netting toggles are retained. Access-reality overrides live on
+  // edge.access, not packAccess.
+  if (anyCaptured) {
+    var pa0 = s.packAccess || {};
+    var capElevs = [];
+    buildings.forEach(function(b, bIdx){
+      if (fpBuildingCapturedArea(b).value != null) {
+        f3AccessRunsForBuilding(b, bIdx).forEach(function(r){
+          capElevs.push({ name: r.name, accessType: r.accessType, lengthM: r.lengthM, heightM: r.heightM });
+        });
+      } else {
+        (b.slopes || []).forEach(function(sl){
+          var len = Number(sl.length) || 0, h = Number(sl.eaves) || 0;
+          if (len > 0 || h > 0) capElevs.push({ name: ((b.name || 'Building') + ' ' + (sl.id || '')).trim(),
+            accessType: 'platform', lengthM: len || null, heightM: h || null });
+        });
+      }
+    });
+    var capHasHeight = capElevs.some(function(e){ return Number(e.heightM) > 0; });
+    return { elevations: capElevs,
+             safetyNetting: (pa0.safetyNetting != null ? pa0.safetyNetting !== false : capHasHeight),
+             debrisNetting: !!pa0.debrisNetting,
+             preparedISO: (typeof todayIso==='function'?todayIso():'') };
+  }
+  // LEGACY PATH - byte-identical to before F3 (no captured building anywhere).
   if (s.packAccess && Array.isArray(s.packAccess.elevations) && s.packAccess.elevations.length) {
     var pa = s.packAccess;
     return { elevations: pa.elevations, safetyNetting: pa.safetyNetting !== false,
@@ -11652,21 +11788,123 @@ function ppElevationsFromSlopes(){
 <!-- SECTION: script: pack-access -->
 function renderPackAccess(){
   var list = document.getElementById('pack-access-list'); if (!list) return;
-  var els = currentPackAccess.elevations || [];
-  list.innerHTML = els.length ? els.map(function(e, i){
-    var plat = (e.accessType !== 'handrail');
-    return '<div class="pack-elev-row" style="display:grid;grid-template-columns:1.6fr 1.5fr 0.9fr 0.9fr auto;gap:8px;align-items:center;margin-bottom:8px;">'
-      + '<input type="text" placeholder="Elevation name" value="' + attr(e.name) + '" oninput="ppUpdateElevation(' + i + ',\'name\',this.value)" style="width:100%;">'
-      + '<select onchange="ppUpdateElevation(' + i + ',\'accessType\',this.value)" style="width:100%;">'
-        + '<option value="platform"' + (plat?' selected':'') + '>Working platform</option>'
-        + '<option value="handrail"' + (!plat?' selected':'') + '>Handrail and edge protection</option></select>'
-      + '<input type="number" step="0.1" placeholder="Length m" value="' + attr(e.lengthM) + '" oninput="ppUpdateElevation(' + i + ',\'lengthM\',this.value)" style="width:100%;">'
-      + '<input type="number" step="0.1" placeholder="Height m" value="' + attr(e.heightM) + '" oninput="ppUpdateElevation(' + i + ',\'heightM\',this.value)" style="width:100%;">'
-      + '<button type="button" class="btn btn-ghost" onclick="ppRemoveElevation(' + i + ')" title="Remove">×</button>'
-    + '</div>';
-  }).join('') : '<p class="section-hint" style="opacity:.7;">No elevations yet. Add one, or pull suggestions from the roof slopes.</p>';
+  var sLike = { buildings: currentBuildings, packAccess: currentPackAccess };
+  var handEntry = document.getElementById('pack-access-handentry');
+  var hint = document.getElementById('pack-access-hint');
+  if (f3AnyCaptured(sLike)) {
+    // Captured survey: access is DERIVED from the capture (F3). Hide the hand-entry
+    // add/suggest controls; the banner + per-elevation rows replace them.
+    if (handEntry) handEntry.style.display = 'none';
+    if (hint) hint.style.display = 'none';
+    list.innerHTML = renderF3Access(sLike);
+  } else {
+    // Legacy survey: the hand-entry list, exactly as before F3.
+    if (handEntry) handEntry.style.display = '';
+    if (hint) hint.style.display = '';
+    var els = currentPackAccess.elevations || [];
+    list.innerHTML = els.length ? els.map(function(e, i){
+      var plat = (e.accessType !== 'handrail');
+      return '<div class="pack-elev-row" style="display:grid;grid-template-columns:1.6fr 1.5fr 0.9fr 0.9fr auto;gap:8px;align-items:center;margin-bottom:8px;">'
+        + '<input type="text" placeholder="Elevation name" value="' + attr(e.name) + '" oninput="ppUpdateElevation(' + i + ',\'name\',this.value)" style="width:100%;">'
+        + '<select onchange="ppUpdateElevation(' + i + ',\'accessType\',this.value)" style="width:100%;">'
+          + '<option value="platform"' + (plat?' selected':'') + '>Working platform</option>'
+          + '<option value="handrail"' + (!plat?' selected':'') + '>Handrail and edge protection</option></select>'
+        + '<input type="number" step="0.1" placeholder="Length m" value="' + attr(e.lengthM) + '" oninput="ppUpdateElevation(' + i + ',\'lengthM\',this.value)" style="width:100%;">'
+        + '<input type="number" step="0.1" placeholder="Height m" value="' + attr(e.heightM) + '" oninput="ppUpdateElevation(' + i + ',\'heightM\',this.value)" style="width:100%;">'
+        + '<button type="button" class="btn btn-ghost" onclick="ppRemoveElevation(' + i + ')" title="Remove">×</button>'
+      + '</div>';
+    }).join('') : '<p class="section-hint" style="opacity:.7;">No elevations yet. Add one, or pull suggestions from the roof slopes.</p>';
+  }
   var sn = document.getElementById('pack-safety-netting'); if (sn) sn.checked = currentPackAccess.safetyNetting !== false;
   var dn = document.getElementById('pack-debris-netting'); if (dn) dn.checked = !!currentPackAccess.debrisNetting;
+}
+// F3 derived access panel: banner + per building, per elevation, the effective
+// length and eave height each with a derived/keyed tag, an inline override input
+// (its placeholder is the captured value held underneath), and Clear when keyed;
+// then the scaffold run / area / cost readout. Legacy buildings in a mixed survey
+// show their slope-derived rows read-only (edit their slopes in Section B2).
+function f3Tag(src){
+  return ' <span class="geo-src-tag' + (src === 'keyed' ? ' geo-src-keyed' : '') + '">' + src + '</span>';
+}
+function f3DimRow(label, run, field){
+  var eff = (field === 'lengthM') ? run.lengthM : run.heightM;
+  var der = (field === 'lengthM') ? run.derivedLength : run.derivedHeight;
+  var keyed = (field === 'lengthM') ? run.keyedLength : run.keyedHeight;
+  var src = (field === 'lengthM') ? run.lengthSource : run.heightSource;
+  var h = '<div class="f3a-dim">'
+    + '<span class="f3a-dim-lbl">' + escapeHtml(label) + '</span>'
+    + '<span class="f3a-dim-val">' + fpM(eff) + '</span>' + f3Tag(src)
+    + '<input type="number" step="0.1" min="0" class="f3a-dim-input" value="' + (keyed != null ? attr(keyed) : '') + '"'
+      + ' placeholder="' + (der != null ? attr(Math.round(der * 100) / 100) : 'key') + '"'
+      + ' onchange="f3SetAccess(' + run.bIdx + ',' + run.edgeIdx + ',\'' + field + '\',this.value)">';
+  if (keyed != null) h += '<button type="button" class="f3a-clear-btn" onclick="f3ClearAccess(' + run.bIdx + ',' + run.edgeIdx + ',\'' + field + '\')">Clear</button>'
+    + '<span class="f3a-held">Captured: ' + fpM(der) + '</span>';
+  h += '</div>';
+  return h;
+}
+function renderF3Access(sLike){
+  var buildings = (sLike && sLike.buildings) || [];
+  var h = '<div class="f3a-banner">Elevation lengths and eave heights arrive from the capture. No hand re-entry.</div>';
+  buildings.forEach(function(b, bIdx){
+    var captured = fpBuildingCapturedArea(b).value != null;
+    var label = (b && b.name) ? b.name : ('Building ' + ((b && b.id) || (bIdx + 1)));
+    if (captured) {
+      var runs = f3AccessRunsForBuilding(b, bIdx);
+      if (!runs.length) return;
+      h += '<div class="f3a-bldg-label">' + escapeHtml(label) + ' · derived from the capture</div>';
+      runs.forEach(function(r){
+        h += '<div class="f3a-elev">'
+          + '<div class="f3a-elev-head"><span class="f3a-elev-name">' + escapeHtml(r.name) + '</span>'
+            + '<span class="f3a-elev-role">' + escapeHtml(r.roleLabel) + '</span></div>'
+          + f3DimRow('Access length', r, 'lengthM')
+          + f3DimRow('Access height', r, 'heightM')
+        + '</div>';
+      });
+    } else {
+      // legacy building inside a captured survey: its access still comes from its
+      // slope entries in Section B2 (untouched); shown here read-only for context.
+      var rows = (b.slopes || []).filter(function(sl){ return (Number(sl.length) || 0) > 0 || (Number(sl.eaves) || 0) > 0; });
+      if (!rows.length) return;
+      h += '<div class="f3a-bldg-label">' + escapeHtml(label) + ' · from the slope entries in Section B2</div>';
+      rows.forEach(function(sl){
+        h += '<div class="f3a-elev"><div class="f3a-elev-head"><span class="f3a-elev-name">' + escapeHtml((sl.id || 'Slope')) + '</span></div>'
+          + '<div class="f3a-dim"><span class="f3a-dim-lbl">Access length</span><span class="f3a-dim-val">' + fpM(Number(sl.length) || null) + '</span></div>'
+          + '<div class="f3a-dim"><span class="f3a-dim-lbl">Access height</span><span class="f3a-dim-val">' + fpM(Number(sl.eaves) || null) + '</span></div>'
+        + '</div>';
+      });
+    }
+  });
+  var tot = f3ScaffoldTotals(sLike);
+  h += '<div class="f3a-readout">'
+    + '<span class="f3a-readout-lbl">Scaffold run</span><span class="f3a-readout-val">' + fpM(tot.run) + '</span>'
+    + '<span class="f3a-readout-lbl">At access height</span><span class="f3a-readout-val">' + (tot.area != null ? (Math.round(tot.area * 100) / 100) + ' m²' : '—') + '</span>'
+    + '<span class="f3a-readout-lbl">Scaffold cost</span><span class="f3a-readout-val">' + (tot.cost != null ? ('£' + Math.round(tot.cost).toLocaleString('en-GB')) : '—') + '</span>'
+    + '<span class="f3a-readout-sub">Perimeter at access height &middot; area &times; £' + (tot.rate != null ? tot.rate : '—') + '/m² (editable in the costing tools). Netting and any hand adjustments apply as today.</span>'
+  + '</div>';
+  return h;
+}
+// Mutate the access-reality override on the building's footprint edge, persist it
+// on the snapshot (edge.access rides the building object through collectFormData),
+// and re-render the panel. persistCurrentEdit writes it straight to the saved
+// record so the cost/pack read the same effective values immediately.
+function f3EdgeAccess(bIdx, edgeIdx){
+  var b = currentBuildings[bIdx]; if (!b || !b.footprint || !Array.isArray(b.footprint.edges)) return null;
+  var e = b.footprint.edges[edgeIdx]; if (!e) return null;
+  if (!e.access || typeof e.access !== 'object') e.access = { heightM: null, lengthM: null };
+  return e.access;
+}
+function f3SetAccess(bIdx, edgeIdx, field, val){
+  var acc = f3EdgeAccess(bIdx, edgeIdx); if (!acc) return;
+  var v = (val === '' || val == null) ? null : Number(val);
+  acc[field] = (v == null || !isFinite(v)) ? null : v;
+  if (typeof persistCurrentEdit === 'function') persistCurrentEdit();
+  renderPackAccess();
+}
+function f3ClearAccess(bIdx, edgeIdx, field){
+  var acc = f3EdgeAccess(bIdx, edgeIdx); if (!acc) return;
+  acc[field] = null;
+  if (typeof persistCurrentEdit === 'function') persistCurrentEdit();
+  renderPackAccess();
 }
 function ppAddElevation(){ currentPackAccess.elevations.push({ name:'', accessType:'platform', lengthM:'', heightM:'' }); renderPackAccess(); }
 function ppRemoveElevation(i){ currentPackAccess.elevations.splice(i,1); renderPackAccess(); }
