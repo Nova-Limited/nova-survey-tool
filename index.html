@@ -1345,23 +1345,31 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 }
 .building > summary {
   list-style: none; cursor: pointer; padding: 0.9rem 1rem;
-  display: flex; align-items: center; gap: 0.75rem; user-select: none;
-  background: var(--paper);
+  display: flex; align-items: flex-start; gap: 0.75rem; user-select: none;
+  background: var(--paper); min-height: 44px;
 }
 .building > summary::-webkit-details-marker { display: none; }
+/* F2 header fix: name row truncates with an ellipsis instead of wrapping
+   word-by-word; the status chip + supporting note sit on their own row below
+   so the title never wraps vertically at 390px. */
+.building-head-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.32rem; }
+.building-head-title { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
 .building-pill {
   flex: 0 0 auto; background: var(--gold); color: var(--dark);
   font-weight: 800; font-size: 0.74rem; letter-spacing: 0.06em;
   padding: 0.3rem 0.55rem; border-radius: 4px;
 }
-.building-name-display { flex: 1; font-weight: 700; font-size: 0.95rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-.building-name-display.placeholder { color: var(--muted); font-weight: 500; font-style: italic; }
+.building-name-display { flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: 0.95rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.building-name-display.placeholder { color: var(--muted); font-weight: 600; }
+.building-head-sub { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.building-sub-note { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
 .building-chip {
   font-size: 0.72rem; font-weight: 700; color: var(--muted);
   padding: 0.22rem 0.55rem; background: var(--light);
   border: 1px solid var(--rule); border-radius: 999px; white-space: nowrap;
+  flex: 0 0 auto;
 }
-.building > summary::after { content: '+'; color: var(--muted); font-size: 1.4rem; line-height: 1; }
+.building > summary::after { content: '+'; color: var(--muted); font-size: 1.4rem; line-height: 1; flex: 0 0 auto; }
 .building[open] > summary::after { content: '−'; }
 .building-body { padding: 0.75rem 1rem 0.5rem; border-top: 1px solid var(--rule); background: var(--paper); }
 .building-totals { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; padding: 0.85rem 0 0.5rem; }
@@ -15179,7 +15187,8 @@ function renderBuildingHtml(b, idx) {
   const chipText = slopeWord + ' · ' + (total == null ? '— m²' : fmtAreaDisp(total));
   const titleHtml = b.name
     ? '<span class="building-name-display">' + escapeHtml(b.name) + '</span>'
-    : '<span class="building-name-display placeholder">New building — fill in details below</span>';
+    : '<span class="building-name-display placeholder">Building ' + escapeHtml(b.id) + '</span>';
+  const headSubNote = captured ? 'Captured on the plan' : 'Enter the details below';
 
   var bodyHtml;
   if (captured) {
@@ -15215,9 +15224,16 @@ function renderBuildingHtml(b, idx) {
 
   return '<details class="building" data-building-idx="' + idx + '" open>' +
     '<summary>' +
-      '<span class="building-pill">' + escapeHtml(b.id) + '</span>' +
-      titleHtml +
-      '<span class="building-chip">' + escapeHtml(chipText) + '</span>' +
+      '<div class="building-head-main">' +
+        '<div class="building-head-title">' +
+          '<span class="building-pill">' + escapeHtml(b.id) + '</span>' +
+          titleHtml +
+        '</div>' +
+        '<div class="building-head-sub">' +
+          '<span class="building-chip">' + escapeHtml(chipText) + '</span>' +
+          '<span class="building-sub-note">' + escapeHtml(headSubNote) + '</span>' +
+        '</div>' +
+      '</div>' +
     '</summary>' +
     '<div class="building-body">' + bodyHtml + '</div>' +
     '<div class="building-footer">' +
@@ -15340,7 +15356,7 @@ function updateBuildingSummaryChip(bi) {
   const nameEl = detail.querySelector(':scope > summary .building-name-display');
   if (nameEl) {
     if (b.name) { nameEl.classList.remove('placeholder'); nameEl.textContent = b.name; }
-    else { nameEl.classList.add('placeholder'); nameEl.textContent = 'New building — fill in details below'; }
+    else { nameEl.classList.add('placeholder'); nameEl.textContent = 'Building ' + b.id; }
   }
 }
 function updateSlopeSummaryChip(bi, si) {
