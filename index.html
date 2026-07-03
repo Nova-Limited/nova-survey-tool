@@ -32,7 +32,7 @@
   /* Section 1d brand tokens. */
   --ink:       #434244;
   --orange:    #F7901E;
-  --green:     #1a7a4a;
+  --green:     #1f7a37;
   --grey-mid:  #9a9a9c;
   --rule:      #e4e4e6;
 
@@ -1418,6 +1418,41 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 .survey-roof-total-value { font-size: 1.5rem; font-weight: 900; color: var(--gold); letter-spacing: -0.01em; }
 /* Section B roof area while derived from B2 (read-only until Override is ticked). */
 input.derived-field { background: #f6f8fa; color: #555; }
+
+/* F2 geometry read-back — the classic form's captured-building panel, replacing
+   the B2 slope editor. Same brand tokens as the footprint capture surface, but
+   its own classnames since the fp-* rules are scoped to #view-footprint only. */
+.geo-readback { padding: 0.2rem 0 0.4rem; }
+.geo-banner {
+  background: #FFF4E8; border: 1px solid var(--orange); border-radius: 6px;
+  padding: 0.6rem 0.8rem; font-size: 0.82rem; font-weight: 600; color: var(--ink);
+  margin-bottom: 0.9rem;
+}
+.geo-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;
+  padding: 0.55rem 0; border-bottom: 1px solid var(--rule);
+}
+.geo-row:last-of-type { border-bottom: none; }
+.geo-lbl { flex: 1 1 auto; font-size: 0.88rem; color: var(--ink); font-weight: 600; }
+.geo-val { font-size: 0.95rem; font-weight: 800; color: var(--ink); }
+.geo-row-area .geo-val { color: var(--gold); font-size: 1.1rem; }
+.geo-note { font-size: 0.76rem; color: var(--muted); margin: -0.2rem 0 0.6rem; }
+.geo-runs-label {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--gold); margin: 0.9rem 0 0.2rem;
+}
+.geo-src-tag {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  background: #e7e4dc; color: #6b6c70; border-radius: 4px; padding: 1px 5px;
+}
+.geo-src-tag.geo-src-keyed { background: var(--orange); color: #1f1f1f; }
+.geo-clear-btn {
+  min-height: 36px; font-size: 12px; font-weight: 700; background: #fff; color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 7px; padding: 0 12px; cursor: pointer; font-family: inherit;
+}
+.geo-clear-btn:hover { border-color: var(--orange); color: var(--orange); }
+.geo-open-btn { margin-top: 0.9rem; }
+.roof-total-provenance { font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.75); display: block; margin-top: 2px; }
 
 /* SEVERITY PILL (form / list) */
 .pill {
@@ -3457,7 +3492,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
             <button type="button" class="btn btn-ghost" onclick="addBuilding()">+ Add Building</button>
           </div>
           <div class="survey-roof-total">
-            <span class="survey-roof-total-label">Total roof area across all buildings</span>
+            <span class="survey-roof-total-label">Total roof area across all buildings
+              <span class="roof-total-provenance" id="survey-roof-total-provenance"></span></span>
             <span class="survey-roof-total-value" id="survey-roof-total-value">— m²</span>
           </div>
         </div>
@@ -3870,7 +3906,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-accept-pills{display:flex;flex-wrap:wrap;gap:6px;}
     #view-proposal .np-accept-readout{font-size:14px;color:#434244;margin-top:12px;padding-top:12px;border-top:1px solid #e2e3e5;}
     #view-proposal .np-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:4px;margin-top:6px;}
-    #view-proposal .np-badge-worked{background:#e4f3e7;color:#1f7a37;}
+    #view-proposal .np-badge-worked{background:#e4f3e7;color:var(--green);}
     #view-proposal .np-badge-ind{background:#f4f1ea;color:#8a6400;}
     #view-proposal .np-dhead .np-badge{margin-top:0;}
     #view-proposal .pwe-wrap{margin-top:16px;border-top:1px dashed #e2e3e5;padding-top:12px;}
@@ -3879,7 +3915,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .pwe-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
     #view-proposal .pwe-toggle{font-size:12.5px;font-weight:700;background:#434244;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-family:inherit;}
     #view-proposal .pwe-head-tot{font-size:13px;color:#434244;} #view-proposal .pwe-head-tot b{font-size:15px;}
-    #view-proposal .pwe-head-pm{color:#1f7a37;font-size:12px;}
+    #view-proposal .pwe-head-pm{color:var(--green);font-size:12px;}
     #view-proposal .pwe-reseed{font-size:11px;background:#fff;border:1px solid #d8d8d2;border-radius:5px;padding:5px 9px;cursor:pointer;color:#666;font-family:inherit;margin-left:auto;}
     #view-proposal .pwe-addrow{margin-left:12px;font-size:10.5px;font-weight:700;background:#fff;border:1px solid #e0c6a6;border-radius:4px;padding:2px 8px;cursor:pointer;color:#434244;font-family:inherit;}
     #view-proposal .pwe-strike{background:none;border:none;color:#b23a2c;font-size:13px;cursor:pointer;line-height:1;padding:0;}
@@ -3943,7 +3979,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
       padding: 4px 10px; border-radius: 13px; font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap; pointer-events: auto;
       -webkit-tap-highlight-color: transparent; max-width: 108px; overflow: hidden; text-overflow: ellipsis; }
     #view-footprint .fp-chip.unset { background: #f1f0ec; border: 1px dashed #c4c3bd; color: #8a898b; }
-    #view-footprint .fp-chip.set { background: #e4f3e7; border: 1px solid #1f7a37; color: #1f7a37; }
+    #view-footprint .fp-chip.set { background: #e4f3e7; border: 1px solid var(--green); color: var(--green); }
     #view-footprint .fp-chip.active { outline: 2px solid #F7901E; outline-offset: 1px; }
     #view-footprint .fp-chip-ridge.unset { background: #fbf2e6; border-color: #d9b487; color: #b06a1f; }
     /* edge / ridge sheet */
@@ -3955,7 +3991,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-roles, #view-footprint .fp-opts { display: flex; flex-wrap: wrap; gap: 7px; }
     #view-footprint .fp-role, #view-footprint .fp-opt { min-height: 44px; font-size: 12.5px; border: 1px solid #d8d8d2; border-radius: 9px; padding: 8px 13px; background: #fff; color: #434244; cursor: pointer; font-family: inherit; }
     #view-footprint .fp-role.on { background: #434244; color: #fff; border-color: #434244; font-weight: 700; }
-    #view-footprint .fp-opt.on { background: #e4f3e7; border-color: #1f7a37; color: #1f7a37; font-weight: 700; }
+    #view-footprint .fp-opt.on { background: #e4f3e7; border-color: var(--green); color: var(--green); font-weight: 700; }
     #view-footprint .fp-note { font-size: 11.5px; color: #b06a1f; margin-top: 8px; }
     #view-footprint .fp-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: #434244; }
     #view-footprint .fp-key-btn { min-height: 44px; font-size: 12.5px; font-weight: 700; background: #F7901E; color: #1f1f1f; border: none; border-radius: 8px; padding: 8px 15px; cursor: pointer; font-family: inherit; }
@@ -4065,7 +4101,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-flow .flow-step:hover { border-color: #F7901E; }
     #view-flow .flow-step.faded { opacity: .55; }
     #view-flow .flow-dot { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; }
-    #view-flow .flow-dot.done { background: #1f7a37; }
+    #view-flow .flow-dot.done { background: var(--green); }
     #view-flow .flow-dot.partial { background: #F7901E; }
     #view-flow .flow-dot.not-started { background: #d8d6cf; }
     #view-flow .flow-step-body { flex: 1; min-width: 0; }
@@ -7328,18 +7364,22 @@ function renderDetailBlocks(s) {
   const buildings = Array.isArray(s.buildings) ? s.buildings : [];
   if (buildings.length) {
     html += '<div class="detail-block" style="margin-top:1rem;"><h3>Roof geometry (' + buildings.length + ' building' + (buildings.length === 1 ? '' : 's') + ')</h3>';
-    buildings.forEach(b => {
-      const tot = buildingTotalArea(b);
-      const sw = b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's');
+    // F2: the resolved per-building figure (captured wins, else the legacy
+    // slopes total - the same estResolveRoofArea the ledger/proposal/Airtable
+    // sync already read), each row carrying its captured/legacy provenance.
+    const roofRes = (typeof estResolveRoofArea === 'function') ? estResolveRoofArea(s) : { total: surveyTotalRoofArea(buildings), breakdown: [] };
+    buildings.forEach((b, bi) => {
+      const row = (roofRes.breakdown || [])[bi] || {};
+      const tot = row.value;
+      const provWord = row.source === 'captured' ? 'captured' : row.source === 'legacy' ? (b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's')) : '';
       html += '<div class="detail-row">' +
         '<span class="k">' + escapeHtml(b.id + ' — ' + (b.name || 'Untitled')) + '</span>' +
-        '<span class="v">' + escapeHtml(sw + ' · ' + (tot == null ? '— m²' : fmtAreaDisp(tot))) + '</span>' +
+        '<span class="v">' + escapeHtml((provWord ? provWord + ' · ' : '') + (tot == null ? '— m²' : fmtAreaDisp(tot))) + '</span>' +
       '</div>';
     });
-    const surveyTot = surveyTotalRoofArea(buildings);
     html += '<div class="detail-row" style="border-top:2px solid var(--rule);padding-top:0.6rem;margin-top:0.3rem;">' +
       '<span class="k"><strong>Survey total</strong></span>' +
-      '<span class="v" style="color:var(--gold);font-weight:800;">' + (surveyTot == null ? '— m²' : fmtAreaDisp(surveyTot)) + '</span>' +
+      '<span class="v" style="color:var(--gold);font-weight:800;">' + (roofRes.total == null ? '— m²' : fmtAreaDisp(roofRes.total)) + (roofRes.total != null ? ' <span style="font-weight:600;font-size:0.72rem;color:var(--muted);">(' + escapeHtml(geoProvenanceLabel(roofRes.breakdown) || 'from Section B2') + ')</span>' : '') + '</span>' +
     '</div>';
     html += '</div>';
   }
@@ -7631,7 +7671,7 @@ function srColour(eff, alloc, isTotal){
   var N = { bg:'#ffffff', ink:'#434244' };
   if (eff == null || alloc == null || !isTotal) return N;
   var e = Math.round(eff * 100), a = Math.round(alloc * 100);
-  if (e < a) return { bg:'#E4F3E7', ink:'#1f7a37' };   // green: below allocated
+  if (e < a) return { bg:'#E4F3E7', ink:'var(--green)' };   // green: below allocated
   if (e === a) return { bg:'#FCEFD2', ink:'#8a6400' };  // amber: exactly equal
   return { bg:'#FBE3DF', ink:'#b23a2c' };               // red: above allocated
 }
@@ -7758,7 +7798,7 @@ function srSummary(parsed, rows){
   return { aPriced:priced(aRefs), aTotal:aRefs.length, bPriced:priced(bRefs), bTotal:bRefs.length };
 }
 
-function srSetStatus(msg, isError){ var el = document.getElementById('sr-status'); if (el){ el.textContent = msg || ''; el.style.color = isError ? '#b23a2c' : '#1f7a37'; } }
+function srSetStatus(msg, isError){ var el = document.getElementById('sr-status'); if (el){ el.textContent = msg || ''; el.style.color = isError ? '#b23a2c' : 'var(--green)'; } }
 
 // File input handler: parse, validate against this job, summarise, capture trade, ingest.
 function srOnFile(input){
@@ -7888,11 +7928,11 @@ function srRenderComparison(survey, returns){
   h += '<th style="' + th + 'text-align:right;background:#5a5b5d;">Allocated cost</th>';
   returns.forEach(function(ret){
     var winner = sel[ret.trade] === ret.id;
-    h += '<th style="' + th + 'min-width:120px;' + (winner ? 'background:#1f7a37;' : '') + '">'
+    h += '<th style="' + th + 'min-width:120px;' + (winner ? 'background:var(--green);' : '') + '">'
       + '<div>' + srEsc(ret.subbyName) + '</div>'
       + '<div style="font-weight:400;color:#d8d8d8;font-size:10.5px;">' + srEsc(ret.trade) + ' · ' + ret.summary.aPriced + '/' + ret.summary.aTotal + ' priced</div>'
       + '<div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
-        + '<button onclick="srSelectWinner(\'' + ret.id + '\')" style="font-size:10.5px;padding:2px 7px;border-radius:4px;border:1px solid #fff;background:' + (winner ? '#fff' : 'transparent') + ';color:' + (winner ? '#1f7a37' : '#fff') + ';cursor:pointer;font-weight:700;">' + (winner ? '✓ Winner' : 'Select winner') + '</button>'
+        + '<button onclick="srSelectWinner(\'' + ret.id + '\')" style="font-size:10.5px;padding:2px 7px;border-radius:4px;border:1px solid #fff;background:' + (winner ? '#fff' : 'transparent') + ';color:' + (winner ? 'var(--green)' : '#fff') + ';cursor:pointer;font-weight:700;">' + (winner ? '✓ Winner' : 'Select winner') + '</button>'
         + '<span id="sr-redcount-' + ret.id + '" style="font-size:10.5px;color:#fff;"></span>'
         + '<button onclick="srRemoveReturn(\'' + ret.id + '\')" title="Remove this return" style="font-size:10.5px;padding:1px 5px;border-radius:4px;border:1px solid #d8a39c;background:transparent;color:#f6d6d1;cursor:pointer;">remove</button>'
       + '</div></th>';
@@ -8048,7 +8088,7 @@ function srMarginColour(margin){
   var m = Math.round(margin * 100);
   if (m < 0) return { bg:'#FBE3DF', ink:'#b23a2c' };
   if (m === 0) return { bg:'#FCEFD2', ink:'#8a6400' };
-  return { bg:'#E4F3E7', ink:'#1f7a37' };
+  return { bg:'#E4F3E7', ink:'var(--green)' };
 }
 function srMarginWord(margin){
   if (margin == null) return 'Not priced';
@@ -8119,7 +8159,7 @@ function srRenderLedger(){
     h += '<td style="' + td + 'background:#f7f7f4;white-space:nowrap;">' + (f.est != null ? srMoney(f.est) : '<span style="color:#bbb;">n/a</span>') + '</td>';
     // Actual: from selected return (read-only) or manual (editable)
     if (f.fromReturn){
-      h += '<td style="' + td + 'white-space:nowrap;">' + srMoney(f.fromReturn.value) + '<div style="font-size:10px;color:#1f7a37;">from ' + srEsc(f.fromReturn.subbyName) + '</div></td>';
+      h += '<td style="' + td + 'white-space:nowrap;">' + srMoney(f.fromReturn.value) + '<div style="font-size:10px;color:var(--green);">from ' + srEsc(f.fromReturn.subbyName) + '</div></td>';
     } else {
       h += '<td style="' + td + '"><input type="number" step="0.01" min="0" data-led="actual" data-ref="' + row.ref + '" value="' + (f.actual != null ? f.actual : '') + '" oninput="srLedgerActualEdit(this)" placeholder="enter" style="width:78px;text-align:right;border:1px solid #d8d8d2;border-radius:4px;padding:2px 4px;background:#EEF3FB;font-size:12px;"><div style="font-size:10px;color:#999;">by hand</div></td>';
     }
@@ -8721,7 +8761,7 @@ function estRenderLedger(){
   var thC = th + 'text-align:center;';
   var grpMat = 'padding:6px 8px;border:1px solid #e2e2dd;background:#F7901E;color:#fff;font-weight:800;font-size:11px;text-align:center;letter-spacing:.04em;';
   var grpLab = grpMat.replace('#F7901E', '#434244');
-  var grpRes = grpMat.replace('#F7901E', '#1f7a37');
+  var grpRes = grpMat.replace('#F7901E', 'var(--green)');
   var td  = 'padding:4px 8px;border:1px solid #e8e8e3;font-size:12px;color:#434244;text-align:right;vertical-align:middle;white-space:nowrap;';
   var tdL = td + 'text-align:left;';
   var calc = td + 'background:#f7f7f4;color:#6b6c70;';      // read-only build-up cell
@@ -8817,7 +8857,7 @@ function estRenderLedger(){
     '<span style="font-weight:800;letter-spacing:.04em;">JOB TOTAL</span>' +
     '<span style="font-size:11px;color:#cfcfcf;">(' + j.priced + ' of ' + j.rows + ' items priced)</span>' +
     '<span id="est-job-diff" class="cl-margin" style="background:' + jcol.bg + ';color:' + jcol.ink + ';">' + (j.margin != null ? (srMoney(j.margin) + ' ' + srMarginWord(j.margin)) : '') + '</span>' +
-    '<span id="est-job-sell" style="margin-left:auto;font-weight:800;font-size:16px;background:#1f7a37;padding:4px 12px;border-radius:6px;">' + (j.priced ? srMoney(j.sell) : '&mdash;') + '</span></div>';
+    '<span id="est-job-sell" style="margin-left:auto;font-weight:800;font-size:16px;background:var(--green);padding:4px 12px;border-radius:6px;">' + (j.priced ? srMoney(j.sell) : '&mdash;') + '</span></div>';
   h += '</div>';   // cl-wrap
   h += '<div style="font-size:11px;color:#999;margin-top:8px;line-height:1.5;">Each line shows quantity, the quiet material rate (usually carried), and the by-hand labour; the line total (Total to Client) is on the right, with the real-margin read beneath it. Open a line (&hellip;) for its cost, contingency and margin build-up and to enter actuals. Collapse the element groups that do not matter on a job. The real margin is <b>sell minus actuals</b>, green for profit, amber for break-even, red for a loss; a blank sell stays neutral. Everything saves into the survey snapshot.</div>';
   host.innerHTML = h;
@@ -9591,7 +9631,7 @@ function pweRenderEditor(survey, routeId){
   h += '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:#434244;color:#fff;border-radius:8px;margin-top:4px;">' +
     '<span style="font-weight:800;letter-spacing:.04em;">TOTAL TO CLIENT</span>' +
     '<span style="font-size:11px;color:#cfcfcf;">(' + t.live + ' live, ' + (t.lines - t.live) + ' struck' + (t.days > 0 ? '; ' + (Math.round(t.days * 4) / 4) + ' days' : '') + ')</span>' +
-    '<span id="pwe-tot-' + routeId + '" style="margin-left:auto;font-weight:800;font-size:16px;background:#1f7a37;padding:4px 12px;border-radius:6px;">' + proposalMoney(t.sell) + '</span></div>';
+    '<span id="pwe-tot-' + routeId + '" style="margin-left:auto;font-weight:800;font-size:16px;background:var(--green);padding:4px 12px;border-radius:6px;">' + proposalMoney(t.sell) + '</span></div>';
   h += '</div>';   // cl-wrap
   h += '<div class="pwe-foot">Each line shows quantity, the quiet material rate (carried from the rate card), and the by-hand labour and time; the line total is on the right. Open a line (&hellip;) for its cost, contingency and margin build-up. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + routeId + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
   return h + '</div>';
@@ -10240,6 +10280,32 @@ function fpRuns(survey){
     var rk = srNum(ridge.lengthM);
     if (rk != null){ ridgeRun = rk; ridgeSource = 'keyed'; }
     else { ridgeRun = fpDatumLength(b); ridgeSource = (ridgeRun != null) ? 'derived' : null; }   // a standard/mono ridge runs the building length
+  }
+  return { perimeter: (keyedEdges + derivedEdges) ? perimeter : null, gutterRun: gutterRun || null, rake: sr.value, rakeSource: sr.source, vergeCount: vergeCount, ridgeRun: ridgeRun, ridgeSource: ridgeSource, keyedEdges: keyedEdges, derivedEdges: derivedEdges, totalEdges: (fp.edges || []).length };
+}
+// F2 geometry read-back: the same derivation as fpRuns() above, but taking a
+// building object directly rather than via fpBuilding(survey) (which is always
+// buildings[0]). The classic form's B2 list can hold several buildings, so the
+// read-back panel needs the correct one, not always the first.
+function fpRunsForBuildingObj(b){
+  var fp = b && b.footprint; if (!fp) return null;
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var perimeter = 0, gutterRun = 0, vergeCount = 0, keyedEdges = 0, derivedEdges = 0;
+  (fp.edges || []).forEach(function(e, i){
+    if (e.type === 'curved') return;
+    var el = fpEdgeLen(fp, i, b);
+    if (el.value != null){ perimeter += el.value; if (el.source === 'keyed') keyedEdges++; else derivedEdges++; }
+    var role = fpEdgeRole(fp, e, i, form);
+    if (role === 'eaves' && el.value != null && e.cond && e.cond !== 'none') gutterRun += el.value;
+    if (role === 'verge') vergeCount++;
+  });
+  var sr = fpSlopeRun(b);
+  var ridge = (b && b.ridge) || {};
+  var ridgeRun = null, ridgeSource = null;
+  if (ridge.cond === 'standard' || ridge.cond === 'mono'){
+    var rk = srNum(ridge.lengthM);
+    if (rk != null){ ridgeRun = rk; ridgeSource = 'keyed'; }
+    else { ridgeRun = fpDatumLength(b); ridgeSource = (ridgeRun != null) ? 'derived' : null; }
   }
   return { perimeter: (keyedEdges + derivedEdges) ? perimeter : null, gutterRun: gutterRun || null, rake: sr.value, rakeSource: sr.source, vergeCount: vergeCount, ridgeRun: ridgeRun, ridgeSource: ridgeSource, keyedEdges: keyedEdges, derivedEdges: derivedEdges, totalEdges: (fp.edges || []).length };
 }
@@ -11068,7 +11134,7 @@ function spRenderNoFaultsControl(){
   if (faults.length > 0){ host.innerHTML = ''; return; }
   if (currentSiteImage.noFaultsFound){
     host.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#eef7f0;border:1px solid #bfe3c8;border-radius:8px;">' +
-      '<span style="font-size:13px;font-weight:700;color:#1f7a37;">No faults found</span>' +
+      '<span style="font-size:13px;font-weight:700;color:var(--green);">No faults found</span>' +
       '<button type="button" class="link-btn" style="font-size:12px;" onclick="flowSetNoFaultsFound(false)">Undo</button></div>';
   } else {
     host.innerHTML = '<button type="button" class="btn btn-secondary" onclick="flowSetNoFaultsFound(true)">No faults found</button>';
@@ -15039,24 +15105,89 @@ function renderBuildings() {
   list.innerHTML = currentBuildings.map((b, i) => renderBuildingHtml(b, i)).join('');
   updateSurveyRoofTotalDisplay();
 }
+// ===== FLOW BUILD STAGE F2: ONE GEOMETRY PATH ==================================
+// A building is "captured" by the exact same test the stage-5 resolver already
+// uses to decide captured vs legacy for its roof area (fpBuildingCapturedArea) -
+// so the UI and the resolver can never disagree about which building is which.
+// A flat-roofed building with a footprint drawn stays on the legacy editor
+// because capture has no area derivation for flat yet (fpBuildingCapturedArea
+// deliberately returns null there); this is a pre-existing capture-rebuild gap,
+// not something this stage changes, and it means nobody is ever left with a
+// hidden editor and no way to enter an area.
+function renderCapturedGeometryHtml(b, idx){
+  var isMultiBay = b.roofForm === 'multi-bay';
+  var capt = fpBuildingCapturedArea(b);
+  var bf = isMultiBay ? fpBayFigures(b) : null;
+  var areaNote = isMultiBay
+    ? (bf.totalBays + ' bay' + (bf.totalBays === 1 ? '' : 's') + ' &times; two-pitch area' + (bf.incompleteTypes ? ' &middot; ' + bf.incompleteTypes + ' bay type' + (bf.incompleteTypes === 1 ? '' : 's') + ' incomplete' : ''))
+    : 'slope run &times; eaves length, summed';
+  var runs = fpRunsForBuildingObj(b) || {};
+  var d = b.datum || {};
+  var eh = srNum(d.eavesHeightM), rh = srNum(d.ridgeHeightM);
+
+  var h = '<div class="geo-readback" data-building-idx="' + idx + '">';
+  h += '<div class="geo-banner">All geometry comes from the capture. There is no separate slope editor.</div>';
+  h += '<div class="geo-row geo-row-area"><span class="geo-lbl">Roof area</span><span class="geo-val">' + fmtAreaDisp(capt.value) + '</span></div>';
+  h += '<div class="geo-note">' + areaNote + '</div>';
+
+  if (isMultiBay && bf.totalBays >= 1){
+    h += '<div class="geo-row"><span class="geo-lbl">Valley gutters</span><span class="geo-val">' + (bf.valleys ? ('&times;' + bf.valleys + ' &middot; ' + fpM(bf.valleyRunEach) + ' run each') : '&mdash;') + '</span></div>';
+    if (bf.runsDiffer) h += '<div class="geo-note">Bay types key different runs; the longest is used.</div>';
+  }
+
+  h += '<div class="geo-row"><span class="geo-lbl">Eaves height</span><span class="geo-val">' + fpM(eh) + '</span></div>';
+  if (!isMultiBay) h += '<div class="geo-row"><span class="geo-lbl">Ridge height</span><span class="geo-val">' + fpM(rh) + '</span></div>';
+
+  h += '<div class="geo-runs-label">Principal runs</div>';
+  if (!isMultiBay){
+    var rrTag = runs.ridgeSource ? (' <span class="geo-src-tag' + (runs.ridgeSource === 'keyed' ? ' geo-src-keyed' : '') + '">' + runs.ridgeSource + '</span>') : '';
+    h += '<div class="geo-row"><span class="geo-lbl">Ridge run</span><span class="geo-val">' + fpM(runs.ridgeRun) + '</span>' + rrTag +
+      (runs.ridgeSource === 'keyed' ? '<button type="button" class="geo-clear-btn" onclick="geoClearAndRerender(fpClearRidgeLen)">Clear</button>' : '') + '</div>';
+    var rakeTag = runs.rakeSource ? (' <span class="geo-src-tag' + (runs.rakeSource === 'keyed' ? ' geo-src-keyed' : '') + '">' + runs.rakeSource + '</span>') : '';
+    h += '<div class="geo-row"><span class="geo-lbl">Slope run (eaves to apex)</span><span class="geo-val">' + fpM(runs.rake) + '</span>' + rakeTag +
+      (runs.rakeSource === 'keyed' ? '<button type="button" class="geo-clear-btn" onclick="geoClearAndRerender(fpClearSpan)">Clear</button>' : '') + '</div>';
+  }
+  h += '<div class="geo-row"><span class="geo-lbl">Eaves gutter run</span><span class="geo-val">' + fpM(runs.gutterRun) + '</span></div>';
+  h += '<div class="geo-row"><span class="geo-lbl">Roof perimeter</span><span class="geo-val">' + fpM(runs.perimeter) + '</span></div>';
+
+  h += '<button type="button" class="btn btn-secondary geo-open-btn" onclick="fpOpen(currentSurveyId)">Open the capture surface</button>';
+  h += '</div>';
+  return h;
+}
+// Clear buttons above call the SAME clear functions the footprint surface uses
+// (fpClearRidgeLen / fpClearSpan), which key off fpCurrentId and no-op their own
+// fpRender() outside that view (no #footprint-body host there); this wrapper
+// points fpCurrentId at the survey being edited here, then re-renders the B2
+// list so the read-back reflects the change immediately.
+function geoClearAndRerender(fn){
+  fpCurrentId = currentSurveyId;
+  if (typeof fn === 'function') fn();
+  // fpClearRidgeLen/fpClearSpan persist via their own srLoadSurvey(fpCurrentId)
+  // copy, separate from this form's in-memory currentBuildings - reload it the
+  // same way editCurrent() seeds it, so the read-back reflects the change.
+  var s = srLoadSurvey(currentSurveyId);
+  if (s && Array.isArray(s.buildings)) {
+    currentBuildings = s.buildings.map(function(b){ return Object.assign({}, b, { slopes: (b.slopes || []).map(function(sl){ return Object.assign({}, sl); }) }); });
+  }
+  renderBuildings();
+}
 function renderBuildingHtml(b, idx) {
-  const total = buildingTotalArea(b);
-  const slopeWord = b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's');
+  var capt = fpBuildingCapturedArea(b);
+  var captured = capt.value != null;
+  const total = captured ? capt.value : buildingTotalArea(b);
+  const slopeWord = captured ? 'captured' : (b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's'));
   const chipText = slopeWord + ' · ' + (total == null ? '— m²' : fmtAreaDisp(total));
   const titleHtml = b.name
     ? '<span class="building-name-display">' + escapeHtml(b.name) + '</span>'
     : '<span class="building-name-display placeholder">New building — fill in details below</span>';
 
-  const slopesHtml = b.allEqual ? renderSharedSlopePanel(b, idx) : b.slopes.map((s, si) => renderSlopeBlockHtml(b, idx, s, si)).join('');
-  const totalsHtml = b.allEqual ? renderSingleSlopeTotals(b) : renderUnequalTotal(b);
-
-  return '<details class="building" data-building-idx="' + idx + '" open>' +
-    '<summary>' +
-      '<span class="building-pill">' + escapeHtml(b.id) + '</span>' +
-      titleHtml +
-      '<span class="building-chip">' + escapeHtml(chipText) + '</span>' +
-    '</summary>' +
-    '<div class="building-body">' +
+  var bodyHtml;
+  if (captured) {
+    bodyHtml = renderCapturedGeometryHtml(b, idx);
+  } else {
+    const slopesHtml = b.allEqual ? renderSharedSlopePanel(b, idx) : b.slopes.map((s, si) => renderSlopeBlockHtml(b, idx, s, si)).join('');
+    const totalsHtml = b.allEqual ? renderSingleSlopeTotals(b) : renderUnequalTotal(b);
+    bodyHtml =
       '<div class="field-row">' +
         '<div class="field"><label>Building name</label>' +
           '<input type="text" data-building-idx="' + idx + '" data-building-field="name" value="' + attr(b.name) + '" placeholder="e.g. Main warehouse, North annexe, Workshop"></div>' +
@@ -15079,7 +15210,16 @@ function renderBuildingHtml(b, idx) {
       '</div>' +
       slopesHtml +
       '<div class="building-totals" data-building-totals="' + idx + '">' + totalsHtml + '</div>' +
-    '</div>' +
+      '<div class="field" style="margin-top:0.75rem;"><button type="button" class="btn btn-secondary" onclick="fpOpen(currentSurveyId)">Capture this building</button></div>';
+  }
+
+  return '<details class="building" data-building-idx="' + idx + '" open>' +
+    '<summary>' +
+      '<span class="building-pill">' + escapeHtml(b.id) + '</span>' +
+      titleHtml +
+      '<span class="building-chip">' + escapeHtml(chipText) + '</span>' +
+    '</summary>' +
+    '<div class="building-body">' + bodyHtml + '</div>' +
     '<div class="building-footer">' +
       '<button type="button" class="btn btn-danger" data-action="remove-building" data-building-idx="' + idx + '">Remove building</button>' +
     '</div>' +
@@ -15217,18 +15357,34 @@ function updateSlopeSummaryChip(bi, si) {
     chipEl.textContent = parts.join(' · ');
   }
 }
+// F2 area display consistency: the resolved per-building figure (captured wins,
+// else the legacy slopes total — the SAME estResolveRoofArea the ledger/proposal/
+// Airtable sync already read), with a provenance note. No resolver change - this
+// only changes what the two display surfaces below read.
+function geoProvenanceLabel(breakdown){
+  var list = (breakdown || []).filter(function(x){ return x.value != null; });
+  if (!list.length) return '';
+  var anyCaptured = list.some(function(x){ return x.source === 'captured'; });
+  var anyLegacy = list.some(function(x){ return x.source === 'legacy'; });
+  if (anyCaptured && anyLegacy) return 'Mixed — capture + Section B2 slopes';
+  if (anyCaptured) return 'From the capture';
+  return 'From Section B2 slopes';
+}
 function updateSurveyRoofTotalDisplay() {
   const el = document.getElementById('survey-roof-total-value');
-  const t = surveyTotalRoofArea(currentBuildings);
-  if (el) el.textContent = t == null ? '— m²' : fmtAreaDisp(t);
+  const prov = document.getElementById('survey-roof-total-provenance');
+  const res = (typeof estResolveRoofArea === 'function') ? estResolveRoofArea({ buildings: currentBuildings }) : { total: surveyTotalRoofArea(currentBuildings), breakdown: [] };
+  if (el) el.textContent = res.total == null ? '— m²' : fmtAreaDisp(res.total);
+  if (prov) prov.textContent = geoProvenanceLabel(res.breakdown);
   updateDerivedRoofArea();   // keep Section B's roof area in step with B2
 }
 
 // Section B "Approx. roof area" is captured once in B2 (Buildings & Slopes) and
-// reused here: by default it derives from surveyTotalRoofArea(currentBuildings)
-// — the same slope-area total B2 shows and the costing uses — and updates live
-// when B2 changes. The surveyor can tick "Override" to enter a manual figure,
-// which then persists untouched. Truncated to 2dp to match the B2 convention.
+// reused here: by default it derives from estResolveRoofArea({buildings:
+// currentBuildings}) — the resolved per-building figure (captured wins, else the
+// same slope-area total B2 shows) — and updates live when B2 changes. The
+// surveyor can tick "Override" to enter a manual figure, which then persists
+// untouched. Truncated to 2dp to match the B2 convention.
 function updateDerivedRoofArea() {
   const input = document.getElementById('f-roof-area');
   if (!input) return;
@@ -15241,11 +15397,13 @@ function updateDerivedRoofArea() {
     if (hint) hint.textContent = 'Manual override. Not linked to Section B2.';
     return;
   }
-  const total = (typeof surveyTotalRoofArea === 'function') ? surveyTotalRoofArea(currentBuildings) : null;
+  const res = (typeof estResolveRoofArea === 'function') ? estResolveRoofArea({ buildings: currentBuildings }) : { total: surveyTotalRoofArea(currentBuildings), breakdown: [] };
+  const total = res.total;
   input.value = (total == null) ? '' : (Math.floor(total * 100) / 100);
+  const prov = geoProvenanceLabel(res.breakdown);
   if (hint) hint.textContent = (total == null)
     ? 'Derived from Section B2 — add buildings and slopes there, or tick Override to enter manually.'
-    : 'Derived from Section B2 (total of all slope areas). Tick Override to adjust manually.';
+    : ((prov || 'Derived from Section B2 (total of all slope areas)') + '. Tick Override to adjust manually.');
 }
 
 // ---- Building-width auto-span helpers ----
