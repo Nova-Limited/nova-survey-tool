@@ -2538,6 +2538,22 @@ input.derived-field { background: #f6f8fa; color: #555; }
         font-size:11px;color:#9aa0a6;border-top:1px solid var(--line);padding-top:12px;z-index:3;}
   .sl-report .foot .tag{color:var(--ink);font-weight:600;}
 
+  /* D1: fault-plan figure sheet (Figure 4.1) + exec aerial substitute. Landscape
+     sheet like every other page; the SVG scales into a fixed frame so it stays
+     print-safe under the fixed 16mm margins (no clipping / orphaning). */
+  .sl-report .sl-faultplan .rp-figcap{font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--ink);margin:14px 0 12px;}
+  .sl-report .rp-figwrap{display:flex;gap:36px;align-items:flex-start;flex:1;min-height:0;}
+  .sl-report .rp-frame{flex:0 0 auto;width:474px;height:474px;max-height:100%;border:1px solid var(--line);border-radius:8px;background:#faf9f6;overflow:hidden;}
+  .sl-report .rp-frame .rp-svg{width:100%;height:100%;display:block;}
+  .sl-report .rp-legend{flex:1;padding-top:8px;display:flex;flex-direction:column;gap:12px;}
+  .sl-report .rp-leg-item{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink);font-weight:600;}
+  .sl-report .rp-leg-dot{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);flex:0 0 auto;}
+  .sl-report .rp-leg-hatch{width:16px;height:16px;flex:0 0 auto;border:1px solid var(--line);background:repeating-linear-gradient(45deg,transparent,transparent 2px,var(--orange) 2px,var(--orange) 3px);}
+  .sl-report .rp-legnote{font-size:11px;color:var(--grey);margin-top:8px;line-height:1.55;max-width:300px;}
+  .sl-report .aerial .aerial-plan{position:absolute;inset:0;background:#faf9f6;}
+  .sl-report .aerial .aerial-plan .rp-svg{width:100%;height:100%;display:block;}
+  .sl-report .aerial .aerial-plan-badge{position:absolute;left:0;right:0;bottom:0;background:rgba(67,66,68,.86);color:#fff;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:6px 12px;}
+
   /* BRAND FIX: back-page / cover wordmark keeps its true aspect ratio (renderer uses class="wordmark") */
   .sl-report img.wordmark{width:auto;height:auto;object-fit:contain;}
 
@@ -12261,6 +12277,127 @@ function slRenderCover(survey) {
   '</section>';
 }
 
+// ===== DOCUMENTS BUILD STAGE D1: THE FAULT PLAN =====================
+// One SVG roof plan generated READ-ONLY from the capture, consumed by BOTH the
+// Section 4 report figure AND the exec aerial substitute (and D2 later). It
+// computes nothing new: footprint outline + multi-bay valley strips replicated
+// from the capture surface, an asbestos hatch where a bay side is flagged, a
+// north arrow and "not to scale", and one NUMBERED severity-coloured marker per
+// fault carrying a footprintLoc. The marker number IS the schedule F-number
+// (f.number), so plan and costed schedule read as one document. Deterministic
+// (no Date/random); pattern ids are suffixed per instance so two plans can sit on
+// one page without an id clash. viewBox 0..300 matches the capture canvas; a light
+// paper background lets it read on both the light figure sheet and the dark exec
+// aerial slot. The shipped severity palette (FAULT_SEV_COLORS) carries the target
+// legend: critical red (severity 3), poor orange (2), fair yellow (1).
+function slRoofPlanSVG(survey, opts){
+  opts = opts || {};
+  var idp = 'rp-' + (opts.idSuffix || 'a');
+  var b  = (typeof fpBuilding === 'function') ? fpBuilding(survey) : null;
+  var fp = (typeof fpFootprint === 'function') ? fpFootprint(survey) : null;
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers : [];
+  var pinned = faults.filter(function(f){ return f.footprintLoc && f.footprintLoc.x != null; });
+  var INK = '#434244', ORANGE = '#F7901E', PAPER = '#faf9f6', LINE = '#8a8d91';
+  var hasAsb = (typeof f5BuildingHasAsbestos === 'function') ? !!f5BuildingHasAsbestos(b) : false;
+
+  var h = '<svg class="rp-svg" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">';
+  h += '<defs><pattern id="' + idp + '-asb" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+    + '<line x1="0" y1="0" x2="0" y2="8" stroke="' + ORANGE + '" stroke-width="1.1" opacity="0.55"/></pattern></defs>';
+  h += '<rect x="0" y="0" width="300" height="300" fill="' + PAPER + '"/>';
+
+  if (fp && fp.corners && fp.corners.length >= 3){
+    var pts = fp.corners.map(function(c){ return (Math.round(c.x*10)/10) + ',' + (Math.round(c.y*10)/10); }).join(' ');
+    if (hasAsb) h += '<polygon points="' + pts + '" fill="url(#' + idp + '-asb)" stroke="none"/>';
+    h += '<polygon points="' + pts + '" fill="' + (hasAsb ? 'none' : 'rgba(67,66,68,0.045)') + '" stroke="' + INK + '" stroke-width="2" stroke-linejoin="round"/>';
+    // multi-bay valley strips - the SAME derivation the capture surface draws
+    if (form === 'multi-bay' && typeof fpBayFigures === 'function' && typeof fpBBox === 'function'){
+      var bf = fpBayFigures(b);
+      if (bf.totalBays >= 2){
+        var bb = fpBBox(fp), ins = 12, n = Math.min(bf.totalBays, 49);
+        for (var i = 1; i < n; i++){
+          if (bb.w >= bb.h){ var vx = bb.minx + bb.w * i / n; h += '<line x1="' + vx + '" y1="' + (bb.miny+ins) + '" x2="' + vx + '" y2="' + (bb.maxy-ins) + '" stroke="' + LINE + '" stroke-width="0.8" stroke-dasharray="3 3"/>'; }
+          else { var vy = bb.miny + bb.h * i / n; h += '<line x1="' + (bb.minx+ins) + '" y1="' + vy + '" x2="' + (bb.maxx-ins) + '" y2="' + vy + '" stroke="' + LINE + '" stroke-width="0.8" stroke-dasharray="3 3"/>'; }
+        }
+      }
+    }
+    // ridge line for centre-ridge pitched forms (subtle, matches the capture)
+    if (typeof FP_RIDGE_FORMS !== 'undefined' && FP_RIDGE_FORMS.indexOf(form) > -1 && typeof fpRidgeLine === 'function'){
+      var rl = fpRidgeLine(fp);
+      h += '<line x1="' + rl.x1 + '" y1="' + rl.y1 + '" x2="' + rl.x2 + '" y2="' + rl.y2 + '" stroke="#c9a06a" stroke-width="1.4" stroke-dasharray="6 4"/>';
+    }
+  } else {
+    h += '<rect x="30" y="30" width="240" height="240" fill="none" stroke="' + INK + '" stroke-width="1.5" stroke-dasharray="4 4"/>';
+    h += '<text x="150" y="156" text-anchor="middle" fill="' + LINE + '" font-family="Helvetica,Arial,sans-serif" font-size="12">Roof plan</text>';
+  }
+
+  // numbered severity-coloured markers; number = f.number = the schedule F-ref
+  pinned.forEach(function(f){
+    var col = (typeof FAULT_SEV_COLORS !== 'undefined' && FAULT_SEV_COLORS[f.severity]) ? FAULT_SEV_COLORS[f.severity] : '#9ca3af';
+    var x = f.footprintLoc.x, y = f.footprintLoc.y, num = (f.number != null ? String(f.number) : '');
+    h += '<g><circle cx="' + x + '" cy="' + y + '" r="11" fill="' + col + '" stroke="#ffffff" stroke-width="2"/>'
+      + '<text x="' + x + '" y="' + (y + 4.6) + '" text-anchor="middle" fill="#ffffff" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="700">' + escapeHtml(num) + '</text></g>';
+  });
+
+  // north arrow (top-right) + not-to-scale (ink annotation, report-body legible)
+  h += '<g transform="translate(278,22)"><line x1="0" y1="15" x2="0" y2="-5" stroke="' + INK + '" stroke-width="1.6"/>'
+    + '<path d="M0,-11 L4.2,-2 L-4.2,-2 Z" fill="' + INK + '"/>'
+    + '<text x="0" y="28" text-anchor="middle" fill="' + INK + '" font-family="Helvetica,Arial,sans-serif" font-size="11" font-weight="700">N</text></g>';
+  h += '<text x="22" y="289" fill="' + LINE + '" font-family="Helvetica,Arial,sans-serif" font-size="11" font-style="italic">Not to scale</text>';
+  h += '</svg>';
+  return h;
+}
+// True when the survey has at least one fault located on the plan - the guard for
+// both the figure sheet and the aerial substitute. No pinned faults -> both are
+// absent and the report is byte-identical to today.
+function slHasPinnedFaults(survey){
+  var faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers : [];
+  return faults.some(function(f){ return f.footprintLoc && f.footprintLoc.x != null; });
+}
+// Section 4 figure sheet: "Figure 4.1 · Roof plan, faults · not to scale", a
+// dedicated A4-landscape sheet that joins the report flow via the existing
+// auto-pagination (no existing sheet is redesigned). Renders ONLY when a fault is
+// located; otherwise returns '' and the report is unchanged.
+function slRenderFaultPlanFigure(survey){
+  var s = survey || {};
+  if (!slHasPinnedFaults(s)) return '';
+  var b = (typeof fpBuilding === 'function') ? fpBuilding(s) : null;
+  var form = (b && b.roofForm) || '';
+  var pinned = (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).filter(function(f){ return f.footprintLoc && f.footprintLoc.x != null; });
+  var capNote = '';
+  if (form === 'multi-bay' && typeof fpBayFigures === 'function'){
+    var bf = fpBayFigures(b);
+    if (bf.totalBays >= 1){
+      capNote = bf.totalBays + ' bay' + (bf.totalBays === 1 ? '' : 's')
+        + (bf.valleyRunTotal != null ? ' &middot; valley run ' + (Math.round(bf.valleyRunTotal * 10) / 10) + ' m' : '');
+    }
+  }
+  var sevOrder = [ { id:'critical', label:'Severity 3 &middot; critical' }, { id:'poor', label:'Severity 2 &middot; poor' }, { id:'fair', label:'Severity 1 &middot; fair' }, { id:'monitor', label:'Monitor' } ];
+  var present = {}; pinned.forEach(function(f){ present[f.severity] = true; });
+  var legend = sevOrder.filter(function(o){ return present[o.id]; }).map(function(o){
+    var col = (typeof FAULT_SEV_COLORS !== 'undefined' && FAULT_SEV_COLORS[o.id]) ? FAULT_SEV_COLORS[o.id] : '#9ca3af';
+    return '<span class="rp-leg-item"><span class="rp-leg-dot" style="background:' + col + ';"></span>' + o.label + '</span>';
+  }).join('');
+  var hasAsb = (typeof f5BuildingHasAsbestos === 'function') ? !!f5BuildingHasAsbestos(b) : false;
+  if (hasAsb) legend += '<span class="rp-leg-item"><span class="rp-leg-hatch"></span>Asbestos, hatched</span>';
+
+  var svg = slRoofPlanSVG(s, { idSuffix: 'fig' });
+  var foot = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
+  return '<section class="sheet sl-faultplan">' +
+    '<div class="pad">' +
+      '<div class="eyebrow">04 &middot; Findings and costs</div>' +
+      '<h2><span class="gt">&raquo;</span>The roof plan, and where the faults are.</h2>' +
+      '<div class="rp-figcap">Figure 4.1 &middot; Roof plan, faults &middot; not to scale' + (capNote ? ' &middot; ' + capNote : '') + '</div>' +
+      '<div class="rp-figwrap">' +
+        '<div class="rp-frame">' + svg + '</div>' +
+        '<div class="rp-legend">' + legend +
+          '<div class="rp-legnote">Marker numbers are the schedule references in section 04. Unpinned faults are listed in the schedule and are simply absent from the plan.</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' + foot +
+  '</section>';
+}
+
 function slRenderExec(survey) {
   const s = survey || {};
   const siteTitle  = deriveSiteShortName(s) || 'the site';
@@ -12304,10 +12441,17 @@ function slRenderExec(survey) {
   const surveyorHtml = escapeHtml((vi.surveyorName || '').trim());
   const worksHtml    = escapeHtml((vi.worksDescription || '').trim());
 
+  // D1 aerial precedence: (1) a real drone / Google Earth image is preferred,
+  // exactly as today; (2) when NONE exists but faults are located on the plan, the
+  // fault plan fills the slot, badged "Roof plan · used as aerial"; (3) no image
+  // and no located faults behaves exactly as today (the placeholder). Only case (2)
+  // is new, so a survey with an image, or with no located faults, is byte-identical.
   const aerialSrc = imgSrcFor({ key: s.siteImageKey, data: s.siteImageData });
   const aerialInner = aerialSrc
     ? '<img src="' + aerialSrc + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">'
-    : '<div class="bleed"><svg class="rings" style="right:-60px;bottom:-60px;" width="240" height="240" viewBox="0 0 240 240"><g fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"><circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="100"/><circle cx="200" cy="200" r="140"/></g></svg></div>SITE OVERVIEW &middot; AERIAL';
+    : (slHasPinnedFaults(s)
+        ? '<div class="aerial-plan">' + slRoofPlanSVG(s, { idSuffix: 'aerial' }) + '<div class="aerial-plan-badge">Roof plan &middot; used as aerial</div></div>'
+        : '<div class="bleed"><svg class="rings" style="right:-60px;bottom:-60px;" width="240" height="240" viewBox="0 0 240 240"><g fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"><circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="100"/><circle cx="200" cy="200" r="140"/></g></svg></div>SITE OVERVIEW &middot; AERIAL');
 
   const row = function(k, vHtml) {
     return '<div class="row"><div class="rk">' + k + '</div><div class="rv">' + (vHtml || 'TBC') + '</div></div>';
@@ -15274,6 +15418,7 @@ function renderTier1Report(survey, costInfo) {
     (showAreas ? slRenderAreasOverview(s) : '') +
     slRenderSchedule(s, costInfo, scheduleOpts) +
     (criticalCount > 0 ? slRenderCards(s, { criticalOnly: true }) : '') +
+    slRenderFaultPlanFigure(s) +   // D1: Figure 4.1 - roof plan, faults (only when a fault is located)
     slRenderFindings(s, costInfo) +
     slRenderFindingsNext(s) +
     slRenderBack(s) +
