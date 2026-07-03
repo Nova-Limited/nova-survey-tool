@@ -3116,6 +3116,11 @@ input.derived-field { background: #f6f8fa; color: #555; }
         <summary>Site Plan</summary>
         <div class="section-body">
 
+          <!-- Amendment 2 (flow F1): an affirmative "no faults found" finding,
+               only relevant while the fault list is empty. spRenderNoFaultsControl()
+               fills this in and hides it once any fault exists. -->
+          <div id="sp-nofaults-row" style="margin-bottom:12px;"></div>
+
           <!-- Find on map + secondary coordinate readouts.
                Inputs are intentionally OUTSIDE a .field wrapper so the global
                .field input rule (width:100%; min-height:48px) doesn't blow them
@@ -4068,6 +4073,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-flow .flow-step-detail { font-size: 12px; color: #8a898b; margin-top: 1px; display: block; }
     #view-flow .flow-step-note { font-size: 10.5px; color: #b0afa9; font-style: italic; margin-top: 1px; display: block; }
     #view-flow .flow-step-chev { color: #c4c3bd; font-size: 20px; flex: 0 0 auto; }
+    #view-flow .flow-step-quick { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 0 12px; min-height: 36px; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-flow .flow-step-quick:hover { border-color: #F7901E; color: #F7901E; }
     @media (min-width: 760px) {
       /* checklist-as-rail: the step list becomes a fixed side column once
          there is room, matching the target's tablet layout. */
@@ -6082,6 +6089,11 @@ function makeBlankSiteImage() {
     siteMapZoom:      18,
     siteImagePins:    [],
     siteFaultMarkers: [],
+    // Amendment 2 (flow F1): an affirmative "no faults found" declaration,
+    // distinct from simply never having logged one. Cleared automatically
+    // the moment any fault is added (spAddFaultOffPlan, the map-click
+    // handler, fpFaultPinNew).
+    noFaultsFound:    false,
     // Manual price overrides + hand-entered prices for the derived costed
     // schedule, keyed by line/fault/total. Calculator proposes, Jamie disposes;
     // the engine's derived figure is recorded alongside so nothing is lost.
@@ -6488,6 +6500,7 @@ async function goToNewSurvey() {
       siteMapZoom:      Number.isFinite(Number(draft.siteMapZoom))      ? Number(draft.siteMapZoom)      : 18,
       siteImagePins:    Array.isArray(draft.siteImagePins)    ? draft.siteImagePins.map(p => ({ ...p })) : [],
       siteFaultMarkers: Array.isArray(draft.siteFaultMarkers) ? draft.siteFaultMarkers.map(f => ({ ...f })) : [],
+      noFaultsFound:    !!draft.noFaultsFound,
       costOverrides:    (draft.costOverrides && typeof draft.costOverrides === 'object') ? draft.costOverrides : {},
       labourInputs:     (draft.labourInputs && typeof draft.labourInputs === 'object') ? draft.labourInputs : {}
     };
@@ -6506,6 +6519,7 @@ async function goToNewSurvey() {
   onPurlinTypeChange();
   updateDerivedRoofArea();
   spRestoreImageState();
+  spRenderNoFaultsControl();
   updateConditionals();
   updateEngagementVisibility();
   startAutoSave();
@@ -6545,6 +6559,7 @@ function editCurrent() {
     siteMapZoom:      Number.isFinite(Number(s.siteMapZoom))      ? Number(s.siteMapZoom)      : 18,
     siteImagePins:    Array.isArray(s.siteImagePins)    ? s.siteImagePins.map(p => ({ ...p })) : [],
     siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : [],
+    noFaultsFound:    !!s.noFaultsFound,
     costOverrides:    (s.costOverrides && typeof s.costOverrides === 'object') ? s.costOverrides : {},
     labourInputs:     (s.labourInputs && typeof s.labourInputs === 'object') ? s.labourInputs : {}
   };
@@ -6556,6 +6571,7 @@ function editCurrent() {
   onPurlinTypeChange();
   updateDerivedRoofArea();
   spRestoreImageState();
+  spRenderNoFaultsControl();
   updateConditionals();
   updateEngagementVisibility();
   startAutoSave();
@@ -6816,6 +6832,7 @@ function collectFormData() {
   // strings, so slice() is enough — we're cloning the list, not the bytes.
   out.siteFaultMarkers = (currentSiteImage.siteFaultMarkers || [])
     .map(f => ({ ...f, photos: Array.isArray(f.photos) ? f.photos.slice() : [] }));
+  out.noFaultsFound = !!currentSiteImage.noFaultsFound;
   out.costOverrides = (currentSiteImage.costOverrides && typeof currentSiteImage.costOverrides === 'object')
     ? currentSiteImage.costOverrides : {};
   out.labourInputs = (currentSiteImage.labourInputs && typeof currentSiteImage.labourInputs === 'object')
@@ -10921,6 +10938,7 @@ function fpFaultPinNew(){
     faultMarkerX: null, faultMarkerY: null, footprintLoc: { bi: 0, x: fpFaultPick.x, y: fpFaultPick.y }, unlocatable: false };
   var faults = fpFaultsForBuilding(survey); faults.push(f);
   survey.siteFaultMarkers = faults;
+  survey.noFaultsFound = false;   // Amendment 2: a genuinely new fault clears the declaration
   fpFaultPick = null; fpPlaceMode = null;
   srPersist(survey); fpRender();
 }
@@ -11037,6 +11055,49 @@ function flowSetPurpose(surveyId, purpose){
   }
 }
 
+// --- Amendment 2: "no faults found" is a finding, not an absence of one ---
+// The affirmative control lives on the Site Plan section (classic form), only
+// shown while the fault list is empty; it is also reachable directly from the
+// guided checklist's Faults row when that step is not-started (see
+// flowRenderStepRow). Both write through the SAME currentSiteImage.noFaultsFound
+// field the classic form already round-trips via collectFormData/editCurrent,
+// so either entry point is visible from the other.
+function spRenderNoFaultsControl(){
+  var host = document.getElementById('sp-nofaults-row'); if (!host) return;
+  var faults = currentSiteImage.siteFaultMarkers || [];
+  if (faults.length > 0){ host.innerHTML = ''; return; }
+  if (currentSiteImage.noFaultsFound){
+    host.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#eef7f0;border:1px solid #bfe3c8;border-radius:8px;">' +
+      '<span style="font-size:13px;font-weight:700;color:#1f7a37;">No faults found</span>' +
+      '<button type="button" class="link-btn" style="font-size:12px;" onclick="flowSetNoFaultsFound(false)">Undo</button></div>';
+  } else {
+    host.innerHTML = '<button type="button" class="btn btn-secondary" onclick="flowSetNoFaultsFound(true)">No faults found</button>';
+  }
+}
+function flowSetNoFaultsFound(val){
+  currentSiteImage.noFaultsFound = !!val;
+  spSaveSurveyField('noFaultsFound', !!val);
+  spRenderNoFaultsControl();
+  // If a guided-checklist survey is currently loaded (either the same survey
+  // being live-edited, or reached via the quick action below on a persisted
+  // survey), keep its completeness readout in sync.
+  if (currentSurveyId && flowCurrentId === currentSurveyId){
+    var s = srLoadSurvey(currentSurveyId); if (s){ s.noFaultsFound = !!val; srPersist(s); }
+  }
+  var flowView = document.getElementById('view-flow');
+  if (flowView && flowView.classList.contains('active')) flowRenderGuide();
+}
+// Quick action reachable directly from the checklist row (no navigation) when
+// zero faults exist and none is declared yet - operates on the PERSISTED
+// survey directly (the guided view is not necessarily the live form).
+function flowDeclareNoFaultsFromChecklist(){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  survey.noFaultsFound = true;
+  srPersist(survey);
+  if (currentSurveyId === flowCurrentId) currentSiteImage.noFaultsFound = true;
+  flowRenderGuide();
+}
+
 // --- completeness engine: one source of truth for the checklist AND the
 // handoff's soft-gate warning. Each rule is derived from data that already
 // exists; states are done / partial / not-started, computed as follows:
@@ -11085,12 +11146,23 @@ function flowComputeSteps(survey){
     state: !hasFp ? 'not-started' : (condSet === totalEdges && totalEdges > 0 ? 'done' : (condSet > 0 ? 'partial' : 'not-started')),
     detail: !hasFp ? 'draw the footprint first' : (condSet + ' of ' + totalEdges + ' edges set') });
 
+  // AMENDMENT 1: the datum denominator follows the roof form, so it never
+  // demands a field the form has no use for. Flat has no slope, so ridge
+  // height is not required. Multi-bay derives its own geometry per bay type
+  // (width/run/pitch, in the bays step) - there is no single building-level
+  // ridge for a repeating roof, so it is excluded there too; eaves height and
+  // width/length are still genuinely needed (elevation height and the edge-
+  // inherit lengths apply to a multi-bay building's perimeter walls exactly
+  // as they do for any other form). Every other form keeps all 4.
   var d = (b && b.datum) || {};
-  var datumFields = ['eavesHeightM','ridgeHeightM','widthM','lengthM'];
+  var datumFields = (form === 'flat' || form === 'multi-bay')
+    ? ['eavesHeightM','widthM','lengthM']
+    : ['eavesHeightM','ridgeHeightM','widthM','lengthM'];
+  var datumNeeded = datumFields.length;
   var datumKeyed = datumFields.filter(function(f){ return srNum(d[f]) != null; }).length;
   steps.push({ key:'datum', label:'Datum',
-    state: !hasFp ? 'not-started' : (datumKeyed === 4 ? 'done' : (datumKeyed > 0 ? 'partial' : 'not-started')),
-    detail: !hasFp ? 'draw the footprint first' : (datumKeyed + ' of 4 runs keyed') });
+    state: !hasFp ? 'not-started' : (datumKeyed === datumNeeded ? 'done' : (datumKeyed > 0 ? 'partial' : 'not-started')),
+    detail: !hasFp ? 'draw the footprint first' : (datumKeyed + ' of ' + datumNeeded + ' runs keyed') });
 
   if (form === 'multi-bay'){
     var bays = (b && b.bays) || [];
@@ -11117,11 +11189,24 @@ function flowComputeSteps(survey){
   steps.push({ key:'features', label:'Features', state: featCount > 0 ? 'done' : 'not-started',
     detail: featCount > 0 ? (featCount + ' feature' + (featCount === 1 ? '' : 's') + ' placed') : 'none placed yet' });
 
+  // AMENDMENT 2: "no faults found" is itself a finding, not an absence of
+  // one - survey.noFaultsFound (set via the affirmative control) reads the
+  // step DONE at zero faults instead of leaving it permanently not-started.
+  // Adding any fault clears the declaration at its point of creation
+  // (spAddFaultOffPlan, the map-click handler, fpFaultPinNew), so the two
+  // states can never coexist for long.
   var faults = fpFaultsForBuilding(survey);
+  var noFaultsFound = !!survey.noFaultsFound;
   var withPhotos = faults.filter(function(f){ return Array.isArray(f.photos) && f.photos.length > 0; }).length;
-  steps.push({ key:'faults', label:'Faults and photos',
-    state: faults.length === 0 ? 'not-started' : (withPhotos === faults.length ? 'done' : 'partial'),
-    detail: faults.length === 0 ? 'none recorded yet' : (withPhotos + ' of ' + faults.length + ' faults have photos') });
+  var faultsState, faultsDetail;
+  if (faults.length === 0){
+    faultsState = noFaultsFound ? 'done' : 'not-started';
+    faultsDetail = noFaultsFound ? 'No faults found' : 'none recorded yet';
+  } else {
+    faultsState = (withPhotos === faults.length) ? 'done' : 'partial';
+    faultsDetail = withPhotos + ' of ' + faults.length + ' faults have photos';
+  }
+  steps.push({ key:'faults', label:'Faults and photos', state: faultsState, detail: faultsDetail });
 
   steps.forEach(function(s){ s.purposes = FLOW_STEP_PURPOSES[s.key] || ['condition','priced']; });
   return steps;
@@ -11182,12 +11267,22 @@ function flowRenderGuide(){
   host.innerHTML = h;
 }
 function flowRenderStepRow(s, faded){
-  return '<button class="flow-step' + (faded ? ' faded' : '') + '" onclick="flowJumpToStep(\'' + s.key + '\')">' +
+  // Amendment 2: a one-tap declaration reachable directly from the checklist,
+  // no navigation - only offered while the faults step is genuinely
+  // undecided (zero faults, nothing declared either way). This row is a DIV,
+  // not a button - a <button> cannot validly contain another <button> (the
+  // quick-action control), and a browser silently splits/reparents the DOM
+  // if it's tried, which quietly breaks the quick action.
+  var quickAction = (s.key === 'faults' && s.state === 'not-started')
+    ? '<button type="button" class="flow-step-quick" onclick="event.stopPropagation();flowDeclareNoFaultsFromChecklist()">No faults found</button>'
+    : '';
+  return '<div class="flow-step' + (faded ? ' faded' : '') + '" role="button" tabindex="0" onclick="flowJumpToStep(\'' + s.key + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){flowJumpToStep(\'' + s.key + '\');}">' +
     '<span class="flow-dot ' + s.state + '"></span>' +
     '<span class="flow-step-body"><span class="flow-step-lbl">' + escapeHtml(s.label) + '</span>' +
     '<span class="flow-step-detail">' + escapeHtml(s.detail) + '</span>' +
     (faded ? '<span class="flow-step-note">not in this purpose</span>' : '') + '</span>' +
-    '<span class="flow-step-chev">&rsaquo;</span></button>';
+    quickAction +
+    '<span class="flow-step-chev">&rsaquo;</span></div>';
 }
 // jump straight to the step's surface. Footprint/edges/datum/bays/elevations/
 // features all live on the one footprint capture surface built in stages 1-4;
@@ -15754,6 +15849,10 @@ function spHandleMapClick(lat, lng) {
     var faults = survey.siteFaultMarkers || [];
     faults.push(spNewFault(id, spFaultCounter, lat, lng));
     spSaveSurveyField('siteFaultMarkers', faults);
+    // Amendment 2: a genuinely new fault clears any "no faults found" declaration.
+    currentSiteImage.noFaultsFound = false;
+    spSaveSurveyField('noFaultsFound', false);
+    if (typeof spRenderNoFaultsControl === 'function') spRenderNoFaultsControl();
     spActiveFaultId = id;
     spRenderMarkers();
     spOpenFaultPanel(id);
@@ -15796,6 +15895,10 @@ function spAddFaultOffPlan() {
   var faults = survey.siteFaultMarkers || [];
   faults.push(spNewFault(id, spFaultCounter, null, null));
   spSaveSurveyField('siteFaultMarkers', faults);
+  // Amendment 2: a genuinely new fault clears any "no faults found" declaration.
+  currentSiteImage.noFaultsFound = false;
+  spSaveSurveyField('noFaultsFound', false);
+  if (typeof spRenderNoFaultsControl === 'function') spRenderNoFaultsControl();
   spActiveFaultId = id;
   spRenderMarkers();
   spOpenFaultPanel(id);
