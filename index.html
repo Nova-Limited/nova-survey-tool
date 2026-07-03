@@ -4048,6 +4048,61 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <div id="footprint-body"></div>
     </div>
   </section>
+  <style>
+    /* Flow stage F1: guided sequence + handoff chrome, phone-first at 390px,
+       checklist-as-rail at tablet width (target page 07). */
+    #view-flow .flow-wrap, #view-handoff .flow-wrap { max-width: 640px; }
+    #view-flow .flow-pct { font-size: 30px; font-weight: 800; color: #434244; line-height: 1; }
+    #view-flow .flow-pct-label { font-size: 11px; color: #8a898b; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; }
+    #view-flow .flow-bar-track { height: 10px; border-radius: 6px; background: #ece9e2; overflow: hidden; margin: 10px 0 4px; }
+    #view-flow .flow-bar-fill { height: 100%; background: #F7901E; border-radius: 6px; transition: width .2s; }
+    #view-flow .flow-step { display: flex; align-items: center; gap: 12px; padding: 14px 14px; border: 1px solid #ece9e2; border-radius: 10px; margin-bottom: 8px; background: #fff; cursor: pointer; text-align: left; width: 100%; font-family: inherit; min-height: 44px; }
+    #view-flow .flow-step:hover { border-color: #F7901E; }
+    #view-flow .flow-step.faded { opacity: .55; }
+    #view-flow .flow-dot { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; }
+    #view-flow .flow-dot.done { background: #1f7a37; }
+    #view-flow .flow-dot.partial { background: #F7901E; }
+    #view-flow .flow-dot.not-started { background: #d8d6cf; }
+    #view-flow .flow-step-body { flex: 1; min-width: 0; }
+    #view-flow .flow-step-lbl { font-size: 14px; font-weight: 700; color: #434244; display: block; }
+    #view-flow .flow-step-detail { font-size: 12px; color: #8a898b; margin-top: 1px; display: block; }
+    #view-flow .flow-step-note { font-size: 10.5px; color: #b0afa9; font-style: italic; margin-top: 1px; display: block; }
+    #view-flow .flow-step-chev { color: #c4c3bd; font-size: 20px; flex: 0 0 auto; }
+    @media (min-width: 760px) {
+      /* checklist-as-rail: the step list becomes a fixed side column once
+         there is room, matching the target's tablet layout. */
+      #view-flow .flow-wrap { max-width: none; display: flex; gap: 28px; align-items: flex-start; }
+      #view-flow .flow-rail-head { flex: 0 0 220px; position: sticky; top: 16px; }
+      #view-flow .flow-rail-steps { flex: 1; min-width: 0; max-width: 520px; }
+    }
+    #view-handoff .flow-card { border: 1px solid #ece9e2; border-radius: 12px; padding: 18px; margin-bottom: 14px; background: #fff; }
+    #view-handoff .flow-card-num { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #F7901E; margin-bottom: 6px; }
+    #view-handoff .flow-card-title { font-size: 17px; font-weight: 800; color: #434244; margin-bottom: 6px; }
+    #view-handoff .flow-card-sub { font-size: 12.5px; color: #8a898b; margin-bottom: 14px; line-height: 1.5; }
+    #view-handoff .flow-warn { background: #fff7ef; border: 1px solid #f0dcc0; border-radius: 8px; padding: 12px 14px; margin: 10px 0; font-size: 12.5px; color: #7a4a12; line-height: 1.5; }
+    #view-handoff .flow-warn ul { margin: 6px 0 0 18px; padding: 0; }
+    #view-handoff .flow-warn button { min-height: 44px; }
+  </style>
+  <section id="view-flow" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <h1>Survey progress</h1>
+        <div class="meta">What is captured, what is left, in the order the visit purpose puts first. Nothing here is locked; tap any step to jump straight to it.</div>
+      </div>
+      <div id="flow-body"></div>
+    </div>
+  </section>
+  <section id="view-handoff" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <h1>Finish the visit</h1>
+        <div class="meta">What this visit produces, based on its purpose.</div>
+      </div>
+      <div id="handoff-body"></div>
+    </div>
+  </section>
 </main>
 
 <div id="modal-overlay" class="modal-overlay" hidden>
@@ -6400,6 +6455,7 @@ async function goToNewSurvey() {
   currentBuildings = [];
   currentPackAccess = { elevations: [], safetyNetting: true, debrisNetting: false };
   currentSiteImage = makeBlankSiteImage();
+  flowVisitPurpose = null;
   resetForm();
 
   // Draft restore prompt — explicit modal instead of silent restore.
@@ -6435,6 +6491,7 @@ async function goToNewSurvey() {
       costOverrides:    (draft.costOverrides && typeof draft.costOverrides === 'object') ? draft.costOverrides : {},
       labourInputs:     (draft.labourInputs && typeof draft.labourInputs === 'object') ? draft.labourInputs : {}
     };
+    flowVisitPurpose = draft.visitPurpose || null;
   } else {
     // Fresh-form defaults beyond what resetForm/FIELD_MAP dflts handle (the date).
     const d = document.getElementById('f-visit-date');
@@ -6453,6 +6510,10 @@ async function goToNewSurvey() {
   updateEngagementVisibility();
   startAutoSave();
   showView('form');
+  // Flow stage F1: ask once, on genuine creation. A resumed draft that
+  // already answered keeps its answer; skipping here just leaves the
+  // survey with no purpose, exactly like any legacy survey.
+  if (!flowVisitPurpose) flowShowPurposeSheet({});
 }
 
 function goToSurvey(id) {
@@ -6469,6 +6530,7 @@ function editCurrent() {
   if (!s) { showToast('Survey not found', 'err'); goHome(); return; }
   resetForm();
   populateForm(s);
+  flowVisitPurpose = s.visitPurpose || null;
   currentBuildings = Array.isArray(s.buildings)
     ? s.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(sl => ({ ...sl })) }))
     : [];
@@ -6758,6 +6820,9 @@ function collectFormData() {
     ? currentSiteImage.costOverrides : {};
   out.labourInputs = (currentSiteImage.labourInputs && typeof currentSiteImage.labourInputs === 'object')
     ? currentSiteImage.labourInputs : {};
+  // Flow stage F1: visit purpose rides the snapshot like purlinType/estLedger -
+  // no new Airtable field, just carried through on every save.
+  out.visitPurpose = flowVisitPurpose;
   return out;
 }
 // Appointment time as a real clock time: "10:30" or, with duration, "10:30, 90 min".
@@ -7126,6 +7191,15 @@ function renderSurveyDetail(s) {
           '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
           calBtn +
           '<span id="sync-at-status" class="act-status"></span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="act-group">' +
+        '<div class="act-group-label">Visit flow</div>' +
+        '<div class="act-group-btns">' +
+          '<button class="btn btn-secondary" onclick="flowShowPurposeSheet({surveyId:currentSurveyId, onDone:function(){ renderSurveyDetail(srLoadSurvey(currentSurveyId)); }})">' +
+            (s.visitPurpose ? 'Visit purpose: ' + flowPurposeLabel(s.visitPurpose) : 'Set visit purpose') + '</button>' +
+          '<button class="btn btn-secondary" onclick="flowOpenGuide(currentSurveyId)">Guided checklist</button>' +
+          '<button class="btn btn-secondary" onclick="flowOpenHandoff(currentSurveyId)">Finish the visit</button>' +
         '</div>' +
       '</div>' +
       '<div class="act-group">' +
@@ -10899,6 +10973,298 @@ function fpRenderFaultUnpinSheet(survey){
   return h;
 }
 var fpFaultOpenId = null;   // id of a plotted fault marker whose quick sheet is open
+
+// ===== NOVA UNIFIED FLOW - STAGE F1: VISIT PURPOSE + GUIDED SEQUENCE + HANDOFF
+// The approved 8-page flow target's chrome only, purely additive over the
+// existing capture/report/estimate surfaces this stage: no geometry, seeding,
+// scaffold or fault-model changes. Later stages (F2 geometry consolidation, F3
+// scaffold from elevations, F4 fault/photo convergence) build on top of this.
+//   survey.visitPurpose  'condition' | 'priced' | 'both' | null (unset = legacy)
+// Rides the snapshot exactly like purlinType/estLedger/proposal already do -
+// collectFormData() carries it on every save; no new Airtable field.
+var flowVisitPurpose = null;   // in-memory mirror of the open survey's purpose
+var flowCurrentId = null;      // which survey the guide/handoff views are showing
+
+var FLOW_PURPOSES = [
+  { id:'condition', label:'Condition survey', desc:'A Tier 1 condition report. No pricing.' },
+  { id:'priced', label:'Priced job', desc:'A costed estimate and proposal. No condition report.' },
+  { id:'both', label:'Both', desc:'One visit, two purposes: report first, then price.' }
+];
+function flowPurposeLabel(p){
+  var m = FLOW_PURPOSES.filter(function(x){ return x.id === p; })[0];
+  return m ? m.label : null;
+}
+
+// --- the purpose sheet: a dynamic overlay, the same idiom as openAirtableLoadModal
+// (no static markup needed). Asks once at creation; reachable any time after
+// from the survey detail's "Visit flow" group. Never blocks - "Decide later"
+// or a click outside just dismisses, leaving the survey with no purpose set,
+// exactly like any legacy survey.
+function flowShowPurposeSheet(opts){
+  opts = opts || {};
+  var existing = document.getElementById('flow-purpose-modal'); if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'flow-purpose-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var panel = document.createElement('div');
+  panel.style.cssText = 'background:#fff;border-radius:12px;max-width:420px;width:100%;padding:22px 20px;box-shadow:0 18px 48px rgba(0,0,0,0.25);font-family:inherit;';
+  var h = '<div style="font-size:17px;font-weight:800;color:#434244;margin-bottom:4px;">What is this visit for?</div>' +
+    '<div style="font-size:12.5px;color:#8a898b;margin-bottom:16px;line-height:1.4;">One visit can serve one or both purposes. This orders the checklist and the finish-up options below - it never hides or locks anything.</div>';
+  FLOW_PURPOSES.forEach(function(p){
+    h += '<button class="flow-purpose-opt" data-purpose="' + p.id + '" style="display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:8px;border:1.5px solid #ece9e2;border-radius:9px;background:#fff;cursor:pointer;font-family:inherit;min-height:44px;">' +
+      '<span style="display:block;font-size:14px;font-weight:700;color:#434244;">' + escapeHtml(p.label) + '</span>' +
+      '<span style="display:block;font-size:11.5px;color:#8a898b;margin-top:2px;">' + escapeHtml(p.desc) + '</span></button>';
+  });
+  h += '<button id="flow-purpose-later" style="display:block;width:100%;text-align:center;padding:9px;margin-top:4px;border:none;background:none;color:#8a898b;font-size:12.5px;cursor:pointer;font-family:inherit;text-decoration:underline;min-height:44px;">Decide later</button>';
+  panel.innerHTML = h;
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+  panel.querySelectorAll('.flow-purpose-opt').forEach(function(btn){
+    btn.onclick = function(){
+      overlay.remove();
+      flowSetPurpose(opts.surveyId || null, btn.getAttribute('data-purpose'));
+      if (opts.onDone) opts.onDone();
+    };
+  });
+  document.getElementById('flow-purpose-later').onclick = function(){ overlay.remove(); if (opts.onDone) opts.onDone(); };
+  overlay.onclick = function(e){ if (e.target === overlay){ overlay.remove(); if (opts.onDone) opts.onDone(); } };
+}
+function flowSetPurpose(surveyId, purpose){
+  flowVisitPurpose = purpose;
+  if (surveyId){
+    var survey = srLoadSurvey(surveyId);
+    if (survey){ survey.visitPurpose = purpose; srPersist(survey); }
+  }
+}
+
+// --- completeness engine: one source of truth for the checklist AND the
+// handoff's soft-gate warning. Each rule is derived from data that already
+// exists; states are done / partial / not-started, computed as follows:
+//   footprint       done when the footprint has >=3 corners, else not-started.
+//   edges           non-curved perimeter edges with a condition set, vs total.
+//   datum           of the 4 keyed datum fields (eaves/ridge height, width,
+//                   length) - counted uniformly across roof forms for one
+//                   simple rule, even though a flat roof's ridge height carries
+//                   less weight in the derivation; noted as a simplification.
+//   bays            ONLY present when roofForm is multi-bay; a bay type counts
+//                   complete when width, run, count>=1 and both sides' pitch +
+//                   covering are set.
+//   elevations      non-curved edges whose elevation has a cladding type set,
+//                   vs total (same denominator as edge conditions - one
+//                   elevation per perimeter edge).
+//   features        no natural "total" exists (a roof may genuinely need zero
+//                   rooflights), so this step is done/not-started only: any
+//                   feature placed reads done, none placed reads not-started.
+//   faults          same "no natural total" reasoning for RECORDING a fault
+//                   (zero faults could mean a clean roof, not an unfinished
+//                   step) - but once faults exist, whether they carry photos
+//                   IS a real completeness signal, so: not-started with zero
+//                   faults, partial while any fault lacks a photo, done once
+//                   every recorded fault has at least one.
+// purposes: which visit purpose(s) each step serves, for the fade + percentage
+// (footprint/edges/datum/bays/elevations feed the estimate; faults feed the
+// report; features feed both, so it never fades).
+var FLOW_STEP_PURPOSES = {
+  footprint: ['priced'], edges: ['priced'], datum: ['priced'], bays: ['priced'],
+  elevations: ['priced'], features: ['condition','priced'], faults: ['condition']
+};
+function flowComputeSteps(survey){
+  var b = fpBuilding(survey), fp = fpFootprint(survey);
+  var form = (b && b.roofForm) || 'duo-pitch';
+  var steps = [];
+
+  var hasFp = !!(fp && Array.isArray(fp.corners) && fp.corners.length >= 3);
+  steps.push({ key:'footprint', label:'Footprint and form', state: hasFp ? 'done' : 'not-started',
+    detail: hasFp ? (fp.corners.length + ' corners, ' + form + ' form') : 'not drawn yet' });
+
+  var totalEdges = 0, condSet = 0;
+  if (fp && Array.isArray(fp.edges)){
+    fp.edges.forEach(function(e){ if (e.type === 'curved') return; totalEdges++; if (e.cond) condSet++; });
+  }
+  steps.push({ key:'edges', label:'Edge conditions',
+    state: !hasFp ? 'not-started' : (condSet === totalEdges && totalEdges > 0 ? 'done' : (condSet > 0 ? 'partial' : 'not-started')),
+    detail: !hasFp ? 'draw the footprint first' : (condSet + ' of ' + totalEdges + ' edges set') });
+
+  var d = (b && b.datum) || {};
+  var datumFields = ['eavesHeightM','ridgeHeightM','widthM','lengthM'];
+  var datumKeyed = datumFields.filter(function(f){ return srNum(d[f]) != null; }).length;
+  steps.push({ key:'datum', label:'Datum',
+    state: !hasFp ? 'not-started' : (datumKeyed === 4 ? 'done' : (datumKeyed > 0 ? 'partial' : 'not-started')),
+    detail: !hasFp ? 'draw the footprint first' : (datumKeyed + ' of 4 runs keyed') });
+
+  if (form === 'multi-bay'){
+    var bays = (b && b.bays) || [];
+    var bayComplete = bays.filter(function(bay){
+      return bay.widthM != null && bay.runM != null && Math.round(srNum(bay.count) || 0) >= 1 &&
+        bay.sides && bay.sides[0] && bay.sides[0].pitchDeg != null && bay.sides[0].covering &&
+        bay.sides[1] && bay.sides[1].pitchDeg != null && bay.sides[1].covering;
+    }).length;
+    steps.push({ key:'bays', label:'Bays',
+      state: bays.length === 0 ? 'not-started' : (bayComplete === bays.length ? 'done' : 'partial'),
+      detail: bays.length === 0 ? 'no bay types defined yet' : (bayComplete + ' of ' + bays.length + ' bay types complete') });
+  }
+
+  var elevDefined = 0;
+  if (fp && Array.isArray(fp.edges)){
+    fp.edges.forEach(function(e){ if (e.type === 'curved') return; if (e.elevation && e.elevation.cladding) elevDefined++; });
+  }
+  steps.push({ key:'elevations', label:'Elevations and openings',
+    state: !hasFp ? 'not-started' : (elevDefined === totalEdges && totalEdges > 0 ? 'done' : (elevDefined > 0 ? 'partial' : 'not-started')),
+    detail: !hasFp ? 'draw the footprint first' : (elevDefined + ' of ' + totalEdges + ' elevations defined') });
+
+  var featCount = 0;
+  (survey.buildings || []).forEach(function(bld){ featCount += (fpFeatures(bld) || []).length; });
+  steps.push({ key:'features', label:'Features', state: featCount > 0 ? 'done' : 'not-started',
+    detail: featCount > 0 ? (featCount + ' feature' + (featCount === 1 ? '' : 's') + ' placed') : 'none placed yet' });
+
+  var faults = fpFaultsForBuilding(survey);
+  var withPhotos = faults.filter(function(f){ return Array.isArray(f.photos) && f.photos.length > 0; }).length;
+  steps.push({ key:'faults', label:'Faults and photos',
+    state: faults.length === 0 ? 'not-started' : (withPhotos === faults.length ? 'done' : 'partial'),
+    detail: faults.length === 0 ? 'none recorded yet' : (withPhotos + ' of ' + faults.length + ' faults have photos') });
+
+  steps.forEach(function(s){ s.purposes = FLOW_STEP_PURPOSES[s.key] || ['condition','priced']; });
+  return steps;
+}
+function flowActivePurposes(purpose){
+  if (purpose === 'condition') return ['condition'];
+  if (purpose === 'priced') return ['priced'];
+  return ['condition', 'priced'];   // both, or no purpose set yet -> everything counts
+}
+function flowStepInPurpose(step, purpose){
+  var active = flowActivePurposes(purpose);
+  return step.purposes.some(function(p){ return active.indexOf(p) >= 0; });
+}
+function flowPercent(survey, purpose){
+  var steps = flowComputeSteps(survey);
+  var active = steps.filter(function(s){ return flowStepInPurpose(s, purpose); });
+  if (!active.length) return 0;
+  var sum = active.reduce(function(acc, s){ return acc + (s.state === 'done' ? 1 : s.state === 'partial' ? 0.5 : 0); }, 0);
+  return Math.round(100 * sum / active.length);
+}
+
+// --- guided sequence (target page 02 / 07) ---
+function flowOpenGuide(id){
+  flowCurrentId = id || currentSurveyId;
+  currentSurveyId = flowCurrentId;
+  showView('flow');
+  flowRenderGuide();
+}
+function flowRenderGuide(){
+  var host = document.getElementById('flow-body'); if (!host) return;
+  var survey = srLoadSurvey(flowCurrentId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var purpose = survey.visitPurpose || null;
+  var steps = flowComputeSteps(survey);
+  var inPurpose = steps.filter(function(s){ return flowStepInPurpose(s, purpose); });
+  var faded = steps.filter(function(s){ return !flowStepInPurpose(s, purpose); });
+  var pct = flowPercent(survey, purpose);
+
+  // .flow-rail-head / .flow-rail-steps: stacked at phone width, side-by-side
+  // rail at tablet width (>=760px) via the media query on .flow-wrap.
+  var h = '<div class="flow-wrap">';
+  h += '<div class="flow-rail-head">';
+  h += '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px;">' +
+    '<span class="flow-pct">' + pct + '%</span><span class="flow-pct-label">' + escapeHtml(purpose ? flowPurposeLabel(purpose) : 'Ready for this visit') + '</span></div>';
+  h += '<div class="flow-bar-track"><div class="flow-bar-fill" style="width:' + pct + '%;"></div></div>';
+  if (!purpose){
+    h += '<div style="font-size:11.5px;color:#8a898b;margin:6px 0 4px;">No visit purpose set yet - every step counts. ' +
+      '<button class="link-btn" style="font-size:11.5px;" onclick="flowShowPurposeSheet({surveyId:flowCurrentId, onDone:flowRenderGuide})">Set one</button></div>';
+  }
+  h += '</div>';
+  h += '<div class="flow-rail-steps">';
+  inPurpose.forEach(function(s){ h += flowRenderStepRow(s, false); });
+  if (faded.length){
+    h += '<div style="font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#b0afa9;margin:14px 0 6px;">Not in this purpose</div>';
+    faded.forEach(function(s){ h += flowRenderStepRow(s, true); });
+  }
+  h += '</div></div>';
+  host.innerHTML = h;
+}
+function flowRenderStepRow(s, faded){
+  return '<button class="flow-step' + (faded ? ' faded' : '') + '" onclick="flowJumpToStep(\'' + s.key + '\')">' +
+    '<span class="flow-dot ' + s.state + '"></span>' +
+    '<span class="flow-step-body"><span class="flow-step-lbl">' + escapeHtml(s.label) + '</span>' +
+    '<span class="flow-step-detail">' + escapeHtml(s.detail) + '</span>' +
+    (faded ? '<span class="flow-step-note">not in this purpose</span>' : '') + '</span>' +
+    '<span class="flow-step-chev">&rsaquo;</span></button>';
+}
+// jump straight to the step's surface. Footprint/edges/datum/bays/elevations/
+// features all live on the one footprint capture surface built in stages 1-4;
+// faults and photos live in the classic form's Site Plan section.
+function flowJumpToStep(key){
+  if (key === 'faults'){
+    editCurrent();
+    setTimeout(function(){
+      var d = document.getElementById('section-site-plan');
+      if (d){ d.open = true; d.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    }, 60);
+    return;
+  }
+  fpOpen(flowCurrentId);
+}
+
+// --- the handoff (target page 06) ---
+function flowOpenHandoff(id){
+  flowCurrentId = id || currentSurveyId;
+  currentSurveyId = flowCurrentId;
+  showView('handoff');
+  flowRenderHandoff();
+}
+function flowRenderHandoff(){
+  var host = document.getElementById('handoff-body'); if (!host) return;
+  var survey = srLoadSurvey(flowCurrentId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var purpose = survey.visitPurpose || 'both';   // no purpose set -> offer both, never blocks
+  var h = '<div class="flow-wrap">';
+  if (purpose === 'condition' || purpose === 'both'){
+    h += flowRenderHandoffCard('report', purpose === 'both' ? '1' : null, 'Generate the Tier 1 report',
+      'Builds the condition report from the fault schedule and survey details.', 'Generate report');
+  }
+  if (purpose === 'priced' || purpose === 'both'){
+    h += flowRenderHandoffCard('estimate', purpose === 'both' ? '2' : null, 'Seed the estimate and open the proposal',
+      'Pulls captured quantities into the works engine, then opens the works proposal.', 'Seed and open');
+  }
+  h += '<div id="flow-handoff-warn"></div>';
+  h += '</div>';
+  host.innerHTML = h;
+}
+function flowRenderHandoffCard(kind, num, title, sub, btnLabel){
+  return '<div class="flow-card">' +
+    (num ? '<div class="flow-card-num">Step ' + num + '</div>' : '') +
+    '<div class="flow-card-title">' + escapeHtml(title) + '</div>' +
+    '<div class="flow-card-sub">' + escapeHtml(sub) + '</div>' +
+    '<button class="btn btn-primary" onclick="flowAttemptAction(\'' + kind + '\')">' + escapeHtml(btnLabel) + '</button>' +
+    '</div>';
+}
+// SOFT GATE: warns naming the unfinished steps, never blocks. Reuses the SAME
+// completeness engine the checklist uses, filtered to the slice relevant to
+// this action (report <- condition steps, estimate <- priced steps).
+function flowAttemptAction(kind){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var relevantPurpose = kind === 'report' ? 'condition' : 'priced';
+  var steps = flowComputeSteps(survey).filter(function(s){ return flowStepInPurpose(s, relevantPurpose); });
+  var unfinished = steps.filter(function(s){ return s.state !== 'done'; });
+  var warnHost = document.getElementById('flow-handoff-warn');
+  if (!unfinished.length || !warnHost){ flowRunAction(kind); return; }
+  var names = unfinished.map(function(s){ return s.label + ' (' + s.detail + ')'; });
+  warnHost.innerHTML = '<div class="flow-warn"><b>Not everything is finished:</b><ul>' +
+    names.map(function(n){ return '<li>' + escapeHtml(n) + '</li>'; }).join('') + '</ul>' +
+    '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">' +
+    '<button class="btn btn-secondary" onclick="document.getElementById(\'flow-handoff-warn\').innerHTML=\'\'">Go back and finish</button>' +
+    '<button class="btn btn-primary" onclick="flowRunAction(\'' + kind + '\')">Continue anyway</button></div></div>';
+  warnHost.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+// Wires to the EXISTING report generation and estimate seeding - no engine
+// changes; this stage is chrome over the same functions.
+function flowRunAction(kind){
+  currentSurveyId = flowCurrentId;
+  if (kind === 'report'){ goToReportCurrent(); }
+  else {
+    estOpenLedger(flowCurrentId);
+    (async function(){ try { await estSeedFromWorks(); } catch (e){} proposalOpen(flowCurrentId); })();
+  }
+}
 
 function buildPricingReturnWorkbook(model){
   if (typeof XLSX === 'undefined') throw new Error('SheetJS (XLSX) not loaded');
