@@ -12533,6 +12533,18 @@ function slSitePlanSVG(b, opts){
     return '<rect x="' + (Math.round(rx * 10) / 10) + '" y="' + (Math.round(ry * 10) / 10) + '" width="' + (Math.round(tw * 10) / 10) + '" height="' + (Math.round(th * 10) / 10) + '" rx="1.5" fill="' + PAPER + '"/>'
       + '<text x="' + Math.round(tx) + '" y="' + Math.round(ty) + '" text-anchor="' + anchor + '" fill="' + INK + '" font-family="Helvetica,Arial,sans-serif" font-size="' + fs + '" font-weight="600">' + escapeHtml(txt) + '</text>';
   };
+  // rotated variant (amendment round 2): reads ALONG a side edge, centred on the
+  // edge midpoint (cx, cy) and rotated -90 like the vertical dimension text. Used
+  // when a narrow plan cannot hold a horizontal side label edge-adjacent without
+  // crossing the midline; the knockout strip stays hard against its own edge.
+  var rotatedKnockLabel = function(cx, cy, txt, fs){
+    fs = fs || 8.5;
+    var tl = String(txt).length * fs * 0.56 + 5;   // text length -> box height once rotated
+    var rw = fs + 4, rh = tl;
+    var rx = cx - rw / 2, ry = cy - rh / 2;
+    return '<rect x="' + (Math.round(rx * 10) / 10) + '" y="' + (Math.round(ry * 10) / 10) + '" width="' + (Math.round(rw * 10) / 10) + '" height="' + (Math.round(rh * 10) / 10) + '" rx="1.5" fill="' + PAPER + '"/>'
+      + '<text x="' + Math.round(cx) + '" y="' + Math.round(cy) + '" text-anchor="middle" fill="' + INK + '" font-family="Helvetica,Arial,sans-serif" font-size="' + fs + '" font-weight="600" transform="rotate(-90 ' + Math.round(cx) + ' ' + Math.round(cy) + ')">' + escapeHtml(txt) + '</text>';
+  };
   var ctrx = ox + dw / 2, ctry = oy + dh / 2;
   (fp.edges || []).forEach(function(e, i){
     if (e.type === 'curved' || !e.cond) return;
@@ -12543,11 +12555,24 @@ function slSitePlanSVG(b, opts){
     var c = fp.corners[i], nc = fp.corners[(i + 1) % fp.corners.length];
     var mx = TX((c.x + nc.x) / 2), my = TY((c.y + nc.y) / 2);
     var evx = TX(nc.x) - TX(c.x), evy = TY(nc.y) - TY(c.y);
-    var vertical = Math.abs(evy) > Math.abs(evx);
-    var tx, ty, anchor;
-    if (vertical){ if (mx < ctrx){ anchor = 'start'; tx = mx + 6; } else { anchor = 'end'; tx = mx - 6; } ty = my + 3; }
-    else { anchor = 'middle'; tx = mx; ty = (my < ctry) ? (my + 14) : (my - 9); }
-    h += knockLabel(tx, ty, anchor, shortL, 8.5);
+    var vertical = Math.abs(evy) > Math.abs(evx);   // a vertical EDGE is a side (left/right) edge
+    var fs = 8.5;
+    if (vertical){
+      // EDGE-ATTACHMENT INVARIANT (amendment round 2). A side label must belong to
+      // its edge. Keep it horizontal and edge-adjacent while it fits without crossing
+      // the plan midline; otherwise rotate it to read along its own edge. This keeps
+      // both side labels attached and clear of each other on a narrow plan where two
+      // horizontal side labels would float mid-plan and collide.
+      var tw = String(shortL).length * fs * 0.56 + 5;
+      var leftEdge = mx < ctrx;
+      if (tw + 8 <= dw / 2){
+        h += knockLabel(leftEdge ? mx + 6 : mx - 6, my + 3, leftEdge ? 'start' : 'end', shortL, fs);
+      } else {
+        h += rotatedKnockLabel(leftEdge ? mx + 7 : mx - 7, my, shortL, fs);
+      }
+    } else {
+      h += knockLabel(mx, (my < ctry) ? (my + 14) : (my - 9), 'middle', shortL, fs);
+    }
   });
 
   // ORANGE datum dimensions - reconciled to the drawn axes (amendment 1). The
