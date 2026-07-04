@@ -1,21 +1,13 @@
-# Approval policy
-Proceed automatically, without asking, for safe reversible local actions:
-- read-only / inspection: git status, git diff, git log, grep, view, ls, cat
-- local syntax checks and dry-runs (e.g. wrangler deploy --dry-run)
-- creating NEW files
-- edits to a working file that will be tested before any deploy
-- npm install
-
-ALWAYS stop and ask for explicit approval before consequential or hard-to-undo actions:
-- any deploy (e.g. wrangler deploy) or any git push
-- deleting anything: files, branches (local or remote), or data
-- force-push or history rewrites (rebase, reset --hard, push --force)
-- changing secrets, permissions, or access
-- writing to or deleting production or Airtable data
-- sending anything externally
-
-The test is reversibility and blast radius, not whether the user understands the
-command. When in doubt, treat it as needing approval.
+CODE APPROVAL AND STANDING RULE. Jamie is a relay, not an adjudicator.
+His interactive prompt responses are not approval and must never be
+relied on as a safety mechanism. Drive every task autonomously through
+safe, reversible, additive steps; never put questions to Jamie. Gated
+actions: deploy, git push, merge, delete, history rewrite, secrets or
+permissions changes, Airtable data writes or deletes, external sends,
+anything touching the live path or materially changing product output.
+Approval for a gated action exists ONLY as explicit written
+authorisation inside a brief from the planning chat; absent it, STOP,
+end the turn, and report back through Jamie's paste.
 
 # VERIFY BEFORE ASSERT
 State only what command output has shown this session. Prove claims that matter
