@@ -12796,22 +12796,60 @@ function slElevOpGeom(op, L, eavesH){
   }
   return { w: (w || 0), h: (h || 0), centre: centre, left: centre - (w || 0) / 2, right: centre + (w || 0) / 2, cill: cill, floorAnchored: floorAnchored };
 }
+// Expand each captured opening into `count` unit INSTANCES so the drawing honours
+// the same multiplier the area deduction uses (fpElevOpeningsArea sums count x w x
+// h): an opening with count 2 must draw two openings, not one, or the caption
+// would deduct area the drawing never shows. N instances lay out as a contiguous
+// row centred on the captured point. Any instances that still coincide (e.g. two
+// openings captured at the same point) are nudged apart so every one renders; the
+// nudge moves position only, never area. For count 1 with distinct positions -
+// every shipped fixture - this is the identity map: one instance per opening at
+// its captured geometry, in capture order, so the drawing is byte-unchanged.
+function slElevInstances(elev, L, eavesH){
+  var list = [];
+  (elev.openings || []).forEach(function(o){
+    var n = Math.max(1, Math.round(srNum(o.count) || 1));
+    var base = slElevOpGeom(o, L, eavesH);
+    var w = base.w;
+    if (!(w > 0)){ list.push({ op: o, w: 0, h: base.h, cill: base.cill, floorAnchored: base.floorAnchored, centre: base.centre, left: base.centre, right: base.centre }); return; }
+    var start = base.centre - (n * w) / 2;
+    for (var k = 0; k < n; k++){
+      var cx = start + w * (k + 0.5);
+      list.push({ op: o, w: w, h: base.h, cill: base.cill, floorAnchored: base.floorAnchored, centre: cx, left: cx - w / 2, right: cx + w / 2 });
+    }
+  });
+  // nudge coincident/overlapping instances apart (by reference, so the draw order
+  // stays capture order); no overlap -> no mutation -> byte-identical output.
+  var sorted = list.slice().sort(function(a, bb){ return a.left - bb.left; });
+  for (var j = 1; j < sorted.length; j++){
+    if (sorted[j].w > 0 && sorted[j - 1].w > 0 && sorted[j].left < sorted[j - 1].right - 0.02){
+      var shift = (sorted[j - 1].right - sorted[j].left) + 0.05;
+      sorted[j].left += shift; sorted[j].right += shift; sorted[j].centre += shift;
+    }
+  }
+  return list;
+}
+// Sum of the areas actually DRAWN on a wall (one w x h per rendered instance).
+// Must equal the caption's openings deduction (fpElevArea.openings); the caller
+// warns on any divergence rather than silently reconciling.
+function slElevDrawnOpeningsArea(insts){
+  return (insts || []).reduce(function(a, ins){ return a + ((ins.w > 0 && ins.h > 0) ? ins.w * ins.h : 0); }, 0);
+}
 // The base dimension string: gaps and sheeting-relevant openings across the wall,
 // left to right. Telescoping, so it closes to L by construction; the invariant
 // check verifies the SUM of the rounded segments equals L within the 0.1 m
 // rounding and that no opening overhangs/overlaps, and WARNS from captured values
 // (never silently redraws) when it does not close.
-function slElevBaseSegments(L, ops, bid){
-  var rel = ops.filter(slElevSheetingOp).map(function(o){ return { op: o, g: null }; });
-  rel.forEach(function(r){ r.g = slElevOpGeom(r.op, L, null); });
-  rel.sort(function(a, bb){ return a.g.left - bb.g.left; });
+function slElevBaseSegments(L, insts, bid){
+  var rel = (insts || []).filter(function(ins){ return slElevSheetingOp(ins.op) && ins.w > 0; });
+  rel.sort(function(a, bb){ return a.left - bb.left; });
   var segs = [], cursor = 0, incoherent = false;
   rel.forEach(function(r){
-    var gap = r.g.left - cursor;
+    var gap = r.left - cursor;
     if (gap < -0.05) incoherent = true;
     segs.push({ w: Math.max(0, gap), kind: 'gap' });
-    segs.push({ w: r.g.w, kind: 'op', type: r.op.type });
-    cursor = r.g.left + r.g.w;
+    segs.push({ w: r.w, kind: 'op', type: r.op.type });
+    cursor = r.left + r.w;
   });
   if (L - cursor < -0.05) incoherent = true;
   segs.push({ w: Math.max(0, L - cursor), kind: 'gap' });
@@ -12827,15 +12865,14 @@ function slElevBaseSegments(L, ops, bid){
 // shortening - every shutter (its panel count + head-to-eaves cut length), every
 // wide window (its split + flashings). One exemplar with the rest implied is a
 // failure; the entry count equals the shortening count.
-function slElevSheetingNote(ar, elev){
+function slElevSheetingNote(ar, insts){
   var L = ar.L.value, eavesH = ar.H.value;
   var panels = Math.max(0, Math.ceil(L / 1.0 - 1e-6));
-  var ops = (elev.openings || []).map(function(o){ return { op: o, g: slElevOpGeom(o, L, eavesH) }; })
-    .filter(function(r){ return slElevSheetingOp(r.op); })
-    .sort(function(a, bb){ return a.g.left - bb.g.left; });
-  var entries = ops.map(function(r){
-    var o = r.op, w = slD1r(o.wM), h = srNum(o.hM);
-    var pc = Math.max(1, Math.ceil((srNum(o.wM) || 0) / 1.0 - 1e-6));
+  var rel = (insts || []).filter(function(ins){ return slElevSheetingOp(ins.op) && ins.w > 0; })
+    .sort(function(a, bb){ return a.left - bb.left; });
+  var entries = rel.map(function(r){
+    var o = r.op, w = (Math.round(r.w * 10) / 10), h = r.h;
+    var pc = Math.max(1, Math.ceil(r.w / 1.0 - 1e-6));
     if (o.type === 'Roller shutter door'){
       var cut = (h != null && eavesH != null) ? (Math.round((eavesH - h) * 10) / 10) : null;
       return 'Roller shutter ' + w.toFixed(1) + ' m: ' + pc + ' panel' + (pc === 1 ? '' : 's') + ' drawn to floor, cut to ' + (cut != null ? cut.toFixed(1) + ' m head-to-eaves' : 'head-to-eaves');
@@ -12921,8 +12958,10 @@ function slElevationSVG(b, wall, opts){
   // carries asbestos.
   if (hasAsb) h += '<rect x="' + xL + '" y="' + yE + '" width="' + DAW + '" height="' + (yB - yE) + '" fill="url(#' + idp + '-asb)"/>';
 
-  // openings geometry, resolved once.
-  var openings = (elev.openings || []).map(function(o){ return { op: o, g: slElevOpGeom(o, L, eavesH) }; });
+  // openings geometry, resolved once - expanded by count into drawn instances so
+  // the drawing matches the area deduction (shared with the block, which runs the
+  // caption-equals-drawn check on this same list).
+  var instances = (opts.instances) ? opts.instances : slElevInstances(elev, L, eavesH);
 
   // panel lines at 1.0 m cover: full-height to eaves, EXCEPT shortened over a
   // shutter (down to head only) and split over/under a wide window. This is the
@@ -12931,9 +12970,9 @@ function slElevationSVG(b, wall, opts){
   var step = (nPanels > 60) ? Math.ceil(nPanels / 60) : 1;
   var colTop = function(xm){
     // returns [ {y1,y2}, ... ] vertical spans for a panel line at wall-metre xm
-    for (var k = 0; k < openings.length; k++){
-      var o = openings[k].op, g = openings[k].g;
-      if (xm > g.left + 0.001 && xm < g.right - 0.001){
+    for (var k = 0; k < instances.length; k++){
+      var g = instances[k], o = g.op;
+      if (g.w > 0 && xm > g.left + 0.001 && xm < g.right - 0.001){
         if (o.type === 'Roller shutter door'){ return [{ y1: yE, y2: yB - g.h * sy }]; }              // shortened to head
         if (o.type === 'Window' && g.w > 2.0){ return [{ y1: yE, y2: yB - (g.cill + g.h) * sy }, { y1: yB - g.cill * sy, y2: yB }]; }  // split over + under
       }
@@ -12977,8 +13016,8 @@ function slElevationSVG(b, wall, opts){
     if (t === 'Dock leveller') return 'Dock';
     return t;
   };
-  openings.forEach(function(r){
-    var o = r.op, g = r.g;
+  instances.forEach(function(g){
+    var o = g.op;
     if (g.w <= 0 || g.h <= 0) return;
     var ox = mx(g.left), ow = g.w * sx;
     var oyTop = yB - (g.cill + g.h) * sy, oh = g.h * sy;
@@ -13004,7 +13043,7 @@ function slElevationSVG(b, wall, opts){
 
   // base dimension string (orange): sheeting-relevant openings + gaps, else the
   // whole wall length. Closes to L.
-  var base = slElevBaseSegments(L, (elev.openings || []), (b.id || '') + '/' + i);
+  var base = slElevBaseSegments(L, instances, (b.id || '') + '/' + i);
   var yS = yB + 30, cur = 0;
   if (base.segs.filter(function(sg){ return sg.kind === 'op'; }).length > 0){
     base.segs.forEach(function(sg){
@@ -13031,10 +13070,17 @@ function slElevBlock(wall){
   var name = (card ? card + ' elevation' : 'Elevation ' + (i + 1));
   var roleLbl = (typeof FP_ROLE_LABEL !== 'undefined' && FP_ROLE_LABEL[wall.role]) ? FP_ROLE_LABEL[wall.role] : wall.role;
   var bldName = b.name;
-  var sheet = slElevSheetingNote(ar, elev);
+  // One instance list drives the drawing, the sheeting note AND the invariant, so
+  // the caption's openings deduction can never disagree with what is drawn.
+  var insts = slElevInstances(elev, ar.L.value, ar.H.value);
+  var drawn = slElevDrawnOpeningsArea(insts);
+  if (Math.abs(drawn - (ar.openings || 0)) > 0.02 && typeof console !== 'undefined' && console.warn){
+    console.warn('[elevation] openings deduction printed in the caption (' + (Math.round((ar.openings || 0) * 100) / 100) + ' m2) does not equal the sum of the openings drawn (' + (Math.round(drawn * 100) / 100) + ' m2) for building ' + (b.id || '?') + '/' + i + '. Not silently reconciled.');
+  }
+  var sheet = slElevSheetingNote(ar, insts);
   return '<div class="el-block">' +
     '<div class="el-head">' + escapeHtml(name) + '<span class="el-role"> &middot; ' + escapeHtml(roleLbl) + (bldName ? ' &middot; ' + escapeHtml(bldName) : '') + '</span></div>' +
-    '<div class="el-frame">' + slElevationSVG(b, wall, { idSuffix: 'fig-' + (b.id || '0') + '-' + i }) + '</div>' +
+    '<div class="el-frame">' + slElevationSVG(b, wall, { idSuffix: 'fig-' + (b.id || '0') + '-' + i, instances: insts }) + '</div>' +
     '<div class="el-note">' + sheet.note + '</div>' +
     '<div class="el-cap">' + slElevAreaCaption(ar, elev) + '</div>' +
   '</div>';
