@@ -7136,6 +7136,7 @@ function populateForm(data) {
   }
 }
 function resetForm() {
+  if (typeof b2ManualRevealed !== 'undefined' && b2ManualRevealed.clear) b2ManualRevealed.clear();  // capture-first: drop stale manual-reveal state on survey switch
   for (const f of FIELD_MAP) {
     const el = document.getElementById(f.id);
     if (!el) continue;
@@ -15888,6 +15889,14 @@ function addBuilding() {
   const id = nextBuildingId(currentBuildings);
   currentBuildings.push(makeBlankBuilding(id));
   renderBuildings();
+  // CHANGE 1: the first building leads straight into footprint capture (capture
+  // targets buildings[0]). Subsequent buildings just get their card focused - the
+  // capture surface is single-building today, so auto-navigating a 2nd building
+  // would mis-target building 1; they use the card's own capture/manual actions.
+  if (currentBuildings.length === 1) {
+    b2CaptureBuilding();
+    return;
+  }
   const newEl = document.querySelector('details.building[data-building-idx="' + (currentBuildings.length - 1) + '"]');
   if (newEl) {
     newEl.open = true;
@@ -15995,6 +16004,55 @@ function geoClearAndRerender(fn){
   }
   renderBuildings();
 }
+// ===== CAPTURE-FIRST FLOW: B2 add-building leads with capture ==================
+// Planning ruling: capture is the default path; the manual slope editor is the
+// explicit exception. A pristine first building leads with a footprint-capture
+// prompt; "Enter dimensions manually" reveals the legacy editor, subordinate to
+// capture. Existing buildings that already hold manual slope data, and captured
+// buildings, are untouched. b2ManualRevealed is UI-only (never persisted) and is
+// cleared on every survey load/reset so a building id never leaks across surveys.
+var b2ManualRevealed = (typeof Set === 'function') ? new Set() : { has: function(){return false;}, add: function(){}, clear: function(){} };
+function b2BuildingHasManualData(b){
+  if (!b) return false;
+  if (b.widthM != null && b.widthM !== '') return true;
+  if (Array.isArray(b.slopes) && b.slopes.length > 1) return true;
+  return (b.slopes || []).some(function(s){
+    return ['span', 'eaves', 'ridge', 'length', 'roofType', 'notes'].some(function(f){ return s[f] != null && s[f] !== ''; });
+  });
+}
+// Save-then-open enabler: the capture surface loads from the SAVED survey record,
+// so a brand-new (unsaved) survey must be persisted to the list first or capture
+// shows "Survey not found". Mints an id and writes the current form + buildings
+// through, without the full Save flow's goHome/toast. Returns the survey id, or
+// null if storage is full.
+function b2EnsureSurveySaved(){
+  if (currentSurveyId !== null){ persistCurrentEdit(); return currentSurveyId; }
+  var data = collectFormData();
+  var surveys = loadSurveys();
+  var now = new Date().toISOString();
+  var saved = Object.assign({ id: nextSurveyId(), createdAt: now, updatedAt: now }, data);
+  surveys.push(saved);
+  if (!saveSurveysSafe(surveys)) return null;
+  clearDraft();
+  currentSurveyId = saved.id;
+  return currentSurveyId;
+}
+function b2CaptureBuilding(){
+  var sid = b2EnsureSurveySaved();
+  if (sid == null){ showToast('Could not save the survey to open capture.', 'err'); return; }
+  fpOpen(sid);
+}
+function b2RevealManual(bid){
+  b2ManualRevealed.add(bid);
+  renderBuildings();
+}
+function renderCaptureLeadHtml(b, idx){
+  return '<div class="cap-lead" style="display:flex;flex-direction:column;gap:12px;padding:6px 2px 2px;">'
+    + '<p class="cap-lead-copy" style="margin:0;color:var(--muted,#6b6b6d);font-size:0.9rem;line-height:1.5;">Capture this building by drawing its footprint on the plan. The roof area, slopes and edge conditions all derive from the drawing &mdash; nothing to key by hand.</p>'
+    + '<div><button type="button" class="btn btn-primary" onclick="b2CaptureBuilding()">Capture this building on the plan</button></div>'
+    + '<button type="button" class="link-btn cap-lead-manual" onclick="b2RevealManual(\'' + escapeHtml(b.id) + '\')" style="align-self:flex-start;font-size:0.82rem;color:var(--muted,#8a898b);">Enter dimensions manually instead</button>'
+    + '</div>';
+}
 function renderBuildingHtml(b, idx) {
   var capt = fpBuildingCapturedArea(b);
   var captured = capt.value != null;
@@ -16004,11 +16062,17 @@ function renderBuildingHtml(b, idx) {
   const titleHtml = b.name
     ? '<span class="building-name-display">' + escapeHtml(b.name) + '</span>'
     : '<span class="building-name-display placeholder">Building ' + escapeHtml(b.id) + '</span>';
-  const headSubNote = captured ? 'Captured on the plan' : 'Enter the details below';
+  // CHANGE 1: a pristine first building leads with capture; the manual editor is
+  // reached via the subordinate "Enter dimensions manually" action. Buildings that
+  // already hold manual data (legacy surveys) fall through to the editor unchanged.
+  var leadCapture = !captured && idx === 0 && !b2BuildingHasManualData(b) && !b2ManualRevealed.has(b.id);
+  const headSubNote = captured ? 'Captured on the plan' : (leadCapture ? 'Capture on the plan' : 'Enter the details below');
 
   var bodyHtml;
   if (captured) {
     bodyHtml = renderCapturedGeometryHtml(b, idx);
+  } else if (leadCapture) {
+    bodyHtml = renderCaptureLeadHtml(b, idx);
   } else {
     const slopesHtml = b.allEqual ? renderSharedSlopePanel(b, idx) : b.slopes.map((s, si) => renderSlopeBlockHtml(b, idx, s, si)).join('');
     const totalsHtml = b.allEqual ? renderSingleSlopeTotals(b) : renderUnequalTotal(b);
@@ -16035,7 +16099,7 @@ function renderBuildingHtml(b, idx) {
       '</div>' +
       slopesHtml +
       '<div class="building-totals" data-building-totals="' + idx + '">' + totalsHtml + '</div>' +
-      '<div class="field" style="margin-top:0.75rem;"><button type="button" class="btn btn-secondary" onclick="fpOpen(currentSurveyId)">Capture this building</button></div>';
+      '<div class="field" style="margin-top:0.75rem;"><button type="button" class="btn btn-secondary" onclick="b2CaptureBuilding()">Capture this building</button></div>';
   }
 
   return '<details class="building" data-building-idx="' + idx + '" open>' +
@@ -16352,7 +16416,13 @@ function f5UpdateRoofSurfaces(){
   renderRoofComposition();
   var wrap = document.getElementById('roof-area-field-wrap'); if (!wrap) return;
   var res = (typeof estResolveRoofArea === 'function') ? estResolveRoofArea({ buildings: currentBuildings }) : { total: null };
-  wrap.style.display = (res.total != null) ? 'none' : '';
+  // CHANGE 2 (capture-first flow): the derived roof-area field renders ONLY once
+  // estResolveRoofArea yields a figure - so a blank early survey shows no empty
+  // number surface above B2's own asks. A stored Override keeps it visible so a
+  // persisted manual value is never stranded (it round-trips exactly as before).
+  var override = document.getElementById('f-roof-area-override');
+  var overridden = !!(override && override.checked);
+  wrap.style.display = (res.total != null || overridden) ? '' : 'none';
 }
 function f5SetBuildingRoofType(bIdx, val){
   var b = currentBuildings[bIdx]; if (!b) return;
