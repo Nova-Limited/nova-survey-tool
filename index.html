@@ -12480,30 +12480,59 @@ function slSitePlanSVG(b, opts){
   var ox = TX0 + (TW - dw) / 2, oy = TY0 + (TH - dh) / 2;
   var TX = function(x){ return ox + (x - bb.minx) * sc; };
   var TY = function(y){ return oy + (y - bb.miny) * sc; };
-  var wideX = dw >= dh;
+  var drawnWideX = dw >= dh;
+
+  // GEOMETRY RECONCILIATION (amendment 1). The datum dimensions and the multi-bay
+  // repeat must never contradict the drawing. Width is the multi-bay REPEAT axis
+  // (count x bay width); length is the run. Assign the two datum values to the two
+  // drawn axes so the LONGER captured value always lands on the LONGER drawn axis
+  // (ordering is enforced; not-to-scale covers proportion only), and so the width
+  // (repeat) axis carries the bay tick, the valley texture and the width dimension
+  // together, with valleys perpendicular to the width dimension line.
+  var Ldim = (typeof fpDatumLength === 'function') ? srNum(fpDatumLength(b)) : null;
+  var Wdim = srNum(((b && b.datum) || {}).widthM);
+  var wIsLarger = (Wdim != null && Ldim != null) ? (Wdim >= Ldim) : (Wdim != null && Ldim == null ? true : false);
+  var wOnX = drawnWideX ? wIsLarger : !wIsLarger;   // does the width (repeat) axis run horizontally?
+  var xDimVal = wOnX ? Wdim : Ldim;                 // value shown on the horizontal axis
+  var yDimVal = wOnX ? Ldim : Wdim;                 // value shown on the vertical axis
 
   var pts = fp.corners.map(function(c){ return (Math.round(TX(c.x) * 10) / 10) + ',' + (Math.round(TY(c.y) * 10) / 10); }).join(' ');
   if (hasAsb) h += '<polygon points="' + pts + '" fill="url(#' + idp + '-asb)" stroke="none"/>';
   h += '<polygon points="' + pts + '" fill="' + (hasAsb ? 'none' : 'rgba(67,66,68,0.04)') + '" stroke="' + INK + '" stroke-width="2" stroke-linejoin="round"/>';
 
-  // multi-bay: a LEGIBLE texture (density capped), the caption carries true counts
+  // multi-bay: a LEGIBLE texture (density capped), the caption carries true counts.
+  // Valleys are perpendicular to the WIDTH (repeat) axis and spaced ACROSS it.
   var bf = (form === 'multi-bay' && typeof fpBayFigures === 'function') ? fpBayFigures(b) : null;
+  var bayW = bf ? srNum((b.bays && b.bays[0] && b.bays[0].widthM)) : null;
+  var drawn = bf ? Math.min(bf.totalBays, 8) : 0;
   if (bf && bf.totalBays >= 2){
-    var drawn = Math.min(bf.totalBays, 8);
-    for (var i = 1; i < drawn; i++){
-      if (wideX){ var vx = ox + dw * i / drawn; h += '<line x1="' + vx + '" y1="' + (oy + 8) + '" x2="' + vx + '" y2="' + (oy + dh - 8) + '" stroke="' + LINE + '" stroke-width="0.8" stroke-dasharray="3 3"/>'; }
-      else { var vy = oy + dh * i / drawn; h += '<line x1="' + (ox + 8) + '" y1="' + vy + '" x2="' + (ox + dw - 8) + '" y2="' + vy + '" stroke="' + LINE + '" stroke-width="0.8" stroke-dasharray="3 3"/>'; }
+    // ARITHMETIC CLOSURE: count x bay width must equal the repeat-axis dimension
+    // within 0.1 m. If the captured values do not close, render them as captured
+    // and warn - never silently redraw the numbers.
+    if (bayW != null && Wdim != null && Math.abs(bf.totalBays * bayW - Wdim) > 0.1 && typeof console !== 'undefined' && console.warn){
+      console.warn('[site plan] bay arithmetic does not close for building ' + (b.id || '?') + ': ' + bf.totalBays + ' x ' + bayW + ' m = ' + (Math.round(bf.totalBays * bayW * 10) / 10) + ' m, but width datum = ' + Wdim + ' m. Rendering from captured values.');
     }
+    var k;
+    if (wOnX){ for (k = 1; k < drawn; k++){ var vx = ox + dw * k / drawn; h += '<line x1="' + vx + '" y1="' + (oy + 8) + '" x2="' + vx + '" y2="' + (oy + dh - 8) + '" stroke="' + LINE + '" stroke-width="0.8" stroke-dasharray="3 3"/>'; } }
+    else { for (k = 1; k < drawn; k++){ var vy = oy + dh * k / drawn; h += '<line x1="' + (ox + 8) + '" y1="' + vy + '" x2="' + (ox + dw - 8) + '" y2="' + vy + '" stroke="' + LINE + '" stroke-width="0.8" stroke-dasharray="3 3"/>'; } }
   }
-  // ridge line (centre-ridge pitched forms), subtle
+  // ridge line (centre-ridge pitched forms, never multi-bay) along the long axis
   if (typeof FP_RIDGE_FORMS !== 'undefined' && FP_RIDGE_FORMS.indexOf(form) > -1){
-    if (wideX){ var ry = oy + dh / 2; h += '<line x1="' + (ox + 14) + '" y1="' + ry + '" x2="' + (ox + dw - 14) + '" y2="' + ry + '" stroke="#c9a06a" stroke-width="1.4" stroke-dasharray="6 4"/>'; }
+    if (drawnWideX){ var ry = oy + dh / 2; h += '<line x1="' + (ox + 14) + '" y1="' + ry + '" x2="' + (ox + dw - 14) + '" y2="' + ry + '" stroke="#c9a06a" stroke-width="1.4" stroke-dasharray="6 4"/>'; }
     else { var rx = ox + dw / 2; h += '<line x1="' + rx + '" y1="' + (oy + 14) + '" x2="' + rx + '" y2="' + (oy + dh - 14) + '" stroke="#c9a06a" stroke-width="1.4" stroke-dasharray="6 4"/>'; }
   }
 
-  // edge condition labels (INK), placed just inside each edge the record holds a
-  // cond for. Side (vertical) edges anchor so the text grows INWARD and never
-  // crosses the linework; top/bottom edges sit inside, centred.
+  // edge condition labels (INK) with a PAPER KNOCKOUT behind each (amendment 2) so
+  // no edge stroke, valley texture or hatch ever strikes through the text. Offset
+  // inside its edge so the knockout box also clears the polygon stroke.
+  var knockLabel = function(tx, ty, anchor, txt, fs){
+    fs = fs || 8.5;
+    var tw = String(txt).length * fs * 0.56 + 5, th = fs + 2.5;
+    var rx = (anchor === 'start') ? (tx - 2.5) : (anchor === 'end') ? (tx - tw + 2.5) : (tx - tw / 2);
+    var ry = ty - fs + 1.5;
+    return '<rect x="' + (Math.round(rx * 10) / 10) + '" y="' + (Math.round(ry * 10) / 10) + '" width="' + (Math.round(tw * 10) / 10) + '" height="' + (Math.round(th * 10) / 10) + '" rx="1.5" fill="' + PAPER + '"/>'
+      + '<text x="' + Math.round(tx) + '" y="' + Math.round(ty) + '" text-anchor="' + anchor + '" fill="' + INK + '" font-family="Helvetica,Arial,sans-serif" font-size="' + fs + '" font-weight="600">' + escapeHtml(txt) + '</text>';
+  };
   var ctrx = ox + dw / 2, ctry = oy + dh / 2;
   (fp.edges || []).forEach(function(e, i){
     if (e.type === 'curved' || !e.cond) return;
@@ -12517,35 +12546,40 @@ function slSitePlanSVG(b, opts){
     var vertical = Math.abs(evy) > Math.abs(evx);
     var tx, ty, anchor;
     if (vertical){ if (mx < ctrx){ anchor = 'start'; tx = mx + 6; } else { anchor = 'end'; tx = mx - 6; } ty = my + 3; }
-    else { anchor = 'middle'; tx = mx; ty = (my < ctry) ? (my + 13) : (my - 8); }
-    h += '<text x="' + Math.round(tx) + '" y="' + Math.round(ty) + '" text-anchor="' + anchor + '" fill="' + INK + '" font-family="Helvetica,Arial,sans-serif" font-size="8.5" font-weight="600">' + escapeHtml(shortL) + '</text>';
+    else { anchor = 'middle'; tx = mx; ty = (my < ctry) ? (my + 14) : (my - 9); }
+    h += knockLabel(tx, ty, anchor, shortL, 8.5);
   });
 
-  // ORANGE datum dimensions - from the keyed datum, never scaled from the drawing
+  // ORANGE datum dimensions - reconciled to the drawn axes (amendment 1). The
+  // horizontal dim shows xDimVal, the vertical shows yDimVal (larger on longer).
   var dimLine = function(x1, y1, x2, y2, vertical){
     var g = '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + ORANGE + '" stroke-width="1"/>';
     if (vertical){ g += '<line x1="' + (x1-3) + '" y1="' + y1 + '" x2="' + (x1+3) + '" y2="' + y1 + '" stroke="' + ORANGE + '" stroke-width="1"/><line x1="' + (x2-3) + '" y1="' + y2 + '" x2="' + (x2+3) + '" y2="' + y2 + '" stroke="' + ORANGE + '" stroke-width="1"/>'; }
     else { g += '<line x1="' + x1 + '" y1="' + (y1-3) + '" x2="' + x1 + '" y2="' + (y1+3) + '" stroke="' + ORANGE + '" stroke-width="1"/><line x1="' + x2 + '" y1="' + (y2-3) + '" x2="' + x2 + '" y2="' + (y2+3) + '" stroke="' + ORANGE + '" stroke-width="1"/>'; }
     return g;
   };
-  var lenTxt = (typeof fpDatumLength === 'function') ? dimTxt(fpDatumLength(b)) : null;
-  var depthTxt = dimTxt(((b && b.datum) || {}).widthM);
-  if (lenTxt){
+  var xTxt = dimTxt(xDimVal), yTxt = dimTxt(yDimVal);
+  if (xTxt){
     var ly2 = oy + dh + 20;
     h += dimLine(ox, ly2, ox + dw, ly2, false);
-    h += '<text x="' + (ox + dw/2) + '" y="' + (ly2 + 13) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="700">' + escapeHtml(lenTxt) + '</text>';
+    h += '<text x="' + (ox + dw/2) + '" y="' + (ly2 + 13) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="700">' + escapeHtml(xTxt) + '</text>';
   }
-  if (depthTxt){
+  if (yTxt){
     var dx2 = ox - 20;
     h += dimLine(dx2, oy, dx2, oy + dh, true);
-    h += '<text x="' + (dx2 - 4) + '" y="' + (oy + dh/2) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="700" transform="rotate(-90 ' + (dx2-4) + ' ' + (oy+dh/2) + ')">' + escapeHtml(depthTxt) + '</text>';
+    h += '<text x="' + (dx2 - 4) + '" y="' + (oy + dh/2) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="10" font-weight="700" transform="rotate(-90 ' + (dx2-4) + ' ' + (oy+dh/2) + ')">' + escapeHtml(yTxt) + '</text>';
   }
-  if (bf && bf.totalBays >= 2){
-    var bwTxt = dimTxt((b.bays && b.bays[0] && b.bays[0].widthM));
+  // one bay width tick, on the WIDTH (repeat) axis - the same axis as the width dim
+  if (bf && bf.totalBays >= 2 && bayW != null){
+    var bwTxt = dimTxt(bayW);
     if (bwTxt){
-      var drawn2 = Math.min(bf.totalBays, 8), bx2 = ox + dw / drawn2, by2 = oy - 16;
-      h += dimLine(ox, by2, bx2, by2, false);
-      h += '<text x="' + ((ox + bx2)/2) + '" y="' + (by2 - 5) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="9" font-weight="700">' + escapeHtml(bwTxt) + ' bay</text>';
+      if (wOnX){ var bx2 = ox + dw / drawn, by2 = oy - 16;
+        h += dimLine(ox, by2, bx2, by2, false);
+        h += '<text x="' + ((ox + bx2)/2) + '" y="' + (by2 - 5) + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="9" font-weight="700">' + escapeHtml(bwTxt) + ' bay</text>';
+      } else { var bx3 = ox + dw + 18, by3 = oy + dh / drawn, bmy = oy + (dh / drawn) / 2;
+        h += dimLine(bx3, oy, bx3, by3, true);
+        h += '<text x="' + (bx3 + 4) + '" y="' + bmy + '" text-anchor="middle" fill="' + ORANGE + '" font-family="Helvetica,Arial,sans-serif" font-size="9" font-weight="700" transform="rotate(-90 ' + (bx3 + 4) + ' ' + bmy + ')">' + escapeHtml(bwTxt) + ' bay</text>';
+      }
     }
   }
 
