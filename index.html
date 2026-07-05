@@ -9919,6 +9919,15 @@ function fpPointsStr(fp){ return (fp.corners || []).map(function(c){ return (Mat
 
 function fpOpen(id){
   fpCurrentId = id || currentSurveyId;
+  // The capture surface authors per-building data (footprint, edges, roles,
+  // conditions, datum) straight onto the stored record via srPersist. The form's
+  // edit buffer (currentBuildings) does not carry any of it, so the form autosave
+  // - which persists collectFormData() over the record every 10 s once a survey id
+  // exists - would overwrite and WIPE the capture in progress, leaving every
+  // subsequent edge selection dead. The form is already persisted on capture entry
+  // (b2EnsureSurveySaved), and re-entering the form restarts the autosave, so
+  // stopping it here loses nothing.
+  if (typeof stopAutoSave === 'function') stopAutoSave();
   fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null;
   if (typeof showView === 'function') showView('footprint');
   fpRender();
