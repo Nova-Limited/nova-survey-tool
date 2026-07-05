@@ -1570,6 +1570,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   transform: translateX(-50%); background: var(--dark); color: white;
   padding: 0.85rem 1.25rem; border-radius: 6px; font-weight: 600; font-size: 0.92rem;
   z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  pointer-events: none;   /* a transient toast must never intercept a tap (e.g. the tap-to-place bottom sheet under it) */
   max-width: calc(100vw - 2rem); text-align: center;
 }
 #toast.ok { background: var(--green); }
@@ -4195,7 +4196,20 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-feat-chip { background: #e3f1f3; border: 1px solid #2b8a99; color: #1f6570; }
     #view-footprint .fp-feat-chip.has-photo::after { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #2b8a99; margin-left: 5px; }
     #view-footprint .fp-fault-chip { background: #fbe8e6; border: 1px solid #c0392b; color: #a23325; font-weight: 800; }
-    #view-footprint .fp-place-picker { min-width: 170px; z-index: 5; }
+    /* tap-to-place: a pulsing temporary pin at the tapped point (pointer-events:none
+       so a further tap moves it); the chooser is the bottom sheet .fp-place-sheet. */
+    #view-footprint .fp-place-pin { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; pointer-events: none; z-index: 6; }
+    #view-footprint .fp-place-pin-dot { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%); background: #F7901E; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
+    #view-footprint .fp-place-pin-ring { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid #F7901E; opacity: 0; animation: fpPinPulse 1.3s ease-out infinite; }
+    #view-footprint .fp-place-pin-fault .fp-place-pin-dot { background: #c0392b; }
+    #view-footprint .fp-place-pin-fault .fp-place-pin-ring { border-color: #c0392b; }
+    @keyframes fpPinPulse { 0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.9; } 100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; } }
+    /* a true bottom sheet (pinned to the viewport bottom) so the type buttons are
+       always fully visible and reachable on a phone, whatever the scroll or where
+       on the plan the pin sits; reuses the .fp-sheet card vocabulary. */
+    #view-footprint .fp-place-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0; max-width: none; border: 1px solid #F7901E; border-bottom: none; border-radius: 14px 14px 0 0; background: #fff7ef; max-height: 62vh; overflow-y: auto; box-shadow: 0 -8px 26px rgba(0,0,0,0.16); padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); }
+    #view-footprint .fp-place-sheet .fp-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+    @media (min-width: 620px) { #view-footprint .fp-place-sheet { left: 50%; right: auto; transform: translateX(-50%); width: 520px; max-width: 92vw; } }
     /* stage 4: wall elevations */
     #view-footprint .fp-elevs { margin-top: 16px; max-width: 480px; }
     #view-footprint .fp-elev-card { border: 1px solid #ece9e2; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
@@ -10082,20 +10096,18 @@ function fpRender(){
     fpPlottedFaults(survey, 0).forEach(function(fl){
       hit += '<button class="fp-chip fp-fault-chip" style="left:' + (fl.footprintLoc.x / 3) + '%;top:' + (fl.footprintLoc.y / 3) + '%;" onclick="fpFaultOpenId=\'' + fl.id + '\';fpRender();">Fault ' + (fl.number || '') + '</button>';
     });
-    // tap-to-place pickers - a small popover at the tapped point
+    // tap-to-place: a clearly visible temporary PIN (pulsing ring) at the tapped
+    // point. The chooser is a BOTTOM SHEET below the canvas (fpRenderPlaceSheet),
+    // not a popover over the plan - on a phone the old popover was taller than the
+    // 350px canvas, clipped by the wrap's overflow:hidden and hit-tested to the SVG
+    // underneath (or ran off-screen near edges/corners), so taps meant for a type
+    // button just moved the pin. The pin is pointer-events:none, so tapping the
+    // plan again moves it rather than blocking the placement handler.
     if (fpFeaturePick){
-      hit += '<div class="fp-elev-picker fp-place-picker" style="left:' + (fpFeaturePick.x / 3) + '%;top:' + (fpFeaturePick.y / 3) + '%;">';
-      FP_FEATURE_TYPES.forEach(function(t){ hit += '<button class="fp-opt" onclick="fpFeatureAddType(\'' + t.replace(/'/g, "\\'") + '\')">' + escapeHtml(t) + '</button>'; });
-      hit += '<button class="fp-sheet-2nd" onclick="fpFeatureCancelPick()">Cancel</button></div>';
+      hit += '<span class="fp-place-pin fp-place-pin-feature" style="left:' + (fpFeaturePick.x / 3) + '%;top:' + (fpFeaturePick.y / 3) + '%;"><span class="fp-place-pin-ring"></span><span class="fp-place-pin-dot"></span></span>';
     }
     if (fpFaultPick){
-      var existingFaults = fpFaultsForBuilding(survey);
-      hit += '<div class="fp-elev-picker fp-place-picker" style="left:' + (fpFaultPick.x / 3) + '%;top:' + (fpFaultPick.y / 3) + '%;">';
-      hit += '<button class="fp-opt" onclick="fpFaultPinNew()">+ New defect photo here</button>';
-      existingFaults.forEach(function(fl){
-        hit += '<button class="fp-opt" onclick="fpFaultPin(\'' + fl.id + '\')">Fault ' + (fl.number || '') + (fl.faultType ? ' &middot; ' + escapeHtml(fl.faultType) : '') + (fl.footprintLoc ? ' (move pin)' : '') + '</button>';
-      });
-      hit += '<button class="fp-sheet-2nd" onclick="fpFaultCancelPick()">Cancel</button></div>';
+      hit += '<span class="fp-place-pin fp-place-pin-fault" style="left:' + (fpFaultPick.x / 3) + '%;top:' + (fpFaultPick.y / 3) + '%;"><span class="fp-place-pin-ring"></span><span class="fp-place-pin-dot"></span></span>';
     }
     // corner marks (small, decorative) + selected ring; the tappable area is the overlay
     fp.corners.forEach(function(c, i){
@@ -10124,6 +10136,10 @@ function fpRender(){
     }
     h += '<div class="fp-hint-txt">Tap an <b>edge chip</b> to set its condition and key its run &middot; drag a corner to move it &middot; tap a corner then <b>Remove</b>. ' +
       (fp.corners.length) + ' corners, ' + fp.edges.length + ' straight edges.</div></div>';
+    // Stage 4 tap-to-place chooser: a bottom sheet directly below the plan (shown
+    // while a feature/fault pin is dropped), so the type buttons are always fully
+    // visible and tappable regardless of where on the plan the pin sits.
+    h += fpRenderPlaceSheet(survey);
     // Stage 2 contextual panels: edge/ridge sheet, keypad, keyed datum, computed runs
     h += fpRenderEdgeSheet(survey);
     h += fpRenderKeypad();
@@ -11140,7 +11156,7 @@ function fpFeatures(b){ return (b && Array.isArray(b.features)) ? b.features : n
 function fpEnsureFeatures(b){ if (!Array.isArray(b.features)) b.features = []; return b.features; }
 function fpTogglePlace(mode){
   fpPlaceMode = (fpPlaceMode === mode) ? null : mode;
-  fpFaultPick = null;
+  fpFaultPick = null; fpFeaturePick = null;   // arming/disarming clears any dropped pin + its sheet
   fpRender();
 }
 // clamp a tapped point away from the frame edge, where corner handles and edge
@@ -11272,6 +11288,38 @@ function fpRenderPlaceToolbar(){
   h += '</div>';
   if (fpPlaceMode) h += '<div class="fp-place-hint">Tap the plan to ' + (fpPlaceMode === 'feature' ? 'place a feature' : 'pin a defect photo') + ' &middot; <a href="#" onclick="event.preventDefault();fpTogglePlace(\'' + fpPlaceMode + '\')">Cancel</a></div>';
   return h;
+}
+// Tap-to-place chooser as a bottom sheet (the app's .fp-sheet vocabulary),
+// rendered below the canvas - NOT a popover over the plan. Replaces the old
+// tap-point popover for BOTH feature placement and fault pinning (the popover was
+// clipped/occluded/off-plan on a phone). The pin marks the point; choosing here
+// creates the feature/fault at the pin exactly as before (same handlers, data
+// shapes, srPersist); Cancel clears the pin. Because the sheet sits outside the
+// canvas, its taps cannot reach the canvas placement handler.
+function fpRenderPlaceSheet(survey){
+  if (fpFeaturePick){
+    var hf = '<div class="fp-sheet fp-place-sheet">';
+    hf += '<div class="fp-sheet-head"><span class="fp-sheet-title">Place a feature</span><button class="fp-sheet-x" onclick="fpFeatureCancelPick()">Cancel</button></div>';
+    hf += '<div class="fp-sheet-sub">Choose the type &middot; it drops at the pin on the plan &middot; tap the plan again to move the pin</div>';
+    hf += '<div class="fp-opts">';
+    FP_FEATURE_TYPES.forEach(function(t){ hf += '<button class="fp-opt" onclick="fpFeatureAddType(\'' + t.replace(/'/g, "\\'") + '\')">' + escapeHtml(t) + '</button>'; });
+    hf += '</div></div>';
+    return hf;
+  }
+  if (fpFaultPick){
+    var existingFaults = fpFaultsForBuilding(survey);
+    var hx = '<div class="fp-sheet fp-place-sheet">';
+    hx += '<div class="fp-sheet-head"><span class="fp-sheet-title">Pin a fault</span><button class="fp-sheet-x" onclick="fpFaultCancelPick()">Cancel</button></div>';
+    hx += '<div class="fp-sheet-sub">Drop a new defect photo at the pin, or move an existing fault to it &middot; tap the plan again to move the pin</div>';
+    hx += '<div class="fp-opts">';
+    hx += '<button class="fp-opt" onclick="fpFaultPinNew()">+ New defect photo here</button>';
+    existingFaults.forEach(function(fl){
+      hx += '<button class="fp-opt" onclick="fpFaultPin(\'' + fl.id + '\')">Fault ' + (fl.number || '') + (fl.faultType ? ' &middot; ' + escapeHtml(fl.faultType) : '') + (fl.footprintLoc ? ' (move pin)' : '') + '</button>';
+    });
+    hx += '</div></div>';
+    return hx;
+  }
+  return '';
 }
 function fpRenderFeatureSheet(survey){
   if (fpFeatureSheet == null) return '';
