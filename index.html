@@ -10501,6 +10501,9 @@ function fpRunsForBuildingObj(b){
   return { perimeter: (keyedEdges + derivedEdges) ? perimeter : null, gutterRun: gutterRun || null, rake: sr.value, rakeSource: sr.source, vergeCount: vergeCount, ridgeRun: ridgeRun, ridgeSource: ridgeSource, keyedEdges: keyedEdges, derivedEdges: derivedEdges, totalEdges: (fp.edges || []).length };
 }
 function fpM(n){ return (n == null) ? '—' : (Math.round(n * 100) / 100) + ' m'; }
+// Area formatter - the squared unit, so cladding/area readouts never render in
+// linear metres. Same null token as fpM (the app-wide 'no value' glyph).
+function fpAreaM2(n){ return (n == null) ? '—' : (Math.round(n * 100) / 100) + ' m²'; }
 
 // --- edge sheet / ridge sheet / keypad / datum handlers ---
 function fpOpenEdge(i){ fpEdgeSheet = i; fpKeypad = null; fpRender(); }
@@ -11028,8 +11031,7 @@ function fpRenderElevations(survey){
   (fp.edges || []).forEach(function(e, i){
     if (e.type === 'curved') return;
     var role0 = fpEdgeRole(fp, e, i, form);
-    var card0 = (typeof slElevCardinal === 'function') ? slElevCardinal(fp, i) : null;
-    var name0 = card0 ? (card0 + ' wall') : ('Wall ' + (i + 1));
+    var name0 = slElevName(fp, i);   // "Elevation N" in stable edge order (one source)
     var captured0 = (typeof slElevIsCaptured === 'function') ? slElevIsCaptured(fpEnsureElevation(fp, i)) : false;
     var open0 = !!(fpElevOpen && fpElevOpen[i]);
     h += '<button class="fp-elev-chip' + (captured0 ? ' done' : '') + (open0 ? ' open' : '') + '" onclick="fpElevToggleWall(' + i + ')">' +
@@ -11044,7 +11046,7 @@ function fpRenderElevations(survey){
     var role = fpEdgeRole(fp, e, i, form);
     var elev = fpEnsureElevation(fp, i);
     var ar = fpElevArea(fp, i, b);
-    var wname = ((typeof slElevCardinal === 'function') && slElevCardinal(fp, i)) ? (slElevCardinal(fp, i) + ' wall') : ('Elevation ' + (i + 1));
+    var wname = slElevName(fp, i);   // same "Elevation N" as the chip
     h += '<div class="fp-elev-card">';
     h += '<div class="fp-bay-head"><span class="fp-bay-title">' + escapeHtml(wname) + ' &middot; ' + escapeHtml(FP_ROLE_LABEL[role]) + '</span><button class="fp-sheet-x" onclick="fpElevToggleWall(' + i + ')">Close</button></div>';
     h += '<div class="fp-roles">';
@@ -11105,12 +11107,13 @@ function fpRenderElevations(survey){
         h += '</div>';
       }
     }
-    // area readout - readout only, feeds nothing this stage
-    var parts = [ fpM(ar.rect) + ' rect' ];
-    if (ar.shape === 'gable') parts.push((ar.triangle != null ? fpM(ar.triangle) : '—') + ' triangle');
-    parts.push('&minus; ' + fpM(ar.openings) + ' openings');
+    // area readout - readout only, feeds nothing this stage. Cladding is an AREA:
+    // rect, triangle, openings and net all render in m² (was linear m).
+    var parts = [ fpAreaM2(ar.rect) + ' rect' ];
+    if (ar.shape === 'gable') parts.push(fpAreaM2(ar.triangle) + ' triangle');
+    parts.push('&minus; ' + fpAreaM2(ar.openings) + ' openings');
     h += '<div class="fp-elev-area"><span class="fp-elev-area-lbl">Cladding area <span class="fp-src-tag">derived</span></span>' +
-      '<span class="fp-elev-area-val">' + fpM(ar.net) + '</span><span class="fp-run-note">' + parts.join(' + ').replace('+ &minus;', '&minus;') + '</span></div>';
+      '<span class="fp-elev-area-val">' + fpAreaM2(ar.net) + '</span><span class="fp-run-note">' + parts.join(' + ').replace('+ &minus;', '&minus;') + '</span></div>';
     h += '</div>';
   });
   if (!anyWallOpen) h += '<div class="fp-note">Tap a wall chip above to capture its elevation.</div>';
@@ -12916,6 +12919,19 @@ function slElevCardinal(fp, i){
   if (Math.abs(dy) >= Math.abs(dx)) return dy < 0 ? 'North' : 'South';
   return dx > 0 ? 'East' : 'West';
 }
+// Jamie's ruling: walls are named "Elevation 1", "Elevation 2", ... in the stable
+// drawing order of the footprint edges (1-based position among the non-curved
+// perimeter edges), NOT by cardinal orientation - L/T/U/stepped footprints exceed
+// four walls and can face duplicate directions. This is the ONE source of the
+// wall number, used by the capture chips, the capture card header AND Figure 4.3,
+// so surveyor and client speak one language. Orientation stays on the north arrow.
+function slElevNumber(fp, i){
+  if (!fp || !Array.isArray(fp.edges)) return i + 1;
+  var n = 0;
+  for (var k = 0; k <= i && k < fp.edges.length; k++){ if (fp.edges[k].type !== 'curved') n++; }
+  return n;
+}
+function slElevName(fp, i){ return 'Elevation ' + slElevNumber(fp, i); }
 // Is this opening relevant to the sheeting dimension string? Roller shutters
 // always; windows only when over 2.0 m wide (doors and <=2.0 m windows are drawn
 // but ordered as full panels, cut on site).
@@ -13209,8 +13225,7 @@ function slElevationSVG(b, wall, opts){
 // note, the area caption.
 function slElevBlock(wall){
   var b = wall.b, fp = b.footprint, i = wall.i, elev = wall.elev, ar = wall.ar;
-  var card = slElevCardinal(fp, i);
-  var name = (card ? card + ' elevation' : 'Elevation ' + (i + 1));
+  var name = slElevName(fp, i);   // "Elevation N", same edge order as the capture chips (one source)
   var roleLbl = (typeof FP_ROLE_LABEL !== 'undefined' && FP_ROLE_LABEL[wall.role]) ? FP_ROLE_LABEL[wall.role] : wall.role;
   var bldName = b.name;
   // One instance list drives the drawing, the sheeting note AND the invariant, so
