@@ -3849,7 +3849,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   <section id="view-returns" class="view">
     <div class="container wide">
       <div class="view-header">
-        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">← Back to survey</button>
+        <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">← Back to survey</button>
         <h1>Subcontractor returns</h1>
         <div class="meta">Hold each priced return against the pack and compare line by line against your allocated cost. The subby price is a cost-side check; it does not drive the client estimate.</div>
       </div>
@@ -3860,7 +3860,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   <section id="view-ledger" class="view">
     <div class="container wide">
       <div class="view-header">
-        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">← Back to survey</button>
+        <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">← Back to survey</button>
         <h1>Job cost ledger</h1>
         <div class="meta">Real profit per task: the sell price you quoted against what the work actually cost. Margin is sell minus actual, not estimated. The post-win actuals record for repairs.</div>
       </div>
@@ -3871,7 +3871,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   <section id="view-estledger" class="view">
     <div class="container wide">
       <div class="view-header">
-        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
         <h1>Estimate cost ledger</h1>
         <div class="meta">Build the estimate item by item, grouped under elements, exactly like the MASTER Cost Breakdown tab: a materials and a labour build-up per item gives the Total to Client, then actuals as the job runs reveal the real margin. Seed from the works engine or build by hand.</div>
       </div>
@@ -4060,7 +4060,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   <section id="view-proposal" class="view">
     <div class="container wide">
       <div class="view-header">
-        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
         <h1>Works proposal</h1>
         <div class="meta">Four routes compared for this roof, with indicative figures from the roof area and your per-system rates, then each route in detail (what you get / what to consider). Pick the routes to present and record the accepted one. Indicative, plus VAT, pending final measure.</div>
       </div>
@@ -4286,7 +4286,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   <section id="view-flow" class="view">
     <div class="container wide">
       <div class="view-header">
-        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
         <h1>Survey progress</h1>
         <div class="meta">What is captured, what is left, in the order the visit purpose puts first. Nothing here is locked; tap any step to jump straight to it.</div>
       </div>
@@ -4296,7 +4296,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   <section id="view-handoff" class="view">
     <div class="container wide">
       <div class="view-header">
-        <button class="link-btn" onclick="showView('detail')" style="align-self:flex-start;">&larr; Back to survey</button>
+        <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
         <h1>Finish the visit</h1>
         <div class="meta">What this visit produces, based on its purpose.</div>
       </div>
@@ -6727,8 +6727,7 @@ function goToSurvey(id) {
   const s = loadSurveys().find(x => x.id === id);
   if (!s) { showToast('Survey not found', 'err'); return; }
   currentSurveyId = id;
-  renderSurveyDetail(s);
-  showView('detail');
+  goDetail();
 }
 
 function editCurrent() {
@@ -6976,8 +6975,7 @@ function backToDetail() {
   const s = loadSurveys().find(x => x.id === reportSurveyId);
   if (!s) { goHome(); return; }
   currentSurveyId = reportSurveyId;
-  renderSurveyDetail(s);
-  showView('detail');
+  goDetail();
 }
 
 // ---- Form collect / populate / reset (FIELD_MAP-driven) ----
@@ -9960,14 +9958,26 @@ function fpOpen(id){
 // never-rendered detail body - the blank "Survey" screen from the field. Render
 // the detail for the capture-current survey (which now carries the capture
 // checklist) and show it; fall back home if the survey somehow vanished.
-function fpBackToDetail(){
-  var sid = fpCurrentId || currentSurveyId;
+// THE single detail-view choke point. EVERY navigation to the survey detail goes
+// through here, so the detail is ALWAYS rendered before it shows - the blank-detail
+// class (a bare showView('detail') over a never-rendered body) is structurally
+// impossible. Falls back to a plain view switch when there is no current survey,
+// so non-survey contexts cannot break. This is the ONLY showView('detail') in the
+// file; no other navigation may call showView('detail') directly.
+function goDetail(){
+  var sid = currentSurveyId || (typeof fpCurrentId !== 'undefined' ? fpCurrentId : null);
   var s = sid ? srLoadSurvey(sid) : null;
-  if (!s){ if (typeof goHome === 'function') goHome(); return; }
-  currentSurveyId = sid;
-  flowCurrentId = sid;   // the landing checklist and its quick-action read this
-  renderSurveyDetail(s);
+  if (s){
+    currentSurveyId = sid;
+    if (typeof flowCurrentId !== 'undefined') flowCurrentId = sid;   // the checklist + quick-action read this
+    renderSurveyDetail(s);
+  }
   if (typeof showView === 'function') showView('detail');
+}
+// Capture exit: prefer the capture-current survey, then delegate to goDetail.
+function fpBackToDetail(){
+  if (fpCurrentId) currentSurveyId = fpCurrentId;
+  goDetail();
 }
 
 function fpRender(){
@@ -10291,8 +10301,12 @@ function fpPlace(){
   var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey);
   if (!fp){ showToast('Pick a shape or draw an outline first.', 'err'); return; }
   var b = fpBuilding(survey);
-  showToast('Footprint placed - ' + fp.corners.length + ' corners, ' + (b.roofForm || 'duo-pitch') + '.', 'ok');
-  if (typeof showView === 'function') showView('detail');
+  // Placing the footprint is capture STAGE ONE - it must not eject the surveyor
+  // from capture. Confirm and re-render the capture surface in place, with the
+  // placed footprint and the subsequent stages (edges, datum, elevations,
+  // features) ready. The surveyor leaves capture only via Back to survey.
+  showToast('Footprint placed · ' + fp.corners.length + ' corners · ' + (b.roofForm || 'duo-pitch'), 'ok');
+  fpRender();
 }
 
 // ===== NOVA SURVEY CAPTURE REBUILD - STAGE 2: EDGE CONDITIONS + KEYED DATUM ==
@@ -12082,10 +12096,7 @@ function ppBackToDetail(){
   // pack was launched from. backToDetail() relies on reportSurveyId (a report-only
   // value) and would fall through to home, so return via currentSurveyId directly.
   var st = document.getElementById('pp-active-page'); if (st && st.parentNode) st.parentNode.removeChild(st);
-  var s = (typeof loadSurveys === 'function') ? loadSurveys().find(function(x){ return x.id === currentSurveyId; }) : null;
-  if (s && typeof renderSurveyDetail === 'function'){ renderSurveyDetail(s); showView('detail'); }
-  else if (typeof backToDetail === 'function'){ backToDetail(); }
-  else if (typeof showView === 'function'){ showView('detail'); }
+  goDetail();   // the single choke point: renders currentSurveyId's detail, then shows it
 }
 function generatePricingPack(surveyId){
   var s = loadSurveys().find(function(x){ return x.id === (surveyId || currentSurveyId); });
