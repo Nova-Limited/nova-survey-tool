@@ -1560,19 +1560,9 @@ input.derived-field { background: #f6f8fa; color: #555; }
 .detail-row .v.empty { color: var(--muted); font-style: italic; font-weight: 400; }
 .detail-notes { white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55; padding: 0.5rem 0; color: var(--ink-2); }
 
-/* Capture checklist: reuses the detail-row + pill vocabulary; each row is a
-   direct entry point into the surface where that stage is captured. */
-.cap-checklist-sub { font-size: 0.8rem; color: var(--muted); margin: 0.1rem 0 0.4rem; }
-.cap-check-row {
-  display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%;
-  padding: 0.5rem 0.2rem; border: none; border-bottom: 1px solid var(--rule); background: none;
-  font-family: inherit; font-size: 0.92rem; cursor: pointer; text-align: left; color: var(--ink);
-}
-.cap-check-row:last-child { border-bottom: none; }
-.cap-check-row .k { color: var(--ink); font-weight: 600; flex: 1; }
-.cap-check-row:hover { background: var(--light); }
-.cap-check-row.cap-check-next .k { color: var(--orange); }
-.cap-checklist .pill { font-size: 0.72rem; }
+/* Post-capture landing checklist sub-heading (the rows themselves render via the
+   ONE unified flow-step renderer, styled by the .flow-wrap rules). */
+.cap-checklist-sub { font-size: 0.8rem; color: var(--muted); margin: 0.1rem 0 0.6rem; }
 
 /* TOAST */
 #toast {
@@ -4258,20 +4248,26 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-flow .flow-pct-label { font-size: 11px; color: #8a898b; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; }
     #view-flow .flow-bar-track { height: 10px; border-radius: 6px; background: #ece9e2; overflow: hidden; margin: 10px 0 4px; }
     #view-flow .flow-bar-fill { height: 100%; background: #F7901E; border-radius: 6px; transition: width .2s; }
-    #view-flow .flow-step { display: flex; align-items: center; gap: 12px; padding: 14px 14px; border: 1px solid #ece9e2; border-radius: 10px; margin-bottom: 8px; background: #fff; cursor: pointer; text-align: left; width: 100%; font-family: inherit; min-height: 44px; }
-    #view-flow .flow-step:hover { border-color: #F7901E; }
-    #view-flow .flow-step.faded { opacity: .55; }
-    #view-flow .flow-dot { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; }
-    #view-flow .flow-dot.done { background: var(--green); }
-    #view-flow .flow-dot.partial { background: #F7901E; }
-    #view-flow .flow-dot.not-started { background: #d8d6cf; }
-    #view-flow .flow-step-body { flex: 1; min-width: 0; }
-    #view-flow .flow-step-lbl { font-size: 14px; font-weight: 700; color: #434244; display: block; }
-    #view-flow .flow-step-detail { font-size: 12px; color: #8a898b; margin-top: 1px; display: block; }
-    #view-flow .flow-step-note { font-size: 10.5px; color: #b0afa9; font-style: italic; margin-top: 1px; display: block; }
-    #view-flow .flow-step-chev { color: #c4c3bd; font-size: 20px; flex: 0 0 auto; }
-    #view-flow .flow-step-quick { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 0 12px; min-height: 36px; color: #434244; cursor: pointer; font-family: inherit; }
-    #view-flow .flow-step-quick:hover { border-color: #F7901E; color: #F7901E; }
+    /* Step-row styles are scoped to the .flow-wrap container (not the flow view)
+       so the ONE unified checklist renderer styles correctly in BOTH the F1
+       guided rail (#view-flow) and the post-capture landing (#view-detail). */
+    .flow-wrap .flow-step { display: flex; align-items: center; gap: 12px; padding: 14px 14px; border: 1px solid #ece9e2; border-radius: 10px; margin-bottom: 8px; background: #fff; cursor: pointer; text-align: left; width: 100%; font-family: inherit; min-height: 44px; }
+    .flow-wrap .flow-step:hover { border-color: #F7901E; }
+    .flow-wrap .flow-step.faded { opacity: .55; }
+    .flow-wrap .flow-step.flow-next { border-color: #F7901E; box-shadow: 0 0 0 1px #F7901E; }
+    .flow-wrap .flow-dot { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; }
+    .flow-wrap .flow-dot.done { background: var(--green); }
+    .flow-wrap .flow-dot.partial { background: #F7901E; }
+    .flow-wrap .flow-dot.not-started { background: #d8d6cf; }
+    .flow-wrap .flow-step-body { flex: 1; min-width: 0; }
+    .flow-wrap .flow-step-lbl { font-size: 14px; font-weight: 700; color: #434244; display: block; }
+    .flow-wrap .flow-step-detail { font-size: 12px; color: #8a898b; margin-top: 1px; display: block; }
+    .flow-wrap .flow-step-note { font-size: 10.5px; color: #b0afa9; font-style: italic; margin-top: 1px; display: block; }
+    .flow-wrap .flow-step-chev { color: #c4c3bd; font-size: 20px; flex: 0 0 auto; }
+    .flow-wrap .flow-step-next { flex: 0 0 auto; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #F7901E; background: rgba(247,144,30,0.14); border-radius: 20px; padding: 3px 9px; }
+    .flow-wrap .flow-step-quick { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 0 12px; min-height: 36px; color: #434244; cursor: pointer; font-family: inherit; }
+    .flow-wrap .flow-step-quick:hover { border-color: #F7901E; color: #F7901E; }
+    .flow-checklist-block .flow-faded-divider { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #b0afa9; margin: 14px 0 6px; }
     @media (min-width: 760px) {
       /* checklist-as-rail: the step list becomes a fixed side column once
          there is room, matching the target's tablet layout. */
@@ -7545,72 +7541,13 @@ function renderDetailBlocks(s) {
     '</div>';
     html += '</div>';
   }
-  html += slRenderCaptureChecklist(s);
+  html += flowRenderChecklistDetail(s);
   return html;
 }
 
-// ===== POST-CAPTURE LANDING: THE SURVEY CHECKLIST ================
-// Exiting the capture surface (and any detail-view load for a captured
-// building) lands the surveyor on a compact checklist of the survey stages,
-// done-states derived from the data, each row a direct entry point into the
-// surface where that stage is captured. Built from the existing detail-row /
-// pill vocabulary; no new survey fields, no Airtable change. Returns '' when no
-// building is captured, so a non-captured survey's detail is unchanged.
-function slCaptureChecklist(survey){
-  var s = survey || {};
-  var b = (typeof fpBuilding === 'function') ? (fpBuilding(s) || {}) : {};
-  var fp = b.footprint;
-  var footprintDone = !!(fp && Array.isArray(fp.corners) && fp.corners.length >= 3);
-  var datumDone = !!(b.datum && (srNum(b.datum.eavesHeightM) != null || srNum(b.datum.widthM) != null || srNum(b.datum.lengthM) != null));
-  var elevDone = (typeof slHasCapturedElevations === 'function') && slHasCapturedElevations(s);
-  var faultsDone = Array.isArray(s.siteFaultMarkers) && s.siteFaultMarkers.some(function(f){ return f && f.footprintLoc && f.footprintLoc.x != null; });
-  var featuresDone = Array.isArray(b.features) && b.features.length > 0;
-  // Scaffold: the surveyor's persisted pack-access entries (Section B). NOT
-  // ppDeriveAccess, which auto-derives from the footprint and would read Done the
-  // moment a building is captured - the stage Jamie found was never offered. So
-  // it stays a suggested step until the pack-access has been reviewed and saved.
-  var scaffoldDone = !!(s.packAccess && Array.isArray(s.packAccess.elevations) && s.packAccess.elevations.length > 0);
-  var asb = s['f-asb-contains'];
-  var coveringDone = !!(asb && String(asb).trim())
-    || ((typeof f5BuildingHasAsbestos === 'function') && f5BuildingHasAsbestos(b))
-    || (Array.isArray(b.slopes) && b.slopes.some(function(sl){ return sl && sl.roofType; }))
-    || (Array.isArray(b.bays) && b.bays.some(function(bay){ return (bay.sides || []).some(function(sd){ return sd && sd.covering; }); }));
-  var photosDone = (Array.isArray(s.siteFaultMarkers) && s.siteFaultMarkers.some(function(f){ return f && (f.photos || []).length; }))
-    || (Array.isArray(b.features) && b.features.some(function(ft){ return ft && (ft.photos || []).length; }))
-    || !!s.siteImageData;
-  return [
-    { label: 'Footprint and edges',        done: footprintDone, entry: 'fpOpen(currentSurveyId)' },
-    { label: 'Datum',                      done: datumDone,     entry: 'fpOpen(currentSurveyId)' },
-    { label: 'Wall elevations',            done: elevDone,      entry: 'fpOpen(currentSurveyId)' },
-    { label: 'Faults pinned',              done: faultsDone,    entry: 'fpOpen(currentSurveyId)' },
-    { label: 'Features and obstructions',  done: featuresDone,  entry: 'fpOpen(currentSurveyId)' },
-    { label: 'Scaffold',                   done: scaffoldDone,  entry: 'editCurrent()' },
-    { label: 'Covering and asbestos',      done: coveringDone,  entry: 'editCurrent()' },
-    { label: 'Photos',                     done: photosDone,    entry: 'editCurrent()' }
-  ];
-}
-function slRenderCaptureChecklist(survey){
-  var s = survey || {};
-  if (!((typeof slHasCapturedFootprint === 'function') && slHasCapturedFootprint(s))) return '';
-  var rows = slCaptureChecklist(s);
-  var nextIdx = -1;
-  for (var i = 0; i < rows.length; i++){ if (!rows[i].done){ nextIdx = i; break; } }
-  var body = rows.map(function(r, ri){
-    var isNext = (ri === nextIdx);
-    var col = r.done ? 'var(--green)' : isNext ? 'var(--orange)' : 'var(--muted)';
-    var bg = r.done ? 'rgba(31,122,55,0.12)' : isNext ? 'rgba(247,144,30,0.15)' : 'var(--light)';
-    var status = r.done ? 'Done' : isNext ? 'Next' : 'To do';
-    return '<button type="button" class="cap-check-row' + (isNext ? ' cap-check-next' : '') + '" onclick="' + r.entry + '">' +
-      '<span class="k">' + escapeHtml(r.label) + '</span>' +
-      '<span class="v"><span class="pill" style="background:' + bg + ';color:' + col + ';">' + status + '</span></span>' +
-    '</button>';
-  }).join('');
-  return '<div class="detail-block cap-checklist-block" style="margin-top:1rem;">' +
-    '<h3>Capture checklist</h3>' +
-    '<div class="cap-checklist-sub">Tap a stage to capture it. The next step is highlighted.</div>' +
-    '<div class="cap-checklist">' + body + '</div>' +
-  '</div>';
-}
+// The post-capture landing checklist is the ONE unified renderer,
+// flowRenderChecklistDetail (defined with the F1 completeness engine), reading
+// the single flowComputeSteps derivation - there is no separate slCaptureChecklist.
 
 // ============================================================
 // REPORT VIEW — Nova proposal aesthetic
@@ -10028,6 +9965,7 @@ function fpBackToDetail(){
   var s = sid ? srLoadSurvey(sid) : null;
   if (!s){ if (typeof goHome === 'function') goHome(); return; }
   currentSurveyId = sid;
+  flowCurrentId = sid;   // the landing checklist and its quick-action read this
   renderSurveyDetail(s);
   if (typeof showView === 'function') showView('detail');
 }
@@ -11541,18 +11479,19 @@ function flowSetNoFaultsFound(val){
   if (currentSurveyId && flowCurrentId === currentSurveyId){
     var s = srLoadSurvey(currentSurveyId); if (s){ s.noFaultsFound = !!val; srPersist(s); }
   }
-  var flowView = document.getElementById('view-flow');
-  if (flowView && flowView.classList.contains('active')) flowRenderGuide();
+  flowRerenderChecklist();
 }
 // Quick action reachable directly from the checklist row (no navigation) when
 // zero faults exist and none is declared yet - operates on the PERSISTED
 // survey directly (the guided view is not necessarily the live form).
 function flowDeclareNoFaultsFromChecklist(){
-  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var id = flowCurrentId || currentSurveyId;
+  var survey = srLoadSurvey(id); if (!survey) return;
+  flowCurrentId = id;
   survey.noFaultsFound = true;
   srPersist(survey);
-  if (currentSurveyId === flowCurrentId) currentSiteImage.noFaultsFound = true;
-  flowRenderGuide();
+  if (currentSurveyId === id && typeof currentSiteImage !== 'undefined') currentSiteImage.noFaultsFound = true;
+  flowRerenderChecklist();
 }
 
 // --- completeness engine: one source of truth for the checklist AND the
@@ -11583,34 +11522,45 @@ function flowDeclareNoFaultsFromChecklist(){
 // (footprint/edges/datum/bays/elevations feed the estimate; faults feed the
 // report; features feed both, so it never fades).
 var FLOW_STEP_PURPOSES = {
-  footprint: ['priced'], edges: ['priced'], datum: ['priced'], bays: ['priced'],
-  elevations: ['priced'], features: ['condition','priced'], faults: ['condition']
+  geometry: ['priced'], datum: ['priced'], elevations: ['priced'],
+  faults: ['condition'], features: ['condition','priced'],
+  scaffold: ['priced'], covering: ['condition','priced'], photos: ['condition']
 };
+// UNIFIED completeness derivation - the ONE authoritative source. Reconciles F1's
+// steps with the post-capture landing into eight rows covering the whole survey
+// (geometry, datum, wall elevations, faults with the declaration, features,
+// scaffold, covering and asbestos, photos). Feeds the checklist renderer, the
+// handoff soft gate and the percentage; there is no second derivation.
 function flowComputeSteps(survey){
-  var b = fpBuilding(survey), fp = fpFootprint(survey);
+  var s = survey || {};
+  var b = fpBuilding(s), fp = fpFootprint(s);
   var form = (b && b.roofForm) || 'duo-pitch';
   var steps = [];
 
+  // GEOMETRY: footprint + edge conditions (+ bay types, multi-bay) folded into
+  // one step. Not-started until the footprint is drawn; done once every non-
+  // curved edge carries a condition and every bay type is complete; else partial.
   var hasFp = !!(fp && Array.isArray(fp.corners) && fp.corners.length >= 3);
-  steps.push({ key:'footprint', label:'Footprint and form', state: hasFp ? 'done' : 'not-started',
-    detail: hasFp ? (fp.corners.length + ' corners, ' + form + ' form') : 'not drawn yet' });
-
-  var totalEdges = 0, condSet = 0;
+  var totalEdges = 0, condSet = 0, elevDefined = 0;
   if (fp && Array.isArray(fp.edges)){
-    fp.edges.forEach(function(e){ if (e.type === 'curved') return; totalEdges++; if (e.cond) condSet++; });
+    fp.edges.forEach(function(e){ if (e.type === 'curved') return; totalEdges++; if (e.cond) condSet++; if (e.elevation && e.elevation.cladding) elevDefined++; });
   }
-  steps.push({ key:'edges', label:'Edge conditions',
-    state: !hasFp ? 'not-started' : (condSet === totalEdges && totalEdges > 0 ? 'done' : (condSet > 0 ? 'partial' : 'not-started')),
-    detail: !hasFp ? 'draw the footprint first' : (condSet + ' of ' + totalEdges + ' edges set') });
+  var isMultibay = (form === 'multi-bay');
+  var bays = (b && b.bays) || [];
+  var bayComplete = bays.filter(function(bay){
+    return bay.widthM != null && bay.runM != null && Math.round(srNum(bay.count) || 0) >= 1 &&
+      bay.sides && bay.sides[0] && bay.sides[0].pitchDeg != null && bay.sides[0].covering &&
+      bay.sides[1] && bay.sides[1].pitchDeg != null && bay.sides[1].covering;
+  }).length;
+  var edgesDone = (totalEdges > 0 && condSet === totalEdges);
+  var baysDone = !isMultibay || (bays.length > 0 && bayComplete === bays.length);
+  steps.push({ key:'geometry', label:'Geometry',
+    state: !hasFp ? 'not-started' : ((edgesDone && baysDone) ? 'done' : 'partial'),
+    detail: !hasFp ? 'not drawn yet' : (fp.corners.length + ' corners, ' + form + ' · ' + condSet + '/' + totalEdges + ' edges' + (isMultibay ? (' · ' + bayComplete + '/' + bays.length + ' bay types') : '')) });
 
-  // AMENDMENT 1: the datum denominator follows the roof form, so it never
-  // demands a field the form has no use for. Flat has no slope, so ridge
-  // height is not required. Multi-bay derives its own geometry per bay type
-  // (width/run/pitch, in the bays step) - there is no single building-level
-  // ridge for a repeating roof, so it is excluded there too; eaves height and
-  // width/length are still genuinely needed (elevation height and the edge-
-  // inherit lengths apply to a multi-bay building's perimeter walls exactly
-  // as they do for any other form). Every other form keeps all 4.
+  // DATUM - the form-aware denominator (F1 amendment 1, unchanged): flat and
+  // multi-bay need eaves/width/length (no single building ridge); every other
+  // form also needs ridge height.
   var d = (b && b.datum) || {};
   var datumFields = (form === 'flat' || form === 'multi-bay')
     ? ['eavesHeightM','widthM','lengthM']
@@ -11621,51 +11571,58 @@ function flowComputeSteps(survey){
     state: !hasFp ? 'not-started' : (datumKeyed === datumNeeded ? 'done' : (datumKeyed > 0 ? 'partial' : 'not-started')),
     detail: !hasFp ? 'draw the footprint first' : (datumKeyed + ' of ' + datumNeeded + ' runs keyed') });
 
-  if (form === 'multi-bay'){
-    var bays = (b && b.bays) || [];
-    var bayComplete = bays.filter(function(bay){
-      return bay.widthM != null && bay.runM != null && Math.round(srNum(bay.count) || 0) >= 1 &&
-        bay.sides && bay.sides[0] && bay.sides[0].pitchDeg != null && bay.sides[0].covering &&
-        bay.sides[1] && bay.sides[1].pitchDeg != null && bay.sides[1].covering;
-    }).length;
-    steps.push({ key:'bays', label:'Bays',
-      state: bays.length === 0 ? 'not-started' : (bayComplete === bays.length ? 'done' : 'partial'),
-      detail: bays.length === 0 ? 'no bay types defined yet' : (bayComplete + ' of ' + bays.length + ' bay types complete') });
-  }
-
-  var elevDefined = 0;
-  if (fp && Array.isArray(fp.edges)){
-    fp.edges.forEach(function(e){ if (e.type === 'curved') return; if (e.elevation && e.elevation.cladding) elevDefined++; });
-  }
-  steps.push({ key:'elevations', label:'Elevations and openings',
+  // WALL ELEVATIONS - cladding defined per non-curved edge (same denominator).
+  steps.push({ key:'elevations', label:'Wall elevations',
     state: !hasFp ? 'not-started' : (elevDefined === totalEdges && totalEdges > 0 ? 'done' : (elevDefined > 0 ? 'partial' : 'not-started')),
     detail: !hasFp ? 'draw the footprint first' : (elevDefined + ' of ' + totalEdges + ' elevations defined') });
 
+  // FAULTS with the declaration (F1 amendment 2, unchanged): "no faults found"
+  // reads DONE at zero faults; a recorded fault (which clears the declaration at
+  // its point of creation) reads DONE. Photo coverage is its own step below.
+  var faults = fpFaultsForBuilding(s);
+  var noFaultsFound = !!s.noFaultsFound;
+  var faultsState, faultsDetail;
+  if (faults.length === 0){ faultsState = noFaultsFound ? 'done' : 'not-started'; faultsDetail = noFaultsFound ? 'No faults found' : 'none recorded yet'; }
+  else { faultsState = 'done'; faultsDetail = faults.length + ' fault' + (faults.length === 1 ? '' : 's') + ' recorded'; }
+  steps.push({ key:'faults', label:'Faults', state: faultsState, detail: faultsDetail });
+
+  // FEATURES - done/not-started (no natural total; a roof may need zero).
   var featCount = 0;
-  (survey.buildings || []).forEach(function(bld){ featCount += (fpFeatures(bld) || []).length; });
+  (s.buildings || []).forEach(function(bld){ featCount += (fpFeatures(bld) || []).length; });
   steps.push({ key:'features', label:'Features', state: featCount > 0 ? 'done' : 'not-started',
     detail: featCount > 0 ? (featCount + ' feature' + (featCount === 1 ? '' : 's') + ' placed') : 'none placed yet' });
 
-  // AMENDMENT 2: "no faults found" is itself a finding, not an absence of
-  // one - survey.noFaultsFound (set via the affirmative control) reads the
-  // step DONE at zero faults instead of leaving it permanently not-started.
-  // Adding any fault clears the declaration at its point of creation
-  // (spAddFaultOffPlan, the map-click handler, fpFaultPinNew), so the two
-  // states can never coexist for long.
-  var faults = fpFaultsForBuilding(survey);
-  var noFaultsFound = !!survey.noFaultsFound;
-  var withPhotos = faults.filter(function(f){ return Array.isArray(f.photos) && f.photos.length > 0; }).length;
-  var faultsState, faultsDetail;
-  if (faults.length === 0){
-    faultsState = noFaultsFound ? 'done' : 'not-started';
-    faultsDetail = noFaultsFound ? 'No faults found' : 'none recorded yet';
-  } else {
-    faultsState = (withPhotos === faults.length) ? 'done' : 'partial';
-    faultsDetail = withPhotos + ' of ' + faults.length + ' faults have photos';
-  }
-  steps.push({ key:'faults', label:'Faults and photos', state: faultsState, detail: faultsDetail });
+  // SCAFFOLD - the surveyor's PERSISTED pack-access review (not ppDeriveAccess,
+  // which auto-derives from the footprint and would always read done), so it
+  // stays a suggested step until reviewed and saved.
+  var pa = (s.packAccess && Array.isArray(s.packAccess.elevations)) ? s.packAccess.elevations : [];
+  steps.push({ key:'scaffold', label:'Scaffold', state: pa.length > 0 ? 'done' : 'not-started',
+    detail: pa.length > 0 ? (pa.length + ' elevation' + (pa.length === 1 ? '' : 's') + ' reviewed') : 'not reviewed yet' });
 
-  steps.forEach(function(s){ s.purposes = FLOW_STEP_PURPOSES[s.key] || ['condition','priced']; });
+  // COVERING AND ASBESTOS - asbestos answered, or a covering known (bay/slope).
+  var asb = s['f-asb-contains'];
+  var asbAns = !!(asb && String(asb).trim());
+  var bayAsb = (typeof f5BuildingHasAsbestos === 'function') && b && f5BuildingHasAsbestos(b);
+  var coveringKnown = (b && Array.isArray(b.slopes) && b.slopes.some(function(sl){ return sl && sl.roofType; }))
+    || bays.some(function(bay){ return (bay.sides || []).some(function(sd){ return sd && sd.covering; }); });
+  steps.push({ key:'covering', label:'Covering and asbestos', state: (asbAns || bayAsb || coveringKnown) ? 'done' : 'not-started',
+    detail: asbAns ? ('asbestos: ' + asb) : (coveringKnown ? 'covering recorded' : 'not recorded yet') });
+
+  // PHOTOS - evidence coverage. Fault photos are the primary signal; a clean roof
+  // (declared) or any site/feature photo also satisfies it.
+  var withPhotos = faults.filter(function(f){ return Array.isArray(f.photos) && f.photos.length > 0; }).length;
+  var anyOtherPhoto = !!s.siteImageData || (s.buildings || []).some(function(bld){ return (fpFeatures(bld) || []).some(function(ft){ return (ft.photos || []).length > 0; }); });
+  var photoState, photoDetail;
+  if (faults.length === 0){
+    photoState = (noFaultsFound || anyOtherPhoto) ? 'done' : 'not-started';
+    photoDetail = anyOtherPhoto ? 'site photos attached' : (noFaultsFound ? 'no faults to evidence' : 'none yet');
+  } else {
+    photoState = (withPhotos === faults.length) ? 'done' : 'partial';
+    photoDetail = withPhotos + ' of ' + faults.length + ' faults have photos';
+  }
+  steps.push({ key:'photos', label:'Photos', state: photoState, detail: photoDetail });
+
+  steps.forEach(function(st){ st.purposes = FLOW_STEP_PURPOSES[st.key] || ['condition','priced']; });
   return steps;
 }
 function flowActivePurposes(purpose){
@@ -11714,16 +11671,56 @@ function flowRenderGuide(){
       '<button class="link-btn" style="font-size:11.5px;" onclick="flowShowPurposeSheet({surveyId:flowCurrentId, onDone:flowRenderGuide})">Set one</button></div>';
   }
   h += '</div>';
+  var nextKey = flowFirstNotDone(inPurpose);
   h += '<div class="flow-rail-steps">';
-  inPurpose.forEach(function(s){ h += flowRenderStepRow(s, false); });
+  inPurpose.forEach(function(s){ h += flowRenderStepRow(s, false, s.key === nextKey); });
   if (faded.length){
-    h += '<div style="font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#b0afa9;margin:14px 0 6px;">Not in this purpose</div>';
-    faded.forEach(function(s){ h += flowRenderStepRow(s, true); });
+    h += '<div class="flow-faded-divider" style="font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#b0afa9;margin:14px 0 6px;">Not in this purpose</div>';
+    faded.forEach(function(s){ h += flowRenderStepRow(s, true, false); });
   }
   h += '</div></div>';
   host.innerHTML = h;
 }
-function flowRenderStepRow(s, faded){
+// The first not-done in-purpose step is the suggested next step (highlighted).
+function flowFirstNotDone(steps){
+  for (var i = 0; i < steps.length; i++){ if (steps[i].state !== 'done') return steps[i].key; }
+  return null;
+}
+// The ONE checklist renderer for the post-capture landing (detail view). Reads
+// the SAME flowComputeSteps derivation and renders the SAME flowRenderStepRow as
+// the F1 guided rail, so the two surfaces can never disagree. Renders only when a
+// building is captured; '' otherwise, so a non-captured survey's detail is
+// unchanged.
+function flowRenderChecklistDetail(survey){
+  var s = survey || {};
+  if (!((typeof slHasCapturedFootprint === 'function') && slHasCapturedFootprint(s))) return '';
+  var purpose = s.visitPurpose || null;
+  var steps = flowComputeSteps(s);
+  var inPurpose = steps.filter(function(st){ return flowStepInPurpose(st, purpose); });
+  var faded = steps.filter(function(st){ return !flowStepInPurpose(st, purpose); });
+  var nextKey = flowFirstNotDone(inPurpose);
+  var rows = inPurpose.map(function(st){ return flowRenderStepRow(st, false, st.key === nextKey); }).join('');
+  if (faded.length){
+    rows += '<div class="flow-faded-divider">Not in this purpose</div>' +
+      faded.map(function(st){ return flowRenderStepRow(st, true, false); }).join('');
+  }
+  return '<div class="detail-block flow-checklist-block" style="margin-top:1rem;">' +
+    '<h3>Capture checklist</h3>' +
+    '<div class="cap-checklist-sub">Tap a stage to jump to it. The next step is highlighted.</div>' +
+    '<div class="flow-wrap"><div class="flow-rail-steps">' + rows + '</div></div>' +
+  '</div>';
+}
+// Re-render whichever checklist surface is currently showing (the guided rail or
+// the post-capture landing), after a state change made directly from a row.
+function flowRerenderChecklist(){
+  var flowView = document.getElementById('view-flow');
+  if (flowView && flowView.classList.contains('active')){ flowRenderGuide(); return; }
+  var detailView = document.getElementById('view-detail');
+  if (detailView && detailView.classList.contains('active')){
+    var s = srLoadSurvey(currentSurveyId || flowCurrentId); if (s) renderSurveyDetail(s);
+  }
+}
+function flowRenderStepRow(s, faded, next){
   // Amendment 2: a one-tap declaration reachable directly from the checklist,
   // no navigation - only offered while the faults step is genuinely
   // undecided (zero faults, nothing declared either way). This row is a DIV,
@@ -11733,19 +11730,24 @@ function flowRenderStepRow(s, faded){
   var quickAction = (s.key === 'faults' && s.state === 'not-started')
     ? '<button type="button" class="flow-step-quick" onclick="event.stopPropagation();flowDeclareNoFaultsFromChecklist()">No faults found</button>'
     : '';
-  return '<div class="flow-step' + (faded ? ' faded' : '') + '" role="button" tabindex="0" onclick="flowJumpToStep(\'' + s.key + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){flowJumpToStep(\'' + s.key + '\');}">' +
+  var nextBadge = next ? '<span class="flow-step-next">Next</span>' : '';
+  return '<div class="flow-step' + (faded ? ' faded' : '') + (next ? ' flow-next' : '') + '" role="button" tabindex="0" onclick="flowJumpToStep(\'' + s.key + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){flowJumpToStep(\'' + s.key + '\');}">' +
     '<span class="flow-dot ' + s.state + '"></span>' +
     '<span class="flow-step-body"><span class="flow-step-lbl">' + escapeHtml(s.label) + '</span>' +
     '<span class="flow-step-detail">' + escapeHtml(s.detail) + '</span>' +
     (faded ? '<span class="flow-step-note">not in this purpose</span>' : '') + '</span>' +
-    quickAction +
+    quickAction + nextBadge +
     '<span class="flow-step-chev">&rsaquo;</span></div>';
 }
-// jump straight to the step's surface. Footprint/edges/datum/bays/elevations/
-// features all live on the one footprint capture surface built in stages 1-4;
-// faults and photos live in the classic form's Site Plan section.
+// Jump straight to the step's surface - the row's direct entry point. Geometry,
+// datum, wall elevations and features live on the footprint capture surface;
+// faults and photos in the classic form's Site Plan section; scaffold and
+// covering/asbestos in the classic form. Reached from either checklist surface,
+// so the current id is taken from the flow OR the detail context.
 function flowJumpToStep(key){
-  if (key === 'faults'){
+  var id = flowCurrentId || currentSurveyId;
+  flowCurrentId = id; currentSurveyId = id;
+  if (key === 'faults' || key === 'photos'){
     editCurrent();
     setTimeout(function(){
       var d = document.getElementById('section-site-plan');
@@ -11753,7 +11755,8 @@ function flowJumpToStep(key){
     }, 60);
     return;
   }
-  fpOpen(flowCurrentId);
+  if (key === 'scaffold' || key === 'covering'){ editCurrent(); return; }
+  fpOpen(id);
 }
 
 // --- the handoff (target page 06) ---
