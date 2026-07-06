@@ -4210,6 +4210,36 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-place-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0; max-width: none; border: 1px solid #F7901E; border-bottom: none; border-radius: 14px 14px 0 0; background: #fff7ef; max-height: 62vh; overflow-y: auto; box-shadow: 0 -8px 26px rgba(0,0,0,0.16); padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); }
     #view-footprint .fp-place-sheet .fp-opts { display: flex; flex-wrap: wrap; gap: 8px; }
     @media (min-width: 620px) { #view-footprint .fp-place-sheet { left: 50%; right: auto; transform: translateX(-50%); width: 520px; max-width: 92vw; } }
+    /* feature-capture-schema: kind-specific capture sheets (count stepper, rooflight
+       groups, penetration, plot-and-flag toggles, other) - reuses the .fp-sheet card */
+    #view-footprint .fp-step-btn { width: 44px; height: 44px; font-size: 20px; font-weight: 700; background: #fff; border: 1px solid #d8d8d2; border-radius: 8px; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-step-val { min-width: 40px; text-align: center; }
+    #view-footprint .fp-roof-grp { border: 1px solid #ece9e2; border-radius: 10px; padding: 4px 10px 10px; margin: 8px 0; background: #fff; }
+    #view-footprint .fp-roof-grp-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 2px 4px; font-size: 12px; font-weight: 800; color: #434244; }
+    #view-footprint .fp-roof-grp-x { font-size: 12px; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 6px 10px; min-height: 34px; cursor: pointer; color: #a33; font-family: inherit; }
+    #view-footprint .fp-feat-select { font-size: 13px; min-height: 40px; border: 1px solid #d8d8d2; border-radius: 7px; background: #fff; color: #434244; font-family: inherit; padding: 4px 8px; }
+    #view-footprint .fp-feat-toggle { display: flex; align-items: center; gap: 9px; padding: 10px 12px; font-size: 13px; color: #434244; border-top: 1px solid #f1f0ea; cursor: pointer; }
+    #view-footprint .fp-feat-toggle input { width: 20px; height: 20px; }
+    #view-footprint .fp-feat-input { width: 100%; box-sizing: border-box; font-size: 14px; min-height: 44px; border: 1px solid #d8d8d2; border-radius: 8px; padding: 8px 11px; color: #434244; font-family: inherit; }
+    #view-footprint .fp-feat-unit { display: flex; gap: 8px; padding: 8px 12px; }
+    #view-footprint .fp-unit-btn { flex: 1; min-height: 40px; font-size: 12.5px; font-weight: 700; border: 1px solid #d8d8d2; border-radius: 8px; background: #fff; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-unit-btn.on { background: #e4f3e7; border-color: var(--green); color: var(--green); }
+    #view-footprint .fp-roof-add { margin-top: 8px; }
+    #view-footprint .fp-roof-total { margin-top: 10px; font-size: 13px; font-weight: 700; color: #434244; }
+    #view-footprint .fp-upgrade-opts { margin-top: 6px; }
+    #view-footprint .fp-feat-flag { margin: 8px 0; padding: 9px 12px; font-size: 12.5px; font-weight: 700; border-radius: 8px; background: #fbf2e6; border: 1px solid #c4a36a; color: #7a4a12; }
+    #view-footprint .fp-feat-flag-block { background: #fbe8e6; border-color: #c0392b; color: #a23325; }
+    /* the attention ledger surfaces on the survey detail (renders in #view-detail),
+       blocking entries first and visually distinct from advisories */
+    #view-detail .fp-att-ledger .fp-att-row { display: flex; gap: 10px; align-items: flex-start; padding: 9px 11px; border-radius: 8px; margin-top: 7px; border: 1px solid #ece9e2; background: #faf9f6; }
+    #view-detail .fp-att-ledger .fp-att-advisory { background: #fbf7ef; border-color: #dbc7a6; }
+    #view-detail .fp-att-ledger .fp-att-block { background: #fbe8e6; border-color: #c0392b; }
+    #view-detail .fp-att-ledger .fp-att-sev { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 4px; background: #e7e4dc; color: #6b6c70; white-space: nowrap; margin-top: 1px; }
+    #view-detail .fp-att-ledger .fp-att-block .fp-att-sev { background: #c0392b; color: #fff; }
+    #view-detail .fp-att-ledger .fp-att-advisory .fp-att-sev { background: #c98a2b; color: #fff; }
+    #view-detail .fp-att-ledger .fp-att-body { display: flex; flex-direction: column; gap: 2px; }
+    #view-detail .fp-att-ledger .fp-att-src { font-size: 11px; font-weight: 800; color: #434244; }
+    #view-detail .fp-att-ledger .fp-att-text { font-size: 12.5px; color: #434244; }
     /* stage 4: wall elevations */
     #view-footprint .fp-elevs { margin-top: 16px; max-width: 480px; }
     #view-footprint .fp-elev-card { border: 1px solid #ece9e2; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
@@ -7554,7 +7584,26 @@ function renderDetailBlocks(s) {
     html += '</div>';
   }
   html += flowRenderChecklistDetail(s);
+  html += fpRenderAttentionLedger(s);
   return html;
+}
+// The attention ledger on the survey detail, below the capture checklist -
+// blocking entries first and visually distinct (existing detail-block vocabulary).
+function fpRenderAttentionLedger(survey){
+  if (!((typeof slHasCapturedFootprint === 'function') && slHasCapturedFootprint(survey))) return '';
+  var entries = fpAttentionLedger(survey);
+  if (!entries.length) return '';
+  var rows = entries.map(function(e){
+    var block = e.severity === 'blocking';
+    return '<div class="fp-att-row ' + (block ? 'fp-att-block' : 'fp-att-advisory') + '">' +
+      '<span class="fp-att-sev">' + (block ? 'Blocking' : 'Advisory') + '</span>' +
+      '<span class="fp-att-body"><span class="fp-att-src">' + escapeHtml(e.source) + '</span>' +
+      '<span class="fp-att-text">' + escapeHtml(e.text) + '</span></span></div>';
+  }).join('');
+  return '<div class="detail-block fp-att-ledger" style="margin-top:1rem;">' +
+    '<h3>Attention ledger</h3>' +
+    '<div class="cap-checklist-sub">Points flagged for pricing and labour. Blocking items must be resolved before a price is issued.</div>' +
+    rows + '</div>';
 }
 
 // The post-capture landing checklist is the ONE unified renderer,
@@ -10608,8 +10657,16 @@ function fpKeypadDone(){
   else if (fpKeypad.kind === 'feat' && b){
     var feat = (fpFeatures(b) || [])[fpKeypad.i];
     if (feat){
-      if (fpKeypad.field === 'count') feat.count = (v == null) ? 1 : Math.max(0, Math.round(v));
-      else feat[fpKeypad.field] = v;
+      var ff = fpKeypad.field;
+      if (ff.indexOf('grp:') === 0){   // rooflight group field: grp:<index>:<field>
+        var gp = ff.split(':'); var g = (feat.groups || [])[parseInt(gp[1], 10)];
+        if (g){ if (gp[2] === 'count') g.count = (v == null) ? 0 : Math.max(0, Math.round(v)); else g[gp[2]] = v; }
+        fpRecomputeRooflightArea(survey);
+      } else if (ff === 'count' || ff === 'galvCount'){
+        feat[ff] = (v == null) ? (ff === 'count' ? 1 : 0) : Math.max(0, Math.round(v));
+      } else {
+        feat[ff] = v;
+      }
     }
   }
   srPersist(survey); fpKeypad = null; fpRender();
@@ -10930,7 +10987,15 @@ var FP_OPENING_TYPES = [ 'Roller shutter door', 'Personnel door', 'Window', 'Lou
 // separate feature. Legacy features already stored with that type are untouched
 // and still render (the plane loop and feature sheet are data-driven); only the
 // picker no longer offers it going forward. The other feature types are unchanged.
-var FP_FEATURE_TYPES = [ 'Rooflight', 'Penetration / Dektite', 'Soil vent / flue', 'Rainwater outlet', 'Plant / AHU plinth', 'Walkway' ];
+// Kind-driven feature capture. Each type maps to a capture KIND: A count-only,
+// B rooflight groups, C penetration (manual-price/blocking), D plot-and-flag
+// advisory, E other. NEW records carry feat.kind, stamped at creation; OLD
+// generic records (no kind, e.g. legacy 'Penetration / Dektite') fall through to
+// the legacy generic sheet and are NEVER auto-converted (backward compatibility).
+var FP_FEATURE_TYPES = [ 'Rooflight', 'Dektite', 'Soil vent / flue', 'Rainwater outlet', 'Penetration', 'Plant / AHU plinth', 'Walkway', 'Lightning protection system', 'Mansafe system', 'Other' ];
+var FP_FEATURE_KIND = { 'Rooflight':'B', 'Dektite':'A', 'Soil vent / flue':'A', 'Rainwater outlet':'A', 'Penetration':'C', 'Plant / AHU plinth':'D', 'Walkway':'D', 'Lightning protection system':'D', 'Mansafe system':'D', 'Other':'E' };
+var FP_ROOF_GLASS = [ 'GRP', 'Polycarbonate', 'Georgian wired', 'Other' ];
+function fpFeatureKind(feat){ return (feat && feat.kind) ? feat.kind : 'legacy'; }
 var FP_FAULT_SEVS = [ { id:'critical', label:'Critical' }, { id:'poor', label:'Poor' }, { id:'fair', label:'Fair' }, { id:'monitor', label:'Monitor' } ];
 var fpPlaceMode = null;       // null | 'feature' | 'fault' - tap-to-place armed on the plan
 var fpFeatureSheet = null;    // index into building.features when its edit sheet is open
@@ -11174,14 +11239,24 @@ function fpPlaceAt(rawX, rawY){
   fpRender();
 }
 var fpFeaturePick = null;   // { x, y } when the "choose feature type" picker is open
+function fpNewRooflightGroup(){ return { count: 1, lengthM: null, widthM: 1.0, glass: '', northFacing: false }; }
 function fpFeatureAddType(type){
   if (!fpFeaturePick) return;
   var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); if (!b) return;
   var feats = fpEnsureFeatures(b);
   var id = 'ft' + Date.now() + Math.round(Math.random() * 999);
-  feats.push({ id: id, type: type, count: 1, wM: null, hM: null, x: fpFeaturePick.x, y: fpFeaturePick.y, photos: [] });
+  var kind = FP_FEATURE_KIND[type] || 'E';
+  // The base record is unchanged (id/type/count/wM/hM/x/y/photos) so the report
+  // figures and every existing consumer keep reading it; kind fields are additive.
+  var feat = { id: id, type: type, kind: kind, count: 1, wM: null, hM: null, x: fpFeaturePick.x, y: fpFeaturePick.y, photos: [] };
+  if (kind === 'B'){ feat.groups = [ fpNewRooflightGroup() ]; }
+  else if (kind === 'C'){ feat.penW = null; feat.penH = null; feat.penDia = null; feat.soakerW = null; feat.soakerL = null; feat.trimmerVal = null; feat.trimmerUnit = 'count'; feat.galvCount = null; feat.note = ''; }
+  else if (kind === 'D'){ feat.note = ''; if (type === 'Mansafe system') feat.needsCommissioning = false; }
+  else if (kind === 'E'){ feat.name = ''; feat.note = ''; }
+  feats.push(feat);
   var idx = feats.length - 1;
   fpFeaturePick = null; fpPlaceMode = null;
+  if (kind === 'B') fpRecomputeRooflightArea(survey);
   srPersist(survey);
   fpFeatureSheet = idx;
   fpRender();
@@ -11237,6 +11312,156 @@ function fpRemoveFeaturePhoto(pidx){
   var feat = feats && feats[fpFeatureSheet]; if (!feat || !feat.photos) return;
   feat.photos.splice(pidx, 1);
   srPersist(survey); fpRender();
+}
+// --- kind-specific field handlers. Text inputs persist WITHOUT a re-render so
+// they keep focus while typing (same discipline as fpFaultSetField); selects,
+// toggles and steppers re-render. All persist via the existing snapshot path. ---
+function fpFeatCurrent(){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); var feats = b && fpFeatures(b);
+  return { survey: survey, feat: (feats && feats[fpFeatureSheet]) || null };
+}
+function fpFeatSetText(field, val){
+  if (fpFeatureSheet == null) return;
+  var c = fpFeatCurrent(); if (!c.feat) return;
+  c.feat[field] = val; srPersist(c.survey);   // no render: keep focus
+}
+function fpFeatSetField(field, val){
+  if (fpFeatureSheet == null) return;
+  var c = fpFeatCurrent(); if (!c.feat) return;
+  c.feat[field] = val; srPersist(c.survey); fpRender();
+}
+function fpFeatStep(field, delta){
+  if (fpFeatureSheet == null) return;
+  var c = fpFeatCurrent(); if (!c.feat) return;
+  var cur = Math.round(srNum(c.feat[field]) || 0);
+  c.feat[field] = Math.max(0, cur + delta);
+  srPersist(c.survey); fpRender();
+}
+// Rooflight groups (kind B)
+function fpRoofGroupAdd(){
+  if (fpFeatureSheet == null) return;
+  var c = fpFeatCurrent(); if (!c.feat) return;
+  if (!Array.isArray(c.feat.groups)) c.feat.groups = [];
+  c.feat.groups.push(fpNewRooflightGroup());
+  fpRecomputeRooflightArea(c.survey); srPersist(c.survey); fpRender();
+}
+function fpRoofGroupRemove(gi){
+  if (fpFeatureSheet == null) return;
+  var c = fpFeatCurrent(); if (!c.feat || !Array.isArray(c.feat.groups)) return;
+  c.feat.groups.splice(gi, 1);
+  if (!c.feat.groups.length) c.feat.groups.push(fpNewRooflightGroup());   // always keep one
+  fpRecomputeRooflightArea(c.survey); srPersist(c.survey); fpRender();
+}
+function fpRoofGroupSet(gi, field, val){
+  if (fpFeatureSheet == null) return;
+  var c = fpFeatCurrent(); if (!c.feat || !Array.isArray(c.feat.groups)) return;
+  var g = c.feat.groups[gi]; if (!g) return;
+  g[field] = val;
+  fpRecomputeRooflightArea(c.survey); srPersist(c.survey); fpRender();
+}
+function fpRoofGroupStep(gi, delta){
+  if (fpFeatureSheet == null) return;
+  var c = fpFeatCurrent(); if (!c.feat || !Array.isArray(c.feat.groups)) return;
+  var g = c.feat.groups[gi]; if (!g) return;
+  g.count = Math.max(0, Math.round(srNum(g.count) || 0) + delta);
+  fpRecomputeRooflightArea(c.survey); srPersist(c.survey); fpRender();
+}
+// totalRooflightArea is STORED on the survey (storage in scope; costing
+// consumption is out of scope for this brief - the costing stage reads it later).
+function fpRecomputeRooflightArea(survey){
+  var total = 0;
+  (survey && survey.buildings || []).forEach(function(bld){
+    (fpFeatures(bld) || []).forEach(function(ft){
+      if (fpFeatureKind(ft) === 'B' && Array.isArray(ft.groups)){
+        ft.groups.forEach(function(g){
+          var n = srNum(g.count), l = srNum(g.lengthM), w = srNum(g.widthM);
+          if (n != null && l != null && w != null) total += n * l * w;
+        });
+      }
+    });
+  });
+  survey.totalRooflightArea = Math.round(total * 100) / 100;
+  return survey.totalRooflightArea;
+}
+// Upgrade a legacy generic feature to a kind, keeping its existing data (count,
+// width, height, position, photos). Never automatic - only on a surveyor choice.
+function fpFeatUpgrade(type){
+  if (fpFeatureSheet == null) return;
+  var c = fpFeatCurrent(); if (!c.feat) return;
+  var feat = c.feat; var kind = FP_FEATURE_KIND[type] || 'E';
+  feat.type = type; feat.kind = kind;
+  if (kind === 'B'){ if (!Array.isArray(feat.groups)) feat.groups = [ fpNewRooflightGroup() ]; }
+  else if (kind === 'C'){ if (feat.trimmerUnit == null) feat.trimmerUnit = 'count'; if (feat.note == null) feat.note = ''; }
+  else if (kind === 'D'){ if (feat.note == null) feat.note = ''; if (type === 'Mansafe system' && feat.needsCommissioning == null) feat.needsCommissioning = false; }
+  else if (kind === 'E'){ if (feat.name == null) feat.name = ''; if (feat.note == null) feat.note = ''; }
+  if (kind === 'B') fpRecomputeRooflightArea(c.survey);
+  srPersist(c.survey); fpRender();
+}
+// The plot-and-flag wording (kind D), shared by the sheet hint and the ledger so
+// they never drift. Mansafe upgrades its wording when commissioning is flagged.
+function fpPlotFlagWording(feat){
+  switch (feat.type){
+    case 'Plant / AHU plinth': return 'working around plant: allow additional labour';
+    case 'Walkway': return 'permanent walkway: allow labour to work around';
+    case 'Lightning protection system': return 'lightning protection present: allow strip and reinstate after works';
+    case 'Mansafe system': return feat.needsCommissioning ? 'mansafe present: needs commissioning or replacement' : 'mansafe present';
+    default: return '';
+  }
+}
+// THE ATTENTION LEDGER. A DERIVED read of the feature records (no new store):
+// each entry carries its source, wording (Jamie's labour language) and severity
+// (blocking or advisory). Blocking sorts first. Surfaced on the survey detail and
+// in the handoff soft gate.
+function fpAttentionLedger(survey){
+  var entries = [];
+  ((survey && survey.buildings) || []).forEach(function(bld){
+    (fpFeatures(bld) || []).forEach(function(ft){
+      var kind = fpFeatureKind(ft); var label = ft.type || 'Feature';
+      if (kind === 'B' && Array.isArray(ft.groups)){
+        var hit = ft.groups.some(function(g){ return g.glass === 'Georgian wired' && g.northFacing; });
+        if (hit) entries.push({ severity: 'advisory', source: label, text: 'Georgian wired glass, north facing: slow removal, allow in labour.' });
+      } else if (kind === 'C'){
+        entries.push({ severity: 'blocking', source: label, text: 'Penetration detail requires manual pricing before a price is issued.' });
+      } else if (kind === 'D'){
+        var w = fpPlotFlagWording(ft); if (w) entries.push({ severity: 'advisory', source: label, text: w });
+      } else if (kind === 'E'){
+        var nm = (ft.name || '').trim(), nt = (ft.note || '').trim();
+        var txt = (nm || 'Other feature') + (nt ? ': ' + nt : '');
+        entries.push({ severity: 'advisory', source: label, text: txt });
+      }
+    });
+  });
+  // Stable sort (guaranteed since ES2019): blocking first, else source order.
+  entries.sort(function(a, b){ return (a.severity === 'blocking' ? 0 : 1) - (b.severity === 'blocking' ? 0 : 1); });
+  return entries;
+}
+function fpAttentionBlocking(survey){ return fpAttentionLedger(survey).filter(function(e){ return e.severity === 'blocking'; }); }
+// Per-kind count summary for the Features checklist row, e.g.
+// "2 rooflight groups · 3 dektites · 1 penetration".
+function fpFeatureSummary(survey){
+  var groups = 0, byLabel = {}, order = [];
+  function bump(label, n){ if (!(label in byLabel)){ byLabel[label] = 0; order.push(label); } byLabel[label] += n; }
+  ((survey && survey.buildings) || []).forEach(function(bld){
+    (fpFeatures(bld) || []).forEach(function(ft){
+      var kind = fpFeatureKind(ft);
+      if (kind === 'B'){ groups += Array.isArray(ft.groups) ? ft.groups.length : 0; }
+      else if (kind === 'A'){
+        var la = (ft.type === 'Dektite') ? 'dektite' : (ft.type === 'Soil vent / flue') ? 'soil vent' : (ft.type === 'Rainwater outlet') ? 'outlet' : (ft.type || 'item').toLowerCase();
+        bump(la, Math.max(1, Math.round(srNum(ft.count) || 1)));
+      }
+      else if (kind === 'C'){ bump('penetration', 1); }
+      else if (kind === 'D'){
+        var ld = (ft.type === 'Plant / AHU plinth') ? 'plinth' : (ft.type === 'Walkway') ? 'walkway' : (ft.type === 'Lightning protection system') ? 'lightning system' : (ft.type === 'Mansafe system') ? 'mansafe' : (ft.type || 'item').toLowerCase();
+        bump(ld, 1);
+      }
+      else if (kind === 'E'){ bump('other', 1); }
+      else { bump('feature', 1); }   // legacy generic record
+    });
+  });
+  var parts = [];
+  if (groups) parts.push(groups + ' rooflight group' + (groups === 1 ? '' : 's'));
+  order.forEach(function(lbl){ var n = byLabel[lbl]; parts.push(n + ' ' + lbl + (n === 1 ? '' : 's')); });
+  return parts.length ? parts.join(' · ') : 'placed';
 }
 // faults: unchanged model, this stage only sets/clears footprintLoc via a pin
 function fpFaultsForBuilding(survey){ return (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers : []; }
@@ -11321,26 +11546,134 @@ function fpRenderPlaceSheet(survey){
   }
   return '';
 }
-function fpRenderFeatureSheet(survey){
-  if (fpFeatureSheet == null) return '';
-  var b = fpBuilding(survey); var feats = b && fpFeatures(b); var feat = feats && feats[fpFeatureSheet]; if (!feat){ fpFeatureSheet = null; return ''; }
-  var h = '<div class="fp-sheet"><div class="fp-sheet-head"><span class="fp-sheet-title">' + escapeHtml(feat.type) + '</span><button class="fp-sheet-x" onclick="fpCloseFeature()">Done</button></div>';
-  var cnt = Math.max(0, Math.round(srNum(feat.count) || 0));
-  h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Count</span><span class="fp-datum-val">' + cnt + '</span>' +
-    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'count\',\'Count\',\'off\',' + cnt + ')">Key</button></div>';
-  h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Width (if sized)</span><span class="fp-datum-val">' + fpM(srNum(feat.wM)) + '</span>' +
-    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'wM\',\'Width\',\'m\',' + (srNum(feat.wM) != null ? feat.wM : 'null') + ')">Key</button></div>';
-  h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Height (if sized)</span><span class="fp-datum-val">' + fpM(srNum(feat.hM)) + '</span>' +
-    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'hM\',\'Height\',\'m\',' + (srNum(feat.hM) != null ? feat.hM : 'null') + ')">Key</button></div>';
-  h += '<div class="fp-sheet-sub">Photo</div><div class="fp-feat-photos">';
+// A keypad row targeting a feature field via the existing fpOpenKeypad('feat',...).
+function fpFeatKeyRow(label, valDisp, field, title, unit, curExpr){
+  return '<div class="fp-datum-row"><span class="fp-datum-lbl">' + label + '</span><span class="fp-datum-val">' + valDisp + '</span>' +
+    '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'' + field + '\',\'' + title + '\',\'' + unit + '\',' + curExpr + ')">Key</button></div>';
+}
+function fpFeatStepRow(label, valDisp, field){
+  return '<div class="fp-datum-row"><span class="fp-datum-lbl">' + label + '</span>' +
+    '<button class="fp-step-btn" onclick="fpFeatStep(\'' + field + '\',-1)">&minus;</button>' +
+    '<span class="fp-datum-val fp-step-val">' + valDisp + '</span>' +
+    '<button class="fp-step-btn" onclick="fpFeatStep(\'' + field + '\',1)">+</button></div>';
+}
+function fpRenderFeatPhotosBlock(feat){
+  var h = '<div class="fp-sheet-sub">Photo</div><div class="fp-feat-photos">';
   (feat.photos || []).forEach(function(p, pi){
     var src = imgSrcFor(p);
     h += '<div class="fp-feat-photo">' + (src ? '<img src="' + src + '">' : '<div class="fp-feat-photo-ph"></div>') + '<button class="fp-feat-photo-x" onclick="fpRemoveFeaturePhoto(' + pi + ')">&times;</button></div>';
   });
   h += '</div><label class="fp-feat-photo-add">Add photo<input type="file" accept="image/*" capture="environment" multiple onchange="fpFeatureAddPhoto(this)" style="display:none;"></label>';
-  h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpRemoveFeature(' + fpFeatureSheet + ')">Remove feature</button></div>';
+  return h;
+}
+// KIND A - count only.
+function fpRenderFeatBodyA(feat){
+  var cnt = Math.max(0, Math.round(srNum(feat.count) || 0));
+  return '<div class="fp-sheet-sub">How many</div>' + fpFeatStepRow('Count', cnt, 'count') +
+    '<div class="fp-datum-row" style="justify-content:flex-end;"><button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'count\',\'Count\',\'off\',' + cnt + ')">Key a number</button></div>';
+}
+// KIND B - rooflights held as one or more groups; derives total area, raises the
+// Georgian-wired-north advisory inline.
+function fpRenderFeatBodyB(feat){
+  var groups = Array.isArray(feat.groups) ? feat.groups : [];
+  var h = '<div class="fp-sheet-sub">Rooflight groups &middot; one row per size and type</div>';
+  var totalArea = 0;
+  groups.forEach(function(g, gi){
+    var n = srNum(g.count), l = srNum(g.lengthM), w = srNum(g.widthM);
+    if (n != null && l != null && w != null) totalArea += n * l * w;
+    var isGeorgianNorth = (g.glass === 'Georgian wired') && g.northFacing;
+    var cnt = Math.max(0, Math.round(srNum(g.count) || 0));
+    h += '<div class="fp-roof-grp">';
+    h += '<div class="fp-roof-grp-head"><span>Group ' + (gi + 1) + '</span>' + (groups.length > 1 ? '<button class="fp-roof-grp-x" onclick="fpRoofGroupRemove(' + gi + ')">Remove</button>' : '') + '</div>';
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Count</span>' +
+      '<button class="fp-step-btn" onclick="fpRoofGroupStep(' + gi + ',-1)">&minus;</button>' +
+      '<span class="fp-datum-val fp-step-val">' + cnt + '</span>' +
+      '<button class="fp-step-btn" onclick="fpRoofGroupStep(' + gi + ',1)">+</button></div>';
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Length</span><span class="fp-datum-val">' + fpM(srNum(g.lengthM)) + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'grp:' + gi + ':lengthM\',\'Length\',\'m\',' + (srNum(g.lengthM) != null ? g.lengthM : 'null') + ')">Key</button></div>';
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Width</span><span class="fp-datum-val">' + fpM(srNum(g.widthM)) + '</span>' +
+      '<button class="fp-key-btn" onclick="fpOpenKeypad(\'feat\',' + fpFeatureSheet + ',\'grp:' + gi + ':widthM\',\'Width\',\'m\',' + (srNum(g.widthM) != null ? g.widthM : 'null') + ')">Key</button></div>';
+    h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Glass</span><select class="fp-feat-select" onchange="fpRoofGroupSet(' + gi + ',\'glass\',this.value)"><option value="">Choose</option>';
+    FP_ROOF_GLASS.forEach(function(gl){ h += '<option value="' + escapeHtml(gl) + '"' + (g.glass === gl ? ' selected' : '') + '>' + escapeHtml(gl) + '</option>'; });
+    h += '</select></div>';
+    h += '<label class="fp-feat-toggle"><input type="checkbox" ' + (g.northFacing ? 'checked' : '') + ' onchange="fpRoofGroupSet(' + gi + ',\'northFacing\',this.checked)"> North facing</label>';
+    if (isGeorgianNorth) h += '<div class="fp-feat-flag">Georgian wired glass, north facing: slow removal, allow in labour.</div>';
+    h += '</div>';
+  });
+  h += '<button class="fp-opt fp-roof-add" onclick="fpRoofGroupAdd()">+ Add another group</button>';
+  h += '<div class="fp-roof-total">Total rooflight area: ' + (Math.round(totalArea * 100) / 100) + ' m&sup2;</div>';
+  return h;
+}
+// KIND C - penetration/fabrication. Blocking: requires manual pricing.
+function fpRenderFeatBodyC(feat){
+  var h = '<div class="fp-feat-flag fp-feat-flag-block">Penetration detail requires manual pricing before a price is issued.</div>';
+  h += '<div class="fp-sheet-sub">Penetration size</div>';
+  h += fpFeatKeyRow('Width', fpM(srNum(feat.penW)), 'penW', 'Width', 'm', (srNum(feat.penW) != null ? feat.penW : 'null'));
+  h += fpFeatKeyRow('Height', fpM(srNum(feat.penH)), 'penH', 'Height', 'm', (srNum(feat.penH) != null ? feat.penH : 'null'));
+  h += fpFeatKeyRow('or Diameter', fpM(srNum(feat.penDia)), 'penDia', 'Diameter', 'm', (srNum(feat.penDia) != null ? feat.penDia : 'null'));
+  h += '<div class="fp-sheet-sub">Soaker flashing</div>';
+  h += fpFeatKeyRow('Width', fpM(srNum(feat.soakerW)), 'soakerW', 'Soaker width', 'm', (srNum(feat.soakerW) != null ? feat.soakerW : 'null'));
+  h += fpFeatKeyRow('Length', fpM(srNum(feat.soakerL)), 'soakerL', 'Soaker length', 'm', (srNum(feat.soakerL) != null ? feat.soakerL : 'null'));
+  h += '<div class="fp-sheet-sub">Internal trimmer flashings</div>';
+  var tu = feat.trimmerUnit || 'count';
+  h += '<div class="fp-feat-unit"><button class="fp-unit-btn' + (tu === 'count' ? ' on' : '') + '" onclick="fpFeatSetField(\'trimmerUnit\',\'count\')">Count</button>' +
+       '<button class="fp-unit-btn' + (tu === 'linear' ? ' on' : '') + '" onclick="fpFeatSetField(\'trimmerUnit\',\'linear\')">Linear m</button></div>';
+  var tvDisp = (tu === 'linear') ? fpM(srNum(feat.trimmerVal)) : (srNum(feat.trimmerVal) != null ? Math.round(srNum(feat.trimmerVal)) : '—');
+  h += fpFeatKeyRow(tu === 'linear' ? 'Trimmer (m)' : 'Trimmer (count)', tvDisp, 'trimmerVal', 'Trimmer', (tu === 'linear' ? 'm' : 'off'), (srNum(feat.trimmerVal) != null ? feat.trimmerVal : 'null'));
+  h += '<div class="fp-sheet-sub">Galvanised support sections</div>';
+  var gc = (srNum(feat.galvCount) != null) ? Math.max(0, Math.round(srNum(feat.galvCount))) : 0;
+  h += fpFeatStepRow('Sections', gc, 'galvCount');
+  h += '<div class="fp-sheet-sub">Note</div>';
+  h += '<textarea class="fp-fault-note" rows="2" placeholder="Free note" oninput="fpFeatSetText(\'note\',this.value)">' + escapeHtml(feat.note || '') + '</textarea>';
+  return h;
+}
+// KIND D - plot and flag. Advisory only, in Jamie's labour language; mansafe
+// carries the commissioning toggle that upgrades its wording.
+function fpRenderFeatBodyD(feat){
+  var h = '<div class="fp-feat-flag">' + escapeHtml(fpPlotFlagWording(feat)) + '</div>';
+  if (feat.type === 'Mansafe system'){
+    h += '<label class="fp-feat-toggle"><input type="checkbox" ' + (feat.needsCommissioning ? 'checked' : '') + ' onchange="fpFeatSetField(\'needsCommissioning\',this.checked)"> Needs commissioning or replacement</label>';
+  }
+  h += '<div class="fp-sheet-sub">Note (optional)</div>';
+  h += '<textarea class="fp-fault-note" rows="2" placeholder="Optional note" oninput="fpFeatSetText(\'note\',this.value)">' + escapeHtml(feat.note || '') + '</textarea>';
+  return h;
+}
+// KIND E - other. Name + note + optional dimensions.
+function fpRenderFeatBodyE(feat){
+  var h = '<div class="fp-sheet-sub">Name</div>';
+  h += '<input type="text" class="fp-feat-input" placeholder="What is it" value="' + escapeHtml(feat.name || '') + '" oninput="fpFeatSetText(\'name\',this.value)">';
+  h += '<div class="fp-sheet-sub">Note</div>';
+  h += '<textarea class="fp-fault-note" rows="2" placeholder="Describe it" oninput="fpFeatSetText(\'note\',this.value)">' + escapeHtml(feat.note || '') + '</textarea>';
+  h += '<div class="fp-sheet-sub">Dimensions (optional)</div>';
+  h += fpFeatKeyRow('Width', fpM(srNum(feat.wM)), 'wM', 'Width', 'm', (srNum(feat.wM) != null ? feat.wM : 'null'));
+  h += fpFeatKeyRow('Height', fpM(srNum(feat.hM)), 'hM', 'Height', 'm', (srNum(feat.hM) != null ? feat.hM : 'null'));
+  return h;
+}
+// LEGACY - old generic records (no kind): the sheet as it was, plus an upgrade
+// path that keeps the existing data. Never auto-converted.
+function fpRenderFeatBodyLegacy(feat){
+  var cnt = Math.max(0, Math.round(srNum(feat.count) || 0));
+  var h = fpFeatKeyRow('Count', cnt, 'count', 'Count', 'off', cnt);
+  h += fpFeatKeyRow('Width (if sized)', fpM(srNum(feat.wM)), 'wM', 'Width', 'm', (srNum(feat.wM) != null ? feat.wM : 'null'));
+  h += fpFeatKeyRow('Height (if sized)', fpM(srNum(feat.hM)), 'hM', 'Height', 'm', (srNum(feat.hM) != null ? feat.hM : 'null'));
+  h += '<div class="fp-sheet-sub">Upgrade to a type (keeps this data)</div><div class="fp-opts fp-upgrade-opts">';
+  FP_FEATURE_TYPES.forEach(function(t){ h += '<button class="fp-opt" onclick="fpFeatUpgrade(\'' + t.replace(/'/g, "\\'") + '\')">' + escapeHtml(t) + '</button>'; });
   h += '</div>';
   return h;
+}
+function fpRenderFeatureSheet(survey){
+  if (fpFeatureSheet == null) return '';
+  var b = fpBuilding(survey); var feats = b && fpFeatures(b); var feat = feats && feats[fpFeatureSheet]; if (!feat){ fpFeatureSheet = null; return ''; }
+  var kind = fpFeatureKind(feat);
+  var head = '<div class="fp-sheet"><div class="fp-sheet-head"><span class="fp-sheet-title">' + escapeHtml(feat.type || 'Feature') + '</span><button class="fp-sheet-x" onclick="fpCloseFeature()">Done</button></div>';
+  var foot = '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpRemoveFeature(' + fpFeatureSheet + ')">Remove feature</button></div></div>';
+  var body = (kind === 'A') ? fpRenderFeatBodyA(feat)
+           : (kind === 'B') ? fpRenderFeatBodyB(feat)
+           : (kind === 'C') ? fpRenderFeatBodyC(feat)
+           : (kind === 'D') ? fpRenderFeatBodyD(feat)
+           : (kind === 'E') ? fpRenderFeatBodyE(feat)
+           : fpRenderFeatBodyLegacy(feat);
+  return head + body + fpRenderFeatPhotosBlock(feat) + foot;
 }
 // F4: the one act. A pinned defect photo IS a fault (photo + location + severity
 // + note), captured on the spot from this card - photo thumbnail, title, severity
@@ -11655,7 +11988,7 @@ function flowComputeSteps(survey){
   var featCount = 0;
   (s.buildings || []).forEach(function(bld){ featCount += (fpFeatures(bld) || []).length; });
   steps.push({ key:'features', label:'Features', state: featCount > 0 ? 'done' : 'not-started',
-    detail: featCount > 0 ? (featCount + ' feature' + (featCount === 1 ? '' : 's') + ' placed') : 'none placed yet' });
+    detail: featCount > 0 ? fpFeatureSummary(s) : 'none placed yet' });
 
   // SCAFFOLD - the surveyor's PERSISTED pack-access review (not ppDeriveAccess,
   // which auto-derives from the footprint and would always read done), so it
@@ -11865,11 +12198,20 @@ function flowAttemptAction(kind){
   var relevantPurpose = kind === 'report' ? 'condition' : 'priced';
   var steps = flowComputeSteps(survey).filter(function(s){ return flowStepInPurpose(s, relevantPurpose); });
   var unfinished = steps.filter(function(s){ return s.state !== 'done'; });
+  var blocking = (typeof fpAttentionBlocking === 'function') ? fpAttentionBlocking(survey) : [];
   var warnHost = document.getElementById('flow-handoff-warn');
-  if (!unfinished.length || !warnHost){ flowRunAction(kind); return; }
-  var names = unfinished.map(function(s){ return s.label + ' (' + s.detail + ')'; });
-  warnHost.innerHTML = '<div class="flow-warn"><b>Not everything is finished:</b><ul>' +
-    names.map(function(n){ return '<li>' + escapeHtml(n) + '</li>'; }).join('') + '</ul>' +
+  if ((!unfinished.length && !blocking.length) || !warnHost){ flowRunAction(kind); return; }
+  var body = '';
+  if (blocking.length){
+    body += '<b>Manual pricing needed before a price is issued:</b><ul>' +
+      blocking.map(function(e){ return '<li>' + escapeHtml(e.source + ' · ' + e.text) + '</li>'; }).join('') + '</ul>';
+  }
+  if (unfinished.length){
+    var names = unfinished.map(function(s){ return s.label + ' (' + s.detail + ')'; });
+    body += '<b>Not everything is finished:</b><ul>' +
+      names.map(function(n){ return '<li>' + escapeHtml(n) + '</li>'; }).join('') + '</ul>';
+  }
+  warnHost.innerHTML = '<div class="flow-warn">' + body +
     '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">' +
     '<button class="btn btn-secondary" onclick="document.getElementById(\'flow-handoff-warn\').innerHTML=\'\'">Go back and finish</button>' +
     '<button class="btn btn-primary" onclick="flowRunAction(\'' + kind + '\')">Continue anyway</button></div></div>';
