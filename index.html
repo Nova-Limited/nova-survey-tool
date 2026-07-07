@@ -4248,6 +4248,23 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-bay-asb.on { background: #fbf2e6; border-style: solid; border-color: #b06a1f; color: #7a4a12; }
     #view-footprint .fp-bay-add { font-size: 12.5px; font-weight: 700; background: #F7901E; color: #1f1f1f; border: none; border-radius: 7px; padding: 11px 15px; min-height: 44px; cursor: pointer; font-family: inherit; }
     #view-footprint .fp-bay-total { margin-top: 10px; font-size: 13px; color: #434244; }
+    /* flat-to-pitch feasibility checker (advisor only) */
+    #view-footprint .fp-f2p { margin: 16px 0 4px; max-width: 480px; }
+    #view-footprint .fp-f2p-toggle { width: 100%; text-align: left; font-size: 13px; font-weight: 800; background: #fff; border: 1px solid #d8d8d2; border-radius: 9px; padding: 12px 14px; min-height: 46px; cursor: pointer; color: #434244; font-family: inherit; }
+    #view-footprint .fp-f2p-toggle.on { border-color: #F7901E; background: #fff7ef; color: #b8700f; }
+    #view-footprint .fp-f2p-panel { border: 1px solid #ece9e2; border-top: none; border-radius: 0 0 10px 10px; padding: 12px 13px; background: #faf9f6; }
+    #view-footprint .fp-f2p-cfg { display: flex; gap: 8px; margin-bottom: 10px; }
+    #view-footprint .fp-f2p-cfgbtn { flex: 1; min-height: 42px; font-size: 12.5px; font-weight: 700; border: 1px solid #d8d8d2; border-radius: 8px; background: #fff; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-f2p-cfgbtn.on { background: #e4f3e7; border-color: var(--green); color: var(--green); }
+    #view-footprint .fp-f2p-out { margin-top: 9px; padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid #ece9e2; }
+    #view-footprint .fp-f2p-out-lbl { display: block; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #8a898b; margin-bottom: 3px; }
+    #view-footprint .fp-f2p-out-val { font-size: 18px; font-weight: 800; color: #434244; }
+    #view-footprint .fp-f2p-frame .fp-f2p-out-val { font-size: 14px; color: #516275; }
+    #view-footprint .fp-f2p-out-sub { font-size: 11px; color: #8a898b; margin-left: 8px; }
+    #view-footprint .fp-f2p-height { border-color: #F7901E; background: #fff7ef; }
+    #view-footprint .fp-f2p-valley { font-size: 12.5px; font-weight: 700; color: #7a4a12; background: #fbf2e6; border-color: #c4a36a; }
+    #view-footprint .fp-f2p-pending { margin-top: 9px; font-size: 12px; color: #8a898b; }
+    #view-footprint .fp-f2p-note { margin-top: 11px; padding-top: 9px; border-top: 1px solid #ece9e2; font-size: 11px; font-style: italic; color: #8a898b; }
     /* stage 4: tap-to-place toolbar */
     #view-footprint .fp-place-row { display: flex; gap: 8px; margin: 10px 0; }
     #view-footprint .fp-place-btn { font-size: 12.5px; font-weight: 700; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 9px 13px; min-height: 44px; cursor: pointer; color: #434244; font-family: inherit; }
@@ -10479,6 +10496,7 @@ function fpRender(){
     h += fpRenderBays(survey);   // Stage 3: bay definition (multi-bay only)
     h += fpRenderElevations(survey);   // Stage 4: wall elevations
     h += fpRenderRuns(survey);
+    h += fpRenderF2P(survey);   // Flat-to-pitch feasibility checker (advisor only; no costing, no scope)
   }
 
   // roof form picker
@@ -10950,9 +10968,97 @@ function fpKeypadDone(){
       }
     }
   }
+  else if (fpKeypad.kind === 'f2p' && b){   // flat-to-pitch feasibility checker inputs
+    var st = fpF2PState(b);
+    if (fpKeypad.field === 'spanM') st.spanM = (v != null && v > 0) ? v : null;
+    else if (fpKeypad.field === 'pitchDeg') st.pitchDeg = (v != null && v > 0) ? v : null;
+  }
   srPersist(survey); fpKeypad = null; fpRender();
 }
 function fpKeypadCancel(){ fpKeypad = null; fpRender(); }
+
+// ===== FLAT-TO-PITCH FEASIBILITY CHECKER =====================================
+// An on-site geometry AID only: given a span (depth to cover), a target pitch
+// and a configuration, it returns the ridge/high-side height, a SUGGESTED frame
+// type (never a specification), and a valley-gutter tradeoff verdict. It is not a
+// structural calculator and produces no client-facing output and no price; the
+// manufacturer's structural survey remains the authority. Reads the span default
+// from the captured plan width but writes nothing to the costing model and
+// creates no scope. The surveyor's span/pitch/config persist as an additive note
+// on the building (building.flatToPitch) in the survey snapshot; no f- fields.
+// Envelope thresholds are single named constants so planning can retune them.
+var F2P_VALLEY_THRESHOLD_M = 4.0;    // ridge/high-side height above which a valley-gutter design is advised
+var F2P_LINER_MAX_PITCH_DEG = 15;    // post-and-rail (liner) envelope: pitch ceiling
+var F2P_LINER_MAX_HEIGHT_M = 3.5;    // post-and-rail (liner) envelope: height ceiling
+var F2P_RAFTER_MAX_PITCH_DEG = 45;   // propped rafter frame envelope: pitch ceiling
+var F2P_WIDE_SPAN_M = 30;            // beyond this span a spanning truss is likely regardless of pitch
+var fpF2POpen = false;   // transient: is the checker panel expanded (not a survey field)
+function fpF2PState(b){
+  if (!b.flatToPitch || typeof b.flatToPitch !== 'object') b.flatToPitch = { spanM: null, pitchDeg: null, config: 'symmetrical' };
+  var s = b.flatToPitch;
+  if (s.config !== 'symmetrical' && s.config !== 'mono') s.config = 'symmetrical';
+  return s;
+}
+// Default span (depth to cover) from the captured plan width, where available.
+function fpF2PSpanDefault(b){ var w = srNum(((b && b.datum) || {}).widthM); return (w != null && w > 0) ? w : null; }
+// Rise by trigonometry. Symmetrical ridge = (span/2)*tan(pitch); mono = span*tan(pitch).
+function f2pRise(span, pitchDeg, config){
+  if (span == null || pitchDeg == null || span <= 0 || pitchDeg <= 0) return null;
+  var t = Math.tan(pitchDeg * Math.PI / 180);
+  return (config === 'mono') ? (span * t) : ((span / 2) * t);
+}
+// SUGGESTED frame type from the manufacturer envelopes (worded as suggestions).
+function f2pFrameType(pitchDeg, heightM, span){
+  if (pitchDeg == null || heightM == null) return null;
+  if (pitchDeg > F2P_RAFTER_MAX_PITCH_DEG) return 'spanning truss likely';
+  if (span != null && span > F2P_WIDE_SPAN_M) return 'spanning truss likely';
+  if (pitchDeg <= F2P_LINER_MAX_PITCH_DEG && heightM <= F2P_LINER_MAX_HEIGHT_M) return 'post-and-rail (liner) may suffice';
+  return 'propped rafter frame';
+}
+// Valley-gutter tradeoff verdict (the height-or-valley call Jamie flagged).
+function f2pValleyVerdict(config, heightM){
+  if (heightM == null || heightM <= F2P_VALLEY_THRESHOLD_M) return null;
+  if (config === 'mono') return 'high side exceeds ' + F2P_VALLEY_THRESHOLD_M + 'm: consider a symmetrical ridge with a central valley gutter, or accept the raised elevation';
+  return 'span too wide for a single ridge at this pitch: a central valley gutter design is likely needed';
+}
+function fpF2PToggle(){ fpF2POpen = !fpF2POpen; fpRender(); }
+function fpF2PSetConfig(cfg){
+  var survey = srLoadSurvey(fpCurrentId); var b = fpBuilding(survey); if (!b) return;
+  fpF2PState(b).config = (cfg === 'mono') ? 'mono' : 'symmetrical';
+  srPersist(survey); fpRender();
+}
+function fpRenderF2P(survey){
+  var b = fpBuilding(survey); if (!b) return '';
+  var h = '<div class="fp-f2p"><button class="fp-f2p-toggle' + (fpF2POpen ? ' on' : '') + '" onclick="fpF2PToggle()">Flat-to-pitch feasibility</button>';
+  if (!fpF2POpen){ return h + '</div>'; }
+  var s = fpF2PState(b);
+  var def = fpF2PSpanDefault(b);
+  var span = (s.spanM != null) ? s.spanM : def;
+  var spanSrc = (s.spanM != null) ? 'keyed' : (def != null ? 'from plan' : null);
+  var pitch = srNum(s.pitchDeg);
+  var height = f2pRise(span, pitch, s.config);
+  var frame = f2pFrameType(pitch, height, span);
+  var valley = f2pValleyVerdict(s.config, height);
+  h += '<div class="fp-f2p-panel">';
+  h += '<div class="fp-f2p-cfg"><button class="fp-f2p-cfgbtn' + (s.config === 'symmetrical' ? ' on' : '') + '" onclick="fpF2PSetConfig(\'symmetrical\')">Symmetrical ridge</button>' +
+       '<button class="fp-f2p-cfgbtn' + (s.config === 'mono' ? ' on' : '') + '" onclick="fpF2PSetConfig(\'mono\')">Mono slope</button></div>';
+  h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Span (depth to cover)' + (spanSrc ? ' <span class="fp-src-tag' + (spanSrc === 'keyed' ? ' fp-src-keyed' : '') + '">' + spanSrc + '</span>' : '') + '</span><span class="fp-datum-val">' + fpM(span) + '</span>' +
+       '<button class="fp-key-btn" onclick="fpOpenKeypad(\'f2p\',0,\'spanM\',\'Span\',\'m\',' + (span != null ? span : 'null') + ')">Key</button></div>';
+  h += '<div class="fp-datum-row"><span class="fp-datum-lbl">Target pitch</span><span class="fp-datum-val">' + (pitch != null ? (Math.round(pitch * 10) / 10 + '°') : '—') + '</span>' +
+       '<button class="fp-key-btn" onclick="fpOpenKeypad(\'f2p\',0,\'pitchDeg\',\'Pitch (degrees)\',\'off\',' + (pitch != null ? pitch : 'null') + ')">Key</button></div>';
+  if (height != null){
+    var hLbl = (s.config === 'mono') ? 'High-side height above the flat' : 'Ridge height above the flat';
+    var cfgLbl = (s.config === 'mono') ? 'mono slope' : 'symmetrical ridge';
+    h += '<div class="fp-f2p-out fp-f2p-height"><span class="fp-f2p-out-lbl">' + hLbl + '</span><span class="fp-f2p-out-val">' + (Math.round(height * 10) / 10).toFixed(1) + ' m</span><span class="fp-f2p-out-sub">assumes ' + cfgLbl + '</span></div>';
+    if (frame) h += '<div class="fp-f2p-out fp-f2p-frame"><span class="fp-f2p-out-lbl">Implied frame type</span><span class="fp-f2p-out-val">' + escapeHtml(frame) + '</span></div>';
+    if (valley) h += '<div class="fp-f2p-out fp-f2p-valley">' + escapeHtml(valley) + '</div>';
+  } else {
+    h += '<div class="fp-f2p-pending">Key a span and a target pitch to see the height.</div>';
+  }
+  h += '<div class="fp-f2p-note">Feasibility guide only. Frame type and structural adequacy are confirmed by the manufacturer’s structural survey and pull-out tests.</div>';
+  h += '</div></div>';
+  return h;
+}
 
 // --- render helpers appended below the canvas ---
 function fpRenderEdgeSheet(survey){
