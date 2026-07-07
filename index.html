@@ -4069,6 +4069,67 @@ input.derived-field { background: #f6f8fa; color: #555; }
     </div>
   </section>
 
+  <section id="view-costing" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
+        <h1>Job costing &middot; buildings and scopes</h1>
+        <div class="meta">Internal working view. The job is a set of buildings; each building holds either one fixed scope or a choice of two to three. Build each scope exactly like the estimate ledger - rates and margin are visible because this is the internal view, not the client document. Mark the recommended scope where a building offers a choice; the job total sums the accepted scope of every building.</div>
+      </div>
+      <div id="costing-body"></div>
+    </div>
+  </section>
+
+  <style id="cost-styles">
+    #view-costing .cost-jobbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; padding:11px 14px; background:#434244; color:#fff; border-radius:9px; }
+    #view-costing .cost-internal-tag { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; background:#F7901E; color:#1f1f1f; padding:3px 9px; border-radius:5px; }
+    #view-costing .cost-jobtotal { display:flex; align-items:baseline; gap:10px; }
+    #view-costing .cost-jt-lbl { font-size:11px; color:#cfcfce; }
+    #view-costing .cost-jt-val { font-size:20px; font-weight:800; }
+    #view-costing .cost-jt-mar { font-size:12px; font-weight:700; padding:2px 7px; border-radius:5px; background:rgba(255,255,255,.14); }
+    #view-costing .cost-bldg { border:1px solid #dddcd4; border-radius:11px; padding:12px 14px; margin-bottom:14px; background:#fff; }
+    #view-costing .cost-bldg-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:10px; }
+    #view-costing .cost-bldg-name { flex:1; min-width:150px; font-size:15px; font-weight:800; color:#434244; border:1px solid transparent; border-radius:6px; padding:5px 7px; background:#faf9f6; }
+    #view-costing .cost-bldg-name:focus { border-color:#d8d8d2; background:#fff; outline:none; }
+    #view-costing .cost-badge { font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:3px 9px; border-radius:5px; }
+    #view-costing .cost-badge-fixed { background:#eef2f6; color:#516275; }
+    #view-costing .cost-badge-choice { background:#fff3e2; color:#b8700f; }
+    #view-costing .cost-bldg-total { font-size:16px; font-weight:800; color:#434244; margin-left:auto; }
+    #view-costing .cost-x, #view-costing .cost-x-sm { font-size:11px; background:#fff; border:1px solid #e0cfcf; color:#a33; border-radius:6px; padding:5px 9px; cursor:pointer; font-family:inherit; }
+    #view-costing .cost-x-sm { padding:1px 6px; font-size:14px; line-height:1; }
+    #view-costing .cost-facts { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:8px; }
+    #view-costing .cost-fact { display:flex; flex-direction:column; gap:3px; font-size:11px; font-weight:700; color:#8a898b; }
+    #view-costing .cost-fact select { font-size:13px; min-height:36px; border:1px solid #d8d8d2; border-radius:7px; background:#fff; color:#434244; font-family:inherit; padding:4px 8px; min-width:150px; }
+    #view-costing .cost-spec { display:flex; flex-direction:column; gap:3px; font-size:11px; font-weight:700; color:#8a898b; margin-bottom:8px; }
+    #view-costing .cost-spec textarea { font-size:13px; border:1px solid #d8d8d2; border-radius:7px; padding:6px 9px; color:#434244; font-family:inherit; resize:vertical; }
+    #view-costing .cost-occ-flag { margin:6px 0 10px; padding:8px 11px; font-size:12px; font-weight:700; border-radius:7px; background:#fbf2e6; border:1px solid #c4a36a; color:#7a4a12; }
+    #view-costing .cost-scope { border:1px solid #ece9e2; border-radius:9px; padding:9px 11px; margin:9px 0; background:#faf9f6; }
+    #view-costing .cost-scope-acc { border-color:var(--green); box-shadow:inset 3px 0 0 var(--green); }
+    #view-costing .cost-scope-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:8px; }
+    #view-costing .cost-acc { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#434244; white-space:nowrap; }
+    #view-costing .cost-scope-label { flex:1; min-width:120px; font-size:13px; font-weight:700; border:1px solid #d8d8d2; border-radius:6px; padding:5px 8px; color:#434244; }
+    #view-costing .cost-scope-total { font-size:15px; font-weight:800; color:#434244; }
+    #view-costing .cost-scope-mar { font-size:11px; font-weight:800; padding:2px 7px; border-radius:5px; }
+    #view-costing .cost-rates { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin-bottom:8px; }
+    #view-costing .cost-rates label { font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#888; display:flex; flex-direction:column; gap:3px; }
+    #view-costing .cost-rates input { width:74px; text-align:right; border:1px solid #d8d8d2; border-radius:4px; padding:4px 6px; font-size:13px; }
+    #view-costing .cost-mini, #view-costing .cost-addrow { font-size:11.5px; font-weight:700; background:#fff; border:1px solid #d8d8d2; border-radius:6px; padding:6px 11px; cursor:pointer; color:#434244; font-family:inherit; }
+    #view-costing .cost-el { margin:8px 0; }
+    #view-costing .cost-el-head { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+    #view-costing .cost-el-name { flex:1; font-size:12px; font-weight:700; border:1px solid transparent; border-radius:5px; padding:3px 6px; background:#fff; color:#434244; }
+    #view-costing .cost-el-name:focus { border-color:#d8d8d2; outline:none; }
+    #view-costing .cost-el-sub { font-size:12px; font-weight:800; color:#516275; }
+    #view-costing .cost-tbl { width:100%; border-collapse:collapse; }
+    #view-costing .cost-tbl th { padding:4px 6px; border:1px solid #e2e2dd; background:#434244; color:#fff; font-weight:700; font-size:10px; text-align:right; }
+    #view-costing .cost-tbl td { padding:2px 5px; border:1px solid #e8e8e3; font-size:12px; text-align:right; }
+    #view-costing .cost-in { width:60px; text-align:right; border:1px solid #d8d8d2; border-radius:4px; padding:2px 4px; font-size:12px; }
+    #view-costing .cost-in-txt { width:100%; min-width:80px; border:1px solid #d8d8d2; border-radius:4px; padding:2px 5px; font-size:12px; }
+    #view-costing .cost-sell { font-weight:700; color:#1f7a37; background:#f7f7f4; }
+    #view-costing .cost-addrow { margin-top:5px; }
+    #view-costing .cost-addscope { margin-top:8px; }
+    #view-costing .cost-addbldg { margin:6px 0 24px; }
+  </style>
+
   <style id="fp-styles">
     #view-footprint .fp-wrap { max-width: 640px; }
     #view-footprint .fp-tools, #view-footprint .fp-forms { margin-bottom: 14px; }
@@ -7468,6 +7529,7 @@ function renderSurveyDetail(s) {
           '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
           '<button class="btn btn-secondary" onclick="srOpenReturns(currentSurveyId)">Subcontractor returns</button>' +
           '<button class="btn btn-secondary" onclick="estOpenLedger(currentSurveyId)">Estimate cost ledger</button>' +
+          '<button class="btn btn-secondary" onclick="costOpen(currentSurveyId)">Job costing (buildings &amp; scopes)</button>' +
           '<button class="btn btn-secondary" onclick="srOpenLedger(currentSurveyId)">Job cost ledger</button>' +
         '</div>' +
       '</div>' +
@@ -8545,6 +8607,225 @@ function estFindRow(L, elId, rowId){
   var row = (el.rows || []).find(function(r){ return r.id === rowId; });
   return row ? { el: el, row: row } : null;
 }
+
+// ===== TIER 2: JOB -> BUILDINGS -> SCOPES (Structure C) =====================
+// A JOB (the survey) contains BUILDINGS; each building carries roof type,
+// occupancy and spec and holds an ORDERED list of SCOPES. A scope is a full
+// costed build-up in the EXISTING estLedger shape { rates, elements:[{id,name,
+// rows}] } - reused verbatim, so estRowFigures/estElementFigures/estJobFigures
+// and priceLine cost it identically (no reinvented maths). One scope = "fixed";
+// two or three = "a choice", with an accepted-or-default scope. The job total
+// sums the accepted-or-default scope across all buildings. This is a NEW
+// ADDITIVE key survey.costing; legacy survey.estLedger and survey.proposal are
+// left untouched, so the documents that read them stay byte-identical. No new
+// Airtable/f- fields; rides in the survey snapshot. See [[nova-costing-layer-build]].
+var costIdSeq = 0;
+function costNewId(p){ return (p || 'c') + '-' + Date.now().toString(36) + '-' + (costIdSeq++).toString(36); }
+// A scope is estLedger-shaped PLUS a label (the scope name the estimator sees).
+function costNewScope(label){
+  return { id: costNewId('sc'), label: label || 'Scope', rates: estDefaultRates(), elements: [ estDefaultElement('Roof 1') ] };
+}
+function costNewBuilding(name, roofType){
+  return { id: costNewId('cb'), name: name || 'Building', roofType: roofType || '', occupancy: '', spec: '',
+    scopes: [ costNewScope('Scope A') ], acceptedScope: 0 };
+}
+// Deep-clone an estLedger-shaped object into a scope, preserving every number
+// (a migrated legacy build-up reads identically) without aliasing the source.
+function costScopeFromLedger(L, label){
+  var clone = JSON.parse(JSON.stringify({ rates: L.rates, elements: L.elements }));
+  return { id: costNewId('sc'), label: label || 'Existing estimate', rates: clone.rates, elements: clone.elements };
+}
+// Defensive in-place normalisation of a costing building (partial/loaded data).
+function costNormaliseBuilding(b){
+  if (!b || typeof b !== 'object') return costNewBuilding();
+  if (typeof b.name !== 'string') b.name = 'Building';
+  if (typeof b.roofType !== 'string') b.roofType = '';
+  if (typeof b.occupancy !== 'string') b.occupancy = '';
+  if (typeof b.spec !== 'string') b.spec = '';
+  if (!Array.isArray(b.scopes) || !b.scopes.length) b.scopes = [ costNewScope('Scope A') ];
+  b.scopes.forEach(function(sc){
+    if (!sc || typeof sc !== 'object') return;
+    if (!sc.rates || typeof sc.rates !== 'object') sc.rates = estDefaultRates();
+    if (!Array.isArray(sc.elements)) sc.elements = [];
+    if (typeof sc.label !== 'string') sc.label = 'Scope';
+    if (!sc.id) sc.id = costNewId('sc');
+  });
+  var n = b.scopes.length;
+  b.acceptedScope = (typeof b.acceptedScope === 'number' && b.acceptedScope >= 0 && b.acceptedScope < n) ? b.acceptedScope : 0;
+  if (!b.id) b.id = costNewId('cb');
+  return b;
+}
+// MIGRATION (lossless, additive). If survey.costing is absent, build it from
+// the current single build-up: a JOB with ONE building holding ONE scope that
+// carries the existing survey.estLedger verbatim (identical numbers). No
+// estLedger yet -> seed one default scope. survey.estLedger and survey.proposal
+// are NEVER mutated or removed - old data is never lost, never silently re-costed.
+function costEnsure(survey){
+  if (survey.costing && typeof survey.costing === 'object' && Array.isArray(survey.costing.buildings) && survey.costing.buildings.length){
+    survey.costing.buildings.forEach(costNormaliseBuilding);
+    return survey.costing;
+  }
+  var name = 'Building 1', roofType = '';
+  var capB = (Array.isArray(survey.buildings) && survey.buildings[0]) ? survey.buildings[0] : null;
+  if (capB){
+    if (capB.name && String(capB.name).trim()) name = String(capB.name).trim();
+    if (typeof f5BuildingRoofType === 'function'){
+      var rt = f5BuildingRoofType(capB, survey);
+      if (rt && rt.label && rt.label !== 'Unspecified') roofType = rt.label;
+    } else if (capB.roofType){ roofType = capB.roofType; }
+  }
+  var scope;
+  if (survey.estLedger && typeof survey.estLedger === 'object' && Array.isArray(survey.estLedger.elements) && survey.estLedger.elements.length){
+    scope = costScopeFromLedger(survey.estLedger, 'Existing estimate');   // migrate the one build-up verbatim
+  } else {
+    scope = costNewScope('Scope A');
+  }
+  survey.costing = { buildings: [ { id: costNewId('cb'), name: name, roofType: roofType, occupancy: '', spec: '', scopes: [ scope ], acceptedScope: 0 } ] };
+  return survey.costing;
+}
+// A building's figures = its accepted-or-default scope, via the SAME engine.
+function costAcceptedScope(b){
+  var i = (b && typeof b.acceptedScope === 'number' && b.scopes && b.scopes[b.acceptedScope]) ? b.acceptedScope : 0;
+  return (b && b.scopes) ? (b.scopes[i] || null) : null;
+}
+function costBuildingFigures(b){
+  var sc = costAcceptedScope(b);
+  return sc ? estJobFigures(sc) : { matTot:0, labTot:0, sell:0, actual:0, priced:0, rows:0, margin:null, pct:null };
+}
+// The job total sums the accepted-or-default scope across every building.
+function costJobTotal(survey){
+  var C = survey && survey.costing; if (!C || !Array.isArray(C.buildings)) return { sell:0, margin:null, actual:0, priced:0, buildings:0 };
+  var sell = 0, actual = 0, priced = 0;
+  C.buildings.forEach(function(b){ var f = costBuildingFigures(b); sell += f.sell; actual += (f.actual || 0); priced += f.priced; });
+  var margin = priced ? (sell - actual) : null;
+  return { sell: sell, margin: margin, actual: actual, priced: priced, buildings: C.buildings.length };
+}
+// Locate a scope's element/row for build-up editing (mirrors estFindRow).
+function costFindRow(survey, bi, si, elId, rowId){
+  var C = survey && survey.costing; if (!C) return null;
+  var b = (C.buildings || [])[bi]; if (!b) return null;
+  var sc = (b.scopes || [])[si]; if (!sc) return null;
+  return estFindRow(sc, elId, rowId);
+}
+
+// ----- TIER 2 INTERNAL WORKING VIEW: buildings -> scopes -> build-up ---------
+// Reuses the estimate-ledger engine (estRowFigures/estElementFigures/
+// estJobFigures via priceLine) and the shared money/margin helpers, so each
+// scope is costed EXACTLY like the estimate ledger. Rates and margin are shown
+// on purpose - this is the internal view, not the client document.
+var costCurrentId = null;
+function costOpen(id){
+  costCurrentId = id || currentSurveyId;
+  var survey = srLoadSurvey(costCurrentId);
+  if (survey){ costEnsure(survey); srPersist(survey); }   // persist the lazy migration so it survives snapshot save/load
+  if (typeof showView === 'function') showView('costing');
+  costRender();
+}
+function costCur(){ var survey = srLoadSurvey(costCurrentId); return { survey: survey, C: survey ? costEnsure(survey) : null }; }
+function costRender(){
+  var host = document.getElementById('costing-body'); if (!host) return;
+  var survey = srLoadSurvey(costCurrentId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var C = costEnsure(survey);
+  var job = costJobTotal(survey);
+  var h = '<div class="cost-jobbar">';
+  h += '<div class="cost-internal-tag">Internal working view &middot; rates and margin shown</div>';
+  h += '<div class="cost-jobtotal"><span class="cost-jt-lbl">Job total (accepted scopes)</span>' +
+    '<span class="cost-jt-val">' + srMoney(job.sell) + '</span>' +
+    (job.margin != null ? '<span class="cost-jt-mar ' + srMarginColour(job.margin) + '">margin ' + srMoney(job.margin) + '</span>' : '') + '</div>';
+  h += '</div>';
+  C.buildings.forEach(function(b, bi){ h += costRenderBuilding(survey, b, bi); });
+  h += '<div class="cost-addbldg"><button class="btn btn-secondary" onclick="costAddBuilding()">+ Add building</button></div>';
+  host.innerHTML = h;
+}
+function costRenderBuilding(survey, b, bi){
+  var isChoice = (b.scopes.length > 1);
+  var f = costBuildingFigures(b);
+  var many = survey.costing.buildings.length > 1;
+  var h = '<div class="cost-bldg">';
+  h += '<div class="cost-bldg-head">';
+  h += '<input class="cost-bldg-name" value="' + srEsc(b.name || '') + '" oninput="costSetBuildingField(' + bi + ',\'name\',this.value)">';
+  h += '<span class="cost-badge ' + (isChoice ? 'cost-badge-choice' : 'cost-badge-fixed') + '">' + (isChoice ? 'Choice of ' + b.scopes.length : 'Fixed') + '</span>';
+  h += '<span class="cost-bldg-total">' + srMoney(f.sell) + '</span>';
+  h += (many ? '<button class="cost-x" onclick="costRemoveBuilding(' + bi + ')">Remove building</button>' : '');
+  h += '</div>';
+  h += '<div class="cost-facts">';
+  h += '<label class="cost-fact"><span>Roof type</span><select onchange="costSetBuildingField(' + bi + ',\'roofType\',this.value)"><option value="">Choose</option>' +
+    ROOF_TYPE_OPTIONS.map(function(o){ return '<option' + (b.roofType === o ? ' selected' : '') + '>' + srEsc(o) + '</option>'; }).join('') + '</select></label>';
+  h += '<label class="cost-fact"><span>Occupancy</span><select onchange="costSetBuildingField(' + bi + ',\'occupancy\',this.value)">' +
+    ['','occupied','unoccupied'].map(function(o){ return '<option value="' + o + '"' + (b.occupancy === o ? ' selected' : '') + '>' + (o === '' ? 'Not set' : (o.charAt(0).toUpperCase() + o.slice(1))) + '</option>'; }).join('') + '</select></label>';
+  h += '</div>';
+  h += '<label class="cost-spec"><span>Spec / notes</span><textarea rows="2" placeholder="Covering, insulation, structure, access" oninput="costSetBuildingField(' + bi + ',\'spec\',this.value)">' + srEsc(b.spec || '') + '</textarea></label>';
+  if (b.occupancy === 'occupied') h += '<div class="cost-occ-flag">working over occupied space: allow additional labour</div>';
+  b.scopes.forEach(function(sc, si){ h += costRenderScope(survey, b, bi, sc, si, isChoice); });
+  if (b.scopes.length < 3) h += '<div class="cost-addscope"><button class="btn btn-secondary" onclick="costAddScope(' + bi + ')">+ Add scope (offer a choice)</button></div>';
+  h += '</div>';
+  return h;
+}
+function costRenderScope(survey, b, bi, sc, si, isChoice){
+  var accepted = (b.acceptedScope === si);
+  var jf = estJobFigures(sc);
+  var h = '<div class="cost-scope' + (accepted ? ' cost-scope-acc' : '') + '">';
+  h += '<div class="cost-scope-head">';
+  h += '<label class="cost-acc"><input type="radio" name="cost-acc-' + bi + '" ' + (accepted ? 'checked' : '') + ' onchange="costSetAccepted(' + bi + ',' + si + ')"> ' + (isChoice ? 'Recommended' : 'Accepted') + '</label>';
+  h += '<input class="cost-scope-label" value="' + srEsc(sc.label || '') + '" oninput="costSetScopeLabel(' + bi + ',' + si + ',this.value)">';
+  h += '<span class="cost-scope-total">' + srMoney(jf.sell) + '</span>';
+  h += (jf.margin != null ? '<span class="cost-scope-mar ' + srMarginColour(jf.margin) + '">' + srPctTxt(jf.pct) + '</span>' : '');
+  h += (b.scopes.length > 1 ? '<button class="cost-x" onclick="costRemoveScope(' + bi + ',' + si + ')">Remove</button>' : '');
+  h += '</div>';
+  h += '<div class="cost-rates">';
+  h += '<label>Contingency %<input type="number" step="0.5" min="0" value="' + (Math.round(sc.rates.contingency * 1000) / 10) + '" oninput="costScopeRate(' + bi + ',' + si + ',\'contingency\',this.value)"></label>';
+  h += '<label>Margin %<input type="number" step="0.5" min="0" value="' + (Math.round(sc.rates.margin * 1000) / 10) + '" oninput="costScopeRate(' + bi + ',' + si + ',\'margin\',this.value)"></label>';
+  h += '<button class="cost-mini" onclick="costScopeAddElement(' + bi + ',' + si + ')">+ Element</button>';
+  h += '</div>';
+  (sc.elements || []).forEach(function(el){ h += costRenderElement(bi, si, sc, el); });
+  h += '</div>';
+  return h;
+}
+function costRenderElement(bi, si, sc, el){
+  var ef = estElementFigures(el, sc.rates);
+  var canDel = (sc.elements.length > 1);
+  var h = '<div class="cost-el">';
+  h += '<div class="cost-el-head"><input class="cost-el-name" value="' + srEsc(el.name || '') + '" oninput="costScopeElName(' + bi + ',' + si + ',\'' + el.id + '\',this.value)"><span class="cost-el-sub">' + srMoney(ef.sell) + '</span>' +
+    (canDel ? '<button class="cost-x-sm" onclick="costScopeDelElement(' + bi + ',' + si + ',\'' + el.id + '\')">&times;</button>' : '') + '</div>';
+  h += '<table class="cost-tbl"><thead><tr><th style="text-align:left">Item</th><th>Units</th><th>Mat/u</th><th>Lab/u</th><th>Sell</th><th></th></tr></thead><tbody>';
+  (el.rows || []).forEach(function(r){
+    var rf = estRowFigures(r, sc.rates);
+    h += '<tr>';
+    h += '<td style="text-align:left"><input class="cost-in-txt" value="' + srEsc(r.item || '') + '" placeholder="' + srEsc(r.category || '') + '" oninput="costScopeRowText(' + bi + ',' + si + ',\'' + el.id + '\',\'' + r.id + '\',\'item\',this.value)"></td>';
+    h += '<td><input class="cost-in" type="number" step="any" value="' + (r.units != null ? r.units : '') + '" oninput="costScopeRowNum(' + bi + ',' + si + ',\'' + el.id + '\',\'' + r.id + '\',\'units\',this.value)"></td>';
+    h += '<td><input class="cost-in" type="number" step="any" value="' + (r.matPerUnit != null ? r.matPerUnit : '') + '" oninput="costScopeRowNum(' + bi + ',' + si + ',\'' + el.id + '\',\'' + r.id + '\',\'matPerUnit\',this.value)"></td>';
+    h += '<td><input class="cost-in" type="number" step="any" value="' + (r.labPerUnit != null ? r.labPerUnit : '') + '" oninput="costScopeRowNum(' + bi + ',' + si + ',\'' + el.id + '\',\'' + r.id + '\',\'labPerUnit\',this.value)"></td>';
+    h += '<td class="cost-sell">' + (rf.sell > 0 ? srMoney(rf.sell) : '') + '</td>';
+    h += '<td><button class="cost-x-sm" onclick="costScopeDelRow(' + bi + ',' + si + ',\'' + el.id + '\',\'' + r.id + '\')">&times;</button></td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  h += '<button class="cost-addrow" onclick="costScopeAddRow(' + bi + ',' + si + ',\'' + el.id + '\')">+ line</button>';
+  h += '</div>';
+  return h;
+}
+// Handlers. Text inputs persist without a re-render (keep focus); numbers,
+// selects and structure changes re-render (costRender) to refresh totals.
+function costSetBuildingField(bi, field, val){
+  var c = costCur(); if (!c.C) return; var b = c.C.buildings[bi]; if (!b) return;
+  b[field] = val; srPersist(c.survey);
+  if (field === 'occupancy' || field === 'roofType') costRender();   // selects: safe to re-render
+}
+function costSetScopeLabel(bi, si, val){ var c = costCur(); if (!c.C) return; var sc = (c.C.buildings[bi] || {}).scopes; sc = sc && sc[si]; if (!sc) return; sc.label = val; srPersist(c.survey); }
+function costSetAccepted(bi, si){ var c = costCur(); if (!c.C) return; var b = c.C.buildings[bi]; if (!b) return; b.acceptedScope = si; srPersist(c.survey); costRender(); }
+function costAddScope(bi){ var c = costCur(); if (!c.C) return; var b = c.C.buildings[bi]; if (!b) return; if (b.scopes.length >= 3){ showToast('A building offers at most three scopes.', 'err'); return; } b.scopes.push(costNewScope('Scope ' + String.fromCharCode(65 + b.scopes.length))); srPersist(c.survey); costRender(); }
+function costRemoveScope(bi, si){ var c = costCur(); if (!c.C) return; var b = c.C.buildings[bi]; if (!b || b.scopes.length <= 1) return; b.scopes.splice(si, 1); if (b.acceptedScope >= b.scopes.length) b.acceptedScope = b.scopes.length - 1; if (b.acceptedScope < 0) b.acceptedScope = 0; srPersist(c.survey); costRender(); }
+function costAddBuilding(){ var c = costCur(); if (!c.C) return; c.C.buildings.push(costNewBuilding('Building ' + (c.C.buildings.length + 1), '')); srPersist(c.survey); costRender(); }
+function costRemoveBuilding(bi){ var c = costCur(); if (!c.C) return; if (c.C.buildings.length <= 1) return; if (!confirm('Remove this building and its scopes?')) return; c.C.buildings.splice(bi, 1); srPersist(c.survey); costRender(); }
+function costScopeRate(bi, si, field, val){ var c = costCur(); if (!c.C) return; var sc = (c.C.buildings[bi] || {}).scopes; sc = sc && sc[si]; if (!sc) return; var v = parseFloat(val); sc.rates[field] = (isNaN(v) ? 0 : v / 100); srPersist(c.survey); costRender(); }
+function costScopeRowNum(bi, si, elId, rowId, field, val){ var c = costCur(); if (!c.C) return; var fr = costFindRow(c.survey, bi, si, elId, rowId); if (!fr) return; fr.row[field] = srNum(val); srPersist(c.survey); costRender(); }
+function costScopeRowText(bi, si, elId, rowId, field, val){ var c = costCur(); if (!c.C) return; var fr = costFindRow(c.survey, bi, si, elId, rowId); if (!fr) return; fr.row[field] = val; srPersist(c.survey); }
+function costScopeElName(bi, si, elId, val){ var c = costCur(); if (!c.C) return; var sc = (c.C.buildings[bi] || {}).scopes; sc = sc && sc[si]; if (!sc) return; var el = (sc.elements || []).find(function(e){ return e.id === elId; }); if (!el) return; el.name = val; srPersist(c.survey); }
+function costScopeAddRow(bi, si, elId){ var c = costCur(); if (!c.C) return; var sc = (c.C.buildings[bi] || {}).scopes; sc = sc && sc[si]; if (!sc) return; var el = (sc.elements || []).find(function(e){ return e.id === elId; }); if (!el) return; el.rows.push(estBlankRow('Sheeting')); srPersist(c.survey); costRender(); }
+function costScopeDelRow(bi, si, elId, rowId){ var c = costCur(); if (!c.C) return; var sc = (c.C.buildings[bi] || {}).scopes; sc = sc && sc[si]; if (!sc) return; var el = (sc.elements || []).find(function(e){ return e.id === elId; }); if (!el) return; el.rows = el.rows.filter(function(r){ return r.id !== rowId; }); srPersist(c.survey); costRender(); }
+function costScopeAddElement(bi, si){ var c = costCur(); if (!c.C) return; var sc = (c.C.buildings[bi] || {}).scopes; sc = sc && sc[si]; if (!sc) return; sc.elements.push(estDefaultElement('Element ' + (sc.elements.length + 1))); srPersist(c.survey); costRender(); }
+function costScopeDelElement(bi, si, elId){ var c = costCur(); if (!c.C) return; var sc = (c.C.buildings[bi] || {}).scopes; sc = sc && sc[si]; if (!sc || sc.elements.length <= 1) return; sc.elements = sc.elements.filter(function(e){ return e.id !== elId; }); srPersist(c.survey); costRender(); }
 
 function estOpenLedger(id){
   srCurrentSurveyId = id || currentSurveyId;
@@ -11431,6 +11712,16 @@ function fpAttentionLedger(survey){
       }
     });
   });
+  // Tier 2: an OCCUPIED building raises an advisory in Jamie's labour language.
+  // Guarded on survey.costing so legacy jobs (no costing hierarchy yet) are
+  // unaffected - the detail attention ledger stays byte-identical for them.
+  if (survey && survey.costing && Array.isArray(survey.costing.buildings)){
+    survey.costing.buildings.forEach(function(cb){
+      if (cb && cb.occupancy === 'occupied'){
+        entries.push({ severity: 'advisory', source: (cb.name || 'Building'), text: 'working over occupied space: allow additional labour' });
+      }
+    });
+  }
   // Stable sort (guaranteed since ES2019): blocking first, else source order.
   entries.sort(function(a, b){ return (a.severity === 'blocking' ? 0 : 1) - (b.severity === 'blocking' ? 0 : 1); });
   return entries;
