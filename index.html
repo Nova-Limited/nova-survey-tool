@@ -4265,6 +4265,26 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-f2p-valley { font-size: 12.5px; font-weight: 700; color: #7a4a12; background: #fbf2e6; border-color: #c4a36a; }
     #view-footprint .fp-f2p-pending { margin-top: 9px; font-size: 12px; color: #8a898b; }
     #view-footprint .fp-f2p-note { margin-top: 11px; padding-top: 9px; border-top: 1px solid #ece9e2; font-size: 11px; font-style: italic; color: #8a898b; }
+    /* place gutter: arm bar (type selector) + placed-gutter panel + plan chip */
+    #view-footprint .fp-gutter-arm { margin: 8px 0 4px; padding: 9px 11px; background: #eef7f8; border: 1px solid #bfe0e3; border-radius: 9px; }
+    #view-footprint .fp-gutter-type-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 7px; }
+    #view-footprint .fp-gutter-type-lbl { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #4d7a80; }
+    #view-footprint .fp-gutter-typebtn { min-height: 38px; padding: 6px 12px; font-size: 12px; font-weight: 700; border: 1px solid #bcd9dc; border-radius: 8px; background: #fff; color: #2b6a70; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-gutter-typebtn.on { background: #2b8a99; border-color: #2b8a99; color: #fff; }
+    #view-footprint .fp-gutters { margin-top: 16px; max-width: 480px; }
+    #view-footprint .fp-gutter-row { border: 1px solid #ece9e2; border-radius: 10px; padding: 9px 11px; margin: 8px 0; background: #fff; }
+    #view-footprint .fp-gutter-row.incomplete { border-color: #c0392b; background: #fdf2f0; }
+    #view-footprint .fp-gutter-row-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+    #view-footprint .fp-gutter-row-name { font-size: 13px; font-weight: 800; color: #434244; }
+    #view-footprint .fp-gutter-row-len { font-size: 13px; font-weight: 800; color: #1f6570; margin-left: auto; }
+    #view-footprint .fp-gutter-row.incomplete .fp-gutter-row-len { color: #a23325; }
+    #view-footprint .fp-gutter-x { font-size: 11px; background: #fff; border: 1px solid #e0cfcf; color: #a33; border-radius: 6px; padding: 6px 9px; min-height: 34px; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-gutter-ctl { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 6px; }
+    #view-footprint .fp-gutter-move { min-height: 38px; padding: 6px 11px; font-size: 12px; font-weight: 700; border: 1px solid #d8d8d2; border-radius: 8px; background: #fff; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-gutter-flag { margin-top: 8px; padding: 8px 11px; font-size: 12px; font-weight: 700; border-radius: 8px; background: #fbe8e6; border: 1px solid #c0392b; color: #a23325; }
+    #view-footprint .fp-gutter-total { margin-top: 10px; font-size: 13px; color: #434244; }
+    #view-footprint .fp-gutter-chip { pointer-events: none; background: #e3f1f3; border: 1px solid #2b8a99; color: #1f6570; font-weight: 700; }
+    #view-footprint .fp-gutter-chip.incomplete { background: #fbe8e6; border-color: #c0392b; color: #a23325; }
     /* multi-building capture: the building switcher + per-building overview */
     #view-footprint .fp-bldg-switch { margin-bottom: 14px; padding: 11px 12px; background: #faf9f6; border: 1px solid #ece9e2; border-radius: 10px; }
     #view-footprint .fp-bldg-switch-lbl { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #8a898b; margin-bottom: 8px; }
@@ -8887,7 +8907,7 @@ function estRenderCapturedPanel(survey){
   var s = (typeof estCapturedSummary === 'function') ? estCapturedSummary(survey) : null; if (!s) return '';
   var keys = ['roofAreaM2', 'wallAreaM2Composite', 'wallAreaM2SingleSkin', 'gutterLinMTrimline', 'gutterLinMHalfRound',
     'rooflightM2', 'rooflightCountNr', 'dektiteCountNr', 'outletCountNr', 'ridgeRun', 'bargeRun', 'eaveFlashLinM',
-    'parapetLinM', 'valleyRunTotal', 'asbestosT', 'vergeRake', 'perimeter'];
+    'parapetLinM', 'valleyRunTotal', 'placedGutter', 'asbestosT', 'vergeRake', 'perimeter'];
   var any = keys.some(function(k){ return s[k].captured; }) || Object.keys(s.featureCounts).length;
   if (!any) return '';
   var chip = function(label, val, unit, seeded){
@@ -8916,6 +8936,7 @@ function estRenderCapturedPanel(survey){
   if (s.eaveFlashLinM.captured) h += chip('Eave flashing run', fLin(s.eaveFlashLinM.value), 'm', true);
   if (s.parapetLinM.captured) h += chip('Parapet flashing run', fLin(s.parapetLinM.value), 'm', true);
   if (s.valleyRunTotal.captured) h += chip('Valley gutter run', fLin(s.valleyRunTotal.value), 'm', true);
+  if (s.placedGutter && s.placedGutter.captured) h += chip('Placed internal gutter run', fLin(s.placedGutter.value), 'm', true);
   if (s.asbestosT.captured) h += chip('Asbestos waste', fLin(s.asbestosT.value), 't', true);
   if (s.vergeRake.captured) h += chip('Verge (rake) length', fLin(s.vergeRake.value), 'm', false);
   if (s.perimeter.captured) h += chip('Roof perimeter', fLin(s.perimeter.value), 'm', false);
@@ -9175,6 +9196,7 @@ function estCapturedSummary(survey){
     eaveFlashLinM: { value: eaveSplit.eave, seeded: eaveSplit.eave != null, captured: eaveSplit.eave != null },
     parapetLinM: { value: eaveSplit.parapet, seeded: eaveSplit.parapet != null, captured: eaveSplit.parapet != null },
     valleyRunTotal: { value: valleyTotal, seeded: valleyTotal != null, captured: valleyTotal != null },
+    placedGutter: (function(){ var pg = (typeof fpPlacedGutterTotals === 'function') ? fpPlacedGutterTotals(survey) : null; var v = pg && pg.anyResolved ? estRoundUp(pg.all, 1) : null; return { value: v, seeded: v != null, captured: v != null }; })(),
     asbestosT: { value: asbestosT, seeded: asbestosT != null, captured: asbestosT != null },
     vergeRake: { value: rakeRounded, seeded: false, captured: !!(runs && runs.rake != null) },
     perimeter: { value: perimeterRounded, seeded: false, captured: !!(runs && runs.perimeter != null) },
@@ -9226,6 +9248,16 @@ function estDeriveMeasurements(survey){
   if (eaveSplit.parapet != null && eaveSplit.parapet > 0){ m.parapetLinM = eaveSplit.parapet; capturedKeys.parapetLinM = true; }
   var valleyTotal = estCapturedValleyRun(survey);
   if (valleyTotal != null && valleyTotal > 0){ m.valleyLinM = valleyTotal; capturedKeys.valleyLinM = true; }
+  // PLACE GUTTER: surveyor-placed internal runs ADD to the schema's gutter
+  // quantity by type (box -> gutterLinM, half-round -> halfRoundGutterLinM,
+  // valley -> valleyLinM). Guarded on resolved placed gutters existing, so a
+  // survey with none is byte-identical here; rounded once at the seed boundary.
+  var pg = (typeof fpPlacedGutterTotals === 'function') ? fpPlacedGutterTotals(survey) : null;
+  if (pg && pg.anyResolved){
+    if (pg.box > 0){ m.gutterLinM = estRoundUp((m.gutterLinM || 0) + pg.box, 1); capturedKeys.gutterLinM = true; }
+    if (pg.halfround > 0){ m.halfRoundGutterLinM = estRoundUp((m.halfRoundGutterLinM || 0) + pg.halfround, 1); capturedKeys.halfRoundGutterLinM = true; }
+    if (pg.valley > 0){ m.valleyLinM = estRoundUp((m.valleyLinM || 0) + pg.valley, 1); capturedKeys.valleyLinM = true; }
+  }
   var asbestosT = estCapturedAsbestosTonnes(survey);
   if (asbestosT != null && asbestosT > 0){ m.asbestosT = asbestosT; capturedKeys.asbestosT = true; }
   if (survey.purlinType) m.purlinType = survey.purlinType;
@@ -10582,6 +10614,20 @@ function fpRender(){
     fpPlottedFaults(survey, fpClampBuildingIdx(survey, fpActiveBuildingIdx)).forEach(function(fl){
       hit += '<button class="fp-chip fp-fault-chip" style="left:' + (fl.footprintLoc.x / 3) + '%;top:' + (fl.footprintLoc.y / 3) + '%;" onclick="fpFaultOpenId=\'' + fl.id + '\';fpRender();">Fault ' + (fl.number || '') + '</button>';
     });
+    // placed internal gutters: a line between two snapped points + its derived
+    // length label; incomplete runs (no resolved length) are dashed red.
+    (fpGutters(b) || []).forEach(function(g){
+      if (!g.p1 || !g.p2) return;
+      var GL = fpGutterLen(fp, b, g); var gInc = (GL.value == null);
+      var gcol = gInc ? '#c0392b' : '#2b8a99';
+      h += '<line x1="' + g.p1.x + '" y1="' + g.p1.y + '" x2="' + g.p2.x + '" y2="' + g.p2.y + '" stroke="' + gcol + '" stroke-width="3" stroke-linecap="round"' + (gInc ? ' stroke-dasharray="5 4"' : '') + ' pointer-events="none"/>';
+      h += '<circle cx="' + g.p1.x + '" cy="' + g.p1.y + '" r="4" fill="' + gcol + '" pointer-events="none"/><circle cx="' + g.p2.x + '" cy="' + g.p2.y + '" r="4" fill="' + gcol + '" pointer-events="none"/>';
+      var gmx = (g.p1.x + g.p2.x) / 2, gmy = (g.p1.y + g.p2.y) / 2;
+      hit += '<span class="fp-chip fp-gutter-chip' + (gInc ? ' incomplete' : '') + '" style="left:' + (gmx / 3) + '%;top:' + (gmy / 3) + '%;">' + escapeHtml(fpGutterTypeLabel(g.type)) + ' &middot; ' + (gInc ? 'needs length' : escapeHtml(fpM(GL.value))) + '</span>';
+    });
+    if (fpPlaceMode === 'gutter' && fpGutterDraft && fpGutterDraft.p1){
+      h += '<circle cx="' + fpGutterDraft.p1.x + '" cy="' + fpGutterDraft.p1.y + '" r="5" fill="#F7901E" stroke="#fff" stroke-width="2" pointer-events="none"/>';
+    }
     // tap-to-place: a clearly visible temporary PIN (pulsing ring) at the tapped
     // point. The chooser is a BOTTOM SHEET below the canvas (fpRenderPlaceSheet),
     // not a popover over the plan - on a phone the old popover was taller than the
@@ -10635,6 +10681,7 @@ function fpRender(){
     h += fpRenderBays(survey);   // Stage 3: bay definition (multi-bay only)
     h += fpRenderElevations(survey);   // Stage 4: wall elevations
     h += fpRenderRuns(survey);
+    h += fpRenderGutters(survey);   // Place gutter: surveyor-placed internal runs + completeness
     h += fpRenderF2P(survey);   // Flat-to-pitch feasibility checker (advisor only; no costing, no scope)
   }
 
@@ -10968,6 +11015,79 @@ function fpEdgeLen(fp, i, b){
   return { value: null, source: null };
 }
 
+// ===== PLACE GUTTER: surveyor-placed internal gutter runs (snap two points) =====
+// ADDITIVE, surveyor-placed ONLY, for internal gutters the perimeter tap-an-edge
+// model and the derived multi-bay valleys cannot capture. A gutter is TWO points
+// (0-300 footprint coords) that SNAP to corners and to points along edges; its
+// length is DERIVED from the anisotropic footprint scale (fpEdgeScales) - the SAME
+// real-metre derivation edges use - so a run across a notch mouth reads its true
+// length with no typing. A gutter that cannot resolve a length (one point, or an
+// undimensioned footprint) is INCOMPLETE and gates completion until resolved
+// (dimension the footprint, place the second point, or key a fallback length).
+// Rides in the survey snapshot on building.placedGutters; no f- fields. The
+// existing perimeter/derived gutters are untouched by this feature.
+var FP_GUTTER_TYPES = [ { id:'box', label:'Box' }, { id:'valley', label:'Valley' }, { id:'halfround', label:'Half-round' } ];
+var fpGutterDraft = null;   // { type, p1 } while placing a NEW gutter (transient)
+var fpGutterMove = null;    // { id, which:'p1'|'p2' } while moving an endpoint (transient)
+function fpGutters(b){ return (b && Array.isArray(b.placedGutters)) ? b.placedGutters : null; }
+function fpEnsureGutters(b){ if (!Array.isArray(b.placedGutters)) b.placedGutters = []; return b.placedGutters; }
+function fpGutterTypeLabel(t){ var m = FP_GUTTER_TYPES.filter(function(x){ return x.id === t; })[0]; return m ? m.label : 'Box'; }
+// Length from the two snapped points via the anisotropic footprint scale (real
+// metres), or a keyed manual fallback; null when unresolved (incomplete/undimensioned).
+function fpGutterLen(fp, b, g){
+  if (g && srNum(g.lengthM) != null) return { value: srNum(g.lengthM), source: 'keyed' };
+  if (!g || !g.p1 || !g.p2 || !fp) return { value: null, source: null };
+  var s = fpEdgeScales(fp, b);
+  if (s.sx == null || s.sy == null) return { value: null, source: null };
+  var dx = Math.abs(g.p2.x - g.p1.x), dy = Math.abs(g.p2.y - g.p1.y);
+  return { value: Math.sqrt(dx * s.sx * dx * s.sx + dy * s.sy * dy * s.sy), source: 'derived' };
+}
+// project (x,y) onto segment [a,bb], clamped to the segment
+function fpProjectToSeg(x, y, a, bb){
+  var vx = bb.x - a.x, vy = bb.y - a.y, wx = x - a.x, wy = y - a.y;
+  var len2 = vx * vx + vy * vy;
+  var t = len2 > 0 ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2)) : 0;
+  return { x: a.x + t * vx, y: a.y + t * vy };
+}
+// snap to the nearest corner, else the nearest point on an edge, else the raw point
+function fpSnapGutterPoint(fp, x, y){
+  var SNAP = 24;
+  if (fp && Array.isArray(fp.corners) && fp.corners.length >= 3){
+    var bestC = null, bestCD = SNAP;
+    fp.corners.forEach(function(c){ var d = Math.sqrt((c.x - x) * (c.x - x) + (c.y - y) * (c.y - y)); if (d < bestCD){ bestCD = d; bestC = { x: c.x, y: c.y }; } });
+    if (bestC) return bestC;
+    var bestE = null, bestED = SNAP;
+    fp.corners.forEach(function(c, i){ var n = fp.corners[(i + 1) % fp.corners.length]; var pr = fpProjectToSeg(x, y, c, n); var d = Math.sqrt((pr.x - x) * (pr.x - x) + (pr.y - y) * (pr.y - y)); if (d < bestED){ bestED = d; bestE = { x: pr.x, y: pr.y }; } });
+    if (bestE) return bestE;
+  }
+  return { x: x, y: y };
+}
+// Total placed-gutter run by type across ALL buildings (resolved lengths only) -
+// the honest sum that FEEDS materials, added to the schema's existing quantities.
+function fpPlacedGutterTotals(survey){
+  var t = { box: 0, valley: 0, halfround: 0, all: 0, anyResolved: false, count: 0 };
+  ((survey && survey.buildings) || []).forEach(function(bld){
+    var fp = bld && bld.footprint;
+    (fpGutters(bld) || []).forEach(function(g){
+      t.count++;
+      var L = fpGutterLen(fp, bld, g);
+      if (L.value != null && L.value > 0){ var ty = (g.type && t[g.type] != null) ? g.type : 'box'; t[ty] += L.value; t.all += L.value; t.anyResolved = true; }
+    });
+  });
+  return t;
+}
+// Count of INCOMPLETE placed gutters (placed but no resolved length) on a building.
+function fpBuildingIncompleteGutters(survey, bi){
+  var bld = (survey && survey.buildings) ? survey.buildings[bi] : null; if (!bld) return 0;
+  var fp = bld.footprint;
+  return (fpGutters(bld) || []).filter(function(g){ return fpGutterLen(fp, bld, g).value == null; }).length;
+}
+function fpAnyIncompleteGutter(survey){
+  var blds = (survey && survey.buildings) || [];
+  for (var i = 0; i < blds.length; i++){ if (fpBuildingIncompleteGutters(survey, i) > 0) return true; }
+  return false;
+}
+
 // --- the simple, honest single-building runs (metres). Curved edges excluded. ---
 function fpRuns(survey){
   var b = fpBuilding(survey), fp = fpFootprint(survey); if (!fp) return null;
@@ -11124,6 +11244,10 @@ function fpKeypadDone(){
     var st = fpF2PState(b);
     if (fpKeypad.field === 'spanM') st.spanM = (v != null && v > 0) ? v : null;
     else if (fpKeypad.field === 'pitchDeg') st.pitchDeg = (v != null && v > 0) ? v : null;
+  }
+  else if (fpKeypad.kind === 'gutter' && b){   // placed-gutter manual length fallback (field = gutter id)
+    var gk = (fpGutters(b) || []).filter(function(x){ return x.id === fpKeypad.field; })[0];
+    if (gk) gk.lengthM = (v != null && v > 0) ? v : null;
   }
   srPersist(survey); fpKeypad = null; fpRender();
 }
@@ -11761,12 +11885,32 @@ function fpEnsureFeatures(b){ if (!Array.isArray(b.features)) b.features = []; r
 function fpTogglePlace(mode){
   fpPlaceMode = (fpPlaceMode === mode) ? null : mode;
   fpFaultPick = null; fpFeaturePick = null;   // arming/disarming clears any dropped pin + its sheet
+  fpGutterMove = null;
+  if (fpPlaceMode === 'gutter'){ fpGutterDraft = fpGutterDraft ? { type: fpGutterDraft.type || 'box', p1: null } : { type: 'box', p1: null }; }
+  else { fpGutterDraft = null; }
   fpRender();
 }
 // clamp a tapped point away from the frame edge, where corner handles and edge
 // chips already live (the stage-1 discipline: real hit targets never collide)
 function fpClampInterior(x, y){ return { x: Math.max(24, Math.min(276, x)), y: Math.max(24, Math.min(276, y)) }; }
 function fpPlaceAt(rawX, rawY){
+  // GUTTER: tap two SNAPPED points (or move one endpoint). Snapping targets the
+  // footprint (corners/edges), so no interior clamp - the true geometry is the point.
+  if (fpPlaceMode === 'gutter'){
+    var svg0 = srLoadSurvey(fpCurrentId); var bg = fpBuilding(svg0); var fpg = bg && bg.footprint;
+    var snapped = fpSnapGutterPoint(fpg, rawX, rawY);
+    if (fpGutterMove){
+      var gm = (fpGutters(bg) || []).filter(function(x){ return x.id === fpGutterMove.id; })[0];
+      if (gm){ gm[fpGutterMove.which] = { x: snapped.x, y: snapped.y }; srPersist(svg0); }
+      fpGutterMove = null; fpPlaceMode = null; fpRender(); return;
+    }
+    if (!fpGutterDraft) fpGutterDraft = { type: 'box', p1: null };
+    if (!fpGutterDraft.p1){ fpGutterDraft.p1 = { x: snapped.x, y: snapped.y }; fpRender(); return; }
+    var gid = 'g' + Date.now() + Math.round(Math.random() * 999);
+    fpEnsureGutters(bg).push({ id: gid, p1: fpGutterDraft.p1, p2: { x: snapped.x, y: snapped.y }, type: fpGutterDraft.type || 'box', lengthM: null });
+    fpGutterDraft.p1 = null;   // stay armed for the next gutter
+    srPersist(svg0); fpRender(); return;
+  }
   var p = fpClampInterior(rawX, rawY);
   if (fpPlaceMode === 'feature'){
     fpFeaturePick = { x: p.x, y: p.y };
@@ -11777,6 +11921,12 @@ function fpPlaceAt(rawX, rawY){
   }
   fpRender();
 }
+function fpGutterSetType(type){ if (fpGutterDraft){ fpGutterDraft.type = type; fpRender(); } }
+function fpGutterSetTypeOf(id, type){ var sv = srLoadSurvey(fpCurrentId); var b = fpBuilding(sv); var g = (fpGutters(b) || []).filter(function(x){ return x.id === id; })[0]; if (g){ g.type = type; srPersist(sv); fpRender(); } }
+function fpGutterMovePoint(id, which){ fpPlaceMode = 'gutter'; fpGutterMove = { id: id, which: which }; fpGutterDraft = null; fpRender(); }
+function fpGutterRemove(id){ var sv = srLoadSurvey(fpCurrentId); var b = fpBuilding(sv); var gs = fpGutters(b); if (!gs) return; var i = gs.findIndex(function(x){ return x.id === id; }); if (i >= 0) gs.splice(i, 1); srPersist(sv); fpRender(); }
+function fpGutterClearLen(id){ var sv = srLoadSurvey(fpCurrentId); var b = fpBuilding(sv); var g = (fpGutters(b) || []).filter(function(x){ return x.id === id; })[0]; if (g){ g.lengthM = null; srPersist(sv); fpRender(); } }
+function fpGutterCancelPlace(){ fpGutterDraft = null; fpGutterMove = null; fpPlaceMode = null; fpRender(); }
 var fpFeaturePick = null;   // { x, y } when the "choose feature type" picker is open
 function fpNewRooflightGroup(){ return { count: 1, lengthM: null, widthM: 1.0, glass: '', northFacing: false }; }
 function fpFeatureAddType(type){
@@ -11980,6 +12130,19 @@ function fpAttentionLedger(survey){
       }
     });
   }
+  // Place-gutter completeness gate: a surveyor-placed gutter with no resolved
+  // length BLOCKS completion on its building until it resolves (dimension the
+  // footprint, place the second point, or key a length). Applies ONLY to placed
+  // gutters, never the schema's perimeter/derived gutters.
+  if (survey && Array.isArray(survey.buildings)){
+    survey.buildings.forEach(function(bld, bi){
+      var nInc = (typeof fpBuildingIncompleteGutters === 'function') ? fpBuildingIncompleteGutters(survey, bi) : 0;
+      if (nInc > 0){
+        entries.push({ severity: 'blocking', source: (typeof fpBuildingLabel === 'function' ? fpBuildingLabel(bld, bi) : ('Building ' + (bi + 1))),
+          text: 'Placed gutter needs a length: dimension the footprint, place its second point, or key a length.' });
+      }
+    });
+  }
   // Stable sort (guaranteed since ES2019): blocking first, else source order.
   entries.sort(function(a, b){ return (a.severity === 'blocking' ? 0 : 1) - (b.severity === 'blocking' ? 0 : 1); });
   return entries;
@@ -12059,8 +12222,49 @@ function fpRenderPlaceToolbar(){
   var h = '<div class="fp-place-row">';
   h += '<button class="fp-place-btn' + (fpPlaceMode === 'feature' ? ' on' : '') + '" onclick="fpTogglePlace(\'feature\')">Place feature</button>';
   h += '<button class="fp-place-btn' + (fpPlaceMode === 'fault' ? ' on' : '') + '" onclick="fpTogglePlace(\'fault\')">Pin a defect photo</button>';
+  h += '<button class="fp-place-btn' + (fpPlaceMode === 'gutter' ? ' on' : '') + '" onclick="fpTogglePlace(\'gutter\')">Place gutter</button>';
   h += '</div>';
-  if (fpPlaceMode) h += '<div class="fp-place-hint">Tap the plan to ' + (fpPlaceMode === 'feature' ? 'place a feature' : 'pin a defect photo') + ' &middot; <a href="#" onclick="event.preventDefault();fpTogglePlace(\'' + fpPlaceMode + '\')">Cancel</a></div>';
+  if (fpPlaceMode === 'gutter'){
+    var dtype = (fpGutterDraft && fpGutterDraft.type) || 'box';
+    h += '<div class="fp-gutter-arm"><div class="fp-gutter-type-row"><span class="fp-gutter-type-lbl">Type</span>';
+    FP_GUTTER_TYPES.forEach(function(t){ h += '<button class="fp-gutter-typebtn' + (dtype === t.id ? ' on' : '') + '" onclick="fpGutterSetType(\'' + t.id + '\')">' + escapeHtml(t.label) + '</button>'; });
+    h += '</div><div class="fp-place-hint">' + (fpGutterMove ? 'Tap to move the point' : ((fpGutterDraft && fpGutterDraft.p1) ? 'Tap the <b>second</b> point' : 'Tap the <b>first</b> point')) + ' &middot; snaps to corners and edges &middot; <a href="#" onclick="event.preventDefault();fpGutterCancelPlace()">Done</a></div></div>';
+  } else if (fpPlaceMode){
+    h += '<div class="fp-place-hint">Tap the plan to ' + (fpPlaceMode === 'feature' ? 'place a feature' : 'pin a defect photo') + ' &middot; <a href="#" onclick="event.preventDefault();fpTogglePlace(\'' + fpPlaceMode + '\')">Cancel</a></div>';
+  }
+  return h;
+}
+// The placed-gutter panel below the plan: each run with its derived length, type,
+// move-point and manual-length controls, and the honest total. Incomplete runs
+// are flagged and named as blocking completion.
+function fpRenderGutters(survey){
+  var b = fpBuilding(survey); var fp = fpFootprint(survey); if (!b) return '';
+  var gs = fpGutters(b) || [];
+  if (!gs.length && fpPlaceMode !== 'gutter') return '';
+  var h = '<div class="fp-gutters"><div class="fp-tools-lbl">Placed gutters &middot; internal runs measured between snapped points</div>';
+  if (!gs.length){ h += '<div class="fp-note">None yet. Tap two points on the plan to place one; the length is measured from the dimensioned footprint.</div>'; }
+  var total = 0, anyIncomplete = false;
+  gs.forEach(function(g, i){
+    var L = fpGutterLen(fp, b, g); var incomplete = (L.value == null);
+    if (!incomplete) total += L.value; else anyIncomplete = true;
+    h += '<div class="fp-gutter-row' + (incomplete ? ' incomplete' : '') + '">';
+    h += '<div class="fp-gutter-row-head"><span class="fp-gutter-row-name">Gutter ' + (i + 1) + '</span>' +
+      '<span class="fp-gutter-row-len">' + (incomplete ? 'needs a length' : (fpM(L.value) + (L.source === 'keyed' ? ' (keyed)' : ''))) + '</span>' +
+      '<button class="fp-gutter-x" onclick="fpGutterRemove(\'' + g.id + '\')">Remove</button></div>';
+    h += '<div class="fp-gutter-ctl">';
+    FP_GUTTER_TYPES.forEach(function(t){ h += '<button class="fp-gutter-typebtn' + (g.type === t.id ? ' on' : '') + '" onclick="fpGutterSetTypeOf(\'' + g.id + '\',\'' + t.id + '\')">' + escapeHtml(t.label) + '</button>'; });
+    h += '</div>';
+    h += '<div class="fp-gutter-ctl">';
+    h += '<button class="fp-gutter-move" onclick="fpGutterMovePoint(\'' + g.id + '\',\'p1\')">Move A</button>';
+    h += '<button class="fp-gutter-move" onclick="fpGutterMovePoint(\'' + g.id + '\',\'p2\')">Move B</button>';
+    h += '<button class="fp-key-btn" onclick="fpOpenKeypad(\'gutter\',0,\'' + g.id + '\',\'Gutter length\',\'m\',' + (srNum(g.lengthM) != null ? g.lengthM : 'null') + ')">Key length</button>';
+    if (srNum(g.lengthM) != null) h += '<button class="fp-gutter-move" onclick="fpGutterClearLen(\'' + g.id + '\')">Clear keyed</button>';
+    h += '</div>';
+    if (incomplete) h += '<div class="fp-gutter-flag">No length yet. Dimension the footprint, place the second point, or key a length. The survey cannot be completed until this resolves.</div>';
+    h += '</div>';
+  });
+  h += '<div class="fp-gutter-total">Placed gutter total <b>' + fpM(total) + '</b>' + (anyIncomplete ? ' &middot; plus run(s) needing a length' : '') + ' &middot; feeds the materials gutter quantity</div>';
+  h += '</div>';
   return h;
 }
 // Tap-to-place chooser as a bottom sheet (the app's .fp-sheet vocabulary),
@@ -12501,9 +12705,11 @@ function flowComputeSteps(survey){
   }).length;
   var edgesDone = (totalEdges > 0 && condSet === totalEdges);
   var baysDone = !isMultibay || (bays.length > 0 && bayComplete === bays.length);
+  // a placed gutter with no resolved length keeps geometry from reading done
+  var gutterInc = (typeof fpBuildingIncompleteGutters === 'function') ? fpBuildingIncompleteGutters(s, fpClampBuildingIdx(s, fpActiveBuildingIdx)) : 0;
   steps.push({ key:'geometry', label:'Geometry',
-    state: !hasFp ? 'not-started' : ((edgesDone && baysDone) ? 'done' : 'partial'),
-    detail: !hasFp ? 'not drawn yet' : (fp.corners.length + ' corners, ' + form + ' · ' + condSet + '/' + totalEdges + ' edges' + (isMultibay ? (' · ' + bayComplete + '/' + bays.length + ' bay types') : '')) });
+    state: !hasFp ? 'not-started' : ((edgesDone && baysDone && !gutterInc) ? 'done' : 'partial'),
+    detail: !hasFp ? 'not drawn yet' : (fp.corners.length + ' corners, ' + form + ' · ' + condSet + '/' + totalEdges + ' edges' + (isMultibay ? (' · ' + bayComplete + '/' + bays.length + ' bay types') : '') + (gutterInc ? (' · ' + gutterInc + ' gutter' + (gutterInc === 1 ? '' : 's') + ' needing a length') : '')) });
 
   // DATUM - the form-aware denominator (F1 amendment 1, unchanged): flat and
   // multi-bay need eaves/width/length (no single building ridge); every other
