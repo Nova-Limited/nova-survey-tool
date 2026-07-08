@@ -4265,6 +4265,27 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-f2p-valley { font-size: 12.5px; font-weight: 700; color: #7a4a12; background: #fbf2e6; border-color: #c4a36a; }
     #view-footprint .fp-f2p-pending { margin-top: 9px; font-size: 12px; color: #8a898b; }
     #view-footprint .fp-f2p-note { margin-top: 11px; padding-top: 9px; border-top: 1px solid #ece9e2; font-size: 11px; font-style: italic; color: #8a898b; }
+    /* multi-building capture: the building switcher + per-building overview */
+    #view-footprint .fp-bldg-switch { margin-bottom: 14px; padding: 11px 12px; background: #faf9f6; border: 1px solid #ece9e2; border-radius: 10px; }
+    #view-footprint .fp-bldg-switch-lbl { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #8a898b; margin-bottom: 8px; }
+    #view-footprint .fp-bldg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    #view-footprint .fp-bldg-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 46px; padding: 7px 13px; border: 1px solid #d8d8d2; border-radius: 10px; background: #fff; color: #434244; cursor: pointer; font-family: inherit; }
+    #view-footprint .fp-bldg-chip.active { border: 2px solid #F7901E; background: #fff7ef; padding: 6px 12px; }
+    #view-footprint .fp-bldg-chip.done .fp-bldg-chip-prog { color: var(--green); font-weight: 800; }
+    #view-footprint .fp-bldg-chip-name { font-size: 13px; font-weight: 800; }
+    #view-footprint .fp-bldg-chip-prog { font-size: 11px; color: #8a898b; font-weight: 700; }
+    #view-footprint .fp-bldg-add { min-height: 46px; padding: 9px 14px; border: 1px dashed #c4a36a; border-radius: 10px; background: #fff; color: #8a6a35; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    #view-detail .flow-bldg-overview .flow-bldg-row { padding: 9px 0; border-top: 1px solid #f1f0ea; }
+    #view-detail .flow-bldg-overview .flow-bldg-row:first-of-type { border-top: none; }
+    #view-detail .flow-bldg-overview .flow-bldg-row-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    #view-detail .flow-bldg-overview .flow-bldg-name { font-size: 13px; font-weight: 800; color: #434244; }
+    #view-detail .flow-bldg-overview .flow-bldg-prog { font-size: 11px; font-weight: 700; color: #8a898b; }
+    #view-detail .flow-bldg-overview .flow-bldg-prog.done { color: var(--green); }
+    #view-detail .flow-bldg-overview .flow-bldg-dots { display: flex; gap: 6px; }
+    #view-detail .flow-bldg-overview .flow-bldg-dot { width: 12px; height: 12px; border-radius: 50%; background: #dcdcd6; }
+    #view-detail .flow-bldg-overview .flow-bldg-dot.done { background: var(--green); }
+    #view-detail .flow-bldg-overview .flow-bldg-dot.partial { background: #F7901E; }
+    #view-detail .flow-bldg-overview .flow-bldg-dot.not-started { background: #dcdcd6; }
     /* stage 4: tap-to-place toolbar */
     #view-footprint .fp-place-row { display: flex; gap: 8px; margin: 10px 0; }
     #view-footprint .fp-place-btn { font-size: 12.5px; font-weight: 700; background: #fff; border: 1px solid #d8d8d2; border-radius: 7px; padding: 9px 13px; min-height: 44px; cursor: pointer; color: #434244; font-family: inherit; }
@@ -8682,22 +8703,30 @@ function costEnsure(survey){
     survey.costing.buildings.forEach(costNormaliseBuilding);
     return survey.costing;
   }
-  var name = 'Building 1', roofType = '';
-  var capB = (Array.isArray(survey.buildings) && survey.buildings[0]) ? survey.buildings[0] : null;
-  if (capB){
-    if (capB.name && String(capB.name).trim()) name = String(capB.name).trim();
-    if (typeof f5BuildingRoofType === 'function'){
-      var rt = f5BuildingRoofType(capB, survey);
-      if (rt && rt.label && rt.label !== 'Unspecified') roofType = rt.label;
-    } else if (capB.roofType){ roofType = capB.roofType; }
-  }
-  var scope;
-  if (survey.estLedger && typeof survey.estLedger === 'object' && Array.isArray(survey.estLedger.elements) && survey.estLedger.elements.length){
-    scope = costScopeFromLedger(survey.estLedger, 'Existing estimate');   // migrate the one build-up verbatim
-  } else {
-    scope = costNewScope('Scope A');
-  }
-  survey.costing = { buildings: [ { id: costNewId('cb'), name: name, roofType: roofType, occupancy: '', spec: '', scopes: [ scope ], acceptedScope: 0 } ] };
+  // Seed ONE costing building per CAPTURED building (multi-building capture,
+  // Reading A). Building 0 carries the migrated single build-up verbatim (so a
+  // legacy single-building job's numbers are identical); any further captured
+  // buildings seed a default scope. A single-building survey yields exactly one
+  // costing building - identical to before.
+  var caps = (Array.isArray(survey.buildings) && survey.buildings.length) ? survey.buildings : [ null ];
+  var costBuildings = caps.map(function(capB, idx){
+    var name = 'Building ' + (idx + 1), roofType = '';
+    if (capB){
+      if (capB.name && String(capB.name).trim()) name = String(capB.name).trim();
+      if (typeof f5BuildingRoofType === 'function'){
+        var rt = f5BuildingRoofType(capB, survey);
+        if (rt && rt.label && rt.label !== 'Unspecified') roofType = rt.label;
+      } else if (capB.roofType){ roofType = capB.roofType; }
+    }
+    var scope;
+    if (idx === 0 && survey.estLedger && typeof survey.estLedger === 'object' && Array.isArray(survey.estLedger.elements) && survey.estLedger.elements.length){
+      scope = costScopeFromLedger(survey.estLedger, 'Existing estimate');   // migrate the one build-up verbatim
+    } else {
+      scope = costNewScope('Scope A');
+    }
+    return { id: costNewId('cb'), name: name, roofType: roofType, occupancy: '', spec: '', scopes: [ scope ], acceptedScope: 0 };
+  });
+  survey.costing = { buildings: costBuildings };
   return survey.costing;
 }
 // A building's figures = its accepted-or-default scope, via the SAME engine.
@@ -10285,16 +10314,120 @@ var FP_FORMS = [
 
 function fpMakeEdges(n){ var e = []; for (var i = 0; i < n; i++) e.push({ type:'straight', curvature:null }); return e; }
 function fpFromCorners(arr){ return { corners: arr.map(function(p){ return { x:p[0], y:p[1] }; }), edges: fpMakeEdges(arr.length) }; }
-function fpBuilding(survey){ return (survey && Array.isArray(survey.buildings) && survey.buildings.length) ? survey.buildings[0] : null; }
+// MULTI-BUILDING CAPTURE (Reading A): a survey holds several INDEPENDENT
+// buildings, each with its own footprint/datum/elevations/openings/faults. The
+// ACTIVE building index is the single seam - fpBuilding() returns the active
+// building, so the ~30 downstream capture sites re-point without editing each.
+// The index is a transient global kept in sync with the persisted
+// survey.activeBuildingIdx (so re-entry resumes on the same building); both are
+// bounds-checked, falling back to buildings[0] then null. A single-building
+// survey always resolves to buildings[0] - identical to before.
+var fpActiveBuildingIdx = 0;
+function fpClampBuildingIdx(survey, i){
+  var n = (survey && Array.isArray(survey.buildings)) ? survey.buildings.length : 0;
+  if (!n) return 0;
+  var v = (typeof i === 'number') ? i : 0;
+  return (v >= 0 && v < n) ? v : 0;
+}
+function fpBuilding(survey){
+  if (!survey || !Array.isArray(survey.buildings) || !survey.buildings.length) return null;
+  var i = fpClampBuildingIdx(survey, fpActiveBuildingIdx);
+  return survey.buildings[i] || survey.buildings[0] || null;
+}
 function fpFootprint(survey){ var b = fpBuilding(survey); return b ? (b.footprint || null) : null; }
-// create buildings[0] on first draw so the footprint has a home; a blank building
-// has no slope dimensions, so surveyTotalRoofArea stays null and area is unaffected.
+// create the ACTIVE building on first draw so the footprint has a home; a blank
+// building has no slope dimensions, so surveyTotalRoofArea stays null and area is
+// unaffected. Targets the active index (buildings[0] for a single-building survey).
 function fpEnsureBuilding(survey){
   if (!Array.isArray(survey.buildings)) survey.buildings = [];
-  if (!survey.buildings.length) survey.buildings.push(makeBlankBuilding('B1'));
-  var b = survey.buildings[0];
+  if (!survey.buildings.length){ survey.buildings.push(makeBlankBuilding('B1')); fpActiveBuildingIdx = 0; }
+  fpActiveBuildingIdx = fpClampBuildingIdx(survey, fpActiveBuildingIdx);
+  var b = survey.buildings[fpActiveBuildingIdx];
   if (typeof b.roofForm !== 'string') b.roofForm = 'duo-pitch';
   return b;
+}
+function fpBuildingLabel(b, i){ return (b && b.name && String(b.name).trim()) ? String(b.name).trim() : ('Building ' + (i + 1)); }
+// Per-building capture progress, REUSING the one unified derivation
+// (flowComputeSteps) by scoping the active index to building bi - no second
+// checklist. Geometry/datum/elevations come from flowComputeSteps (building-
+// scoped via fpBuilding); faults and features are counted per building.
+function fpBuildingProgress(survey, bi){
+  bi = fpClampBuildingIdx(survey, bi);
+  var saved = fpActiveBuildingIdx;
+  fpActiveBuildingIdx = bi;
+  var steps = (typeof flowComputeSteps === 'function') ? flowComputeSteps(survey) : [];
+  fpActiveBuildingIdx = saved;
+  var geo = steps.filter(function(s){ return s.key === 'geometry' || s.key === 'datum' || s.key === 'elevations'; });
+  var b = (survey.buildings || [])[bi];
+  var featN = (typeof fpFeatures === 'function') ? (fpFeatures(b) || []).length : 0;
+  var faultN = (typeof fpPlottedFaults === 'function') ? fpPlottedFaults(survey, bi).length : 0;
+  var faultState = (faultN > 0 || survey.noFaultsFound) ? 'done' : 'not-started';
+  var featState = featN > 0 ? 'done' : 'not-started';
+  var scoped = geo.concat([
+    { key:'faults', label:'Faults', state: faultState },
+    { key:'features', label:'Features', state: featState }
+  ]);
+  var done = scoped.filter(function(s){ return s.state === 'done'; }).length;
+  return { done: done, total: scoped.length, steps: scoped };
+}
+// The building switcher at the top of the capture surface: one chip per building
+// (name + progress), the active one marked, plus Add building. Existing chip/card
+// vocabulary; hidden until the first building exists, unobtrusive with one.
+function fpRenderBuildingSwitcher(survey){
+  var blds = (survey && Array.isArray(survey.buildings)) ? survey.buildings : [];
+  if (!blds.length) return '';
+  var active = fpClampBuildingIdx(survey, fpActiveBuildingIdx);
+  var h = '<div class="fp-bldg-switch"><div class="fp-bldg-switch-lbl">Buildings on this survey' + (blds.length > 1 ? ' &middot; tap to switch' : '') + '</div><div class="fp-bldg-chips">';
+  blds.forEach(function(b, i){
+    var pr = fpBuildingProgress(survey, i);
+    var complete = (pr.done === pr.total && pr.total > 0);
+    h += '<button class="fp-bldg-chip' + (i === active ? ' active' : '') + (complete ? ' done' : '') + '" onclick="fpSetActiveBuilding(' + i + ')">' +
+      '<span class="fp-bldg-chip-name">' + escapeHtml(fpBuildingLabel(b, i)) + '</span>' +
+      '<span class="fp-bldg-chip-prog">' + (complete ? '&#10003; complete' : (pr.done + '/' + pr.total)) + '</span></button>';
+  });
+  h += '<button class="fp-bldg-add" onclick="fpAddBuilding()">+ Add building</button>';
+  h += '</div></div>';
+  return h;
+}
+// Reset transient per-building UI selections so nothing carries across buildings.
+function fpResetBuildingUiState(){
+  fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpElevOpen = null;
+  fpElevOpSheet = null; fpFeatureSheet = null; fpFaultOpenId = null; fpPlaceMode = null; fpFeaturePick = null; fpFaultPick = null; fpElevOpenPicker = null;
+}
+function fpSetActiveBuilding(idx){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey || !Array.isArray(survey.buildings)) return;
+  idx = fpClampBuildingIdx(survey, idx);
+  fpActiveBuildingIdx = idx; survey.activeBuildingIdx = idx;
+  fpResetBuildingUiState();
+  srPersist(survey); fpRender();
+}
+function fpAddBuilding(){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  if (!Array.isArray(survey.buildings)) survey.buildings = [];
+  var id = (typeof nextBuildingId === 'function') ? nextBuildingId(survey.buildings) : ('B' + (survey.buildings.length + 1));
+  survey.buildings.push(makeBlankBuilding(id));
+  fpActiveBuildingIdx = survey.buildings.length - 1;
+  survey.activeBuildingIdx = fpActiveBuildingIdx;
+  fpResetBuildingUiState();
+  srPersist(survey); fpRender();   // lands in the new building's empty footprint capture
+}
+// Per-building overview for the post-capture landing (multi-building only; a
+// single-building survey is already covered by the unified checklist).
+function flowRenderBuildingOverview(survey){
+  var blds = (survey && Array.isArray(survey.buildings)) ? survey.buildings : [];
+  if (blds.length <= 1) return '';
+  var h = '<div class="detail-block flow-bldg-overview" style="margin-top:1rem;"><h3>Buildings on this survey</h3>' +
+    '<div class="cap-checklist-sub">Each building is captured independently. Progress shown per building.</div>';
+  blds.forEach(function(b, i){
+    var pr = fpBuildingProgress(survey, i);
+    var complete = (pr.done === pr.total && pr.total > 0);
+    h += '<div class="flow-bldg-row"><div class="flow-bldg-row-head"><span class="flow-bldg-name">' + escapeHtml(fpBuildingLabel(b, i)) + '</span>' +
+      '<span class="flow-bldg-prog' + (complete ? ' done' : '') + '">' + (complete ? 'complete' : (pr.done + ' of ' + pr.total)) + '</span></div><div class="flow-bldg-dots">';
+    pr.steps.forEach(function(s){ h += '<span class="flow-bldg-dot ' + s.state + '" title="' + escapeHtml(s.label) + '"></span>'; });
+    h += '</div></div>';
+  });
+  h += '</div>';
+  return h;
 }
 function fpPointsStr(fp){ return (fp.corners || []).map(function(c){ return (Math.round(c.x*10)/10) + ',' + (Math.round(c.y*10)/10); }).join(' '); }
 
@@ -10309,6 +10442,9 @@ function fpOpen(id){
   // (b2EnsureSurveySaved), and re-entering the form restarts the autosave, so
   // stopping it here loses nothing.
   if (typeof stopAutoSave === 'function') stopAutoSave();
+  // resume capture on the building the surveyor last worked on (persisted per survey)
+  var s0 = srLoadSurvey(fpCurrentId);
+  fpActiveBuildingIdx = fpClampBuildingIdx(s0, (s0 && typeof s0.activeBuildingIdx === 'number') ? s0.activeBuildingIdx : 0);
   fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpElevOpen = null;
   if (typeof showView === 'function') showView('footprint');
   fpRender();
@@ -10351,6 +10487,9 @@ function fpRender(){
   var drawing = (fpMode === 'draw');
 
   var h = '<div class="fp-wrap">';
+  // building switcher (multi-building capture) - at the top; hidden until a
+  // building exists, unobtrusive (one chip + Add) with a single building
+  h += fpRenderBuildingSwitcher(survey);
   // toolbar: presets + freeform
   h += '<div class="fp-tools"><div class="fp-tools-lbl">Quick start</div><div class="fp-presets">';
   FP_PRESET_ORDER.forEach(function(k){
@@ -10440,7 +10579,7 @@ function fpRender(){
       var lbl = ft.type + (ft.count > 1 ? ' ×' + ft.count : '');
       hit += '<button class="fp-chip fp-feat-chip' + (ft.photos && ft.photos.length ? ' has-photo' : '') + '" style="left:' + (ft.x / 3) + '%;top:' + (ft.y / 3) + '%;" onclick="fpOpenFeature(' + fi + ')">' + escapeHtml(fpChipShort(lbl)) + '</button>';
     });
-    fpPlottedFaults(survey, 0).forEach(function(fl){
+    fpPlottedFaults(survey, fpClampBuildingIdx(survey, fpActiveBuildingIdx)).forEach(function(fl){
       hit += '<button class="fp-chip fp-fault-chip" style="left:' + (fl.footprintLoc.x / 3) + '%;top:' + (fl.footprintLoc.y / 3) + '%;" onclick="fpFaultOpenId=\'' + fl.id + '\';fpRender();">Fault ' + (fl.number || '') + '</button>';
     });
     // tap-to-place: a clearly visible temporary PIN (pulsing ring) at the tapped
@@ -11886,7 +12025,7 @@ function fpFaultPin(faultId){
   var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
   var faults = fpFaultsForBuilding(survey);
   var f = faults.find(function(x){ return x.id === faultId; }); if (!f) return;
-  f.footprintLoc = { bi: 0, x: fpFaultPick.x, y: fpFaultPick.y };
+  f.footprintLoc = { bi: fpClampBuildingIdx(survey, fpActiveBuildingIdx), x: fpFaultPick.x, y: fpFaultPick.y };
   survey.siteFaultMarkers = faults;
   fpFaultPick = null; fpPlaceMode = null;
   srPersist(survey); fpRender();
@@ -11898,7 +12037,7 @@ function fpFaultPinNew(){
   var f = { id: idn.id, number: idn.number, lat: null, lng: null, severity: '', faultType: '', location: '', area: '',
     description: '', recommendation: '', dbDesc: false, dbRec: false, photos: [], qtyCount: '', qtyWhat: '', qtyWhatOther: '',
     sizeEach: '', sizeUnit: '', sizeUnitOther: '', faultImage: '', faultImageKey: '', faultImageW: 0, faultImageH: 0,
-    faultMarkerX: null, faultMarkerY: null, footprintLoc: { bi: 0, x: fpFaultPick.x, y: fpFaultPick.y }, unlocatable: false };
+    faultMarkerX: null, faultMarkerY: null, footprintLoc: { bi: fpClampBuildingIdx(survey, fpActiveBuildingIdx), x: fpFaultPick.x, y: fpFaultPick.y }, unlocatable: false };
   var faults = fpFaultsForBuilding(survey); faults.push(f);
   survey.siteFaultMarkers = faults;
   survey.noFaultsFound = false;   // Amendment 2: a genuinely new fault clears the declaration
@@ -12512,9 +12651,15 @@ function flowRenderChecklistDetail(survey){
     rows += '<div class="flow-faded-divider">Not in this purpose</div>' +
       faded.map(function(st){ return flowRenderStepRow(st, true, false); }).join('');
   }
-  return '<div class="detail-block flow-checklist-block" style="margin-top:1rem;">' +
-    '<h3>Capture checklist</h3>' +
-    '<div class="cap-checklist-sub">Tap a stage to jump to it. The next step is highlighted.</div>' +
+  // multi-building: a per-building overview above the checklist, and the checklist
+  // steps are scoped to the ACTIVE building (say which). Single-building: both are
+  // no-ops, so the landing is identical to before.
+  var multi = (Array.isArray(s.buildings) && s.buildings.length > 1);
+  var overview = (typeof flowRenderBuildingOverview === 'function') ? flowRenderBuildingOverview(s) : '';
+  var activeNote = multi ? (' &middot; ' + escapeHtml(fpBuildingLabel(fpBuilding(s), fpClampBuildingIdx(s, fpActiveBuildingIdx)))) : '';
+  return overview + '<div class="detail-block flow-checklist-block" style="margin-top:1rem;">' +
+    '<h3>Capture checklist' + activeNote + '</h3>' +
+    '<div class="cap-checklist-sub">Tap a stage to jump to it. The next step is highlighted.' + (multi ? ' Geometry, datum and elevations are for the active building.' : '') + '</div>' +
     '<div class="flow-wrap"><div class="flow-rail-steps">' + rows + '</div></div>' +
   '</div>';
 }
