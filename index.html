@@ -10917,6 +10917,19 @@ function fpAddCornerFromSheet(i){ fpEdgeSheet = null; fpInsertCorner(i); }   // 
 function fpOpenKeypad(kind, i, field, title, unit, current){
   fpKeypad = { kind: kind, i: i, field: field, title: title, unit: unit || 'm', value: (current != null ? String(current) : '') };
   fpRender();
+  // The numeric keypad renders inline at a fixed point near the top of the
+  // capture surface, above the datum/bays/elevation cards. When Key is tapped on
+  // a control far down the page - e.g. an opening's Width/Height/Count deep in a
+  // wall-elevation card (a roller shutter door) - the keypad lands off-screen and
+  // the surveyor cannot reach it, which reads as "Key does nothing / the value
+  // will not take". Scroll the just-opened keypad into view when it is not already
+  // fully visible, so keying works for any opening at any index on any elevation.
+  var kp = document.querySelector('#footprint-body .fp-keypad');
+  if (kp && typeof kp.getBoundingClientRect === 'function'){
+    var r = kp.getBoundingClientRect();
+    var vh = window.innerHeight || document.documentElement.clientHeight || 844;
+    if (r.top < 0 || r.bottom > vh) kp.scrollIntoView({ block: 'center' });
+  }
 }
 function fpKeypadPress(k){
   if (!fpKeypad) return;
