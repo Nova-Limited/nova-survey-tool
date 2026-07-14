@@ -1605,6 +1605,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
 .cp-total { display: flex; align-items: baseline; gap: 12px; justify-content: flex-end; padding: 14px 4px 4px; border-top: 2px solid #222; font-weight: 800; font-size: 16px; color: var(--ink); }
 .cp-total b { font-size: 20px; }
 .cp-total-note { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.cp-standing-label { width: 70%; max-width: 340px; padding: 6px 8px; border: 1px solid #cfcfcf; border-radius: 6px; font-size: 13px; font-family: inherit; }
+.cp-standing-remove { margin-left: 8px; padding: 4px 9px; border: 1px solid #d9c4c4; border-radius: 6px; background: #fff; color: #b0392b; font-size: 12px; cursor: pointer; font-family: inherit; }
+.cp-standing-remove:hover { background: #fdeeee; }
+.cp-standing-add { padding: 10px 14px 2px; }
 .report-prewarn { margin: 0 0 18px; padding: 13px 16px; border: 1px solid #c4a36a; border-left: 4px solid #b8700f; border-radius: 8px; background: #fbf2e6; color: #7a4a12; }
 .report-prewarn-head { font-size: 14px; font-weight: 800; margin-bottom: 3px; }
 .report-prewarn-sub { font-size: 12px; color: #8a6a35; margin-bottom: 8px; }
@@ -4196,6 +4200,12 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-wrap { max-width: 640px; }
     #view-footprint .fp-tools, #view-footprint .fp-forms { margin-bottom: 14px; }
     #view-footprint .fp-tools-lbl { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #8a898b; margin-bottom: 8px; }
+    #view-footprint .fp-buildup { margin: 4px 0 14px; padding: 12px 14px; border: 1px solid #e2e3e5; border-radius: 10px; background: #fafaf8; }
+    #view-footprint .fp-bu-field { margin-bottom: 10px; }
+    #view-footprint .fp-bu-field:last-child { margin-bottom: 0; }
+    #view-footprint .fp-bu-label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+    #view-footprint .fp-bu-req { color: #c0392b; }
+    #view-footprint .fp-bu-select, #view-footprint .fp-bu-input { width: 100%; padding: 8px; border: 1px solid #d4d4d0; border-radius: 7px; font-family: inherit; font-size: 13px; box-sizing: border-box; }
     #view-footprint .fp-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
     #view-footprint .fp-preset { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 78px; padding: 9px 4px; border: 1px solid #e2e3e5; border-radius: 9px; background: #fff; color: #434244; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 600; }
     #view-footprint .fp-preset:hover { border-color: #F7901E; }
@@ -4829,6 +4839,79 @@ function faultTypeLabel(f){
     if (lbl) return lbl;
   }
   return (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'Defect';
+}
+
+// ---- Roof build-up (per building): weather sheet + liner --------------------
+// One shared vocabulary used by capture, the report context/assumptions, the
+// costing brief and the works-breakout asbestos trigger.
+const FP_WEATHER_SHEETS = [
+  { v:'fibre-cement',              l:'Fibre cement' },
+  { v:'asbestos-cement-suspected', l:'Asbestos cement (suspected)' },
+  { v:'asbestos-cement-confirmed', l:'Asbestos cement (confirmed)' },
+  { v:'metal-single-skin',         l:'Metal single skin' },
+  { v:'metal-built-up',            l:'Metal built-up/composite panel' },
+  { v:'flat-membrane',             l:'Flat membrane' },
+  { v:'other',                     l:'Other' }
+];
+const FP_LINERS = [
+  { v:'metal-liner',               l:'Metal liner' },
+  { v:'asbestos-liner-suspected',  l:'Asbestos-containing liner (suspected)' },
+  { v:'asbestos-liner-confirmed',  l:'Asbestos-containing liner (confirmed)' },
+  { v:'timber-boarding',           l:'Timber boarding' },
+  { v:'no-liner',                  l:'No liner / single skin' },
+  { v:'not-visible',               l:'Not visible from survey' }
+];
+const BUILDUP_ASBESTOS_VALUES = ['asbestos-cement-suspected','asbestos-cement-confirmed','asbestos-liner-suspected','asbestos-liner-confirmed'];
+function fpBuildupOptLabel(list, v){ for (var i = 0; i < list.length; i++){ if (list[i].v === v) return list[i].l; } return ''; }
+function fpWeatherSheetLabel(bu){
+  if (!bu || !bu.weatherSheet) return '';
+  if (bu.weatherSheet === 'other'){ var o = String(bu.weatherSheetOther || '').trim(); return o || 'Other'; }
+  return fpBuildupOptLabel(FP_WEATHER_SHEETS, bu.weatherSheet);
+}
+function fpLinerLabel(bu){ return (bu && bu.liner) ? fpBuildupOptLabel(FP_LINERS, bu.liner) : ''; }
+function buildupHasAsbestos(bu){ return !!(bu && (BUILDUP_ASBESTOS_VALUES.indexOf(bu.weatherSheet) !== -1 || BUILDUP_ASBESTOS_VALUES.indexOf(bu.liner) !== -1)); }
+function fpBuildingLabelSafe(survey, i){
+  var b = (survey && Array.isArray(survey.buildings)) ? survey.buildings[i] : null;
+  return (typeof fpBuildingLabel === 'function') ? fpBuildingLabel(b, i) : ((b && b.name) ? b.name : ('Building ' + (i + 1)));
+}
+// Buildings whose build-up carries any asbestos option (sheet or liner).
+function surveyBuildupAsbestosBuildings(survey){
+  var out = [];
+  var builds = (survey && Array.isArray(survey.buildings)) ? survey.buildings : [];
+  builds.forEach(function(b, i){ if (buildupHasAsbestos(b && b.roofBuildup)) out.push(fpBuildingLabelSafe(survey, i)); });
+  return out;
+}
+function surveyLinerNotVisible(survey){
+  var builds = (survey && Array.isArray(survey.buildings)) ? survey.buildings : [];
+  return builds.some(function(b){ return b && b.roofBuildup && b.roofBuildup.liner === 'not-visible'; });
+}
+// Human liner clause for the client report statement (no dashes, canon-safe).
+function slLinerClause(v){
+  switch (v){
+    case 'metal-liner':              return 'a metal liner';
+    case 'asbestos-liner-suspected': return 'an asbestos-containing liner (suspected)';
+    case 'asbestos-liner-confirmed': return 'an asbestos-containing liner (confirmed)';
+    case 'timber-boarding':          return 'timber boarding';
+    case 'no-liner':                 return 'no liner (single skin)';
+    case 'not-visible':              return 'a liner not visible from the survey';
+    default:                         return '';
+  }
+}
+// One-line build-up statement per building for the report site/building context.
+function slBuildupStatement(survey){
+  var builds = (survey && Array.isArray(survey.buildings)) ? survey.buildings : [];
+  var parts = [];
+  builds.forEach(function(b, i){
+    var bu = b && b.roofBuildup; if (!bu) return;
+    var ws = fpWeatherSheetLabel(bu), lc = slLinerClause(bu.liner);
+    var seg;
+    if (ws && lc) seg = ws + ' weather sheet over ' + lc;
+    else if (ws)  seg = ws + ' weather sheet';
+    else if (lc)  seg = 'weather sheet not recorded, over ' + lc;
+    else return;
+    parts.push(builds.length > 1 ? (fpBuildingLabelSafe(survey, i) + ': ' + seg) : seg);
+  });
+  return parts.join('. ');
 }
 
 const FAULT_SEV_COLORS = {
@@ -7093,7 +7176,14 @@ function costPanelEnsure(survey){
   if (!survey.costingPanel || typeof survey.costingPanel !== 'object') survey.costingPanel = { faults: {}, standing: {} };
   if (!survey.costingPanel.faults || typeof survey.costingPanel.faults !== 'object') survey.costingPanel.faults = {};
   if (!survey.costingPanel.standing || typeof survey.costingPanel.standing !== 'object') survey.costingPanel.standing = {};
+  if (!Array.isArray(survey.costingPanel.standingCustom)) survey.costingPanel.standingCustom = [];
   return survey.costingPanel;
+}
+// Added (custom) standing items with a non-empty label, for the copy blocks.
+function costPanelAddedStandingLabels(survey){
+  var cp = survey && survey.costingPanel;
+  if (!cp || !Array.isArray(cp.standingCustom)) return [];
+  return cp.standingCustom.map(function(it){ return String((it && it.label) || '').trim(); }).filter(Boolean);
 }
 // A whole-pound value, or null (empty = TBC, excluded from totals).
 function costPanelNum(v){ if (v == null || String(v).trim() === '') return null; var n = Math.round(Number(v)); return isFinite(n) ? n : null; }
@@ -7110,11 +7200,12 @@ function costPanelBuildCostInfo(survey){
   });
   var standTotal = 0, anyStand = false;
   COSTPANEL_STANDING.forEach(function(si){ var v = costPanelNum(cp.standing && cp.standing[si.key]); if (v != null){ standTotal += v; anyStand = true; } });
+  (Array.isArray(cp.standingCustom) ? cp.standingCustom : []).forEach(function(it){ var v = costPanelNum(it && it.cost); if (v != null){ standTotal += v; anyStand = true; } });
   if (!anyFault && !anyStand) return null;
   return { mode: 'repair', costsByRef: costsByRef, total: faultTotal + standTotal };
 }
 function costPanelAreaSum(cp, g){ var t = 0; (g.faults || []).forEach(function(f){ var c = costPanelNum(cp.faults['F' + (f.number != null ? f.number : '?')]); if (c != null) t += c; }); return t; }
-function costPanelStandingSubtotal(survey){ var cp = costPanelEnsure(survey); var t = 0; COSTPANEL_STANDING.forEach(function(si){ var v = costPanelNum(cp.standing[si.key]); if (v != null) t += v; }); return t; }
+function costPanelStandingSubtotal(survey){ var cp = costPanelEnsure(survey); var t = 0; COSTPANEL_STANDING.forEach(function(si){ var v = costPanelNum(cp.standing[si.key]); if (v != null) t += v; }); (cp.standingCustom || []).forEach(function(it){ var v = costPanelNum(it && it.cost); if (v != null) t += v; }); return t; }
 function costPanelJobTotal(survey){ var ci = costPanelBuildCostInfo(survey); return ci ? ci.total : 0; }
 function costPanelOpen(id){
   costPanelCurrentId = id || currentSurveyId;
@@ -7134,6 +7225,11 @@ function costPanelUpdateTotals(){
 }
 function costPanelSetFaultCost(ref, v){ var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return; var cp = costPanelEnsure(survey); var n = costPanelNum(v); if (n == null) delete cp.faults[ref]; else cp.faults[ref] = n; srPersist(survey); costPanelUpdateTotals(); }
 function costPanelSetStanding(key, v){ var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return; var cp = costPanelEnsure(survey); var n = costPanelNum(v); if (n == null) delete cp.standing[key]; else cp.standing[key] = n; srPersist(survey); costPanelUpdateTotals(); }
+function costPanelNextCustomId(cp){ var max = 0; (cp.standingCustom || []).forEach(function(it){ var m = /^sc(\d+)$/.exec(it && it.id); if (m){ var n = parseInt(m[1], 10); if (n > max) max = n; } }); return 'sc' + (max + 1); }
+function costPanelAddStanding(){ var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return; var cp = costPanelEnsure(survey); cp.standingCustom.push({ id: costPanelNextCustomId(cp), label: '', cost: null }); srPersist(survey); costPanelRender(); }
+function costPanelRemoveStanding(id){ var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return; var cp = costPanelEnsure(survey); cp.standingCustom = (cp.standingCustom || []).filter(function(it){ return it.id !== id; }); srPersist(survey); costPanelRender(); }
+function costPanelSetCustomLabel(id, v){ var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return; var cp = costPanelEnsure(survey); var it = (cp.standingCustom || []).find(function(x){ return x.id === id; }); if (it){ it.label = v; srPersist(survey); } }
+function costPanelSetCustomCost(id, v){ var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return; var cp = costPanelEnsure(survey); var it = (cp.standingCustom || []).find(function(x){ return x.id === id; }); if (it){ var n = costPanelNum(v); it.cost = (n == null) ? null : n; srPersist(survey); costPanelUpdateTotals(); } }
 function costPanelRender(){
   var host = document.getElementById('costpanel-body'); if (!host) return;
   var survey = srLoadSurvey(costPanelCurrentId);
@@ -7172,11 +7268,43 @@ function costPanelRender(){
     h += '<tr><td colspan="5">' + escapeHtml(si.label) + '</td>' +
       '<td class="r"><input class="cp-cost" type="number" inputmode="numeric" step="1" min="0" placeholder="TBC" value="' + (cur != null ? cur : '') + '" oninput="costPanelSetStanding(\'' + si.key + '\',this.value)"></td></tr>';
   });
-  h += '</tbody></table></div>';
+  (cp.standingCustom || []).forEach(function(it){
+    var cur = costPanelNum(it.cost);
+    h += '<tr><td colspan="5"><input class="cp-standing-label" type="text" maxlength="60" placeholder="Added item, e.g. Asbestos sampling and analysis" value="' + escapeHtml(it.label || '') + '" oninput="costPanelSetCustomLabel(\'' + it.id + '\',this.value)">' +
+      '<button class="cp-standing-remove" onclick="costPanelRemoveStanding(\'' + it.id + '\')" title="Remove this item">Remove</button></td>' +
+      '<td class="r"><input class="cp-cost" type="number" inputmode="numeric" step="1" min="0" placeholder="TBC" value="' + (cur != null ? cur : '') + '" oninput="costPanelSetCustomCost(\'' + it.id + '\',this.value)"></td></tr>';
+  });
+  h += '</tbody></table>';
+  h += '<div class="cp-standing-add"><button class="btn btn-secondary" onclick="costPanelAddStanding()">+ Add standing item</button></div>';
+  h += '</div>';
   h += '<div class="cp-total">Job total <b id="cp-job-total">' + slGBP(costPanelJobTotal(survey)) + '</b> <span class="cp-total-note">reads into the report cost column, area subtotals and total</span></div>';
   h += '<div class="cp-bar cp-bar-bottom"><button class="btn btn-secondary" onclick="costPanelCopyWorksBreakout()">Copy works breakout</button>' +
     '<span class="cp-internal">Delivery scoping pass for the planning chat &middot; internal only</span></div>';
   host.innerHTML = h;
+}
+// SITE AND GEOMETRY section for the costing brief, from what capture already
+// holds. Each line prints "not captured" rather than being omitted when absent.
+function costPanelGeometrySection(survey){
+  var s = survey || {};
+  var lines = [];
+  // Roof area + building count
+  var ra = (typeof estResolveRoofArea === 'function') ? estResolveRoofArea(s) : { total: null };
+  var nB = (Array.isArray(s.buildings) ? s.buildings.length : 0);
+  lines.push('Roof area: ' + ((ra && ra.total != null) ? (Math.round(ra.total) + ' sq m across ' + nB + ' building' + (nB === 1 ? '' : 's')) : 'not captured'));
+  // Roof build-up per building
+  var stmt = (typeof slBuildupStatement === 'function') ? slBuildupStatement(s) : '';
+  lines.push('Roof build-up: ' + (stmt || 'not captured'));
+  // Fault dispersal per area
+  var groups = (typeof slGroupFaultsByArea === 'function') ? slGroupFaultsByArea(s) : [];
+  var nFaults = (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.length : 0);
+  lines.push('Fault dispersal by area: ' + ((nFaults && groups.length) ? groups.map(function(g){ return g.area + ' (' + g.faults.length + ')'; }).join(', ') : 'not captured'));
+  // Gutter runs where placed
+  var gt = (typeof fpPlacedGutterTotals === 'function') ? fpPlacedGutterTotals(s) : { anyResolved: false, all: 0, count: 0 };
+  lines.push('Gutter runs: ' + ((gt && gt.anyResolved) ? (Math.round(gt.all) + ' m placed across ' + gt.count + ' run' + (gt.count === 1 ? '' : 's')) : 'not captured'));
+  // Access context
+  var pa = (s.packAccess && Array.isArray(s.packAccess.elevations)) ? s.packAccess.elevations : [];
+  lines.push('Access context: ' + (pa.length ? (pa.length + ' elevation' + (pa.length === 1 ? '' : 's') + ' reviewed for access') : 'not captured'));
+  return lines.map(function(l){ return '- ' + l; }).join('\n');
 }
 // The plain-text costing brief for the planning chat (exact agreed shape).
 function costPanelBrief(survey){
@@ -7197,17 +7325,28 @@ function costPanelBrief(survey){
     var rec = String(f.recommendation || '').trim() || 'no recommendation recorded';
     return refF + ' | ' + loc + ' | ' + type + ' | ' + sev + ' | ' + ext + ' | ' + rec;
   }).join('\n');
+  // Added standing items extend the priced standing-item list (defaults unchanged).
+  var addedLbls = (typeof costPanelAddedStandingLabels === 'function') ? costPanelAddedStandingLabels(s) : [];
+  var standingExtra = addedLbls.length ? (', ' + addedLbls.join(', ')) : '';
+  var geoSection = (typeof costPanelGeometrySection === 'function') ? costPanelGeometrySection(s) : '';
   return 'NOVA COSTING SESSION — ' + ref + ' — ' + addr + '\n' +
     'Instruction to planning chat: price each fault line below for repair-mode\n' +
     'entry into the survey tool. Use the Master Line Items rate card (materials\n' +
     'plus labour per unit) via the fault-to-works mapping; where no rate-card\n' +
     'line exists for a fault type, flag it and propose a build-up instead of\n' +
     'inventing a rate. Price standing items (Access/MEWP, Site days, Waste and\n' +
-    'disposal, Travel) as job-level lines, not per fault. Return one figure per\n' +
+    'disposal, Travel' + standingExtra + ') as job-level lines, not per fault. Return one figure per\n' +
     'fault and one per standing item, whole pounds, ending in calculated digits,\n' +
     'in a table Jamie can key straight into the tool\'s Costing panel. Ask Jamie\n' +
     'trade-judgement questions only; resolve everything else from this block.\n' +
+    'Repair pricing is attendance-driven: consider work parcels sharing one\n' +
+    'access setup, the substrate and its working method, and crew-days per\n' +
+    'parcel, with materials as the minor line.\n' +
     'Time onsite: ' + timeOnsite + '.\n' +
+    '\n' +
+    'SITE AND GEOMETRY:\n' +
+    geoSection + '\n' +
+    '\n' +
     'Faults (' + faults.length + ' across ' + nAreas + ' areas):\n' +
     faultLines;
 }
@@ -7272,14 +7411,17 @@ function costPanelDerivedLines(survey){
   var faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers.slice() : [];
   faults.sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); });
   var out = [];
+  // Per-building build-up asbestos also fires the asbestos line, named by building.
+  var asbBuildings = (typeof surveyBuildupAsbestosBuildings === 'function') ? surveyBuildupAsbestosBuildings(survey) : [];
   WORKS_BREAKOUT_RULES.forEach(function(rule){
+    var refs = [];
     if (rule.per){
-      var refs = [];
       faults.forEach(function(f){ if (rule.test(f)) refs.push(wbFaultRef(f)); });
-      if (refs.length) out.push(rule.line + ' (' + refs.join(', ') + ')');
     } else if (rule.test(faults)){
-      out.push(rule.line + ' (' + faults.map(wbFaultRef).join(', ') + ')');
+      refs = faults.map(wbFaultRef);
     }
+    if (rule.id === 'asbestos'){ asbBuildings.forEach(function(lbl){ refs.push(lbl); }); }
+    if (refs.length) out.push(rule.line + ' (' + refs.join(', ') + ')');
   });
   return out;
 }
@@ -7298,6 +7440,10 @@ function costPanelWorksBreakout(survey){
   var derivedBlock = derived.length
     ? derived.map(function(l){ return '- ' + l; }).join('\n')
     : 'None derived; rely on checklist.';
+  // Added standing items are surfaced on the "already listed" checklist prompt.
+  var addedLbls = (typeof costPanelAddedStandingLabels === 'function') ? costPanelAddedStandingLabels(s) : [];
+  var standingPrompt = '- Specialist tools or plant beyond MEWP already listed in standing items' +
+    (addedLbls.length ? (', including added: ' + addedLbls.join(', ')) : '') + '\n';
   return 'NOVA WORKS BREAKOUT — ' + ref + ' — ' + addr + '\n' +
     'Instruction to planning chat: this is the delivery scoping pass before or\n' +
     'alongside line pricing. Review the derived items against the fault list,\n' +
@@ -7317,7 +7463,7 @@ function costPanelWorksBreakout(survey){
     '- Power and water: available on site or generator/bowser required\n' +
     '- Documents: RAMS, permits to work, hot works permit, client induction\n' +
     '- Occupied-building constraints: working hours, segregation, noise limits\n' +
-    '- Specialist tools or plant beyond MEWP already listed in standing items\n' +
+    standingPrompt +
     '- Scaffold vs MEWP decision, and edge protection\n' +
     '- Waste classification: any suspect materials requiring testing before\n' +
     '  disposal routing\n' +
@@ -11079,6 +11225,10 @@ function fpRender(){
   });
   h += '</div></div>';
 
+  // Roof build-up: weather sheet + liner (per building), sits with the other
+  // building-level attributes (roof form above; datum/elevations via the plan).
+  h += fpRenderBuildup(survey);
+
   // place / done
   h += '<div class="fp-actions">' +
     '<button class="fp-place-btn"' + (fp ? '' : ' disabled') + ' onclick="fpPlace()">Place footprint</button>' +
@@ -11086,6 +11236,43 @@ function fpRender(){
 
   h += '</div>';
   host.innerHTML = h;
+}
+
+// Roof build-up capture: two required selects (weather sheet, liner) plus an
+// optional note, persisted on building.roofBuildup. Describe-on-Other mirrors
+// the fault-type Other behaviour shipped at 393ba6d.
+function fpRenderBuildup(survey){
+  var b = fpBuilding(survey);
+  var bu = (b && b.roofBuildup) || {};
+  var optsFor = function(list, cur){
+    var o = '<option value="">Select...</option>';
+    list.forEach(function(it){ o += '<option value="' + it.v + '"' + (cur === it.v ? ' selected' : '') + '>' + escapeHtml(it.l) + '</option>'; });
+    return o;
+  };
+  var h = '<div class="fp-buildup"><div class="fp-tools-lbl">Roof build-up</div>';
+  h += '<div class="fp-bu-field"><label class="fp-bu-label">Weather sheet <span class="fp-bu-req">*</span></label>' +
+    '<select class="fp-bu-select" onchange="fpBuildupSet(\'weatherSheet\', this.value, true)">' + optsFor(FP_WEATHER_SHEETS, bu.weatherSheet) + '</select></div>';
+  if (bu.weatherSheet === 'other'){
+    h += '<div class="fp-bu-field"><label class="fp-bu-label">What is the weather sheet? <span class="fp-bu-req">*</span></label>' +
+      '<input type="text" class="fp-bu-input" maxlength="80" placeholder="Short label" value="' + escapeHtml(bu.weatherSheetOther || '') + '" oninput="fpBuildupSet(\'weatherSheetOther\', this.value, false)"></div>';
+  }
+  h += '<div class="fp-bu-field"><label class="fp-bu-label">Liner <span class="fp-bu-req">*</span></label>' +
+    '<select class="fp-bu-select" onchange="fpBuildupSet(\'liner\', this.value, true)">' + optsFor(FP_LINERS, bu.liner) + '</select></div>';
+  h += '<div class="fp-bu-field"><label class="fp-bu-label">Build-up note (optional)</label>' +
+    '<textarea class="fp-bu-input" rows="2" placeholder="Anything relevant to the build-up" oninput="fpBuildupSet(\'note\', this.value, false)">' + escapeHtml(bu.note || '') + '</textarea></div>';
+  h += '</div>';
+  return h;
+}
+function fpBuildupSet(field, value, rerender){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpEnsureBuilding(survey);
+  if (!b.roofBuildup || typeof b.roofBuildup !== 'object') b.roofBuildup = {};
+  b.roofBuildup[field] = value;
+  srPersist(survey);
+  // Only re-render for the weather-sheet select (to reveal/hide the Other input)
+  // and to refresh the per-building progress chips; text inputs keep focus.
+  if (rerender) fpRender();
+  else { if (typeof fpRenderBuildingSwitcher === 'function'){ /* progress refresh happens on next full render */ } }
 }
 
 function fpPresetGlyph(k){
@@ -13060,6 +13247,7 @@ function flowDeclareNoFaultsFromChecklist(){
 // report; features feed both, so it never fades).
 var FLOW_STEP_PURPOSES = {
   geometry: ['priced'], datum: ['priced'], elevations: ['priced'],
+  buildup: ['condition','priced'],
   faults: ['condition'], features: ['condition','priced'],
   scaffold: ['priced'], covering: ['condition','priced'], photos: ['condition']
 };
@@ -13114,6 +13302,15 @@ function flowComputeSteps(survey){
   steps.push({ key:'elevations', label:'Wall elevations',
     state: !hasFp ? 'not-started' : (elevDefined === totalEdges && totalEdges > 0 ? 'done' : (elevDefined > 0 ? 'partial' : 'not-started')),
     detail: !hasFp ? 'draw the footprint first' : (elevDefined + ' of ' + totalEdges + ' elevations defined') });
+
+  // ROOF BUILD-UP - weather sheet + liner per building (required for complete).
+  // "Not visible from survey" is a first-class liner answer that reads DONE.
+  var bu = (b && b.roofBuildup) || {};
+  var wsSet = !!(bu.weatherSheet && String(bu.weatherSheet).trim() && (bu.weatherSheet !== 'other' || String(bu.weatherSheetOther || '').trim()));
+  var linerSet = !!(bu.liner && String(bu.liner).trim());
+  steps.push({ key:'buildup', label:'Roof build-up',
+    state: (wsSet && linerSet) ? 'done' : ((wsSet || linerSet) ? 'partial' : 'not-started'),
+    detail: (wsSet && linerSet) ? 'weather sheet and liner recorded' : (!wsSet && !linerSet ? 'not recorded yet' : (wsSet ? 'liner outstanding' : 'weather sheet outstanding')) });
 
   // FAULTS with the declaration (F1 amendment 2, unchanged): "no faults found"
   // reads DONE at zero faults; a recorded fault (which clears the declaration at
@@ -14853,10 +15050,12 @@ function slRenderExec(survey) {
   const clientIssuesTxt = (s.clientReportedIssues || '').trim();
   const siteContextTxt  = (s.siteContext || '').trim();
   const bgCol = function(label, txt){ return '<div class="ex-bg-col"><div class="k">' + label + '</div>' + paras(txt) + '</div>'; };
-  const bgRowHtml = (clientIssuesTxt || siteContextTxt)
+  const buildupStmt = (typeof slBuildupStatement === 'function') ? slBuildupStatement(s) : '';
+  const bgRowHtml = (clientIssuesTxt || siteContextTxt || buildupStmt)
     ? '<div class="ex-bg-row">' +
         (clientIssuesTxt ? bgCol('What the client reported', clientIssuesTxt) : '') +
         (siteContextTxt  ? bgCol('Site context', siteContextTxt) : '') +
+        (buildupStmt     ? bgCol('Roof build-up', buildupStmt) : '') +
       '</div>'
     : '';
 
@@ -14915,7 +15114,7 @@ function slRenderExec(survey) {
   const estBase = 80 + Math.max(1, estLines(lede, 120)) * 20;
   const estSum  = execSummaryTxt ? (12 + estLines(execSummaryTxt, 118) * 20 + Math.max(0, estParas(execSummaryTxt) - 1) * 8) : 0;
   const estSite = 224;
-  const estBg   = (clientIssuesTxt || siteContextTxt) ? (95 + Math.max(estLines(clientIssuesTxt, 60), estLines(siteContextTxt, 60)) * 16) : 0;
+  const estBg   = (clientIssuesTxt || siteContextTxt || buildupStmt) ? (95 + Math.max(estLines(clientIssuesTxt, 60), estLines(siteContextTxt, 60), estLines(buildupStmt, 60)) * 16) : 0;
   const estCta  = 196;
   const ONE_PAGE = 586;
   const content  = estBase + estSum + estSite + estBg;
@@ -15064,6 +15263,17 @@ function slReportPrintWarnings(survey){
     else if (/^Defect noted at .+\.$/.test(desc)) warns.push({ scope: ref, field: 'Observation', detail: 'is placeholder text' });
     var ext = (typeof faultExtent === 'function') ? faultExtent(f) : { qty: 0 };
     if (!ext || !isFinite(Number(ext.qty)) || Number(ext.qty) === 0) warns.push({ scope: ref, field: 'Extent', detail: 'is zero / not set' });
+  });
+  // Roof build-up asbestos - noted so an asbestos status is never silently dropped.
+  var builds = Array.isArray(s.buildings) ? s.buildings : [];
+  builds.forEach(function(b, i){
+    var bu = b && b.roofBuildup;
+    if (typeof buildupHasAsbestos === 'function' && buildupHasAsbestos(bu)){
+      var which = [];
+      if (BUILDUP_ASBESTOS_VALUES.indexOf(bu.weatherSheet) !== -1) which.push('weather sheet ' + fpWeatherSheetLabel(bu));
+      if (BUILDUP_ASBESTOS_VALUES.indexOf(bu.liner) !== -1) which.push('liner ' + fpLinerLabel(bu));
+      warns.push({ scope: fpBuildingLabelSafe(s, i), field: 'Asbestos build-up', detail: which.join(', ') + ' - confirm handling before works' });
+    }
   });
   return warns;
 }
@@ -17790,7 +18000,8 @@ function slRenderFindings(survey, costInfo) {
             '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="fnote">Priced line by line in the condition schedule. Subject to access and to no concealed defects being found on opening up.</div>' +
+        '<div class="fnote">Priced line by line in the condition schedule. Subject to access and to no concealed defects being found on opening up.' +
+          ((typeof surveyLinerNotVisible === 'function' && surveyLinerNotVisible(s)) ? ' The roof liner could not be identified from the survey. Pricing assumes a conventional metal liner; identification on opening up may affect cost and programme.' : '') + '</div>' +
       '</div>' +
     '</div>' +
     '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
