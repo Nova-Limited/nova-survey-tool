@@ -1582,6 +1582,12 @@ input.derived-field { background: #f6f8fa; color: #555; }
    Cover (dark) + alternating dark/light sections + brand footer.
    ============================================================ */
 #view-report .container { max-width: 1100px; }
+.report-prewarn { margin: 0 0 18px; padding: 13px 16px; border: 1px solid #c4a36a; border-left: 4px solid #b8700f; border-radius: 8px; background: #fbf2e6; color: #7a4a12; }
+.report-prewarn-head { font-size: 14px; font-weight: 800; margin-bottom: 3px; }
+.report-prewarn-sub { font-size: 12px; color: #8a6a35; margin-bottom: 8px; }
+.report-prewarn ul { margin: 0; padding-left: 18px; }
+.report-prewarn li { font-size: 12.5px; margin: 3px 0; }
+.report-prewarn li b { color: #5a3a10; }
 
 .report {
   background: var(--paper);
@@ -2713,8 +2719,13 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .kv .val{font-size:13px;}
   .sl-report .block{margin-top:12px;}
   .sl-report .block .label{margin-bottom:5px;}
-  .sl-report .block p{font-size:12.5px;line-height:1.55;color:#3f4044;}
-  .sl-report .photo{height:66px;background:var(--ink);border-radius:8px;margin-top:11px;position:relative;overflow:hidden;
+  .sl-report .block p{font-size:12.5px;line-height:1.46;color:#3f4044;}
+  /* Priority-card photo well: was a 66px letterbox strip that hid the defect.
+     Now a usefully tall image well (~3:1 within the card width - as close to 3:2
+     as the two-cards-per-sheet constraint allows), centre-cropped so portrait
+     photos show the defect region rather than a sliver. */
+  .sl-report .photo{height:132px;background:var(--ink);border-radius:8px;margin-top:11px;position:relative;overflow:hidden;
+          background-size:cover;background-position:center;
           display:flex;align-items:flex-end;padding:9px 14px;color:rgba(255,255,255,.55);font-size:11px;}
   .sl-report .ev-set{display:flex;align-items:center;gap:14px;background:var(--light);border-radius:8px;padding:10px 14px;margin-top:12px;}
   .sl-report .qr{width:46px;height:46px;background:
@@ -3824,6 +3835,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
         <h1>Report preview</h1>
         <div class="meta">Tap Print to send this to printer or save as PDF.</div>
       </div>
+      <div id="report-prewarn-host" class="no-print"></div>
       <div id="report-body"></div>
       <div class="report-actions no-print">
         <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
@@ -6963,6 +6975,9 @@ function goToReportCurrent() {
   var costInfo = (typeof window !== 'undefined' && window._novaPrintCostInfo) || null;
   var body = document.getElementById('report-body');
   if (body) body.innerHTML = s ? renderTier1Report(s, costInfo) : '<p>Survey not found.</p>';
+  // Internal-only pre-print warnings (never in the client document / print).
+  var warnHost = document.getElementById('report-prewarn-host');
+  if (warnHost) warnHost.innerHTML = s ? slRenderPrintWarnBanner(slReportPrintWarnings(s)) : '';
   showView('report');
 }
 
@@ -13550,7 +13565,7 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
     const str = String(v).trim();
     if (str === '' || str === 'TBC') return '–';
     if (/[a-z]/i.test(str)) return str;                 // already worded (yrs, months…)
-    if (/^\d+(\.\d+)?$/.test(str)) return str + ' yrs';  // plain number
+    if (/^\d+(\.\d+)?$/.test(str)) return slFmtYears(str);  // plain number -> "N years"
     return str;
   };
   const fig = function(val, color){ return '<div class="cfig" style="color:' + color + ';">' + escapeHtml(val) + '</div>'; };
@@ -14617,6 +14632,77 @@ function slGallerySlug(s) {
 // renders as one block. NO slPageBurst() here: the per-page burst is applied
 // through the Paged.js page mechanism at integration, not inside flowing content.
 // costInfo = { mode:'repair'|'works', costsByRef:{ 'F1':<number>, ... }, total:<number ex VAT> }
+// Estimate how many text LINES a schedule fault row occupies at A4 landscape,
+// from the two columns that wrap (location + recommended action). The pagination
+// budget counts these line-units, not raw rows, so a row whose text wraps is
+// packed as the multiple rows it physically becomes. Without this, a sheet packed
+// to the row budget but full of wrapped text overflows the fixed 210mm sheet and
+// overflow:hidden silently CLIPS the bottom fault rows (they exist in the HTML but
+// never print) - the multi-fault dropped-row defect. The chars-per-line values are
+// calibrated to slightly OVER-estimate so a sheet never overflows; a single-line
+// row stays 1 unit, so short-text schedules paginate exactly as before.
+var SL_SCHED_REC_CPL = 55;   // recommended-action column, approx chars per line
+var SL_SCHED_LOC_CPL = 22;   // location column, approx chars per line
+function slSchedFaultRowUnits(f){
+  var recL = Math.max(1, Math.ceil(String((f && f.recommendation) || '').length / SL_SCHED_REC_CPL));
+  var locL = Math.max(1, Math.ceil(String((f && f.location) || '').length / SL_SCHED_LOC_CPL));
+  return Math.max(recL, locL);
+}
+// Round a number to at most one decimal place, without a trailing ".0"
+// (76.80000000000001 -> "76.8", 12 -> "12"). Non-numeric -> null.
+function slNum1(v){
+  var n = Number(v);
+  if (v === '' || v == null || !isFinite(n)) return null;
+  var r = Math.round(n * 10) / 10;
+  return (Math.round(r) === r) ? String(Math.round(r)) : String(r);
+}
+// A captured extent as a client string: qty rounded to <= 1 dp with its unit;
+// a ZERO (or absent) extent renders as a dash, never "0 Each".
+function slFmtExtent(ext){
+  if (!ext) return '–';
+  var qs = slNum1(ext.qty);
+  if (qs == null || Number(ext.qty) === 0) return '–';
+  return qs + (ext.unit ? ' ' + ext.unit : '');
+}
+// A remaining-life figure always carries its unit: a plain number becomes
+// "N years"; already-worded values (yrs/months) pass through; empty -> "TBC".
+function slFmtYears(v){
+  if (v == null) return 'TBC';
+  var str = String(v).trim();
+  if (str === '' || str.toUpperCase() === 'TBC') return 'TBC';
+  if (/[a-z]/i.test(str)) return str;                       // already worded
+  var qs = slNum1(str);
+  return (qs != null) ? (qs + ' year' + (qs === '1' ? '' : 's')) : str;
+}
+// PLACEHOLDER GUARD (INTERNAL ONLY): detect placeholder / empty content before
+// print - a placeholder observation "Defect noted at {area}.", a TBC/blank site
+// address, a zero extent. The client document is NOT changed; this drives a
+// pre-print warning list shown only in the internal report-preview view, naming
+// each field so the surveyor can fix the record before printing.
+function slReportPrintWarnings(survey){
+  var s = survey || {};
+  var warns = [];
+  var addr = String(s['f-site-address'] || '').trim();
+  if (addr === '' || addr.toUpperCase() === 'TBC') warns.push({ scope: 'Survey', field: 'Site address', detail: (addr === '' ? 'is blank' : 'is TBC') });
+  var faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
+  faults.slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); }).forEach(function(f){
+    var ref = 'F' + (f.number != null ? f.number : '?');
+    var desc = String(f.description || '').trim();
+    if (desc === '') warns.push({ scope: ref, field: 'Observation', detail: 'is empty' });
+    else if (/^Defect noted at .+\.$/.test(desc)) warns.push({ scope: ref, field: 'Observation', detail: 'is placeholder text' });
+    var ext = (typeof faultExtent === 'function') ? faultExtent(f) : { qty: 0 };
+    if (!ext || !isFinite(Number(ext.qty)) || Number(ext.qty) === 0) warns.push({ scope: ref, field: 'Extent', detail: 'is zero / not set' });
+  });
+  return warns;
+}
+function slRenderPrintWarnBanner(warns){
+  if (!warns || !warns.length) return '';
+  var items = warns.map(function(w){ return '<li><b>' + escapeHtml(w.scope) + '</b> &middot; ' + escapeHtml(w.field) + ' ' + escapeHtml(w.detail) + '</li>'; }).join('');
+  return '<div class="report-prewarn no-print">' +
+    '<div class="report-prewarn-head">Before you print &middot; ' + warns.length + ' field' + (warns.length === 1 ? '' : 's') + ' need attention</div>' +
+    '<div class="report-prewarn-sub">These print as-is in the client document. Fix them in the survey record for a clean report.</div>' +
+    '<ul>' + items + '</ul></div>';
+}
 function slRenderSchedule(survey, costInfo, opts) {
   const s  = survey || {};
   const ci = costInfo || {};
@@ -14675,11 +14761,15 @@ function slRenderSchedule(survey, costInfo, opts) {
         '<td class="cost">' + costCell(f, num) + '</td>' +
       '</tr>';
     });
+    const faultUnits = faults.map(slSchedFaultRowUnits);
+    const contHeadRow = '<tr class="grp"><td colspan="6">' + escapeHtml(g.area) +
+      ' <span class="gf">continued</span></td></tr>';
     const subVal = !costsPresent ? 'TBC' : ((mode === 'works') ? 'Included' : slGBP(areaSum));
     const subRow = '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(g.area) +
       '&nbsp;&nbsp;<b>' + subVal + '</b></td></tr>';
-    return { area: g.area, subVal: subVal, headRow: headRow, faultRows: faultRows, subRow: subRow,
-             rowCount: 2 + faultRows.length };
+    return { area: g.area, subVal: subVal, headRow: headRow, contHeadRow: contHeadRow,
+             faultRows: faultRows, faultUnits: faultUnits, subRow: subRow,
+             rowCount: 2 + faultUnits.reduce(function(a, c){ return a + c; }, 0) };
   });
 
   // FIT BUDGET (learned by render at A4 landscape, 297×210mm): a sheet that ALSO
@@ -14688,9 +14778,37 @@ function slRenderSchedule(survey, costInfo, opts) {
   // onto sheets, keeping each area's rows together.
   const ROWS_WITH_BOX = 11;
   const ROWS_PLAIN    = 18;
+  // Split any single area whose line-units exceed a plain sheet into continuation
+  // pieces (header repeated as "continued"; the subtotal rides only the final
+  // piece), so the greedy packer - which keeps each block whole - can never build
+  // an over-tall sheet that clips a fault row. Areas within budget pass through
+  // unchanged, so short-text schedules are unaffected.
+  const packBlocks = [];
+  areaBlocks.forEach(function(b) {
+    if (b.rowCount <= ROWS_PLAIN) { packBlocks.push(b); return; }
+    let i = 0; const pieces = [];
+    while (i < b.faultRows.length) {
+      const idxs = []; let units = 1;   // header
+      while (i < b.faultRows.length && (units + b.faultUnits[i] + 1 <= ROWS_PLAIN || idxs.length === 0)) {
+        idxs.push(i); units += b.faultUnits[i]; i++;
+      }
+      pieces.push(idxs);
+    }
+    pieces.forEach(function(idxs, pi) {
+      const isLast = (pi === pieces.length - 1);
+      packBlocks.push({
+        area: b.area, subVal: b.subVal,
+        headRow: (pi === 0 ? b.headRow : b.contHeadRow),
+        faultRows: idxs.map(function(k){ return b.faultRows[k]; }),
+        faultUnits: idxs.map(function(k){ return b.faultUnits[k]; }),
+        subRow: isLast ? b.subRow : '',
+        rowCount: 1 + idxs.reduce(function(a, k){ return a + b.faultUnits[k]; }, 0) + (isLast ? 1 : 0)
+      });
+    });
+  });
   const chunks = [];
   let cur = [], curRows = 0;
-  areaBlocks.forEach(function(b) {
+  packBlocks.forEach(function(b) {
     if (cur.length && curRows + b.rowCount > ROWS_PLAIN) { chunks.push(cur); cur = []; curRows = 0; }
     cur.push(b); curRows += b.rowCount;
   });
@@ -17139,9 +17257,7 @@ function slRenderCards(survey, opts) {
     const col = SEVVAR[sev] || 'var(--grey)';
     const title = labelFor(f);
     const ext = faultExtent(f);
-    const extTxt = (ext && (ext.qty || ext.unit))
-      ? String((ext.qty != null ? ext.qty : '') + (ext.unit ? ' ' + ext.unit : '')).trim()
-      : 'TBC';
+    const extTxt = slFmtExtent(ext);   // <=1 dp, unit carried, zero -> dash
     const photos = Array.isArray(f.photos) ? f.photos : [];
     const photoCount = photos.length;
     const url = 'https://nova-limited.com/g/' + slug + '?f=F' + num;
@@ -17256,7 +17372,7 @@ function slRenderFindings(survey, costInfo) {
   const critSentence = critN > 0
     ? 'The ' + slSpellCount(critN) + ' critical fault' + (critN === 1 ? '' : 's') + ' need' + (critN === 1 ? 's' : '') + ' addressing within ' + windowTxt + ' to keep the building watertight; the poor and fair items can be programmed alongside.'
     : 'No faults are critical; the works can be programmed at the next planned opportunity.';
-  const narr = 'Overall condition is rated ' + escapeHtml(condition) + '. As it stands the estimated remaining life is ' + escapeHtml(lifeNow) + '; with the recommended works completed, ' + escapeHtml(lifeWorks) + '. ' + escapeHtml(critSentence);
+  const narr = 'Overall condition is rated ' + escapeHtml(condition) + '. As it stands the estimated remaining life is ' + escapeHtml(slFmtYears(lifeNow)) + '; with the recommended works completed, ' + escapeHtml(slFmtYears(lifeWorks)) + '. ' + escapeHtml(critSentence);
 
   const sevRows =
     '<div class="crow"><span>Critical</span><span>' + stats.bySeverity.critical + '</span></div>' +
@@ -17298,7 +17414,7 @@ function slRenderFindings(survey, costInfo) {
             '<div class="find-totals">' +
               '<div><div class="k">Total for all works</div><div class="v">' + totalCell + '</div></div>' +
               '<div><div class="k">Priority works within</div><div class="v">' + escapeHtml(windowTxt) + '</div></div>' +
-              '<div><div class="k">Life after works</div><div class="v">' + escapeHtml(lifeWorks) + '</div></div>' +
+              '<div><div class="k">Life after works</div><div class="v">' + escapeHtml(slFmtYears(lifeWorks)) + '</div></div>' +
             '</div>' +
           '</div>' +
         '</div>' +
