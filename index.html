@@ -3134,6 +3134,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <div class="home-cta" style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-primary btn-big" onclick="goToNewSurvey()">+ New Survey</button>
         <button class="btn btn-ghost" onclick="openAirtableLoadModal()">Load from Airtable</button>
+        <button class="btn btn-ghost" onclick="importSurveyPrompt()">Import survey</button>
+        <input type="file" id="import-file" accept="application/json,.json" style="display:none;" onchange="importSurveyFile(event)">
       </div>
       <h2 class="section-title">Saved surveys</h2>
       <div id="survey-list" class="survey-list"></div>
@@ -7010,6 +7012,89 @@ function nextSurveyId() {
   return 'SURV-' + year + '-' + suffix;
 }
 
+// ---- Survey export / import ------------------------------------------------
+// Export the COMPLETE stored survey record as one JSON file. The stored object
+// already holds every field, buildings, footprints, elevations, faults, photos,
+// costingPanel (incl. added standing items) and build-up data, so a plain
+// JSON.stringify is a lossless snapshot. Completeness beats size (photos ride).
+function exportSurvey(id){
+  var s = srLoadSurvey(id || currentSurveyId);
+  if (!s){ if (typeof showToast === 'function') showToast('Survey not found', 'err'); return; }
+  var ref = (typeof novaSurveyIdFor === 'function' ? novaSurveyIdFor(s) : ('NOV-' + (s.id || 'survey'))) || 'NOV-survey';
+  var d = new Date();
+  var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+  var date = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  var fname = ref + '-' + date + '.json';
+  try {
+    var blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    if (typeof showToast === 'function') showToast('Exported ' + fname, 'ok');
+  } catch (e){ if (typeof showToast === 'function') showToast('Export failed: ' + e.message, 'err'); }
+}
+function importSurveyPrompt(){
+  var input = document.getElementById('import-file');
+  if (input){ input.value = ''; input.click(); }
+}
+// A unique id for an imported record. If the reference already exists, import
+// as a clearly suffixed COPY rather than overwriting an existing record.
+function importUniqueId(baseId, existingIds){
+  if (existingIds.indexOf(baseId) === -1) return { id: baseId, copied: false };
+  var n = 1, cand;
+  do { cand = baseId + '-COPY' + (n === 1 ? '' : n); n++; } while (existingIds.indexOf(cand) !== -1);
+  return { id: cand, copied: true };
+}
+function importSurveyRecord(obj){
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('not a survey file');
+  var all = loadSurveys();
+  var ids = all.map(function(x){ return x.id; });
+  var baseId = (typeof obj.id === 'string' && obj.id) ? obj.id : nextSurveyId();
+  var uniq = importUniqueId(baseId, ids);
+  var rec = Object.assign({}, obj);
+  rec.id = uniq.id;
+  // A no-conflict import is a lossless restore (id / timestamps untouched). A
+  // copy is a new record, so it gets a fresh updatedAt (createdAt kept as source).
+  if (uniq.copied) rec.updatedAt = new Date().toISOString();
+  all.push(rec);
+  if (typeof saveSurveysSafe === 'function'){ if (!saveSurveysSafe(all)) throw new Error('storage full'); }
+  else saveSurveys(all);
+  return { id: rec.id, copied: uniq.copied };
+}
+function importSurveyFile(event){
+  var input = event && event.target;
+  var file = input && input.files && input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    var res;
+    try {
+      var obj = JSON.parse(String(reader.result));
+      res = importSurveyRecord(obj);
+    } catch (e){
+      if (typeof showToast === 'function') showToast('Import failed: ' + e.message, 'err');
+      return;
+    }
+    if (typeof renderSurveyList === 'function') renderSurveyList();
+    if (typeof showToast === 'function') showToast(res.copied ? ('Imported as copy: ' + res.id) : ('Imported: ' + res.id), 'ok');
+    if (typeof goToSurvey === 'function') goToSurvey(res.id);
+  };
+  reader.onerror = function(){ if (typeof showToast === 'function') showToast('Could not read file', 'err'); };
+  reader.readAsText(file);
+}
+// Per-survey "Sample report" flag (default off). Survives export/import as a
+// plain survey field; drives one back-page line in the rendered report.
+function toggleSampleReport(){
+  var s = srLoadSurvey(currentSurveyId);
+  if (!s){ if (typeof showToast === 'function') showToast('Survey not found', 'err'); return; }
+  s.sampleReport = !s.sampleReport;
+  srPersist(s);
+  if (typeof renderSurveyDetail === 'function') renderSurveyDetail(srLoadSurvey(currentSurveyId));
+  if (typeof showToast === 'function') showToast('Sample report ' + (s.sampleReport ? 'on' : 'off'), 'ok');
+}
+
 // ---- View routing ----
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -8085,6 +8170,7 @@ function renderSurveyDetail(s) {
     const calBtn = '<button class="btn btn-secondary" onclick="addVisitToCalendar(currentSurveyId)"' +
       ((vi && vi.appointmentStart) ? '' : ' disabled title="Set an appointment time first"') +
       '>Add to calendar</button>';
+    const sampleBtn = '<button class="btn btn-secondary" onclick="toggleSampleReport()" title="When on, the report carries an anonymised-sample line on the back page">Sample report: ' + (s.sampleReport ? 'On' : 'Off') + '</button>';
     actions.innerHTML =
       '<div class="act-group">' +
         '<div class="act-group-label">The record</div>' +
@@ -8092,6 +8178,8 @@ function renderSurveyDetail(s) {
           '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
           '<button class="btn btn-secondary" onclick="fpOpen(currentSurveyId)">Footprint plan (beta)</button>' +
           '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
+          '<button class="btn btn-secondary" onclick="exportSurvey(currentSurveyId)">Export survey</button>' +
+          sampleBtn +
           calBtn +
           '<span id="sync-at-status" class="act-status"></span>' +
         '</div>' +
@@ -18109,6 +18197,7 @@ function slRenderBack(survey) {
     '</div>' +
     '<div class="bk-foot">' +
       '<div class="tag">The truth from above.</div>' +
+      (s.sampleReport ? '<div class="rg">Sample report. Based on a real survey; client identity anonymised.</div>' : '') +
       '<div class="rg">Nova (SW) Limited &middot; Registered in England &amp; Wales &middot; Company No. 16369950 &middot; nova-limited.com</div>' +
     '</div>' +
   '</section>';
