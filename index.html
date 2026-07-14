@@ -1585,6 +1585,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
 /* Costing panel (internal) */
 #view-costpanel .container { max-width: 1100px; }
 .cp-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 18px; }
+.cp-bar-bottom { margin: 22px 0 8px; }
 .cp-internal { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #b8700f; }
 .cp-note { padding: 10px 0; color: var(--muted); }
 .cp-area { margin: 0 0 20px; border: 1px solid #e3e3e3; border-radius: 10px; overflow: hidden; }
@@ -7095,6 +7096,8 @@ function costPanelRender(){
   });
   h += '</tbody></table></div>';
   h += '<div class="cp-total">Job total <b id="cp-job-total">' + slGBP(costPanelJobTotal(survey)) + '</b> <span class="cp-total-note">reads into the report cost column, area subtotals and total</span></div>';
+  h += '<div class="cp-bar cp-bar-bottom"><button class="btn btn-secondary" onclick="costPanelCopyWorksBreakout()">Copy works breakout</button>' +
+    '<span class="cp-internal">Delivery scoping pass for the planning chat &middot; internal only</span></div>';
   host.innerHTML = h;
 }
 // The plain-text costing brief for the planning chat (exact agreed shape).
@@ -7137,6 +7140,109 @@ function costPanelCopyBrief(){
   var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return;
   var text = costPanelBrief(survey);
   var done = function(){ if (typeof showToast === 'function') showToast('Costing brief copied', 'ok'); };
+  var fail = function(){ if (typeof showToast === 'function') showToast('Copy failed · select and copy manually', 'err'); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, function(){ if (costPanelCopyFallback(text)) done(); else fail(); });
+  } else { if (costPanelCopyFallback(text)) done(); else fail(); }
+}
+// ---- Works breakout (delivery scoping pass) --------------------------------
+// The derivation mapping lives HERE in one place: each rule tests the fault list
+// and, when its trigger applies, emits one scoping line naming the triggering
+// fault refs. Add rules here as new fault kinds appear. `per:true` rules test one
+// fault at a time and collect matching refs; `per:false` rules test the whole
+// fault array (e.g. a count threshold) and name every ref.
+function wbFaultRef(f){ return 'F' + (f && f.number != null ? f.number : '?'); }
+function wbTextHas(f, needle){
+  var hay = (String((f && f.location) || '') + ' ' + String((f && f.area) || '')).toLowerCase();
+  return hay.indexOf(needle) !== -1;
+}
+// Extent in square metres, or 0 when the fault is not measured in sq m.
+function wbExtentSqm(f){
+  if (typeof faultExtent !== 'function') return 0;
+  var ext = faultExtent(f) || {};
+  var unit = String(ext.unit || '').toLowerCase();
+  if (/sq\s*m|m²|sqm|m2/.test(unit)) return Number(ext.qty) || 0;
+  return 0;
+}
+var WORKS_BREAKOUT_RULES = [
+  { id: 'fragile-roof', per: true,
+    test: function(f){ return f.faultType === 'failed-rooflight'; },
+    line: 'Fragile roof surface: netting or covers, no-walk zones, ACR non-fragility compliance on replacements' },
+  { id: 'specialist-gutter', per: true,
+    test: function(f){ return f.faultType === 'parapet-gutter-lining' || f.faultType === 'gutter-failure'; },
+    line: 'Specialist gutter system: manufacturer-approved installer requirements, substrate prep, cure times' },
+  { id: 'apex-working', per: true,
+    test: function(f){ return wbTextHas(f, 'ridge'); },
+    line: 'Apex working: ridge access method, weather windows' },
+  { id: 'metalwork', per: true,
+    test: function(f){ return f.faultType === 'failed-flashing'; },
+    line: 'Metalwork fabrication: colour-match lead time, site measure before ordering' },
+  { id: 'materials-logistics', per: true,
+    test: function(f){ return wbExtentSqm(f) > 50; },
+    line: 'Materials logistics: delivery, offloading, roof loading-out method' },
+  { id: 'phased-plan', per: false,
+    test: function(faults){ return faults.length >= 6; },
+    line: 'Phased working plan across areas' }
+];
+function costPanelDerivedLines(survey){
+  var faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers.slice() : [];
+  faults.sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); });
+  var out = [];
+  WORKS_BREAKOUT_RULES.forEach(function(rule){
+    if (rule.per){
+      var refs = [];
+      faults.forEach(function(f){ if (rule.test(f)) refs.push(wbFaultRef(f)); });
+      if (refs.length) out.push(rule.line + ' (' + refs.join(', ') + ')');
+    } else if (rule.test(faults)){
+      out.push(rule.line + ' (' + faults.map(wbFaultRef).join(', ') + ')');
+    }
+  });
+  return out;
+}
+// The plain-text works breakout for the planning chat (exact agreed shape).
+function costPanelWorksBreakout(survey){
+  var s = survey || {};
+  var ref = (typeof novaSurveyIdFor === 'function' ? novaSurveyIdFor(s) : ('NOV-' + (s.id || ''))) || 'NOV-';
+  var addr = String(s['f-site-address'] || '').trim() || 'address TBC';
+  // The template appends its own full stop, so trim a trailing one from the
+  // captured note to avoid a double period.
+  var rawCtx = String(s['f-site-context'] || '').trim();
+  var siteCtx = rawCtx ? rawCtx.replace(/\.+\s*$/, '') : 'not recorded';
+  var dur = s['f-visit-duration'];
+  var timeOnsite = (dur != null && String(dur).trim() !== '') ? (dur + ' minutes') : 'not recorded';
+  var derived = costPanelDerivedLines(s);
+  var derivedBlock = derived.length
+    ? derived.map(function(l){ return '- ' + l; }).join('\n')
+    : 'None derived; rely on checklist.';
+  return 'NOVA WORKS BREAKOUT — ' + ref + ' — ' + addr + '\n' +
+    'Instruction to planning chat: this is the delivery scoping pass before or\n' +
+    'alongside line pricing. Review the derived items against the fault list,\n' +
+    'challenge or extend them with trade judgement, walk Jamie through the\n' +
+    'checklist prompts, and convert anything with a cost consequence into a\n' +
+    'standing-item figure or a fault-line adjustment for the Costing panel. Ask\n' +
+    'Jamie trade-judgement questions only.\n' +
+    'Site context: ' + siteCtx + '.\n' +
+    'Time onsite: ' + timeOnsite + '.\n' +
+    '\n' +
+    'DERIVED FROM THE FAULT LIST:\n' +
+    derivedBlock + '\n' +
+    '\n' +
+    'CHECKLIST PROMPTS (answer in chat, not in the tool):\n' +
+    '- Prelims: supervision, site setup, protection of client property\n' +
+    '- Welfare: facilities on site or provided\n' +
+    '- Power and water: available on site or generator/bowser required\n' +
+    '- Documents: RAMS, permits to work, hot works permit, client induction\n' +
+    '- Occupied-building constraints: working hours, segregation, noise limits\n' +
+    '- Specialist tools or plant beyond MEWP already listed in standing items\n' +
+    '- Scaffold vs MEWP decision, and edge protection\n' +
+    '- Waste classification: any suspect materials requiring testing before\n' +
+    '  disposal routing\n' +
+    '- Lead times: any item that gates programme';
+}
+function costPanelCopyWorksBreakout(){
+  var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return;
+  var text = costPanelWorksBreakout(survey);
+  var done = function(){ if (typeof showToast === 'function') showToast('Works breakout copied', 'ok'); };
   var fail = function(){ if (typeof showToast === 'function') showToast('Copy failed · select and copy manually', 'err'); };
   if (navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(done, function(){ if (costPanelCopyFallback(text)) done(); else fail(); });
