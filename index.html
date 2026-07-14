@@ -1194,6 +1194,24 @@ main { padding-bottom: env(safe-area-inset-bottom); }
   font-family: inherit;
   color: #434244;
 }
+/* Fault type picker trigger + bottom sheet (Defect 2) */
+.sp-ft-trigger { width: 100%; text-align: left; padding: 10px 12px; border: 1px solid #d4d4d0; border-radius: 7px; background: #fff; font-size: 14px; font-family: inherit; color: #434244; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.sp-ft-trigger::after { content: '\25BC'; font-size: 10px; color: #999; }
+.sp-ft-trigger.placeholder { color: #999; }
+.sp-ft-back { position: fixed; inset: 0; background: rgba(0,0,0,0.38); z-index: 4000; display: flex; align-items: flex-end; justify-content: center; }
+.sp-ft-sheet { width: 100%; max-width: 560px; max-height: 85vh; background: #fff; border-radius: 16px 16px 0 0; box-shadow: 0 -6px 24px rgba(0,0,0,0.25); display: flex; flex-direction: column; padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; }
+.sp-ft-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.sp-ft-title { font-size: 15px; font-weight: 800; color: #434244; }
+.sp-ft-x { font-size: 12px; font-weight: 700; background: #434244; color: #fff; border: none; border-radius: 7px; padding: 8px 16px; min-height: 40px; cursor: pointer; font-family: inherit; }
+.sp-ft-search { width: 100%; padding: 10px 12px; border: 1px solid #d4d4d0; border-radius: 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; margin-bottom: 8px; }
+.sp-ft-list { overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; min-height: 0; }
+.sp-ft-group { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #8a898b; margin: 12px 0 6px; }
+.sp-ft-opt { display: block; width: 100%; text-align: left; min-height: 44px; padding: 10px 12px; margin-bottom: 6px; border: 1px solid #e2e3e5; border-radius: 9px; background: #fff; color: #434244; font-size: 14px; font-family: inherit; cursor: pointer; }
+.sp-ft-opt:hover { border-color: #F7901E; }
+.sp-ft-opt.on { background: #fff7ef; border-color: #F7901E; color: #b8700f; font-weight: 700; }
+.sp-ft-empty { padding: 18px 4px; color: #999; font-size: 13px; }
+/* Re-anchor preview confirm bar (Defect 1 recovery) */
+.sp-reanchor-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; padding: 10px 12px; background: #fff7ef; border: 1px solid #F7901E; border-radius: 8px; font-size: 12px; color: #7a4a12; }
 .sp-mode-btn.active {
   background: #F7901E;
   color: #fff;
@@ -3371,7 +3389,9 @@ input.derived-field { background: #f6f8fa; color: #555; }
               <button type="button" id="sp-mode-id" class="sp-mode-btn active" onclick="spSetMode('identify')">Identify buildings</button>
               <button type="button" id="sp-mode-fault" class="sp-mode-btn" onclick="spSetMode('fault')">Mark faults</button>
               <button type="button" id="sp-add-offplan" class="sp-mode-btn" onclick="spAddFaultOffPlan()">Add fault off plan</button>
+              <button type="button" id="sp-reanchor-btn" class="sp-mode-btn" onclick="spReanchorStart()" title="Move an orphaned marker set back onto the current site image, keeping their relative layout">Re-anchor markers to plan</button>
             </div>
+            <div id="sp-reanchor-bar" class="sp-reanchor-bar" style="display:none;"></div>
             <div id="sp-map" style="width:100%;height:440px;border-radius:8px;border:1px solid #d4d4d0;"></div>
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:6px;">
               <p id="sp-instruction" style="font-size:12px;color:#888;margin:0;"></p>
@@ -3411,7 +3431,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
 
             <div class="field" style="margin-bottom:12px;">
               <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Fault type</label>
-              <select id="sp-fault-type" onchange="spSelectFaultType(this.value)" style="width:100%;">
+              <button type="button" id="sp-fault-type-btn" class="sp-ft-trigger" onclick="spOpenFaultTypeSheet()">Select fault type...</button>
+              <select id="sp-fault-type" onchange="spSelectFaultType(this.value)" style="display:none;">
                 <option value="">Select...</option>
                 <optgroup label="Metal roofing">
                   <option value="cut-edge-corrosion">Cut edge corrosion</option>
@@ -19473,6 +19494,10 @@ function spRenderMarkers() {
   spFaultLayer.clearLayers();
   var survey = spCurrentSurvey();
 
+  // Re-anchor preview: while a proposal is open, show the PROPOSED positions
+  // (non-draggable) so the surveyor confirms before anything is committed.
+  if (spReanchorState) { spRenderReanchorPreview(survey); spRenderFaultChips(); return; }
+
   (survey.siteImagePins || []).forEach(function(pin, i) {
     if (pin.lat == null || pin.lng == null) return;
     var m = L.marker([pin.lat, pin.lng], {
@@ -19522,6 +19547,126 @@ function spRenderMarkers() {
   spRenderFaultChips();
   spRenderSchedule();
 }
+
+// ---- Marker re-anchoring (Defect 1) ----------------------------------------
+// Storage model: building markers (siteImagePins) and fault markers
+// (siteFaultMarkers) each hold ABSOLUTE coordinates (lat/lng in geographic mode,
+// or CRS.Simple image pixels in image mode). Re-geocoding rebuilds the plan at
+// new coordinates but leaves markers on their old absolute values, so they orphan.
+// Fix: translate the whole set by the same delta when the plan is re-geocoded.
+function spTranslateMarkersBy(dLat, dLng){
+  if (!isFinite(dLat) || !isFinite(dLng) || (dLat === 0 && dLng === 0)) return 0;
+  var moved = 0;
+  var pins = currentSiteImage.siteImagePins || [];
+  pins.forEach(function(p){ if (p && isFinite(Number(p.lat)) && isFinite(Number(p.lng))){ p.lat = Number(p.lat) + dLat; p.lng = Number(p.lng) + dLng; moved++; } });
+  var faults = currentSiteImage.siteFaultMarkers || [];
+  faults.forEach(function(f){ if (f && isFinite(Number(f.lat)) && isFinite(Number(f.lng))){ f.lat = Number(f.lat) + dLat; f.lng = Number(f.lng) + dLng; moved++; } });
+  if (moved){ spSaveSurveyField('siteImagePins', pins); spSaveSurveyField('siteFaultMarkers', faults); }
+  return moved;
+}
+
+// Recovery for an already-orphaned set: fit the marker cloud into the current
+// site image bounds (uniform scale + centre), preserving relative layout. It is
+// a preview: nothing commits until Confirm, and one Undo restores prior positions.
+var spReanchorState = null;   // { proposed:{pins,faults}, prev:{pins,faults} } while previewing
+var spReanchorUndo  = null;   // last committed prev snapshot, for one-step undo
+function spCollectMarkerPoints(survey){
+  var pts = [];
+  (survey.siteImagePins || []).forEach(function(p, i){ if (isFinite(Number(p.lat)) && isFinite(Number(p.lng))) pts.push({ kind:'pin', i:i, lat:Number(p.lat), lng:Number(p.lng) }); });
+  (survey.siteFaultMarkers || []).forEach(function(f){ if (isFinite(Number(f.lat)) && isFinite(Number(f.lng))) pts.push({ kind:'fault', id:f.id, lat:Number(f.lat), lng:Number(f.lng) }); });
+  return pts;
+}
+function spReanchorComputeProposed(survey){
+  var W = Number(survey.siteImageW), H = Number(survey.siteImageH);
+  if (!isFinite(W) || !isFinite(H) || W <= 0 || H <= 0) return null;   // needs the site image
+  var pts = spCollectMarkerPoints(survey);
+  if (!pts.length) return null;
+  var minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  pts.forEach(function(p){ if (p.lat<minLat)minLat=p.lat; if (p.lat>maxLat)maxLat=p.lat; if (p.lng<minLng)minLng=p.lng; if (p.lng>maxLng)maxLng=p.lng; });
+  var spanLat = maxLat - minLat, spanLng = maxLng - minLng;
+  var margin = 0.12;
+  var targetH = H * (1 - 2 * margin), targetW = W * (1 - 2 * margin);
+  var scale;
+  if (spanLat < 1e-9 && spanLng < 1e-9) scale = 1;                     // single point / coincident: no scaling
+  else scale = Math.min(spanLat > 1e-9 ? targetH / spanLat : Infinity, spanLng > 1e-9 ? targetW / spanLng : Infinity);
+  if (!isFinite(scale) || scale <= 0) scale = 1;
+  var cLat = (minLat + maxLat) / 2, cLng = (minLng + maxLng) / 2;      // source centre
+  var tLat = H / 2, tLng = W / 2;                                       // image centre
+  var proposed = { pins: [], faults: [] };
+  pts.forEach(function(p){
+    var nLat = tLat + (p.lat - cLat) * scale, nLng = tLng + (p.lng - cLng) * scale;
+    if (p.kind === 'pin') proposed.pins.push({ i:p.i, lat:nLat, lng:nLng });
+    else proposed.faults.push({ id:p.id, lat:nLat, lng:nLng });
+  });
+  return proposed;
+}
+function spReanchorBar(){ return document.getElementById('sp-reanchor-bar'); }
+function spReanchorStart(){
+  var survey = spCurrentSurvey();
+  var proposed = spReanchorComputeProposed(survey);
+  if (!proposed){ if (typeof showToast === 'function') showToast('Load the site image first, then re-anchor.', 'err'); return; }
+  spReanchorState = {
+    proposed: proposed,
+    prev: {
+      pins: (survey.siteImagePins || []).map(function(p){ return { lat:p.lat, lng:p.lng }; }),
+      faults: (survey.siteFaultMarkers || []).map(function(f){ return { id:f.id, lat:f.lat, lng:f.lng }; })
+    }
+  };
+  var n = proposed.pins.length + proposed.faults.length;
+  var bar = spReanchorBar();
+  if (bar){ bar.style.display = 'flex';
+    bar.innerHTML = '<span><b>Preview:</b> ' + n + ' marker' + (n === 1 ? '' : 's') + ' will move onto the site image, relative layout preserved.</span>' +
+      '<button type="button" class="sp-mode-btn" onclick="spReanchorConfirm()">Confirm</button>' +
+      '<button type="button" class="sp-mode-btn" onclick="spReanchorCancel()">Cancel</button>'; }
+  spRenderMarkers();
+}
+function spRenderReanchorPreview(survey){
+  var pins = survey.siteImagePins || [];
+  spReanchorState.proposed.pins.forEach(function(pp){
+    var label = (pins[pp.i] && pins[pp.i].label) || ('B' + (pp.i + 1));
+    spPinLayer.addLayer(L.marker([pp.lat, pp.lng], { icon: spPinIcon(label), interactive: false, opacity: 0.92 }));
+  });
+  var faults = survey.siteFaultMarkers || [];
+  spReanchorState.proposed.faults.forEach(function(pf){
+    var f = faults.find(function(q){ return q.id === pf.id; }); if (!f) return;
+    spFaultLayer.addLayer(L.marker([pf.lat, pf.lng], { icon: spFaultIcon(f.number, f.severity), interactive: false, opacity: 0.92 }));
+  });
+}
+function spReanchorConfirm(){
+  if (!spReanchorState) return;
+  var survey = spCurrentSurvey();
+  var pins = survey.siteImagePins || [];
+  spReanchorState.proposed.pins.forEach(function(pp){ if (pins[pp.i]){ pins[pp.i].lat = pp.lat; pins[pp.i].lng = pp.lng; } });
+  var faults = survey.siteFaultMarkers || [];
+  spReanchorState.proposed.faults.forEach(function(pf){ var f = faults.find(function(q){ return q.id === pf.id; }); if (f){ f.lat = pf.lat; f.lng = pf.lng; } });
+  spReanchorUndo = spReanchorState.prev;
+  spReanchorState = null;
+  spSaveSurveyField('siteImagePins', pins);
+  spSaveSurveyField('siteFaultMarkers', faults);
+  var bar = spReanchorBar();
+  if (bar){ bar.style.display = 'flex';
+    bar.innerHTML = '<span>Markers re-anchored to the plan.</span>' +
+      '<button type="button" class="sp-mode-btn" onclick="spReanchorUndoApply()">Undo</button>' +
+      '<button type="button" class="sp-mode-btn" onclick="spReanchorDismissBar()">Dismiss</button>'; }
+  spRenderMarkers();
+  if (typeof showToast === 'function') showToast('Markers re-anchored', 'ok');
+}
+function spReanchorCancel(){ spReanchorState = null; spReanchorDismissBar(); spRenderMarkers(); }
+function spReanchorUndoApply(){
+  if (!spReanchorUndo) return;
+  var survey = spCurrentSurvey();
+  var pins = survey.siteImagePins || [];
+  spReanchorUndo.pins.forEach(function(pp, i){ if (pins[i]){ pins[i].lat = pp.lat; pins[i].lng = pp.lng; } });
+  var faults = survey.siteFaultMarkers || [];
+  spReanchorUndo.faults.forEach(function(pf){ var f = faults.find(function(q){ return q.id === pf.id; }); if (f){ f.lat = pf.lat; f.lng = pf.lng; } });
+  spReanchorUndo = null;
+  spSaveSurveyField('siteImagePins', pins);
+  spSaveSurveyField('siteFaultMarkers', faults);
+  spReanchorDismissBar();
+  spRenderMarkers();
+  if (typeof showToast === 'function') showToast('Re-anchor undone', 'ok');
+}
+function spReanchorDismissBar(){ var bar = spReanchorBar(); if (bar){ bar.style.display = 'none'; bar.innerHTML = ''; } }
 
 // Chip row beneath the map: one chip per fault in number order, severity-
 // coloured dot, "(off plan)" suffix for faults with no map coords. The chip
@@ -19660,6 +19805,14 @@ function spFindFromAddress() {
         alert('Could not find coordinates for that address.');
         return;
       }
+      // Re-anchor: when a plan already existed, translate every marker by the
+      // same centre delta so the marker GROUP moves with the re-geocoded plan
+      // (relative layout preserved) instead of being orphaned at old coordinates.
+      var prevLat = Number(currentSiteImage.siteMapCentreLat);
+      var prevLng = Number(currentSiteImage.siteMapCentreLng);
+      if (isFinite(prevLat) && isFinite(prevLng)) {
+        spTranslateMarkersBy(data.lat - prevLat, data.lng - prevLng);
+      }
       document.getElementById('sp-lat').value = data.lat.toFixed(6);
       document.getElementById('sp-lng').value = data.lng.toFixed(6);
       spSaveSurveyField('siteLat', String(data.lat.toFixed(6)));
@@ -19761,6 +19914,7 @@ function spOpenFaultPanel(id) {
   document.getElementById('sp-fault-panel').style.display = 'block';
   document.getElementById('sp-fault-title').textContent = 'Fault F' + fault.number;
   document.getElementById('sp-fault-type').value = fault.faultType;
+  spSyncFaultTypeButton();
   spSyncOtherField(fault);
   document.getElementById('sp-fault-area').value = fault.area || '';
   spRefreshAreaOptions();
@@ -19892,7 +20046,93 @@ function spSelectFaultType(type) {
   } else {
     document.getElementById('sp-fault-ref').style.display = 'none';
   }
+  spSyncFaultTypeButton();
   spRenderSchedule();
+}
+
+// ---- Fault type picker (bottom sheet, Defect 2) ----------------------------
+// The native <select> overflowed the viewport top when opened low on screen and
+// could not be scrolled. This replaces the dropdown interaction with a viewport-
+// anchored bottom sheet (same groups/options/order), searchable and keyboard-safe.
+// The hidden #sp-fault-type select stays as the value holder so spOpenFaultPanel
+// and spSelectFaultType are unchanged; describe-on-Other + template population run
+// through spSelectFaultType exactly as before.
+var FAULT_TYPE_GROUPS = [
+  { label: 'Metal roofing', options: [
+    ['cut-edge-corrosion','Cut edge corrosion'], ['failed-lap-seal','Failed lap seal'],
+    ['fastener-failure','Fastener failure'], ['sheet-damage','Sheet damage'],
+    ['failed-flashing','Failed flashing'], ['failed-rooflight','Failed or degraded rooflight'] ] },
+  { label: 'Fibre cement roofing', options: [
+    ['cement-cracked-sheet','Cracked or broken cement sheet'], ['cement-holed-sheet','Holed or impact-damaged cement sheet'],
+    ['cement-erosion','Cement sheet surface erosion or delamination'], ['cement-fixings','Failed or corroded sheet fixings (cement roof)'],
+    ['cement-laps','Failed laps or water tracking (cement roof)'], ['cement-ridge','Cracked or displaced cement ridge'],
+    ['cement-moss','Moss and organic growth (cement roof)'], ['cement-asbestos','Suspected asbestos cement sheeting'] ] },
+  { label: 'Flat roofing', options: [
+    ['membrane-split','Membrane split or tear'], ['failed-seam','Failed seam weld'],
+    ['upstand-failure','Upstand non-compliant or failed'], ['ponding-water','Ponding water'],
+    ['blocked-outlet','Blocked outlet or drain'] ] },
+  { label: 'Gutters and drainage', options: [
+    ['blocked-gutter','Blocked gutter'], ['gutter-failure','Gutter failure or corrosion'],
+    ['parapet-gutter-lining','Parapet or box gutter lining failure'] ] },
+  { label: 'General', options: [
+    ['failed-patch-repair','Failed patch repair'], ['other','Other'] ] }
+];
+function spSyncFaultTypeButton(){
+  var btn = document.getElementById('sp-fault-type-btn'); if (!btn) return;
+  var sel = document.getElementById('sp-fault-type');
+  var v = sel ? sel.value : '';
+  btn.textContent = v ? ((typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[v]) || v) : 'Select fault type...';
+  btn.classList.toggle('placeholder', !v);
+}
+function spOpenFaultTypeSheet(){
+  spCloseFaultTypeSheet();
+  var sel = document.getElementById('sp-fault-type');
+  var cur = sel ? sel.value : '';
+  var back = document.createElement('div');
+  back.id = 'sp-ft-sheet-back';
+  back.className = 'sp-ft-back';
+  back.onclick = function(e){ if (e.target === back) spCloseFaultTypeSheet(); };
+  back.innerHTML =
+    '<div class="sp-ft-sheet" role="dialog" aria-label="Choose fault type">' +
+      '<div class="sp-ft-head"><span class="sp-ft-title">Fault type</span>' +
+        '<button type="button" class="sp-ft-x" onclick="spCloseFaultTypeSheet()">Done</button></div>' +
+      '<input type="text" id="sp-ft-search" class="sp-ft-search" placeholder="Search fault types..." oninput="spFaultTypeSheetFilter(this.value)" autocomplete="off">' +
+      '<div id="sp-ft-list" class="sp-ft-list"></div>' +
+    '</div>';
+  document.body.appendChild(back);
+  spRenderFaultTypeList('', cur);
+  var search = document.getElementById('sp-ft-search');
+  if (search) setTimeout(function(){ try { search.focus(); } catch(e){} }, 30);
+}
+function spRenderFaultTypeList(query, current){
+  var host = document.getElementById('sp-ft-list'); if (!host) return;
+  var q = String(query || '').trim().toLowerCase();
+  var html = '', any = false;
+  FAULT_TYPE_GROUPS.forEach(function(g){
+    var opts = g.options.filter(function(o){ return !q || o[1].toLowerCase().indexOf(q) !== -1 || g.label.toLowerCase().indexOf(q) !== -1; });
+    if (!opts.length) return;
+    any = true;
+    html += '<div class="sp-ft-group">' + escapeHtml(g.label) + '</div>';
+    opts.forEach(function(o){
+      html += '<button type="button" class="sp-ft-opt' + (o[0] === current ? ' on' : '') + '" onclick="spPickFaultType(\'' + o[0] + '\')">' + escapeHtml(o[1]) + '</button>';
+    });
+  });
+  host.innerHTML = any ? html : '<div class="sp-ft-empty">No fault types match.</div>';
+}
+function spFaultTypeSheetFilter(v){
+  var sel = document.getElementById('sp-fault-type');
+  spRenderFaultTypeList(v, sel ? sel.value : '');
+}
+function spPickFaultType(value){
+  var sel = document.getElementById('sp-fault-type');
+  if (sel) sel.value = value;
+  spCloseFaultTypeSheet();
+  spSelectFaultType(value);   // runs describe-on-Other + template population, unchanged
+  spSyncFaultTypeButton();
+}
+function spCloseFaultTypeSheet(){
+  var back = document.getElementById('sp-ft-sheet-back');
+  if (back && back.parentNode) back.parentNode.removeChild(back);
 }
 
 function spLocationChange(loc) {
