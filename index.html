@@ -1582,6 +1582,28 @@ input.derived-field { background: #f6f8fa; color: #555; }
    Cover (dark) + alternating dark/light sections + brand footer.
    ============================================================ */
 #view-report .container { max-width: 1100px; }
+/* Costing panel (internal) */
+#view-costpanel .container { max-width: 1100px; }
+.cp-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 18px; }
+.cp-internal { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #b8700f; }
+.cp-note { padding: 10px 0; color: var(--muted); }
+.cp-area { margin: 0 0 20px; border: 1px solid #e3e3e3; border-radius: 10px; overflow: hidden; }
+.cp-area-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 14px; background: #f6f6f4; border-bottom: 1px solid #e3e3e3; }
+.cp-area-name { font-weight: 800; color: var(--ink); }
+.cp-area-sub { font-size: 13px; color: var(--muted); }
+.cp-area-sub b { color: var(--ink); font-size: 15px; margin-left: 4px; }
+.cp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cp-table th { text-align: left; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 8px 14px; border-bottom: 1px solid #ececec; }
+.cp-table td { padding: 8px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.cp-table tr:last-child td { border-bottom: none; }
+.cp-table .r { text-align: right; }
+.cp-ref { font-weight: 800; color: #b8700f; white-space: nowrap; }
+.cp-cost { width: 110px; text-align: right; padding: 6px 8px; border: 1px solid #cfcfcf; border-radius: 6px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.cp-cost:focus { outline: none; border-color: #F7901E; box-shadow: 0 0 0 2px rgba(247,144,30,.2); }
+.cp-standing .cp-area-head { background: #fbf6ee; }
+.cp-total { display: flex; align-items: baseline; gap: 12px; justify-content: flex-end; padding: 14px 4px 4px; border-top: 2px solid #222; font-weight: 800; font-size: 16px; color: var(--ink); }
+.cp-total b { font-size: 20px; }
+.cp-total-note { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: none; letter-spacing: 0; }
 .report-prewarn { margin: 0 0 18px; padding: 13px 16px; border: 1px solid #c4a36a; border-left: 4px solid #b8700f; border-radius: 8px; background: #fbf2e6; color: #7a4a12; }
 .report-prewarn-head { font-size: 14px; font-weight: 800; margin-bottom: 3px; }
 .report-prewarn-sub { font-size: 12px; color: #8a6a35; margin-bottom: 8px; }
@@ -3841,6 +3863,17 @@ input.derived-field { background: #f6f8fa; color: #555; }
         <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
         <button class="link-btn" onclick="backToDetail()">Close</button>
       </div>
+    </div>
+  </section>
+
+  <section id="view-costpanel" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
+        <h1>Costing</h1>
+        <div class="meta">Internal working material. Key the priced figure against each fault and the job-level standing items; these are exactly what the Tier 1 report prints for its cost column, area subtotals and total. Never shown in any client document.</div>
+      </div>
+      <div id="costpanel-body"></div>
     </div>
   </section>
 
@@ -6964,6 +6997,151 @@ function cancelEdit() {
   goHome();
 }
 
+// ===== COSTING PANEL (INTERNAL) =============================================
+// A manual repair-mode costing surface: one editable whole-pound figure per
+// fault plus job-level standing items. It builds the costInfo the Tier 1 report
+// reads (mode 'repair', costsByRef, total), so the panel and the report compute
+// the same area subtotals and total and can never disagree. Rides in the survey
+// snapshot on survey.costingPanel; internal only - never rendered client-side.
+var COSTPANEL_STANDING = [
+  { key: 'access',   label: 'Access / MEWP' },
+  { key: 'siteDays', label: 'Site days' },
+  { key: 'waste',    label: 'Waste and disposal' },
+  { key: 'travel',   label: 'Travel' }
+];
+var costPanelCurrentId = null;
+function costPanelEnsure(survey){
+  if (!survey.costingPanel || typeof survey.costingPanel !== 'object') survey.costingPanel = { faults: {}, standing: {} };
+  if (!survey.costingPanel.faults || typeof survey.costingPanel.faults !== 'object') survey.costingPanel.faults = {};
+  if (!survey.costingPanel.standing || typeof survey.costingPanel.standing !== 'object') survey.costingPanel.standing = {};
+  return survey.costingPanel;
+}
+// A whole-pound value, or null (empty = TBC, excluded from totals).
+function costPanelNum(v){ if (v == null || String(v).trim() === '') return null; var n = Math.round(Number(v)); return isFinite(n) ? n : null; }
+// costInfo the report reads. Returns null when NOTHING is costed, so an un-costed
+// survey's report is unchanged (all TBC).
+function costPanelBuildCostInfo(survey){
+  var cp = survey && survey.costingPanel; if (!cp) return null;
+  var faults = Array.isArray(survey.siteFaultMarkers) ? survey.siteFaultMarkers : [];
+  var costsByRef = {}, faultTotal = 0, anyFault = false;
+  faults.forEach(function(f){
+    var ref = 'F' + (f.number != null ? f.number : '?');
+    var c = costPanelNum(cp.faults && cp.faults[ref]);
+    if (c != null){ costsByRef[ref] = c; faultTotal += c; anyFault = true; }
+  });
+  var standTotal = 0, anyStand = false;
+  COSTPANEL_STANDING.forEach(function(si){ var v = costPanelNum(cp.standing && cp.standing[si.key]); if (v != null){ standTotal += v; anyStand = true; } });
+  if (!anyFault && !anyStand) return null;
+  return { mode: 'repair', costsByRef: costsByRef, total: faultTotal + standTotal };
+}
+function costPanelAreaSum(cp, g){ var t = 0; (g.faults || []).forEach(function(f){ var c = costPanelNum(cp.faults['F' + (f.number != null ? f.number : '?')]); if (c != null) t += c; }); return t; }
+function costPanelStandingSubtotal(survey){ var cp = costPanelEnsure(survey); var t = 0; COSTPANEL_STANDING.forEach(function(si){ var v = costPanelNum(cp.standing[si.key]); if (v != null) t += v; }); return t; }
+function costPanelJobTotal(survey){ var ci = costPanelBuildCostInfo(survey); return ci ? ci.total : 0; }
+function costPanelOpen(id){
+  costPanelCurrentId = id || currentSurveyId;
+  var survey = srLoadSurvey(costPanelCurrentId);
+  if (survey){ costPanelEnsure(survey); srPersist(survey); }
+  if (typeof showView === 'function') showView('costpanel');
+  costPanelRender();
+}
+// Update the live subtotals/total in place (no re-render) so cost inputs keep focus.
+function costPanelUpdateTotals(){
+  var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return;
+  var cp = costPanelEnsure(survey), groups = slGroupFaultsByArea(survey), jobFault = 0;
+  groups.forEach(function(g, gi){ var sub = costPanelAreaSum(cp, g); jobFault += sub; var el = document.getElementById('cp-area-sub-' + gi); if (el) el.textContent = slGBP(sub); });
+  var standSub = costPanelStandingSubtotal(survey);
+  var se = document.getElementById('cp-standing-sub'); if (se) se.textContent = slGBP(standSub);
+  var jt = document.getElementById('cp-job-total'); if (jt) jt.textContent = slGBP(jobFault + standSub);
+}
+function costPanelSetFaultCost(ref, v){ var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return; var cp = costPanelEnsure(survey); var n = costPanelNum(v); if (n == null) delete cp.faults[ref]; else cp.faults[ref] = n; srPersist(survey); costPanelUpdateTotals(); }
+function costPanelSetStanding(key, v){ var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return; var cp = costPanelEnsure(survey); var n = costPanelNum(v); if (n == null) delete cp.standing[key]; else cp.standing[key] = n; srPersist(survey); costPanelUpdateTotals(); }
+function costPanelRender(){
+  var host = document.getElementById('costpanel-body'); if (!host) return;
+  var survey = srLoadSurvey(costPanelCurrentId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  var cp = costPanelEnsure(survey);
+  var groups = slGroupFaultsByArea(survey);
+  var totalFaults = (survey.siteFaultMarkers || []).length;
+  var byNum = function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); };
+  var h = '<div class="cp-bar"><button class="btn btn-primary" onclick="costPanelCopyBrief()">Copy costing brief</button>' +
+    '<span class="cp-internal">Internal working material &middot; never printed in the client report</span></div>';
+  if (!totalFaults) h += '<div class="cp-note">No faults recorded on this survey.</div>';
+  groups.forEach(function(g, gi){
+    if (!(g.faults && g.faults.length)) return;
+    h += '<div class="cp-area"><div class="cp-area-head"><span class="cp-area-name">' + escapeHtml(g.area) + '</span>' +
+      '<span class="cp-area-sub">Subtotal <b id="cp-area-sub-' + gi + '">' + slGBP(costPanelAreaSum(cp, g)) + '</b></span></div>';
+    h += '<table class="cp-table"><thead><tr><th>Ref</th><th>Location</th><th>Fault type</th><th>Severity</th><th>Extent</th><th class="r">Cost (£)</th></tr></thead><tbody>';
+    g.faults.slice().sort(byNum).forEach(function(f){
+      var ref = 'F' + (f.number != null ? f.number : '?');
+      var type = (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'Defect';
+      var ext = slFmtExtent(faultExtent(f));
+      var cur = costPanelNum(cp.faults[ref]);
+      h += '<tr><td class="cp-ref">' + escapeHtml(ref) + '</td>' +
+        '<td>' + escapeHtml(f.location || '') + '</td>' +
+        '<td>' + escapeHtml(type) + '</td>' +
+        '<td>' + escapeHtml((f.severity || '').toUpperCase()) + '</td>' +
+        '<td>' + ext + '</td>' +
+        '<td class="r"><input class="cp-cost" type="number" inputmode="numeric" step="1" min="0" placeholder="TBC" value="' + (cur != null ? cur : '') + '" oninput="costPanelSetFaultCost(\'' + ref + '\',this.value)"></td></tr>';
+    });
+    h += '</tbody></table></div>';
+  });
+  h += '<div class="cp-area cp-standing"><div class="cp-area-head"><span class="cp-area-name">Standing items &middot; job level</span>' +
+    '<span class="cp-area-sub">Subtotal <b id="cp-standing-sub">' + slGBP(costPanelStandingSubtotal(survey)) + '</b></span></div>';
+  h += '<table class="cp-table"><tbody>';
+  COSTPANEL_STANDING.forEach(function(si){
+    var cur = costPanelNum(cp.standing[si.key]);
+    h += '<tr><td colspan="5">' + escapeHtml(si.label) + '</td>' +
+      '<td class="r"><input class="cp-cost" type="number" inputmode="numeric" step="1" min="0" placeholder="TBC" value="' + (cur != null ? cur : '') + '" oninput="costPanelSetStanding(\'' + si.key + '\',this.value)"></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<div class="cp-total">Job total <b id="cp-job-total">' + slGBP(costPanelJobTotal(survey)) + '</b> <span class="cp-total-note">reads into the report cost column, area subtotals and total</span></div>';
+  host.innerHTML = h;
+}
+// The plain-text costing brief for the planning chat (exact agreed shape).
+function costPanelBrief(survey){
+  var s = survey || {};
+  var ref = (typeof novaSurveyIdFor === 'function' ? novaSurveyIdFor(s) : ('NOV-' + (s.id || ''))) || 'NOV-';
+  var addr = String(s['f-site-address'] || '').trim() || 'address TBC';
+  var dur = s['f-visit-duration'];
+  var timeOnsite = (dur != null && String(dur).trim() !== '') ? (dur + ' minutes') : 'not recorded';
+  var faults = (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.slice() : []).sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); });
+  var nAreas = (typeof slGroupFaultsByArea === 'function') ? slGroupFaultsByArea(s).length : 0;
+  var faultLines = faults.map(function(f){
+    var refF = 'F' + (f.number != null ? f.number : '?');
+    var loc = String(f.location || '').trim() || 'location TBC';
+    var type = (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'defect';
+    var sev = String(f.severity || '').trim() || 'unrated';
+    var ext = (typeof faultExtent === 'function' && typeof slFmtExtent === 'function') ? slFmtExtent(faultExtent(f)) : '';
+    if (ext === '–' || ext === '-' || ext === '') ext = 'extent TBC';
+    var rec = String(f.recommendation || '').trim() || 'no recommendation recorded';
+    return refF + ' | ' + loc + ' | ' + type + ' | ' + sev + ' | ' + ext + ' | ' + rec;
+  }).join('\n');
+  return 'NOVA COSTING SESSION — ' + ref + ' — ' + addr + '\n' +
+    'Instruction to planning chat: price each fault line below for repair-mode\n' +
+    'entry into the survey tool. Use the Master Line Items rate card (materials\n' +
+    'plus labour per unit) via the fault-to-works mapping; where no rate-card\n' +
+    'line exists for a fault type, flag it and propose a build-up instead of\n' +
+    'inventing a rate. Price standing items (Access/MEWP, Site days, Waste and\n' +
+    'disposal, Travel) as job-level lines, not per fault. Return one figure per\n' +
+    'fault and one per standing item, whole pounds, ending in calculated digits,\n' +
+    'in a table Jamie can key straight into the tool\'s Costing panel. Ask Jamie\n' +
+    'trade-judgement questions only; resolve everything else from this block.\n' +
+    'Time onsite: ' + timeOnsite + '.\n' +
+    'Faults (' + faults.length + ' across ' + nAreas + ' areas):\n' +
+    faultLines;
+}
+function costPanelCopyFallback(text){
+  try { var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px'; document.body.appendChild(ta); ta.focus(); ta.select(); var ok = document.execCommand('copy'); document.body.removeChild(ta); return ok; } catch (e){ return false; }
+}
+function costPanelCopyBrief(){
+  var survey = srLoadSurvey(costPanelCurrentId); if (!survey) return;
+  var text = costPanelBrief(survey);
+  var done = function(){ if (typeof showToast === 'function') showToast('Costing brief copied', 'ok'); };
+  var fail = function(){ if (typeof showToast === 'function') showToast('Copy failed · select and copy manually', 'err'); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, function(){ if (costPanelCopyFallback(text)) done(); else fail(); });
+  } else { if (costPanelCopyFallback(text)) done(); else fail(); }
+}
 function goToReportCurrent() {
   if (!currentSurveyId) return;
   reportSurveyId = currentSurveyId;
@@ -6972,7 +7150,9 @@ function goToReportCurrent() {
   var s = loadSurveys().find(function(x){ return x.id === currentSurveyId; });
   // Survey-specific default Save-as-PDF filename (Chrome reads document.title).
   if (s) document.title = computeReportFilename(s);
-  var costInfo = (typeof window !== 'undefined' && window._novaPrintCostInfo) || null;
+  // The Costing panel's figures are the source of truth for the report cost
+  // column / subtotals / total; fall back to any injected costInfo, else null (TBC).
+  var costInfo = (s ? costPanelBuildCostInfo(s) : null) || (typeof window !== 'undefined' && window._novaPrintCostInfo) || null;
   var body = document.getElementById('report-body');
   if (body) body.innerHTML = s ? renderTier1Report(s, costInfo) : '<p>Survey not found.</p>';
   // Internal-only pre-print warnings (never in the client document / print).
@@ -7599,6 +7779,7 @@ function renderSurveyDetail(s) {
       '<div class="act-group">' +
         '<div class="act-group-label">Pricing and cost control</div>' +
         '<div class="act-group-btns">' +
+          '<button class="btn btn-secondary" onclick="costPanelOpen(currentSurveyId)">Costing</button>' +
           '<button class="btn btn-secondary" onclick="generatePricingPack(currentSurveyId)">Generate pricing pack</button>' +
           '<button class="btn btn-secondary" onclick="srOpenReturns(currentSurveyId)">Subcontractor returns</button>' +
           '<button class="btn btn-secondary" onclick="estOpenLedger(currentSurveyId)">Estimate cost ledger</button>' +
@@ -20109,7 +20290,7 @@ function enterPrintMode(surveyId) {
   var _t1survey = loadSurveys().find(function(x){ return x.id === surveyId; });
   // Survey-specific default Save-as-PDF filename (Chrome reads document.title).
   if (_t1survey) document.title = computeReportFilename(_t1survey);
-  var _t1cost = (typeof window !== 'undefined' && window._novaPrintCostInfo) || null;
+  var _t1cost = (_t1survey ? costPanelBuildCostInfo(_t1survey) : null) || (typeof window !== 'undefined' && window._novaPrintCostInfo) || null;
   var _t1body = document.getElementById('report-body');
   if (_t1body) _t1body.innerHTML = _t1survey ? renderTier1Report(_t1survey, _t1cost) : '<p>Survey not found.</p>';
   // Activate the report view so its .view CSS resolves to display:block —
