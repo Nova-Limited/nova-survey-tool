@@ -3415,6 +3415,16 @@ input.derived-field { background: #f6f8fa; color: #555; }
                   <option value="failed-flashing">Failed flashing</option>
                   <option value="failed-rooflight">Failed or degraded rooflight</option>
                 </optgroup>
+                <optgroup label="Fibre cement roofing">
+                  <option value="cement-cracked-sheet">Cracked or broken cement sheet</option>
+                  <option value="cement-holed-sheet">Holed or impact-damaged cement sheet</option>
+                  <option value="cement-erosion">Cement sheet surface erosion or delamination</option>
+                  <option value="cement-fixings">Failed or corroded sheet fixings (cement roof)</option>
+                  <option value="cement-laps">Failed laps or water tracking (cement roof)</option>
+                  <option value="cement-ridge">Cracked or displaced cement ridge</option>
+                  <option value="cement-moss">Moss and organic growth (cement roof)</option>
+                  <option value="cement-asbestos">Suspected asbestos cement sheeting</option>
+                </optgroup>
                 <optgroup label="Flat roofing">
                   <option value="membrane-split">Membrane split or tear</option>
                   <option value="failed-seam">Failed seam weld</option>
@@ -3433,6 +3443,12 @@ input.derived-field { background: #f6f8fa; color: #555; }
                 </optgroup>
               </select>
               <div id="sp-fault-ref" style="display:none;"></div>
+            </div>
+
+            <div class="field" id="sp-fault-other-wrap" style="margin-bottom:12px;display:none;">
+              <label for="sp-fault-other-label" style="font-size:12px;color:#666;display:block;margin-bottom:4px;">What is the fault? <span style="color:#c0392b;">*</span></label>
+              <input type="text" id="sp-fault-other-label" maxlength="80" placeholder="Short label, e.g. Slipped verge tile" oninput="spOtherLabelChange(this.value)" style="width:100%;">
+              <div id="sp-fault-other-hint" style="font-size:11px;color:#c0392b;margin-top:4px;display:none;">A short description is required to save an Other fault.</div>
             </div>
 
             <div class="field" style="margin-bottom:12px;">
@@ -4727,6 +4743,46 @@ const FAULT_DB = {
     description: function(loc) { return 'Previous localised patch repairs have been identified at ' + loc + ' and are found to be breaking down. The patches, typically applied as bituminous compounds, self-adhesive flashing tapes, or localised overlays, are a short-term measure that degrades through UV exposure and thermal movement, lifting at the edges and re-admitting water. Their presence indicates an underlying defect in the substrate or lining that has not been addressed, and continued patching will not provide a durable repair.'; },
     recommendation: function() { return 'Remove all failed and redundant patch repair materials from the affected area and expose the underlying substrate for inspection. Establish the root cause of the original defect rather than over-patching. Carry out a permanent repair appropriate to the substrate and its condition: localised renewal of the lining or covering, re-lapping and sealing of failed joints, or replacement of the affected section, finished to match the surrounding system and to the relevant manufacturer or trade body guidance. Where multiple failed patches are present across an element, this generally indicates the covering has reached the end of its serviceable life and wholesale renewal should be costed as the durable option.'; }
   },
+  'cement-cracked-sheet': {
+    ref: null,
+    description: function(loc) { return 'Fibre cement sheets at ' + loc + ' are cracked or broken. Cracked sheets allow direct water penetration and compromise the structural integrity of the sheet, which presents a fragile surface hazard. Fibre cement becomes progressively more brittle with age and weathering.'; },
+    recommendation: function() { return 'Replace the affected sheets with new fibre cement sheets to match the existing profile, complete with new fixings and sealed washers. Sheets must not be walked on during works; use crawler boards or netting below in accordance with fragile roof working requirements.'; }
+  },
+  'cement-holed-sheet': {
+    ref: null,
+    description: function(loc) { return 'Fibre cement sheets at ' + loc + ' are holed or impact damaged, allowing direct water ingress at the point of damage and presenting a fragile surface hazard around the damaged area.'; },
+    recommendation: function() { return 'Replace the affected sheets with new fibre cement sheets to match the existing profile, complete with new fixings and sealed washers, under fragile roof working controls.'; }
+  },
+  'cement-erosion': {
+    ref: null,
+    description: function(loc) { return 'The surface of the fibre cement sheets at ' + loc + ' shows erosion or delamination, with the cement matrix weathering away and fibres becoming exposed. This indicates the sheeting is in the later stage of its serviceable life and its weather resistance and strength are reducing.'; },
+    recommendation: function() { return 'Monitor if localised. Where widespread, the sheeting is approaching end of life and replacement or over-cladding should be costed as the durable option rather than repeated local repair.'; }
+  },
+  'cement-fixings': {
+    ref: null,
+    description: function(loc) { return 'Fixings to the fibre cement sheets at ' + loc + ' are corroded, loose or failed. Failed fixings allow sheet movement, water tracking at fixing points and, in high winds, risk of sheet displacement.'; },
+    recommendation: function() { return 'Replace the affected fixings with new sealed fixings appropriate to the sheet type and purlin, without over-tightening, which cracks cement sheeting. Where hook bolts are present, replace like for like or with an approved equivalent.'; }
+  },
+  'cement-laps': {
+    ref: null,
+    description: function(loc) { return 'Sheet laps at ' + loc + ' show water tracking, staining or daylight, indicating the laps are no longer weathertight. Lap failure on cement sheeting commonly follows sheet movement, fixing failure or sealant degradation.'; },
+    recommendation: function() { return 'Re-seat and re-fix the affected laps with new sealed fixings and butyl lap sealant. Where sheets are too brittle to re-fix without cracking, replace the affected sheets.'; }
+  },
+  'cement-ridge': {
+    ref: null,
+    description: function(loc) { return 'Cement ridge cappings at ' + loc + ' are cracked, displaced or missing, allowing water ingress at the apex and risking further displacement in high winds.'; },
+    recommendation: function() { return 'Replace the affected ridge cappings with new to match the existing profile, bedded and fixed in accordance with the sheet manufacturer\'s details, under fragile roof working controls.'; }
+  },
+  'cement-moss': {
+    ref: null,
+    description: function(loc) { return 'Fibre cement sheets at ' + loc + ' carry significant moss and organic growth. Growth holds moisture against the sheet surface, accelerates surface erosion, blocks laps and sheds debris into gutters.'; },
+    recommendation: function() { return 'Do not pressure wash or aggressively clean aged fibre cement. Remove growth by careful manual means where access allows, and establish gutter clearance as part of planned maintenance. Where growth is widespread on aged sheeting, factor into the end-of-life assessment.'; }
+  },
+  'cement-asbestos': {
+    ref: null,
+    description: function(loc) { return 'The roof covering at ' + loc + ' is suspected to be asbestos cement, consistent with its age and appearance. Asbestos cement is a fragile surface and its removal and disposal are subject to the Control of Asbestos Regulations 2012.'; },
+    recommendation: function() { return 'Confirm by sampling and analysis by a UKAS-accredited laboratory before any works. All works to suspected asbestos cement to be planned on a presumption of asbestos until confirmed otherwise, with waste consigned as hazardous to a licensed facility. This materially affects works cost and must be resolved before pricing is finalised.'; }
+  },
   'other': {
     ref: null,
     description: function(loc) { return 'Defect noted at ' + loc + '. '; },
@@ -4750,8 +4806,30 @@ const FAULT_LABELS = {
   'gutter-failure':'Gutter failure or corrosion',
   'parapet-gutter-lining':'Parapet or box gutter lining failure',
   'failed-patch-repair':'Failed patch repair',
+  'cement-cracked-sheet':'Cracked or broken cement sheet',
+  'cement-holed-sheet':'Holed or impact-damaged cement sheet',
+  'cement-erosion':'Cement sheet surface erosion or delamination',
+  'cement-fixings':'Failed or corroded sheet fixings (cement roof)',
+  'cement-laps':'Failed laps or water tracking (cement roof)',
+  'cement-ridge':'Cracked or displaced cement ridge',
+  'cement-moss':'Moss and organic growth (cement roof)',
+  'cement-asbestos':'Suspected asbestos cement sheeting',
   'other':'Other'
 };
+// The fibre cement roof fault types, in one place, so downstream rules
+// (works breakout fragile-roof / asbestos triggers) stay in sync with the set.
+const CEMENT_FAULT_TYPES = ['cement-cracked-sheet','cement-holed-sheet','cement-erosion','cement-fixings','cement-laps','cement-ridge','cement-moss','cement-asbestos'];
+// Fault-type label for display. An "Other" fault with a captured short
+// description shows that description as its label; everything else uses the
+// FAULT_LABELS register. Legacy Other faults with no description read "Other".
+function faultTypeLabel(f){
+  if (!f) return 'Defect';
+  if (f.faultType === 'other'){
+    var lbl = (f.otherLabel != null) ? String(f.otherLabel).trim() : '';
+    if (lbl) return lbl;
+  }
+  return (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'Defect';
+}
 
 const FAULT_SEV_COLORS = {
   critical:'#dc2626', poor:'#F7901E',
@@ -7074,7 +7152,7 @@ function costPanelRender(){
     h += '<table class="cp-table"><thead><tr><th>Ref</th><th>Location</th><th>Fault type</th><th>Severity</th><th>Extent</th><th class="r">Cost (£)</th></tr></thead><tbody>';
     g.faults.slice().sort(byNum).forEach(function(f){
       var ref = 'F' + (f.number != null ? f.number : '?');
-      var type = (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'Defect';
+      var type = faultTypeLabel(f);
       var ext = slFmtExtent(faultExtent(f));
       var cur = costPanelNum(cp.faults[ref]);
       h += '<tr><td class="cp-ref">' + escapeHtml(ref) + '</td>' +
@@ -7112,7 +7190,7 @@ function costPanelBrief(survey){
   var faultLines = faults.map(function(f){
     var refF = 'F' + (f.number != null ? f.number : '?');
     var loc = String(f.location || '').trim() || 'location TBC';
-    var type = (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'defect';
+    var type = faultTypeLabel(f);
     var sev = String(f.severity || '').trim() || 'unrated';
     var ext = (typeof faultExtent === 'function' && typeof slFmtExtent === 'function') ? slFmtExtent(faultExtent(f)) : '';
     if (ext === '–' || ext === '-' || ext === '') ext = 'extent TBC';
@@ -7168,11 +7246,14 @@ var WORKS_BREAKOUT_RULES = [
   { id: 'fragile-roof', per: true,
     test: function(f){ return f.faultType === 'failed-rooflight'; },
     line: 'Fragile roof surface: netting or covers, no-walk zones, ACR non-fragility compliance on replacements' },
+  { id: 'cement-fragile-roof', per: true,
+    test: function(f){ return (typeof CEMENT_FAULT_TYPES !== 'undefined') && CEMENT_FAULT_TYPES.indexOf(f.faultType) !== -1; },
+    line: 'Fragile roof surface: crawler boards or netting, no-walk zones, fragile roof signage' },
   { id: 'specialist-gutter', per: true,
     test: function(f){ return f.faultType === 'parapet-gutter-lining' || f.faultType === 'gutter-failure'; },
     line: 'Specialist gutter system: manufacturer-approved installer requirements, substrate prep, cure times' },
   { id: 'apex-working', per: true,
-    test: function(f){ return wbTextHas(f, 'ridge'); },
+    test: function(f){ return f.faultType === 'cement-ridge' || wbTextHas(f, 'ridge'); },
     line: 'Apex working: ridge access method, weather windows' },
   { id: 'metalwork', per: true,
     test: function(f){ return f.faultType === 'failed-flashing'; },
@@ -7180,6 +7261,9 @@ var WORKS_BREAKOUT_RULES = [
   { id: 'materials-logistics', per: true,
     test: function(f){ return wbExtentSqm(f) > 50; },
     line: 'Materials logistics: delivery, offloading, roof loading-out method' },
+  { id: 'asbestos', per: true,
+    test: function(f){ return f.faultType === 'cement-asbestos'; },
+    line: 'Asbestos: sampling and analysis before works, licensed waste routing, presumption of asbestos in RAMS, cost gate until confirmed' },
   { id: 'phased-plan', per: false,
     test: function(faults){ return faults.length >= 6; },
     line: 'Phased working plan across areas' }
@@ -7345,7 +7429,7 @@ async function syncSurveyToAirtable() {
     const lines = faults.slice().sort(function(a, b) {
       return (Number(a.number) || 0) - (Number(b.number) || 0);
     }).map(function(f) {
-      const typeLabel = (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'Defect';
+      const typeLabel = faultTypeLabel(f);
       const sev = (f.severity || '').toUpperCase();
       const head = ['F' + (f.number || '?'), '[' + typeLabel + ']'];
       if (sev) head.push('[' + sev + ']');
@@ -14974,6 +15058,7 @@ function slReportPrintWarnings(survey){
   var faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
   faults.slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); }).forEach(function(f){
     var ref = 'F' + (f.number != null ? f.number : '?');
+    if (f.faultType === 'other' && String(f.otherLabel || '').trim() === '') warns.push({ scope: ref, field: 'Fault type', detail: 'Other has no description' });
     var desc = String(f.description || '').trim();
     if (desc === '') warns.push({ scope: ref, field: 'Observation', detail: 'is empty' });
     else if (/^Defect noted at .+\.$/.test(desc)) warns.push({ scope: ref, field: 'Observation', detail: 'is placeholder text' });
@@ -17536,7 +17621,7 @@ function slRenderCards(survey, opts) {
   chosen = chosen.slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); });
 
   const SEVVAR = { critical: 'var(--crit)', poor: 'var(--poor)', fair: 'var(--fair)', monitor: 'var(--mon)' };
-  const labelFor = function(f){ return (typeof FAULT_LABELS !== 'undefined' && FAULT_LABELS[f.faultType]) || f.faultType || 'Defect'; };
+  const labelFor = function(f){ return faultTypeLabel(f); };
 
   const cardHtml = function(f) {
     const num = (f.number != null ? f.number : '?');
@@ -19376,6 +19461,7 @@ function spOpenFaultPanel(id) {
   document.getElementById('sp-fault-panel').style.display = 'block';
   document.getElementById('sp-fault-title').textContent = 'Fault F' + fault.number;
   document.getElementById('sp-fault-type').value = fault.faultType;
+  spSyncOtherField(fault);
   document.getElementById('sp-fault-area').value = fault.area || '';
   spRefreshAreaOptions();
   document.getElementById('sp-fault-loc').value = fault.location;
@@ -19418,7 +19504,42 @@ function spOpenFaultPanel(id) {
   spRenderLabourSection();
 }
 
+// Show/populate the "What is the fault?" field only for Other faults. The
+// typed label is never cleared on a type switch, so a mis-tap loses nothing:
+// switching back to Other repopulates it from the fault record.
+function spSyncOtherField(fault) {
+  var wrap = document.getElementById('sp-fault-other-wrap');
+  var input = document.getElementById('sp-fault-other-label');
+  var hint = document.getElementById('sp-fault-other-hint');
+  if (!wrap || !input) return;
+  if (fault && fault.faultType === 'other') {
+    wrap.style.display = 'block';
+    input.value = fault.otherLabel || '';
+    if (hint) hint.style.display = 'none';
+  } else {
+    wrap.style.display = 'none';
+    if (hint) hint.style.display = 'none';
+  }
+}
+function spOtherLabelChange(value) {
+  if (!spActiveFaultId) return;
+  spUpdateFault(spActiveFaultId, 'otherLabel', value);
+  var hint = document.getElementById('sp-fault-other-hint');
+  if (hint && String(value || '').trim() !== '') hint.style.display = 'none';
+  spRenderMarkers();
+  spRenderSchedule();
+}
 function spCloseFaultPanel() {
+  // An Other fault must carry a short description before it can be saved/closed.
+  var survey = spCurrentSurvey();
+  var fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === spActiveFaultId; });
+  if (fault && fault.faultType === 'other' && String(fault.otherLabel || '').trim() === '') {
+    var hint = document.getElementById('sp-fault-other-hint');
+    var input = document.getElementById('sp-fault-other-label');
+    if (hint) hint.style.display = 'block';
+    if (input) input.focus();
+    return;
+  }
   document.getElementById('sp-fault-panel').style.display = 'none';
   spActiveFaultId = null;
   spRenderMarkers();
@@ -19444,6 +19565,7 @@ function spSelectFaultType(type) {
   const survey = spCurrentSurvey();
   const fault = (survey.siteFaultMarkers || []).find(function(f) { return f.id === spActiveFaultId; });
   if (!fault) return;
+  spSyncOtherField(fault);
   const loc = fault.location || 'the location identified';
   const db = FAULT_DB[type];
   if (db && db.description) {
@@ -19940,7 +20062,7 @@ function spRenderSchedule() {
     const sevTxt = fault.severity
       ? fault.severity.charAt(0).toUpperCase() + fault.severity.slice(1)
       : 'Unset';
-    const typeTxt = FAULT_LABELS[fault.faultType] || fault.faultType || '-';
+    const typeTxt = faultTypeLabel(fault);
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #e8e8e4;cursor:pointer;';
     row.innerHTML = '<span style="width:26px;height:26px;border-radius:50%;background:' + col
