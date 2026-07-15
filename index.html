@@ -3390,6 +3390,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
               <button type="button" id="sp-mode-fault" class="sp-mode-btn" onclick="spSetMode('fault')">Mark faults</button>
               <button type="button" id="sp-add-offplan" class="sp-mode-btn" onclick="spAddFaultOffPlan()">Add fault off plan</button>
               <button type="button" id="sp-reanchor-btn" class="sp-mode-btn" onclick="spReanchorStart()" title="Move an orphaned marker set back onto the current site image, keeping their relative layout">Re-anchor markers to plan</button>
+              <button type="button" id="sp-rotate-ccw" class="sp-mode-btn" onclick="spRotateImage(-90)" title="Rotate the image 90 degrees anticlockwise">Rotate left</button>
+              <button type="button" id="sp-rotate-cw" class="sp-mode-btn" onclick="spRotateImage(90)" title="Rotate the image 90 degrees clockwise">Rotate right</button>
             </div>
             <div id="sp-reanchor-bar" class="sp-reanchor-bar" style="display:none;"></div>
             <div id="sp-map" style="width:100%;height:440px;border-radius:8px;border:1px solid #d4d4d0;"></div>
@@ -6673,6 +6675,9 @@ function makeBlankSiteImage() {
     siteMapCentreLat: null,
     siteMapCentreLng: null,
     siteMapZoom:      18,
+    // Image overlay rotation in clockwise degrees (0/90/180/270). Markers are
+    // image-fractional, so they rotate with the image and hold their positions.
+    siteImageRotation: 0,
     siteImagePins:    [],
     siteFaultMarkers: [],
     // Amendment 2 (flow F1): an affirmative "no faults found" declaration,
@@ -7167,6 +7172,7 @@ async function goToNewSurvey() {
       siteMapCentreLat: Number.isFinite(Number(draft.siteMapCentreLat)) ? Number(draft.siteMapCentreLat) : null,
       siteMapCentreLng: Number.isFinite(Number(draft.siteMapCentreLng)) ? Number(draft.siteMapCentreLng) : null,
       siteMapZoom:      Number.isFinite(Number(draft.siteMapZoom))      ? Number(draft.siteMapZoom)      : 18,
+      siteImageRotation: Number(draft.siteImageRotation) || 0,
       siteImagePins:    Array.isArray(draft.siteImagePins)    ? draft.siteImagePins.map(p => ({ ...p })) : [],
       siteFaultMarkers: Array.isArray(draft.siteFaultMarkers) ? draft.siteFaultMarkers.map(f => ({ ...f })) : [],
       noFaultsFound:    !!draft.noFaultsFound,
@@ -7225,6 +7231,7 @@ function editCurrent() {
     siteMapCentreLat: Number.isFinite(Number(s.siteMapCentreLat)) ? Number(s.siteMapCentreLat) : null,
     siteMapCentreLng: Number.isFinite(Number(s.siteMapCentreLng)) ? Number(s.siteMapCentreLng) : null,
     siteMapZoom:      Number.isFinite(Number(s.siteMapZoom))      ? Number(s.siteMapZoom)      : 18,
+    siteImageRotation: Number(s.siteImageRotation) || 0,
     siteImagePins:    Array.isArray(s.siteImagePins)    ? s.siteImagePins.map(p => ({ ...p })) : [],
     siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : [],
     noFaultsFound:    !!s.noFaultsFound,
@@ -7817,6 +7824,7 @@ function collectFormData() {
   out.siteMapCentreLat = currentSiteImage.siteMapCentreLat;
   out.siteMapCentreLng = currentSiteImage.siteMapCentreLng;
   out.siteMapZoom      = currentSiteImage.siteMapZoom;
+  out.siteImageRotation = Number(currentSiteImage.siteImageRotation) || 0;
   out.siteImagePins    = (currentSiteImage.siteImagePins    || []).map(p => ({ ...p }));
   // Deep-clone the photos array so a later mutation to a fault doesn't bleed
   // back into a survey already written to localStorage. Base64 data URLs are
@@ -15186,8 +15194,11 @@ function slRenderExec(survey) {
   // and no located faults behaves exactly as today (the placeholder). Only case (2)
   // is new, so a survey with an image, or with no located faults, is byte-identical.
   const aerialSrc = imgSrcFor({ key: s.siteImageKey, data: s.siteImageData });
+  // Respect the stored site-image rotation (0/90/180/270 clockwise) on the aerial.
+  const aerialRot = (function(){ var r = Number(s.siteImageRotation) || 0; r = ((r % 360) + 360) % 360; return (r === 90 || r === 180 || r === 270) ? r : 0; })();
+  const aerialRotCss = aerialRot ? ('transform:rotate(' + aerialRot + 'deg);') : '';
   const aerialInner = aerialSrc
-    ? '<img src="' + aerialSrc + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">'
+    ? '<img src="' + aerialSrc + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;' + aerialRotCss + '">'
     : (slHasPinnedFaults(s)
         ? '<div class="aerial-plan">' + slRoofPlanSVG(s, { idSuffix: 'aerial', hideNotToScale: true }) + '<div class="aerial-plan-badge">Roof plan &middot; used as aerial</div></div>'
         : '<div class="bleed"><svg class="rings" style="right:-60px;bottom:-60px;" width="240" height="240" viewBox="0 0 240 240"><g fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"><circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="100"/><circle cx="200" cy="200" r="140"/></g></svg></div>SITE OVERVIEW &middot; AERIAL');
@@ -19277,6 +19288,7 @@ function spCurrentSurvey() {
     siteMapCentreLat: currentSiteImage.siteMapCentreLat,
     siteMapCentreLng: currentSiteImage.siteMapCentreLng,
     siteMapZoom:      currentSiteImage.siteMapZoom,
+    siteImageRotation: currentSiteImage.siteImageRotation,
     siteImagePins:    currentSiteImage.siteImagePins,
     siteFaultMarkers: currentSiteImage.siteFaultMarkers,
     buildings:        currentBuildings
@@ -19398,6 +19410,72 @@ async function spFetchSatelliteView() {
 // Build (or rebuild) the Leaflet map. mode = 'geographic' wires Esri imagery
 // + WGS84; mode = 'simple' uses L.CRS.Simple to render a drone-photo overlay
 // without geographic projection.
+// ---- Image-fractional marker coordinates (Part 1: bind markers to the image) --
+// ROOT FIX: on an image overlay, markers are stored as fractions {imgU,imgV} in
+// [0,1] on the ORIGINAL (unrotated) image (u across, v down). At render they are
+// converted to CRS.Simple latlng using the CURRENT overlay dims + rotation, so
+// however the image is sized on any load (full-res or a downscaled thumbnail) the
+// markers hold their position on the roof by construction. Satellite-only surveys
+// (siteImageSource === 'map') keep lat/lng. spImgW/spImgH = current overlay's
+// UNROTATED natural pixel dims; siteImageRotation = 0/90/180/270 clockwise.
+var spImgW = null, spImgH = null;
+function spImgRotation(){ var r = Number((spCurrentSurvey() || {}).siteImageRotation) || 0; r = ((r % 360) + 360) % 360; return (r === 90 || r === 180 || r === 270) ? r : 0; }
+function spIsImageMode(survey){ var s = survey || spCurrentSurvey(); return !!(s && s.siteImageSource === 'upload'); }
+function spRotateFrac(u, v, rot){ if (rot === 90) return [1 - v, u]; if (rot === 180) return [1 - u, 1 - v]; if (rot === 270) return [v, 1 - u]; return [u, v]; }
+function spUnrotateFrac(du, dv, rot){ if (rot === 90) return [dv, 1 - du]; if (rot === 180) return [1 - du, 1 - dv]; if (rot === 270) return [1 - dv, du]; return [du, dv]; }
+function spDispDims(rot){ if (spImgW == null || spImgH == null) return null; return (rot === 90 || rot === 270) ? { w: spImgH, h: spImgW } : { w: spImgW, h: spImgH }; }
+// Original-image fraction -> CRS.Simple [lat,lng] on the current (rotated) overlay.
+function spFracToLatLng(imgU, imgV){
+  var rot = spImgRotation(), d = spDispDims(rot); if (!d) return null;
+  var df = spRotateFrac(imgU, imgV, rot);
+  return [ (1 - df[1]) * d.h, df[0] * d.w ];   // v=0 (top) -> lat=h (north)
+}
+// Click [lat,lng] on the current (rotated) overlay -> original-image fraction.
+function spLatLngToFrac(lat, lng){
+  var rot = spImgRotation(), d = spDispDims(rot); if (!d) return null;
+  var uf = spUnrotateFrac(lng / d.w, 1 - lat / d.h, rot);
+  return { imgU: uf[0], imgV: uf[1] };
+}
+// A marker's original-image fraction: prefer stored imgU/imgV, else derive from
+// legacy lat/lng using the ORIGINAL captured dims (siteImageW/H).
+function spMarkerFrac(m, survey){
+  if (m && isFinite(Number(m.imgU)) && isFinite(Number(m.imgV))) return { u: Number(m.imgU), v: Number(m.imgV) };
+  var s = survey || spCurrentSurvey();
+  var W = Number(s.siteImageW), H = Number(s.siteImageH);
+  if (m && isFinite(Number(m.lat)) && isFinite(Number(m.lng)) && isFinite(W) && isFinite(H) && W > 0 && H > 0)
+    return { u: Number(m.lng) / W, v: 1 - Number(m.lat) / H };
+  return null;
+}
+// Rotate an <img> to a canvas by 90/180/270 clockwise; returns {dataUrl,w,h}.
+function spRotateImageData(img, rot){
+  var w = img.naturalWidth, h = img.naturalHeight;
+  var cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+  if (rot === 90 || rot === 270){ cv.width = h; cv.height = w; } else { cv.width = w; cv.height = h; }
+  ctx.save();
+  if (rot === 90){ ctx.translate(h, 0); ctx.rotate(Math.PI / 2); }
+  else if (rot === 180){ ctx.translate(w, h); ctx.rotate(Math.PI); }
+  else if (rot === 270){ ctx.translate(0, w); ctx.rotate(-Math.PI / 2); }
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
+  return { dataUrl: cv.toDataURL('image/jpeg', 0.85), w: cv.width, h: cv.height };
+}
+// One-time migration: convert legacy map-stored markers to image-fractional using
+// the ORIGINAL captured dims, so a healthy survey survives the thumbnail rebuild.
+function spMigrateMarkersToFractions(survey){
+  if (!survey || survey.siteImageSource !== 'upload') return false;
+  var W = Number(survey.siteImageW), H = Number(survey.siteImageH);
+  if (!isFinite(W) || !isFinite(H) || W <= 0 || H <= 0) return false;
+  var changed = false;
+  (currentSiteImage.siteImagePins || []).forEach(function(p){
+    if (p && p.imgU == null && isFinite(Number(p.lat)) && isFinite(Number(p.lng))){ p.imgU = Number(p.lng) / W; p.imgV = 1 - Number(p.lat) / H; changed = true; }
+  });
+  (currentSiteImage.siteFaultMarkers || []).forEach(function(f){
+    if (f && f.imgU == null && isFinite(Number(f.lat)) && isFinite(Number(f.lng))){ f.imgU = Number(f.lng) / W; f.imgV = 1 - Number(f.lat) / H; changed = true; }
+  });
+  if (changed){ spSaveSurveyField('siteImagePins', currentSiteImage.siteImagePins); spSaveSurveyField('siteFaultMarkers', currentSiteImage.siteFaultMarkers); }
+  return changed;
+}
+
 function spBuildMap(centre, zoom, mode, imageData) {
   if (spMap) { spMap.remove(); spMap = null; }
   var mapOpts = { zoomControl: true };
@@ -19419,14 +19497,20 @@ function spBuildMap(centre, zoom, mode, imageData) {
     ).addTo(spMap);
     spMap.setView(centre, zoom);
   } else {
-    // Simple CRS for drone image overlay. Image dimensions become the map
-    // bounds; fitBounds zooms to fill the container.
+    // Simple CRS for drone/aerial image overlay. The overlay dims (and marker
+    // fractions) are dimension-independent, so a downscaled thumbnail on reload
+    // no longer drifts. Rotation is baked into the overlay via canvas.
+    spImgW = null; spImgH = null;   // reset until the real image loads
     var img = new Image();
     img.onload = function() {
-      var h = img.naturalHeight, w = img.naturalWidth;
-      var bounds = [[0, 0], [h, w]];
-      L.imageOverlay(imageData, bounds).addTo(spMap);
+      spImgW = img.naturalWidth; spImgH = img.naturalHeight;
+      var rot = spImgRotation();
+      var overlaySrc = imageData, dispW = spImgW, dispH = spImgH;
+      if (rot){ var r = spRotateImageData(img, rot); overlaySrc = r.dataUrl; dispW = r.w; dispH = r.h; }
+      var bounds = [[0, 0], [dispH, dispW]];
+      L.imageOverlay(overlaySrc, bounds).addTo(spMap);
       spMap.fitBounds(bounds);
+      spRenderMarkers();   // now that overlay dims are known, place fractional markers
     };
     img.src = imageData;
   }
@@ -19498,19 +19582,24 @@ function spRenderMarkers() {
   // (non-draggable) so the surveyor confirms before anything is committed.
   if (spReanchorState) { spRenderReanchorPreview(survey); spRenderFaultChips(); return; }
 
+  var imageMode = spIsImageMode(survey);
+  // In image mode, position from fractions (dimension-independent). In satellite
+  // mode, use stored lat/lng. A fractional marker needs the overlay dims (spImgW/H),
+  // which arrive on image load; until then it is skipped, then re-rendered.
+  var llFor = function(m){
+    if (imageMode){ var fr = spMarkerFrac(m, survey); return fr ? spFracToLatLng(fr.u, fr.v) : null; }
+    return (m.lat != null && m.lng != null) ? [m.lat, m.lng] : null;
+  };
+
   (survey.siteImagePins || []).forEach(function(pin, i) {
-    if (pin.lat == null || pin.lng == null) return;
-    var m = L.marker([pin.lat, pin.lng], {
-      icon: spPinIcon(pin.label), draggable: true
-    });
+    var ll = llFor(pin); if (!ll) return;
+    var m = L.marker(ll, { icon: spPinIcon(pin.label), draggable: true });
     m.on('dragend', function(ev) {
-      var ll = ev.target.getLatLng();
-      var pins = spCurrentSurvey().siteImagePins || [];
-      if (pins[i]) {
-        pins[i].lat = ll.lat;
-        pins[i].lng = ll.lng;
-        spSaveSurveyField('siteImagePins', pins);
-      }
+      var p = (spCurrentSurvey().siteImagePins || [])[i]; if (!p) return;
+      var loc = ev.target.getLatLng();
+      if (imageMode){ var fr = spLatLngToFrac(loc.lat, loc.lng); if (fr){ p.imgU = fr.imgU; p.imgV = fr.imgV; } }
+      p.lat = loc.lat; p.lng = loc.lng;
+      spSaveSurveyField('siteImagePins', spCurrentSurvey().siteImagePins);
     });
     m.on('click', function() {
       var pins = (spCurrentSurvey().siteImagePins || []).slice();
@@ -19523,19 +19612,15 @@ function spRenderMarkers() {
   });
 
   (survey.siteFaultMarkers || []).forEach(function(fault) {
-    if (fault.lat == null || fault.lng == null) return;
-    var m = L.marker([fault.lat, fault.lng], {
-      icon: spFaultIcon(fault.number, fault.severity), draggable: true
-    });
+    var ll = llFor(fault); if (!ll) return;
+    var m = L.marker(ll, { icon: spFaultIcon(fault.number, fault.severity), draggable: true });
     m.on('dragend', function(ev) {
-      var ll = ev.target.getLatLng();
       var faults = spCurrentSurvey().siteFaultMarkers || [];
-      var f = faults.find(function(q) { return q.id === fault.id; });
-      if (f) {
-        f.lat = ll.lat;
-        f.lng = ll.lng;
-        spSaveSurveyField('siteFaultMarkers', faults);
-      }
+      var f = faults.find(function(q) { return q.id === fault.id; }); if (!f) return;
+      var loc = ev.target.getLatLng();
+      if (imageMode){ var fr = spLatLngToFrac(loc.lat, loc.lng); if (fr){ f.imgU = fr.imgU; f.imgV = fr.imgV; } }
+      f.lat = loc.lat; f.lng = loc.lng;
+      spSaveSurveyField('siteFaultMarkers', faults);
     });
     m.on('click', function() {
       spActiveFaultId = fault.id;
@@ -19570,33 +19655,35 @@ function spTranslateMarkersBy(dLat, dLng){
 // a preview: nothing commits until Confirm, and one Undo restores prior positions.
 var spReanchorState = null;   // { proposed:{pins,faults}, prev:{pins,faults} } while previewing
 var spReanchorUndo  = null;   // last committed prev snapshot, for one-step undo
+// Recovery works in IMAGE-FRACTION space: gather each marker's fraction (migrated
+// or derived), fit the cloud into [margin, 1-margin] (uniform scale + centre) and
+// commit image-fractional positions, so recovered markers hold across sessions.
 function spCollectMarkerPoints(survey){
   var pts = [];
-  (survey.siteImagePins || []).forEach(function(p, i){ if (isFinite(Number(p.lat)) && isFinite(Number(p.lng))) pts.push({ kind:'pin', i:i, lat:Number(p.lat), lng:Number(p.lng) }); });
-  (survey.siteFaultMarkers || []).forEach(function(f){ if (isFinite(Number(f.lat)) && isFinite(Number(f.lng))) pts.push({ kind:'fault', id:f.id, lat:Number(f.lat), lng:Number(f.lng) }); });
+  (survey.siteImagePins || []).forEach(function(p, i){ var f = spMarkerFrac(p, survey); if (f) pts.push({ kind:'pin', i:i, u:f.u, v:f.v }); });
+  (survey.siteFaultMarkers || []).forEach(function(f){ var fr = spMarkerFrac(f, survey); if (fr) pts.push({ kind:'fault', id:f.id, u:fr.u, v:fr.v }); });
   return pts;
 }
 function spReanchorComputeProposed(survey){
+  if (!spIsImageMode(survey)) return null;                              // image overlay only
   var W = Number(survey.siteImageW), H = Number(survey.siteImageH);
-  if (!isFinite(W) || !isFinite(H) || W <= 0 || H <= 0) return null;   // needs the site image
+  if (!isFinite(W) || !isFinite(H) || W <= 0 || H <= 0) return null;    // needs the site image
   var pts = spCollectMarkerPoints(survey);
   if (!pts.length) return null;
-  var minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-  pts.forEach(function(p){ if (p.lat<minLat)minLat=p.lat; if (p.lat>maxLat)maxLat=p.lat; if (p.lng<minLng)minLng=p.lng; if (p.lng>maxLng)maxLng=p.lng; });
-  var spanLat = maxLat - minLat, spanLng = maxLng - minLng;
-  var margin = 0.12;
-  var targetH = H * (1 - 2 * margin), targetW = W * (1 - 2 * margin);
+  var minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+  pts.forEach(function(p){ if (p.u<minU)minU=p.u; if (p.u>maxU)maxU=p.u; if (p.v<minV)minV=p.v; if (p.v>maxV)maxV=p.v; });
+  var spanU = maxU - minU, spanV = maxV - minV;
+  var margin = 0.12, target = 1 - 2 * margin;
   var scale;
-  if (spanLat < 1e-9 && spanLng < 1e-9) scale = 1;                     // single point / coincident: no scaling
-  else scale = Math.min(spanLat > 1e-9 ? targetH / spanLat : Infinity, spanLng > 1e-9 ? targetW / spanLng : Infinity);
+  if (spanU < 1e-9 && spanV < 1e-9) scale = 1;
+  else scale = Math.min(spanU > 1e-9 ? target / spanU : Infinity, spanV > 1e-9 ? target / spanV : Infinity);
   if (!isFinite(scale) || scale <= 0) scale = 1;
-  var cLat = (minLat + maxLat) / 2, cLng = (minLng + maxLng) / 2;      // source centre
-  var tLat = H / 2, tLng = W / 2;                                       // image centre
+  var cU = (minU + maxU) / 2, cV = (minV + maxV) / 2;
   var proposed = { pins: [], faults: [] };
   pts.forEach(function(p){
-    var nLat = tLat + (p.lat - cLat) * scale, nLng = tLng + (p.lng - cLng) * scale;
-    if (p.kind === 'pin') proposed.pins.push({ i:p.i, lat:nLat, lng:nLng });
-    else proposed.faults.push({ id:p.id, lat:nLat, lng:nLng });
+    var nU = 0.5 + (p.u - cU) * scale, nV = 0.5 + (p.v - cV) * scale;
+    if (p.kind === 'pin') proposed.pins.push({ i:p.i, imgU:nU, imgV:nV });
+    else proposed.faults.push({ id:p.id, imgU:nU, imgV:nV });
   });
   return proposed;
 }
@@ -19608,8 +19695,8 @@ function spReanchorStart(){
   spReanchorState = {
     proposed: proposed,
     prev: {
-      pins: (survey.siteImagePins || []).map(function(p){ return { lat:p.lat, lng:p.lng }; }),
-      faults: (survey.siteFaultMarkers || []).map(function(f){ return { id:f.id, lat:f.lat, lng:f.lng }; })
+      pins: (survey.siteImagePins || []).map(function(p){ return { imgU:p.imgU, imgV:p.imgV, lat:p.lat, lng:p.lng }; }),
+      faults: (survey.siteFaultMarkers || []).map(function(f){ return { id:f.id, imgU:f.imgU, imgV:f.imgV, lat:f.lat, lng:f.lng }; })
     }
   };
   var n = proposed.pins.length + proposed.faults.length;
@@ -19623,22 +19710,29 @@ function spReanchorStart(){
 function spRenderReanchorPreview(survey){
   var pins = survey.siteImagePins || [];
   spReanchorState.proposed.pins.forEach(function(pp){
+    var ll = spFracToLatLng(pp.imgU, pp.imgV); if (!ll) return;
     var label = (pins[pp.i] && pins[pp.i].label) || ('B' + (pp.i + 1));
-    spPinLayer.addLayer(L.marker([pp.lat, pp.lng], { icon: spPinIcon(label), interactive: false, opacity: 0.92 }));
+    spPinLayer.addLayer(L.marker(ll, { icon: spPinIcon(label), interactive: false, opacity: 0.92 }));
   });
   var faults = survey.siteFaultMarkers || [];
   spReanchorState.proposed.faults.forEach(function(pf){
     var f = faults.find(function(q){ return q.id === pf.id; }); if (!f) return;
-    spFaultLayer.addLayer(L.marker([pf.lat, pf.lng], { icon: spFaultIcon(f.number, f.severity), interactive: false, opacity: 0.92 }));
+    var ll = spFracToLatLng(pf.imgU, pf.imgV); if (!ll) return;
+    spFaultLayer.addLayer(L.marker(ll, { icon: spFaultIcon(f.number, f.severity), interactive: false, opacity: 0.92 }));
   });
+}
+function spReanchorApplyFrac(m, imgU, imgV){
+  m.imgU = imgU; m.imgV = imgV;
+  var ll = spFracToLatLng(imgU, imgV);
+  if (ll){ m.lat = ll[0]; m.lng = ll[1]; }
 }
 function spReanchorConfirm(){
   if (!spReanchorState) return;
   var survey = spCurrentSurvey();
   var pins = survey.siteImagePins || [];
-  spReanchorState.proposed.pins.forEach(function(pp){ if (pins[pp.i]){ pins[pp.i].lat = pp.lat; pins[pp.i].lng = pp.lng; } });
+  spReanchorState.proposed.pins.forEach(function(pp){ if (pins[pp.i]) spReanchorApplyFrac(pins[pp.i], pp.imgU, pp.imgV); });
   var faults = survey.siteFaultMarkers || [];
-  spReanchorState.proposed.faults.forEach(function(pf){ var f = faults.find(function(q){ return q.id === pf.id; }); if (f){ f.lat = pf.lat; f.lng = pf.lng; } });
+  spReanchorState.proposed.faults.forEach(function(pf){ var f = faults.find(function(q){ return q.id === pf.id; }); if (f) spReanchorApplyFrac(f, pf.imgU, pf.imgV); });
   spReanchorUndo = spReanchorState.prev;
   spReanchorState = null;
   spSaveSurveyField('siteImagePins', pins);
@@ -19652,13 +19746,14 @@ function spReanchorConfirm(){
   if (typeof showToast === 'function') showToast('Markers re-anchored', 'ok');
 }
 function spReanchorCancel(){ spReanchorState = null; spReanchorDismissBar(); spRenderMarkers(); }
+function spReanchorRestore(m, snap){ m.imgU = snap.imgU; m.imgV = snap.imgV; m.lat = snap.lat; m.lng = snap.lng; }
 function spReanchorUndoApply(){
   if (!spReanchorUndo) return;
   var survey = spCurrentSurvey();
   var pins = survey.siteImagePins || [];
-  spReanchorUndo.pins.forEach(function(pp, i){ if (pins[i]){ pins[i].lat = pp.lat; pins[i].lng = pp.lng; } });
+  spReanchorUndo.pins.forEach(function(pp, i){ if (pins[i]) spReanchorRestore(pins[i], pp); });
   var faults = survey.siteFaultMarkers || [];
-  spReanchorUndo.faults.forEach(function(pf){ var f = faults.find(function(q){ return q.id === pf.id; }); if (f){ f.lat = pf.lat; f.lng = pf.lng; } });
+  spReanchorUndo.faults.forEach(function(pf){ var f = faults.find(function(q){ return q.id === pf.id; }); if (f) spReanchorRestore(f, pf); });
   spReanchorUndo = null;
   spSaveSurveyField('siteImagePins', pins);
   spSaveSurveyField('siteFaultMarkers', faults);
@@ -19667,6 +19762,19 @@ function spReanchorUndoApply(){
   if (typeof showToast === 'function') showToast('Re-anchor undone', 'ok');
 }
 function spReanchorDismissBar(){ var bar = spReanchorBar(); if (bar){ bar.style.display = 'none'; bar.innerHTML = ''; } }
+
+// Image rotation (Part 2): 90-degree steps, stored on the survey and baked into
+// the overlay on rebuild. Markers are image-fractional, so they rotate with the
+// image and hold their positions on the roof. Only meaningful in image mode.
+function spRotateImage(delta){
+  var survey = spCurrentSurvey();
+  if (!spIsImageMode(survey)){ if (typeof showToast === 'function') showToast('Rotation applies to an uploaded/aerial image.', 'err'); return; }
+  var cur = Number(currentSiteImage.siteImageRotation) || 0;
+  var next = (((cur + delta) % 360) + 360) % 360;
+  spSaveSurveyField('siteImageRotation', next);
+  var siteSrc = (typeof siteImageSrcFor === 'function') ? siteImageSrcFor(spCurrentSurvey()) : currentSiteImage.siteImageData;
+  if (siteSrc) spBuildMap(null, null, 'simple', siteSrc);   // rebuild overlay (and markers) at the new rotation
+}
 
 // Chip row beneath the map: one chip per fault in number order, severity-
 // coloured dot, "(off plan)" suffix for faults with no map coords. The chip
@@ -19712,21 +19820,24 @@ function spRenderFaultChips() {
 // nothing happened from the buildings list).
 function spHandleMapClick(lat, lng) {
   var survey = spCurrentSurvey();
+  // On an image overlay, bind the marker to the image as a fraction so it holds
+  // position across sessions / resizes / rotation.
+  var frac = spIsImageMode(survey) ? spLatLngToFrac(lat, lng) : null;
   if (spActiveMode === 'identify') {
     var pins = survey.siteImagePins || [];
     var idx = pins.length;
-    pins.push({
-      buildingIndex: idx,
-      label: 'B' + (idx + 1),
-      lat: lat, lng: lng
-    });
+    var pin = { buildingIndex: idx, label: 'B' + (idx + 1), lat: lat, lng: lng };
+    if (frac){ pin.imgU = frac.imgU; pin.imgV = frac.imgV; }
+    pins.push(pin);
     spSaveSurveyField('siteImagePins', pins);
     spRenderMarkers();
   } else {
     spFaultCounter++;
     var id = 'f' + spFaultCounter;
     var faults = survey.siteFaultMarkers || [];
-    faults.push(spNewFault(id, spFaultCounter, lat, lng));
+    var nf = spNewFault(id, spFaultCounter, lat, lng);
+    if (frac){ nf.imgU = frac.imgU; nf.imgV = frac.imgV; }
+    faults.push(nf);
     spSaveSurveyField('siteFaultMarkers', faults);
     // Amendment 2: a genuinely new fault clears any "no faults found" declaration.
     currentSiteImage.noFaultsFound = false;
@@ -20958,6 +21069,9 @@ function spRestoreImageState() {
   if (notice) notice.style.display = 'none';
   var siteSrc = siteImageSrcFor(survey);
   if (survey.siteImageSource === 'upload' && siteSrc) {
+    // Bind legacy map-stored markers to the image once, so they survive the
+    // overlay being rebuilt from a downscaled thumbnail on this and future loads.
+    spMigrateMarkersToFractions(survey);
     document.getElementById('sp-image-area').style.display = 'block';
     spBuildMap(null, null, 'simple', siteSrc);
   } else if (survey.siteImageSource === 'upload') {
