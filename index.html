@@ -2568,8 +2568,15 @@ input.derived-field { background: #f6f8fa; color: #555; }
     box-sizing:border-box;
   }
   .sl-report .sheet.dark{background:var(--ink);color:#fff;box-shadow:0 8px 30px rgba(20,20,30,.18);}
-  /* card sheets grow to fit their two cards on screen (print pins them to a page) */
-  .sl-report .sheet.sl-cards-sheet{height:auto;}
+  /* Card sheets are pinned to the definite sheet height (Defect 4) so a verbose
+     card can never overflow the page and collide with the foot; the photo well
+     flex-shrinks to absorb the overflow instead. */
+  .sl-report .sheet.sl-cards-sheet{height:735px;}
+  .sl-report .sheet.sl-cards-sheet .pad{padding-bottom:60px;}
+  /* The card region fills the space above the reserved foot and clips there, so
+     content can never reach the foot; the photo well flex-shrinks first, so on a
+     normal card nothing clips and only an unusually long card loses its tail. */
+  .sl-report .sheet.sl-cards-sheet .cardwrap{flex:1 1 auto;min-height:0;overflow:hidden;}
 
   /* bleed clip: fills the sheet exactly so decoration can never extend it */
   .sl-report .bleed{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
@@ -2621,6 +2628,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .sp-key-line{width:18px;height:0;border-top:2px solid var(--ink);flex:0 0 auto;}
   .sl-report .sp-key-dim{width:18px;height:0;border-top:2px solid var(--orange);flex:0 0 auto;}
   .sl-report .sp-key-note{font-size:11px;color:var(--grey);line-height:1.55;max-width:280px;margin-top:6px;}
+  .sl-report .aerial .aerial-stage{overflow:hidden;}
+  .sl-report .aerial .aerial-mk{position:absolute;min-width:18px;height:18px;padding:0 4px;border-radius:9px;border:2px solid #fff;
+          box-shadow:0 1px 3px rgba(0,0,0,.5);color:#fff;font-size:9px;font-weight:800;line-height:14px;text-align:center;
+          font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;white-space:nowrap;z-index:2;}
   .sl-report .aerial .aerial-plan{position:absolute;inset:0;background:#faf9f6;}
   /* the plan is constrained to the area ABOVE the badge strip (26px) so the whole
      drawing (every marker, wherever pinned) sits clear of the badge; the badge
@@ -2749,11 +2760,12 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .sevbox .sr .n{font-weight:700;}
 
   /* detail cards */
-  .sl-report .cards{display:flex;gap:30px;margin-top:10px;flex:1;position:relative;}
+  .sl-report .cards{display:flex;gap:30px;margin-top:10px;flex:1;position:relative;min-height:0;}
   .sl-report .card{flex:1;border:1px solid var(--line);border-radius:12px;padding:20px 24px;position:relative;border-left:4px solid var(--crit);display:flex;flex-direction:column;}
   /* matched pair: body text stays top, lead image + evidence set drop to the
      bottom so both cards' images sit at the same height regardless of text. */
-  .sl-report .cardbtm{margin-top:auto;}
+  .sl-report .cardbtm{margin-top:auto;display:flex;flex-direction:column;min-height:0;}
+  .sl-report .card{min-height:0;}
   .sl-report .card .chead{display:flex;align-items:center;justify-content:space-between;}
   .sl-report .card .cid{display:flex;align-items:center;gap:12px;}
   .sl-report .card .ftag{background:var(--crit);color:#fff;font-weight:800;font-size:13px;padding:6px 9px;border-radius:6px;}
@@ -2769,7 +2781,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
      Now a usefully tall image well (~3:1 within the card width - as close to 3:2
      as the two-cards-per-sheet constraint allows), centre-cropped so portrait
      photos show the defect region rather than a sliver. */
-  .sl-report .photo{height:132px;background:var(--ink);border-radius:8px;margin-top:11px;position:relative;overflow:hidden;
+  .sl-report .photo{flex:0 1 132px;min-height:46px;background:var(--ink);border-radius:8px;margin-top:11px;position:relative;overflow:hidden;
           background-size:cover;background-position:center;
           display:flex;align-items:flex-end;padding:9px 14px;color:rgba(255,255,255,.55);font-size:11px;}
   .sl-report .ev-set{display:flex;align-items:center;gap:14px;background:var(--light);border-radius:8px;padding:10px 14px;margin-top:12px;}
@@ -2786,6 +2798,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .cba{flex:1;}
   .sl-report .cba .crow{display:flex;justify-content:space-between;font-size:13.5px;padding:9px 0;border-bottom:1px solid var(--line);}
   .sl-report .cba .crow.t{font-weight:700;border-bottom:2px solid var(--ink);}
+  .sl-report .cba .crow.sw-head{font-weight:700;color:var(--orange);border-bottom:1px solid var(--line);}
+  .sl-report .cba .crow.sw-sub{font-weight:700;border-bottom:1px solid var(--ink);}
   .sl-report .note{font-size:11px;color:var(--grey);line-height:1.5;margin-top:12px;}
   .sl-report .find-r{width:430px;}
   .sl-report .narr{font-size:13px;line-height:1.6;color:#3f4044;margin-top:6px;}
@@ -7311,11 +7325,13 @@ function costPanelBuildCostInfo(survey){
     var c = costPanelNum(cp.faults && cp.faults[ref]);
     if (c != null){ costsByRef[ref] = c; faultTotal += c; anyFault = true; }
   });
-  var standTotal = 0, anyStand = false;
-  COSTPANEL_STANDING.forEach(function(si){ var v = costPanelNum(cp.standing && cp.standing[si.key]); if (v != null){ standTotal += v; anyStand = true; } });
-  (Array.isArray(cp.standingCustom) ? cp.standingCustom : []).forEach(function(it){ var v = costPanelNum(it && it.cost); if (v != null){ standTotal += v; anyStand = true; } });
+  var standTotal = 0, anyStand = false, standing = [];
+  COSTPANEL_STANDING.forEach(function(si){ var v = costPanelNum(cp.standing && cp.standing[si.key]); if (v != null){ standTotal += v; anyStand = true; standing.push({ label: si.label, amount: v }); } });
+  (Array.isArray(cp.standingCustom) ? cp.standingCustom : []).forEach(function(it){ var v = costPanelNum(it && it.cost); if (v != null){ standTotal += v; anyStand = true; standing.push({ label: String((it && it.label) || 'Added item').trim() || 'Added item', amount: v }); } });
   if (!anyFault && !anyStand) return null;
-  return { mode: 'repair', costsByRef: costsByRef, total: faultTotal + standTotal };
+  // `standing` (itemised, with a subtotal) lets the report render a Site-wide
+  // items group so every printed total reconciles with the lines above it.
+  return { mode: 'repair', costsByRef: costsByRef, total: faultTotal + standTotal, standing: standing, standingTotal: standTotal };
 }
 function costPanelAreaSum(cp, g){ var t = 0; (g.faults || []).forEach(function(f){ var c = costPanelNum(cp.faults['F' + (f.number != null ? f.number : '?')]); if (c != null) t += c; }); return t; }
 function costPanelStandingSubtotal(survey){ var cp = costPanelEnsure(survey); var t = 0; COSTPANEL_STANDING.forEach(function(si){ var v = costPanelNum(cp.standing[si.key]); if (v != null) t += v; }); (cp.standingCustom || []).forEach(function(it){ var v = costPanelNum(it && it.cost); if (v != null) t += v; }); return t; }
@@ -15143,6 +15159,36 @@ function slRenderElevationsFigure(survey){
   return sheets.join('');
 }
 
+// Report aerial figure (Defect 2): the site image cover-filled into the 380x200
+// aerial box with NO filler bars, respecting the stored rotation, with fault
+// markers drawn at their image-fractional positions (rotating with the image,
+// labels kept upright). The stage is sized so a 90/270 rotation still covers the
+// box; markers are cover-corrected using the original image dims (siteImageW/H).
+function slAerialFigure(s, src, rot){
+  var boxW = 380, boxH = 200;
+  var swapped = (rot === 90 || rot === 270);
+  var SW = swapped ? boxH : boxW, SH = swapped ? boxW : boxH;   // unrotated stage dims
+  var IW = Number(s.siteImageW) || SW, IH = Number(s.siteImageH) || SH;
+  var scale = Math.max(SW / IW, SH / IH);                       // object-fit: cover
+  var dispW = IW * scale, dispH = IH * scale;
+  var offX = (dispW - SW) / 2, offY = (dispH - SH) / 2;
+  var faults = (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).filter(function(f){
+    return f && !f.unlocatable && isFinite(Number(f.imgU)) && isFinite(Number(f.imgV));
+  });
+  var dots = faults.map(function(f){
+    var px = Number(f.imgU) * dispW - offX, py = Number(f.imgV) * dispH - offY;
+    if (px < 0 || px > SW || py < 0 || py > SH) return '';        // cropped out of view
+    var col = (typeof FAULT_SEV_COLORS !== 'undefined' && FAULT_SEV_COLORS[f.severity]) || '#9ca3af';
+    var up = rot ? (' rotate(-' + rot + 'deg)') : '';
+    return '<span class="aerial-mk" style="left:' + (px / SW * 100) + '%;top:' + (py / SH * 100) + '%;background:' + col + ';transform:translate(-50%,-50%)' + up + ';">F' + (f.number != null ? f.number : '?') + '</span>';
+  }).join('');
+  var stageStyle = 'position:absolute;top:50%;left:50%;width:' + SW + 'px;height:' + SH + 'px;' +
+    'transform:translate(-50%,-50%)' + (rot ? (' rotate(' + rot + 'deg)') : '') + ';';
+  return '<div class="aerial-stage" style="' + stageStyle + '">' +
+           '<img src="' + src + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
+           dots +
+         '</div>';
+}
 function slRenderExec(survey) {
   const s = survey || {};
   const siteTitle  = deriveSiteShortName(s) || 'the site';
@@ -15196,9 +15242,8 @@ function slRenderExec(survey) {
   const aerialSrc = imgSrcFor({ key: s.siteImageKey, data: s.siteImageData });
   // Respect the stored site-image rotation (0/90/180/270 clockwise) on the aerial.
   const aerialRot = (function(){ var r = Number(s.siteImageRotation) || 0; r = ((r % 360) + 360) % 360; return (r === 90 || r === 180 || r === 270) ? r : 0; })();
-  const aerialRotCss = aerialRot ? ('transform:rotate(' + aerialRot + 'deg);') : '';
   const aerialInner = aerialSrc
-    ? '<img src="' + aerialSrc + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;' + aerialRotCss + '">'
+    ? slAerialFigure(s, aerialSrc, aerialRot)
     : (slHasPinnedFaults(s)
         ? '<div class="aerial-plan">' + slRoofPlanSVG(s, { idSuffix: 'aerial', hideNotToScale: true }) + '<div class="aerial-plan-badge">Roof plan &middot; used as aerial</div></div>'
         : '<div class="bleed"><svg class="rings" style="right:-60px;bottom:-60px;" width="240" height="240" viewBox="0 0 240 240"><g fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"><circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="100"/><circle cx="200" cy="200" r="140"/></g></svg></div>SITE OVERVIEW &middot; AERIAL');
@@ -15331,12 +15376,29 @@ function slGallerySlug(s) {
 // never print) - the multi-fault dropped-row defect. The chars-per-line values are
 // calibrated to slightly OVER-estimate so a sheet never overflows; a single-line
 // row stays 1 unit, so short-text schedules paginate exactly as before.
-var SL_SCHED_REC_CPL = 55;   // recommended-action column, approx chars per line
-var SL_SCHED_LOC_CPL = 22;   // location column, approx chars per line
+// Pagination budget in PIXELS, calibrated by render measurement at A4 landscape
+// (Defect 1). The previous chars-per-line (55) hugely over-counted verbose
+// recommendation text (~83 chars/line at render), so each area needed its own
+// sheet. These CPLs match the real column widths (slightly under, to over-count
+// lines a touch and never clip); slSchedFaultRowUnits now returns a PIXEL height.
+var SL_SCHED_REC_CPL = 80;    // recommended-action column chars/line (render ~83)
+var SL_SCHED_LOC_CPL = 26;    // location column chars/line (render ~28)
+var SL_SCHED_LINE_PX = 18;    // one wrapped text line (render 17.25)
+var SL_SCHED_ROWPAD_PX = 10;  // per-row padding + border
+var SL_SCHED_GRP_PX = 30;     // group header row
+var SL_SCHED_SUB_PX = 32;     // subtotal row
 function slSchedFaultRowUnits(f){
   var recL = Math.max(1, Math.ceil(String((f && f.recommendation) || '').length / SL_SCHED_REC_CPL));
   var locL = Math.max(1, Math.ceil(String((f && f.location) || '').length / SL_SCHED_LOC_CPL));
-  return Math.max(recL, locL);
+  return SL_SCHED_ROWPAD_PX + SL_SCHED_LINE_PX * Math.max(recL, locL);
+}
+// Client-facing display transform (Defect 5): capitalise the FIRST character of
+// a printed string (area / location / fault title) so "valley 1" prints as
+// "Valley 1". Stored data is never modified and mid-string casing is untouched;
+// this is applied only inside the report renderers, never in internal panels.
+function slCap(str){
+  var s = String(str == null ? '' : str);
+  return s ? (s.charAt(0).toUpperCase() + s.slice(1)) : s;
 }
 // Round a number to at most one decimal place, without a trailing ".0"
 // (76.80000000000001 -> "76.8", 12 -> "12"). Non-numeric -> null.
@@ -15369,20 +15431,23 @@ function slFmtYears(v){
 // address, a zero extent. The client document is NOT changed; this drives a
 // pre-print warning list shown only in the internal report-preview view, naming
 // each field so the surveyor can fix the record before printing.
+// Each warning carries a self-contained message naming the exact FIELD, WHERE to
+// fix it, and WHAT the report prints until then (Defect 6) - no more bare
+// "Site address is blank" that reads as a false alarm when the site name is set.
 function slReportPrintWarnings(survey){
   var s = survey || {};
   var warns = [];
   var addr = String(s['f-site-address'] || '').trim();
-  if (addr === '' || addr.toUpperCase() === 'TBC') warns.push({ scope: 'Survey', field: 'Site address', detail: (addr === '' ? 'is blank' : 'is TBC') });
+  if (addr === '' || addr.toUpperCase() === 'TBC') warns.push({ msg: 'Section A site address is ' + (addr === '' ? 'blank' : "'TBC'") + '; the report prints ADDRESS TBC until it is filled in.' });
   var faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
   faults.slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); }).forEach(function(f){
     var ref = 'F' + (f.number != null ? f.number : '?');
-    if (f.faultType === 'other' && String(f.otherLabel || '').trim() === '') warns.push({ scope: ref, field: 'Fault type', detail: 'Other has no description' });
+    if (f.faultType === 'other' && String(f.otherLabel || '').trim() === '') warns.push({ msg: 'Fault ' + ref + ' type is Other with no description; set "What is the fault?" on the fault so a label prints instead of "Other".' });
     var desc = String(f.description || '').trim();
-    if (desc === '') warns.push({ scope: ref, field: 'Observation', detail: 'is empty' });
-    else if (/^Defect noted at .+\.$/.test(desc)) warns.push({ scope: ref, field: 'Observation', detail: 'is placeholder text' });
+    if (desc === '') warns.push({ msg: 'Fault ' + ref + ' observation is empty; the report prints TBC for it. Fill the Observation field on the fault.' });
+    else if (/^Defect noted at .+\.$/.test(desc)) warns.push({ msg: 'Fault ' + ref + ' observation is still the auto-placeholder; replace it in the fault Observation field before printing.' });
     var ext = (typeof faultExtent === 'function') ? faultExtent(f) : { qty: 0 };
-    if (!ext || !isFinite(Number(ext.qty)) || Number(ext.qty) === 0) warns.push({ scope: ref, field: 'Extent', detail: 'is zero / not set' });
+    if (!ext || !isFinite(Number(ext.qty)) || Number(ext.qty) === 0) warns.push({ msg: 'Fault ' + ref + ' extent is zero / not set; the report prints a dash. Set the extent on the fault.' });
   });
   // Roof build-up asbestos - noted so an asbestos status is never silently dropped.
   var builds = Array.isArray(s.buildings) ? s.buildings : [];
@@ -15392,16 +15457,16 @@ function slReportPrintWarnings(survey){
       var which = [];
       if (BUILDUP_ASBESTOS_VALUES.indexOf(bu.weatherSheet) !== -1) which.push('weather sheet ' + fpWeatherSheetLabel(bu));
       if (BUILDUP_ASBESTOS_VALUES.indexOf(bu.liner) !== -1) which.push('liner ' + fpLinerLabel(bu));
-      warns.push({ scope: fpBuildingLabelSafe(s, i), field: 'Asbestos build-up', detail: which.join(', ') + ' - confirm handling before works' });
+      warns.push({ msg: fpBuildingLabelSafe(s, i) + ' roof build-up flags asbestos (' + which.join(', ') + '); confirm handling before the works are priced.' });
     }
   });
   return warns;
 }
 function slRenderPrintWarnBanner(warns){
   if (!warns || !warns.length) return '';
-  var items = warns.map(function(w){ return '<li><b>' + escapeHtml(w.scope) + '</b> &middot; ' + escapeHtml(w.field) + ' ' + escapeHtml(w.detail) + '</li>'; }).join('');
+  var items = warns.map(function(w){ return '<li>' + escapeHtml(w.msg || (w.field ? (w.field + ' ' + w.detail) : '')) + '</li>'; }).join('');
   return '<div class="report-prewarn no-print">' +
-    '<div class="report-prewarn-head">Before you print &middot; ' + warns.length + ' field' + (warns.length === 1 ? '' : 's') + ' need attention</div>' +
+    '<div class="report-prewarn-head">Before you print &middot; ' + warns.length + ' item' + (warns.length === 1 ? '' : 's') + ' to check</div>' +
     '<div class="report-prewarn-sub">These print as-is in the client document. Fix them in the survey record for a clean report.</div>' +
     '<ul>' + items + '</ul></div>';
 }
@@ -15441,7 +15506,7 @@ function slRenderSchedule(survey, costInfo, opts) {
   // fault row each + a subtotal row). rowCount drives the fit-budget packing.
   const areaBlocks = groups.map(function(g) {
     const faults = sortByNum(g.faults);
-    const headRow = '<tr class="grp"><td colspan="6">' + escapeHtml(g.area) +
+    const headRow = '<tr class="grp"><td colspan="6">' + escapeHtml(slCap(g.area)) +
       ' <span class="gf">' + faults.length + ' fault' + (faults.length === 1 ? '' : 's') + '</span></td></tr>';
     let areaSum = 0;
     const faultRows = faults.map(function(f) {
@@ -15456,7 +15521,7 @@ function slRenderSchedule(survey, costInfo, opts) {
       if (costsPresent && mode === 'repair' && typeof c === 'number' && isFinite(c)) areaSum += c;
       return '<tr>' +
         '<td class="ref">F' + num + '</td>' +
-        '<td class="loc">' + escapeHtml(f.location || '') + '</td>' +
+        '<td class="loc">' + escapeHtml(slCap(f.location || '')) + '</td>' +
         '<td>' + sevPill + '</td>' +
         '<td>' + escapeHtml(f.recommendation || '') + '</td>' +
         '<td class="ev">' + ev + '</td>' +
@@ -15464,23 +15529,41 @@ function slRenderSchedule(survey, costInfo, opts) {
       '</tr>';
     });
     const faultUnits = faults.map(slSchedFaultRowUnits);
-    const contHeadRow = '<tr class="grp"><td colspan="6">' + escapeHtml(g.area) +
+    const contHeadRow = '<tr class="grp"><td colspan="6">' + escapeHtml(slCap(g.area)) +
       ' <span class="gf">continued</span></td></tr>';
     const subVal = !costsPresent ? 'TBC' : ((mode === 'works') ? 'Included' : slGBP(areaSum));
-    const subRow = '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(g.area) +
+    const subRow = '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(slCap(g.area)) +
       '&nbsp;&nbsp;<b>' + subVal + '</b></td></tr>';
     return { area: g.area, subVal: subVal, headRow: headRow, contHeadRow: contHeadRow,
              faultRows: faultRows, faultUnits: faultUnits, subRow: subRow,
-             rowCount: 2 + faultUnits.reduce(function(a, c){ return a + c; }, 0) };
+             rowCount: SL_SCHED_GRP_PX + SL_SCHED_SUB_PX + faultUnits.reduce(function(a, c){ return a + c; }, 0) };
   });
 
-  // FIT BUDGET (learned by render at A4 landscape, 297×210mm): a sheet that ALSO
-  // carries the totals boxrow holds ~11 table rows; a schedule-only sheet holds
-  // ~18. Each area costs 2 overhead rows (group + subtotal). Greedy-fill areas
-  // onto sheets, keeping each area's rows together.
-  const ROWS_WITH_BOX = 11;
-  const ROWS_PLAIN    = 18;
-  // Split any single area whose line-units exceed a plain sheet into continuation
+  // SITE-WIDE ITEMS (Defect 3): itemise the standing items after the last area so
+  // the printed total reconciles with the lines above it (area lines + site-wide
+  // items = grand total). Rendered as one more area-shaped block through packing.
+  const swItems = (costsPresent && mode === 'repair' && Array.isArray(ci.standing)) ? ci.standing : [];
+  if (swItems.length) {
+    const swHead = '<tr class="grp"><td colspan="6">Site-wide items <span class="gf">' + swItems.length + ' item' + (swItems.length === 1 ? '' : 's') + '</span></td></tr>';
+    const swRows = swItems.map(function(it) {
+      return '<tr><td class="ref"></td><td class="loc" colspan="3">' + escapeHtml(slCap(it.label)) + '</td>' +
+             '<td class="ev"></td><td class="cost">' + slGBP(it.amount) + '</td></tr>';
+    });
+    const swTotal = slGBP(ci.standingTotal || 0);
+    const swSub = '<tr class="sub"><td colspan="6">SUBTOTAL &middot; Site-wide items&nbsp;&nbsp;<b>' + swTotal + '</b></td></tr>';
+    var swItemPx = SL_SCHED_ROWPAD_PX + SL_SCHED_LINE_PX;
+    areaBlocks.push({ area: 'Site-wide items', subVal: swTotal, headRow: swHead, contHeadRow: swHead,
+      faultRows: swRows, faultUnits: swRows.map(function(){ return swItemPx; }), subRow: swSub,
+      rowCount: SL_SCHED_GRP_PX + SL_SCHED_SUB_PX + swRows.length * swItemPx });
+  }
+
+  // FIT BUDGET in PIXELS (measured at A4 landscape, 297x210mm): the usable table
+  // region is ~530px on a schedule-only sheet and ~312px on a sheet that also
+  // carries the totals boxrow. Budget slightly under those so a sheet never
+  // overflows (overflow:hidden would clip). Greedy-fill areas onto sheets.
+  const ROWS_WITH_BOX = 300;   // px available for the table when the box shares the sheet
+  const ROWS_PLAIN    = 510;   // px available for the table on a schedule-only sheet
+  // Split any single area whose height exceeds a plain sheet into continuation
   // pieces (header repeated as "continued"; the subtotal rides only the final
   // piece), so the greedy packer - which keeps each block whole - can never build
   // an over-tall sheet that clips a fault row. Areas within budget pass through
@@ -15490,8 +15573,8 @@ function slRenderSchedule(survey, costInfo, opts) {
     if (b.rowCount <= ROWS_PLAIN) { packBlocks.push(b); return; }
     let i = 0; const pieces = [];
     while (i < b.faultRows.length) {
-      const idxs = []; let units = 1;   // header
-      while (i < b.faultRows.length && (units + b.faultUnits[i] + 1 <= ROWS_PLAIN || idxs.length === 0)) {
+      const idxs = []; let units = SL_SCHED_GRP_PX;   // header px
+      while (i < b.faultRows.length && (units + b.faultUnits[i] + SL_SCHED_SUB_PX <= ROWS_PLAIN || idxs.length === 0)) {
         idxs.push(i); units += b.faultUnits[i]; i++;
       }
       pieces.push(idxs);
@@ -15504,7 +15587,7 @@ function slRenderSchedule(survey, costInfo, opts) {
         faultRows: idxs.map(function(k){ return b.faultRows[k]; }),
         faultUnits: idxs.map(function(k){ return b.faultUnits[k]; }),
         subRow: isLast ? b.subRow : '',
-        rowCount: 1 + idxs.reduce(function(a, k){ return a + b.faultUnits[k]; }, 0) + (isLast ? 1 : 0)
+        rowCount: SL_SCHED_GRP_PX + idxs.reduce(function(a, k){ return a + b.faultUnits[k]; }, 0) + (isLast ? SL_SCHED_SUB_PX : 0)
       });
     });
   });
@@ -15535,7 +15618,7 @@ function slRenderSchedule(survey, costInfo, opts) {
   const totalSheets = chunks.length + ((chunks.length && !boxOnLast) ? 1 : 0);
 
   // Totals content (boxrow): per-area breakdown, grand total, severity counts.
-  const brk = areaBlocks.map(function(b) { return escapeHtml(b.area) + '&nbsp;&nbsp;' + b.subVal; }).join('<br>');
+  const brk = areaBlocks.map(function(b) { return escapeHtml(slCap(b.area)) + '&nbsp;&nbsp;' + b.subVal; }).join('<br>');
   const grandHtml = !costsPresent ? 'TBC' : (slGBP(ci.total) + ' <small>+VAT</small>');
   const sevRows =
     '<div class="sr"><span><span class="dot" style="background:var(--crit)"></span>Critical</span><span class="n">' + stats.bySeverity.critical + '</span></div>' +
@@ -17957,7 +18040,7 @@ function slRenderCards(survey, opts) {
     const num = (f.number != null ? f.number : '?');
     const sev = (f.severity || '').toLowerCase();
     const col = SEVVAR[sev] || 'var(--grey)';
-    const title = labelFor(f);
+    const title = slCap(labelFor(f));
     const ext = faultExtent(f);
     const extTxt = slFmtExtent(ext);   // <=1 dp, unit carried, zero -> dash
     const photos = Array.isArray(f.photos) ? f.photos : [];
@@ -17990,7 +18073,7 @@ function slRenderCards(survey, opts) {
         '<span class="ctitle">' + escapeHtml(title) + '</span></div>' +
         '<span class="csev" style="background:' + col + ';">' + (sev ? sev.toUpperCase() : 'UNRATED') + '</span></div>' +
       '<div class="kv">' +
-        '<div><div class="label">Location</div><div class="val">' + (f.location ? escapeHtml(f.location) : 'TBC') + '</div></div>' +
+        '<div><div class="label">Location</div><div class="val">' + (f.location ? escapeHtml(slCap(f.location)) : 'TBC') + '</div></div>' +
         '<div><div class="label">Extent</div><div class="val">' + escapeHtml(extTxt) + '</div></div>' +
       '</div>' +
       '<div class="block"><div class="label">Observation</div><p>' + (f.description ? escapeHtml(f.description) : 'TBC') + '</p></div>' +
@@ -18059,8 +18142,16 @@ function slRenderFindings(survey, costInfo) {
       if (mode === 'repair' && typeof c === 'number' && isFinite(c)) sum += c;
     });
     const val = !costsPresent ? 'TBC' : ((mode === 'works') ? 'Included' : slGBP(sum));
-    return '<div class="crow"><span>' + escapeHtml(g.area) + '</span><span>' + val + '</span></div>';
+    return '<div class="crow"><span>' + escapeHtml(slCap(g.area)) + '</span><span>' + val + '</span></div>';
   }).join('');
+  // Site-wide items group (Defect 3): itemised in the Cost by area panel with its
+  // own subtotal so the printed total reconciles with the visible lines.
+  const swList = (costsPresent && mode === 'repair' && Array.isArray(ci.standing)) ? ci.standing : [];
+  const siteWideRows = swList.length
+    ? ('<div class="crow sw-head"><span>Site-wide items</span><span></span></div>' +
+        swList.map(function(it){ return '<div class="crow"><span>' + escapeHtml(slCap(it.label)) + '</span><span>' + slGBP(it.amount) + '</span></div>'; }).join('') +
+        '<div class="crow sw-sub"><span>Site-wide items subtotal</span><span>' + slGBP(ci.standingTotal || 0) + '</span></div>')
+    : '';
 
   const grand     = !costsPresent ? 'TBC' : slGBP(ci.total);
   const grandRow  = !costsPresent ? 'TBC' : (slGBP(ci.total) + ' +VAT');
@@ -18100,6 +18191,7 @@ function slRenderFindings(survey, costInfo) {
           '<div class="fcol cba">' +
             '<div class="label" style="margin-bottom:6px;">Cost by area</div>' +
             areaRows +
+            siteWideRows +
             '<div class="crow t"><span>Total for all works</span><span>' + grandRow + '</span></div>' +
           '</div>' +
           '<div class="fcol cba">' +
