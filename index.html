@@ -7439,7 +7439,7 @@ function costPanelGeometrySection(survey){
 function costPanelBrief(survey){
   var s = survey || {};
   var ref = (typeof novaSurveyIdFor === 'function' ? novaSurveyIdFor(s) : ('NOV-' + (s.id || ''))) || 'NOV-';
-  var addr = String(s['f-site-address'] || '').trim() || 'address TBC';
+  var addr = (typeof slSiteAddress === 'function' ? slSiteAddress(s) : '') || 'address TBC';
   var dur = s['f-visit-duration'];
   var timeOnsite = (dur != null && String(dur).trim() !== '') ? (dur + ' minutes') : 'not recorded';
   var faults = (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.slice() : []).sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); });
@@ -7558,7 +7558,7 @@ function costPanelDerivedLines(survey){
 function costPanelWorksBreakout(survey){
   var s = survey || {};
   var ref = (typeof novaSurveyIdFor === 'function' ? novaSurveyIdFor(s) : ('NOV-' + (s.id || ''))) || 'NOV-';
-  var addr = String(s['f-site-address'] || '').trim() || 'address TBC';
+  var addr = (typeof slSiteAddress === 'function' ? slSiteAddress(s) : '') || 'address TBC';
   // The template appends its own full stop, so trim a trailing one from the
   // captured note to avoid a double period.
   var rawCtx = String(s['f-site-context'] || '').trim();
@@ -15227,7 +15227,7 @@ function slRenderExec(survey) {
   const lifeWorks = s['f-remaining-life-postworks'] || 'TBC';
 
   const vi = s.visit || {};
-  const addrHtml = [s['f-site-address'], s['f-postcode']]
+  const addrHtml = [slSiteAddress(s), slSitePostcode(s)]
     .map(function(x){ return (x || '').trim(); }).filter(Boolean).map(escapeHtml).join(', ');
   const visitHtml = [vi.date ? fmtDate(vi.date) : '', apptTimeDisplay(vi, false), (vi.weather || '').trim()]
     .filter(Boolean).map(escapeHtml).join(' &middot; ');
@@ -15400,6 +15400,28 @@ function slCap(str){
   var s = String(str == null ? '' : str);
   return s ? (s.charAt(0).toUpperCase() + s.slice(1)) : s;
 }
+// The site address the report / banner / copy blocks should read. The capture
+// form writes s.site.address (current schema); s['f-site-address'] is the legacy
+// flat key kept for un-migrated records. Fallback order: site address, then any
+// client / correspondence address, then blank (which renders TBC). Non-destructive
+// - both stored values are preserved. Fixes the flat-vs-nested read mismatch that
+// printed ADDRESS TBC while the Site info panel showed a populated address.
+function slSiteAddress(s){
+  s = s || {};
+  var site = s.site || {}, ec = s.endClient || {};
+  var candidates = [ site.address, s['f-site-address'], ec.address, ec.correspondenceAddress, s.correspondenceAddress ];
+  for (var i = 0; i < candidates.length; i++){
+    var v = String(candidates[i] == null ? '' : candidates[i]).trim();
+    if (v && v.toUpperCase() !== 'TBC') return v;
+  }
+  return '';
+}
+function slSitePostcode(s){
+  s = s || {};
+  var site = s.site || {};
+  var v = (site.postcode != null && String(site.postcode).trim() !== '') ? site.postcode : (s['f-postcode'] || s['f-site-postcode'] || '');
+  return String(v).trim();
+}
 // Round a number to at most one decimal place, without a trailing ".0"
 // (76.80000000000001 -> "76.8", 12 -> "12"). Non-numeric -> null.
 function slNum1(v){
@@ -15437,8 +15459,9 @@ function slFmtYears(v){
 function slReportPrintWarnings(survey){
   var s = survey || {};
   var warns = [];
-  var addr = String(s['f-site-address'] || '').trim();
-  if (addr === '' || addr.toUpperCase() === 'TBC') warns.push({ msg: 'Section A site address is ' + (addr === '' ? 'blank' : "'TBC'") + '; the report prints ADDRESS TBC until it is filled in.' });
+  // Warn only when the address the report ACTUALLY reads (slSiteAddress) is blank,
+  // so a populated Section A address no longer trips a false "blank" alarm.
+  if (slSiteAddress(s) === '') warns.push({ msg: 'Section A site address is blank; the report prints ADDRESS TBC until it is filled in.' });
   var faults = Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : [];
   faults.slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); }).forEach(function(f){
     var ref = 'F' + (f.number != null ? f.number : '?');
