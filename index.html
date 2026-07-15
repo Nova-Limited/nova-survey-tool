@@ -2668,7 +2668,9 @@ input.derived-field { background: #f6f8fa; color: #555; }
           font-size:11px;letter-spacing:.14em;font-weight:600;margin-top:12px;}
   .sl-report .prep{font-size:11px;letter-spacing:.2em;color:rgba(255,255,255,.6);}
   .sl-report .prep b{color:#fff;}
-  .sl-report .cv-mid{display:flex;justify-content:space-between;align-items:flex-end;}
+  /* Interim spacing correction (Defect C): the bottom-aligned title sat tight on
+     the cv-foot rule; this margin lifts it clear at any title-line count. */
+  .sl-report .cv-mid{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:36px;}
   /* BRAND FIX: cover headline crisp white (not inherited dark ink) */
   .sl-report .cv-mid h1{font-size:42px;font-weight:700;line-height:1.12;letter-spacing:-.02em;max-width:660px;color:#fff;}
   .sl-report .stats{min-width:170px;display:flex;flex-direction:column;gap:22px;}
@@ -15164,28 +15166,39 @@ function slRenderElevationsFigure(survey){
 // markers drawn at their image-fractional positions (rotating with the image,
 // labels kept upright). The stage is sized so a 90/270 rotation still covers the
 // box; markers are cover-corrected using the original image dims (siteImageW/H).
+// Off-image tolerance: a fraction within 2% of the [0,1] image edge is treated as
+// on-image (edge) and clamped in; further out is genuinely off-image.
+var SL_AERIAL_TOL = 0.02;
+function slMarkerOffImage(f){
+  if (!f || f.unlocatable || !isFinite(Number(f.imgU)) || !isFinite(Number(f.imgV))) return false;
+  var u = Number(f.imgU), v = Number(f.imgV);
+  return (u < -SL_AERIAL_TOL || u > 1 + SL_AERIAL_TOL || v < -SL_AERIAL_TOL || v > 1 + SL_AERIAL_TOL);
+}
 function slAerialFigure(s, src, rot){
   var boxW = 380, boxH = 200;
   var swapped = (rot === 90 || rot === 270);
   var SW = swapped ? boxH : boxW, SH = swapped ? boxW : boxH;   // unrotated stage dims
   var IW = Number(s.siteImageW) || SW, IH = Number(s.siteImageH) || SH;
-  var scale = Math.max(SW / IW, SH / IH);                       // object-fit: cover
+  // CONTAIN: the WHOLE site image is shown, letterboxed in the figure's own
+  // (dark ink) background - never cropped, never filler bars.
+  var scale = Math.min(SW / IW, SH / IH);
   var dispW = IW * scale, dispH = IH * scale;
-  var offX = (dispW - SW) / 2, offY = (dispH - SH) / 2;
-  var faults = (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).filter(function(f){
-    return f && !f.unlocatable && isFinite(Number(f.imgU)) && isFinite(Number(f.imgV));
-  });
-  var dots = faults.map(function(f){
-    var px = Number(f.imgU) * dispW - offX, py = Number(f.imgV) * dispH - offY;
-    if (px < 0 || px > SW || py < 0 || py > SH) return '';        // cropped out of view
+  var offX = (SW - dispW) / 2, offY = (SH - dispH) / 2;         // letterbox margins (>=0)
+  var dots = '';
+  (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).forEach(function(f){
+    if (!f || f.unlocatable || !isFinite(Number(f.imgU)) || !isFinite(Number(f.imgV))) return;
+    if (slMarkerOffImage(f)) return;                             // genuinely off-image -> pre-print banner, not drawn
+    var u = Math.min(1, Math.max(0, Number(f.imgU)));            // clamp on-image markers into the figure
+    var v = Math.min(1, Math.max(0, Number(f.imgV)));
+    var px = offX + u * dispW, py = offY + v * dispH;            // on the contained image
     var col = (typeof FAULT_SEV_COLORS !== 'undefined' && FAULT_SEV_COLORS[f.severity]) || '#9ca3af';
     var up = rot ? (' rotate(-' + rot + 'deg)') : '';
-    return '<span class="aerial-mk" style="left:' + (px / SW * 100) + '%;top:' + (py / SH * 100) + '%;background:' + col + ';transform:translate(-50%,-50%)' + up + ';">F' + (f.number != null ? f.number : '?') + '</span>';
-  }).join('');
+    dots += '<span class="aerial-mk" style="left:' + (px / SW * 100) + '%;top:' + (py / SH * 100) + '%;background:' + col + ';transform:translate(-50%,-50%)' + up + ';">F' + (f.number != null ? f.number : '?') + '</span>';
+  });
   var stageStyle = 'position:absolute;top:50%;left:50%;width:' + SW + 'px;height:' + SH + 'px;' +
     'transform:translate(-50%,-50%)' + (rot ? (' rotate(' + rot + 'deg)') : '') + ';';
   return '<div class="aerial-stage" style="' + stageStyle + '">' +
-           '<img src="' + src + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
+           '<img src="' + src + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;">' +
            dots +
          '</div>';
 }
@@ -15472,6 +15485,14 @@ function slReportPrintWarnings(survey){
     var ext = (typeof faultExtent === 'function') ? faultExtent(f) : { qty: 0 };
     if (!ext || !isFinite(Number(ext.qty)) || Number(ext.qty) === 0) warns.push({ msg: 'Fault ' + ref + ' extent is zero / not set; the report prints a dash. Set the extent on the fault.' });
   });
+  // Aerial: a marker pinned OFF the site image is omitted from the figure (rather
+  // than drawn outside it), and flagged here so it is never silently dropped.
+  var hasAerial = (s.siteImageSource === 'upload') && !!(s.siteImageData || s.siteImageKey);
+  if (hasAerial){
+    faults.slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); }).forEach(function(f){
+      if (typeof slMarkerOffImage === 'function' && slMarkerOffImage(f)) warns.push({ msg: 'Fault F' + (f.number != null ? f.number : '?') + ' is pinned off the site image, so it is omitted from the aerial figure. Re-place it on the plan (Footprint / site plan) to show it.' });
+    });
+  }
   // Roof build-up asbestos - noted so an asbestos status is never silently dropped.
   var builds = Array.isArray(s.buildings) ? s.buildings : [];
   builds.forEach(function(b, i){
