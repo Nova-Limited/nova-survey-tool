@@ -2572,11 +2572,12 @@ input.derived-field { background: #f6f8fa; color: #555; }
      card can never overflow the page and collide with the foot; the photo well
      flex-shrinks to absorb the overflow instead. */
   .sl-report .sheet.sl-cards-sheet{height:735px;}
-  .sl-report .sheet.sl-cards-sheet .pad{padding-bottom:60px;}
+  .sl-report .sheet.sl-cards-sheet .pad{padding:32px 46px 52px;}
   /* The card region fills the space above the reserved foot and clips there, so
      content can never reach the foot; the photo well flex-shrinks first, so on a
      normal card nothing clips and only an unusually long card loses its tail. */
-  .sl-report .sheet.sl-cards-sheet .cardwrap{flex:1 1 auto;min-height:0;overflow:hidden;}
+  .sl-report .sheet.sl-cards-sheet .cardwrap.pair{flex:1 1 auto;min-height:0;overflow:hidden;}
+  .sl-report .sheet.sl-cards-sheet .cardwrap.pair .scard{overflow:hidden;}
 
   /* bleed clip: fills the sheet exactly so decoration can never extend it */
   .sl-report .bleed{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
@@ -2629,9 +2630,11 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .sp-key-dim{width:18px;height:0;border-top:2px solid var(--orange);flex:0 0 auto;}
   .sl-report .sp-key-note{font-size:11px;color:var(--grey);line-height:1.55;max-width:280px;margin-top:6px;}
   .sl-report .aerial .aerial-stage{overflow:hidden;}
-  .sl-report .aerial .aerial-mk{position:absolute;min-width:18px;height:18px;padding:0 4px;border-radius:9px;border:2px solid #fff;
-          box-shadow:0 1px 3px rgba(0,0,0,.5);color:#fff;font-size:9px;font-weight:800;line-height:14px;text-align:center;
-          font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;white-space:nowrap;z-index:2;}
+  .sl-report .aerial .aerial-mk{position:absolute;width:34px;height:34px;border-radius:7px;background:#26262e;
+          display:flex;align-items:center;justify-content:center;box-shadow:0 2px 7px rgba(0,0,0,.45);z-index:2;}
+  .sl-report .aerial .aerial-mk .amk-c{width:26px;height:26px;border-radius:50%;background:var(--orange);color:#fff;
+          font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;
+          font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;}
   .sl-report .aerial .aerial-plan{position:absolute;inset:0;background:#faf9f6;}
   /* the plan is constrained to the area ABOVE the badge strip (26px) so the whole
      drawing (every marker, wherever pinned) sits clear of the badge; the badge
@@ -2708,113 +2711,185 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .ex-mid{ display:flex; gap:40px; align-items:flex-start; margin-top:46px; }
   .sl-report .ex-mid .site{ flex:1; }
   .sl-report .ex-mid .aerial{ width:380px; }
-  .sl-report .areas{margin-top:22px;}
-  .sl-report .area{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid var(--line);}
-  .sl-report .area:first-child{border-top:none;}
-  .sl-report .area .an{font-size:14px;font-weight:700;}
-  .sl-report .area .af{font-size:12px;color:var(--grey);margin-top:2px;}
-  .sl-report .pills{display:flex;gap:5px;}
+  /* Areas surveyed — four-column severity matrix (target p4) */
+  .sl-report .am-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:22px;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .sl-report .am-table thead th{background:var(--ink);color:#fff;text-align:left;font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;padding:16px 22px;}
+  .sl-report .am-table thead th.am-h-area{width:41%;}
+  .sl-report .am-hd{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:9px;vertical-align:1px;}
+  .sl-report .am-row td{border-top:1px solid var(--line);padding:18px 22px;vertical-align:middle;}
+  .sl-report .am-row:first-child td{border-top:none;}
+  .sl-report .am-cell{border-left:1px solid var(--line);}
+  .sl-report .am-an{font-size:15px;font-weight:700;color:var(--ink);}
+  .sl-report .am-af{font-size:12px;color:var(--grey);margin-top:3px;}
+  /* density tiers so many-area surveys (up to 12) fit the fixed areas sheet */
+  .sl-report .am-table.am-mid{margin-top:18px;}
+  .sl-report .am-table.am-mid thead th{padding:10px 22px;}
+  .sl-report .am-table.am-mid .am-row td{padding:9px 22px;}
+  .sl-report .am-table.am-dense{margin-top:14px;}
+  .sl-report .am-table.am-dense thead th{padding:7px 22px;font-size:10px;}
+  .sl-report .am-table.am-dense .am-row td{padding:3px 22px;}
+  .sl-report .am-table.am-dense .am-an{font-size:12.5px;}
+  .sl-report .am-table.am-dense .am-af{font-size:10.5px;margin-top:0;}
+  .sl-report .am-table.am-dense .sl-sev-pill{padding-top:2px;padding-bottom:2px;font-size:10.5px;}
   .sl-report .pill{width:14px;height:7px;border-radius:4px;}
 
-  /* schedule table */
-  .sl-report table{width:100%;border-collapse:collapse;margin-top:9px;}
-  .sl-report thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);text-align:left;
-           font-weight:700;padding:0 8px 5px;}
-  .sl-report thead th.r{text-align:right;}
-  .sl-report .grp td{background:var(--light);font-weight:700;font-size:12.5px;padding:5px 10px;border-left:3px solid var(--orange);}
-  .sl-report .grp td .gf{float:right;color:var(--grey);font-weight:600;}
-  .sl-report tbody td{font-size:11.5px;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:middle;}
-  .sl-report td.ref{font-weight:700;width:42px;}
-  .sl-report td.loc{width:185px;}
-  .sl-report .evlink{text-decoration:none;}
-  .sl-report .sl-sched h2{margin:6px 0 12px;}
-  .sl-report td.cost{text-align:right;font-weight:700;width:80px;white-space:nowrap;}
-  .sl-report td.ev{width:34px;text-align:center;}
-  .sl-report .evbox{display:inline-block;width:18px;height:16px;border:1px solid var(--line);border-radius:3px;color:#b8bcc2;font-size:10px;line-height:15px;}
-  .sl-report .sev{display:inline-block;padding:3px 9px;border-radius:11px;font-size:9px;font-weight:800;letter-spacing:.06em;color:#fff;}
-  .sl-report .sev.critical{background:var(--crit);} .sl-report .sev.poor{background:var(--poor);}
-  .sl-report .sev.fair{background:var(--fair);} .sl-report .sev.monitor{background:var(--mon);}
-  .sl-report tr.sub td{font-size:12px;font-weight:700;color:var(--grey);text-align:right;padding:6px 8px;border:none;}
-  .sl-report tr.sub td b{color:var(--ink);}
+  /* Visual-target v2 severity pills + chips (shared: areas / schedule / cards / findings) */
+  .sl-report .sl-sev-pill{display:inline-block;padding:5px 14px;border-radius:13px;font-size:12px;font-weight:800;letter-spacing:.02em;white-space:nowrap;}
+  .sl-report .sl-sev-pill.up{font-size:10.5px;letter-spacing:.09em;padding:5px 12px;}
+  .sl-report .sl-sev-pill.sev-critical{background:#f6dede;color:#a5283a;}
+  .sl-report .sl-sev-pill.sev-poor{background:#f6e7c8;color:#8a5a12;}
+  .sl-report .sl-sev-pill.sev-fair{background:#dfeaf5;color:#265f8c;}
+  .sl-report .sl-sev-pill.sev-monitor{background:#dff0e6;color:#1f6b40;}
+  .sl-report .sl-sev-chip{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:700;padding:8px 16px;border-radius:18px;}
+  .sl-report .sl-sev-chip .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+  .sl-report .sl-sev-chip.sev-critical{background:rgba(194,20,59,.18);color:#eda0a0;} .sl-report .sl-sev-chip.sev-critical .dot{background:var(--crit);}
+  .sl-report .sl-sev-chip.sev-poor{background:rgba(247,144,30,.18);color:#eec084;} .sl-report .sl-sev-chip.sev-poor .dot{background:var(--poor);}
+  .sl-report .sl-sev-chip.sev-fair{background:rgba(47,127,196,.18);color:#a8cbe8;} .sl-report .sl-sev-chip.sev-fair .dot{background:var(--fair);}
+  .sl-report .sl-sev-chip.sev-monitor{background:rgba(47,158,92,.18);color:#9fd3b4;} .sl-report .sl-sev-chip.sev-monitor .dot{background:var(--mon);}
+  .sl-report .sl-sev-chip.zero{background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);} .sl-report .sl-sev-chip.zero .dot{background:rgba(255,255,255,.35);}
 
-  /* boxes row — flex so the two boxes are equal height and bottom-aligned
-     (the severity tally sizes the row; the totals box stretches to match). */
-  .sl-report .boxrow{display:flex;align-items:stretch;width:100%;margin-top:18px;}
-  /* Costed schedule only: pin the totals boxrow to the foot of its sheet. The
-     .pad is a flex column, so margin-top:auto absorbs the vertical slack and
-     drops the boxrow to the bottom on a sparse sheet, while a full sheet (no
-     slack) keeps it in normal flow right after the table. Extra bottom padding
-     holds a clear gap above the in-content foot. Placement/size only — the
-     boxrow / totalbox / sevbox styling is unchanged. */
-  .sl-report .sheet.sl-sched .pad{ padding-bottom:72px; }
-  .sl-report .sheet.sl-sched .boxrow{ margin-top:auto; }
-  .sl-report .boxcell{display:flex;}
-  .sl-report .boxcell:first-child{flex:1;}
-  .sl-report .boxcell.gap{flex:0 0 24px;display:block;}
-  .sl-report .boxcell:last-child{flex:0 0 380px;}
-  .sl-report .totalbox{background:var(--ink);color:#fff;border-radius:10px;padding:20px 28px;position:relative;overflow:hidden;width:100%;display:flex;flex-direction:column;justify-content:flex-end;}
-  .sl-report .totalbox .rings{opacity:1;}
-  .sl-report .totalbox .tk{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
-  .sl-report .totalbox .tv{font-size:37px;font-weight:800;margin-top:5px;line-height:1;}
-  .sl-report .totalbox .tv small{font-size:15px;font-weight:600;color:rgba(255,255,255,.65);}
-  .sl-report .totalbox .brk{position:absolute;right:28px;top:22px;text-align:right;font-size:12px;color:rgba(255,255,255,.7);line-height:1.7;}
-  .sl-report .sevbox{width:100%;border:1px solid var(--line);border-radius:10px;padding:13px 28px 20px;}
-  .sl-report .sevbox .sk{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:5px;}
-  .sl-report .sevbox .sr{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line);}
-  .sl-report .sevbox .sr .dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:10px;vertical-align:-1px;}
-  .sl-report .sevbox .sr.tot{border-bottom:none;font-weight:700;}
-  .sl-report .sevbox .sr .n{font-weight:700;}
+  /* schedule table (target p5-7) */
+  .sl-report .sched-head{display:flex;justify-content:space-between;align-items:baseline;}
+  .sl-report .sched-page{font-size:11px;letter-spacing:.11em;font-weight:700;color:var(--orange);white-space:nowrap;}
+  .sl-report table{width:100%;border-collapse:collapse;margin-top:9px;}
+  .sl-report thead th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);text-align:left;
+           font-weight:700;padding:0 8px 11px;border-bottom:1px solid #cfd2d6;}
+  .sl-report thead th.r{text-align:right;}
+  .sl-report .grp td{font-weight:700;font-size:14.5px;padding:15px 8px 9px;color:var(--ink);}
+  .sl-report .grp td .gf{float:right;color:var(--grey);font-weight:400;font-size:12px;}
+  .sl-report tbody td{font-size:12px;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;color:#3f4044;line-height:1.5;}
+  .sl-report td.ref{font-weight:700;width:42px;color:var(--ink);}
+  .sl-report td.loc{width:200px;}
+  .sl-report .evlink{text-decoration:none;color:var(--orange);}
+  .sl-report .sl-sched h2{margin:6px 0 14px;}
+  .sl-report td.cost{text-align:right;font-weight:700;width:88px;white-space:nowrap;color:var(--ink);}
+  .sl-report td.ev{width:40px;text-align:center;}
+  .sl-report .evbox{color:var(--orange);font-size:15px;font-weight:700;}
+  .sl-report .sw-prov{color:var(--grey);}
+  .sl-report tr.sub td{background:#eef0f2;border:none;padding:11px 8px;vertical-align:middle;}
+  .sl-report tr.sub .sub-lbl{text-align:right;font-size:11.5px;letter-spacing:.06em;font-weight:700;color:var(--grey);text-transform:uppercase;}
+  .sl-report tr.sub .sub-cost{text-align:right;font-size:13px;font-weight:800;color:var(--ink);width:88px;white-space:nowrap;}
+
+  /* closing panels (Amendment 1: follow the table content, not the foot) */
+  .sl-report .sheet.sl-sched .pad{ padding-bottom:52px; }
+  .sl-report .sl-closerow{display:flex;gap:28px;align-items:stretch;margin-top:36px;}
+  .sl-report .sl-recon{flex:1;border:1px solid var(--line);border-radius:12px;padding:20px 26px;}
+  .sl-report .rc-k{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--grey);text-transform:uppercase;margin-bottom:14px;}
+  .sl-report .rc-cols{display:flex;gap:36px;}
+  .sl-report .rc-col{flex:1;}
+  .sl-report .rc-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:7px 0;border-bottom:1px dotted #cfd2d6;}
+  .sl-report .rc-row span:last-child{font-weight:700;color:var(--ink);white-space:nowrap;}
+  .sl-report .sl-totalpanel{flex:0 0 46%;background:var(--ink);color:#fff;border-radius:12px;border-top:3px solid var(--orange);position:relative;overflow:hidden;padding:28px 32px;display:flex;flex-direction:column;justify-content:center;}
+  .sl-report .tp-in{position:relative;z-index:2;}
+  .sl-report .tp-k{font-size:11px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
+  .sl-report .tp-v{font-size:48px;font-weight:800;line-height:1;margin-top:10px;}
+  .sl-report .tp-v small{font-size:18px;font-weight:600;color:rgba(255,255,255,.6);}
+  .sl-report .tp-sev{font-size:13px;color:rgba(255,255,255,.66);margin-top:16px;}
 
   /* detail cards */
-  .sl-report .cards{display:flex;gap:30px;margin-top:10px;flex:1;position:relative;min-height:0;}
-  .sl-report .card{flex:1;border:1px solid var(--line);border-radius:12px;padding:20px 24px;position:relative;border-left:4px solid var(--crit);display:flex;flex-direction:column;}
-  /* matched pair: body text stays top, lead image + evidence set drop to the
-     bottom so both cards' images sit at the same height regardless of text. */
-  .sl-report .cardbtm{margin-top:auto;display:flex;flex-direction:column;min-height:0;}
-  .sl-report .card{min-height:0;}
-  .sl-report .card .chead{display:flex;align-items:center;justify-content:space-between;}
-  .sl-report .card .cid{display:flex;align-items:center;gap:12px;}
-  .sl-report .card .ftag{background:var(--crit);color:#fff;font-weight:800;font-size:13px;padding:6px 9px;border-radius:6px;}
-  .sl-report .card .ctitle{font-size:18px;font-weight:700;}
-  .sl-report .card .csev{background:var(--crit);color:#fff;font-size:10px;font-weight:800;letter-spacing:.06em;padding:5px 11px;border-radius:13px;}
-  .sl-report .kv{display:flex;gap:34px;margin-top:14px;}
-  .sl-report .kv .label{margin-bottom:3px;}
-  .sl-report .kv .val{font-size:13px;}
-  .sl-report .block{margin-top:12px;}
-  .sl-report .block .label{margin-bottom:5px;}
-  .sl-report .block p{font-size:12.5px;line-height:1.46;color:#3f4044;}
-  /* Priority-card photo well: was a 66px letterbox strip that hid the defect.
-     Now a usefully tall image well (~3:1 within the card width - as close to 3:2
-     as the two-cards-per-sheet constraint allows), centre-cropped so portrait
-     photos show the defect region rather than a sliver. */
-  .sl-report .photo{flex:0 1 132px;min-height:46px;background:var(--ink);border-radius:8px;margin-top:11px;position:relative;overflow:hidden;
-          background-size:cover;background-position:center;
-          display:flex;align-items:flex-end;padding:9px 14px;color:rgba(255,255,255,.55);font-size:11px;}
-  .sl-report .ev-set{display:flex;align-items:center;gap:14px;background:var(--light);border-radius:8px;padding:10px 14px;margin-top:12px;}
-  .sl-report .qr{width:46px;height:46px;background:
-      repeating-linear-gradient(0deg,#33343a 0 3px,#fff 3px 6px),
-      repeating-linear-gradient(90deg,#33343a 0 3px,transparent 3px 6px);
-      border-radius:4px;flex:none;}
-  .sl-report .ev-set .et{font-size:10px;letter-spacing:.1em;font-weight:700;color:var(--orange);text-transform:uppercase;}
-  .sl-report .ev-set .eu{font-size:12.5px;font-weight:700;margin-top:3px;}
-  .sl-report .ev-set .ep{font-size:11px;color:var(--grey);margin-top:2px;}
+  /* Priority fault cards - full-width, white body + right dark evidence column.
+     A PAIR of cards splits the sheet evenly (each flex:1); a LONE final card
+     sits at its natural content height, top-aligned (Amendment 4). */
+  .sl-report .sl-cards-sheet .chead-row{display:flex;justify-content:space-between;align-items:flex-start;gap:44px;margin-top:4px;}
+  .sl-report .sl-cards-sheet .chead-row h2{font-size:27px;}
+  .sl-report .sl-cards-sheet .chead-row .sub{text-align:right;max-width:430px;margin-top:5px;flex:none;font-size:12px;line-height:1.45;}
+  .sl-report .cardwrap{display:flex;flex-direction:column;gap:16px;}
+  .sl-report .cardwrap.pair{flex:1;}
+  .sl-report .scard{border:1px solid var(--line);border-top:3px solid var(--crit);border-radius:13px;overflow:hidden;background:#fff;position:relative;z-index:2;}
+  .sl-report .cardwrap.pair .scard{flex:1 1 auto;min-height:0;}
+  .sl-report .scard.sev-critical{border-top-color:var(--crit);}
+  .sl-report .scard.sev-poor{border-top-color:var(--poor);}
+  .sl-report .scard.sev-fair{border-top-color:var(--fair);}
+  .sl-report .scard.sev-monitor{border-top-color:var(--mon);}
+  .sl-report .scard-in{display:flex;align-items:stretch;height:100%;}
+  .sl-report .cbody{flex:1;min-width:0;padding:18px 30px 18px;display:flex;flex-direction:column;overflow:hidden;}
+  .sl-report .cb-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;}
+  .sl-report .cb-id{display:flex;align-items:baseline;gap:13px;min-width:0;}
+  .sl-report .cb-f{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-.01em;flex:none;}
+  .sl-report .cb-t{font-size:21px;font-weight:700;color:var(--ink);letter-spacing:-.01em;line-height:1.14;}
+  .sl-report .cb-kv{display:flex;gap:42px;margin-top:10px;}
+  .sl-report .cb-lbl{font-size:10px;letter-spacing:.13em;font-weight:700;text-transform:uppercase;color:var(--grey);margin-bottom:4px;}
+  .sl-report .cb-lbl.o{color:var(--orange);}
+  .sl-report .cb-val{font-size:14px;font-weight:700;color:var(--ink);}
+  .sl-report .cb-sec{margin-top:8px;}
+  .sl-report .cb-sec p{font-size:11px;line-height:1.4;color:#3f4044;margin:0;}
+  /* Right evidence column - dark, matches card height via align-items:stretch. */
+  .sl-report .cev{flex:0 0 236px;background:var(--ink);color:#fff;position:relative;display:flex;flex-direction:column;justify-content:space-between;padding:20px 24px;background-size:cover;background-position:center;overflow:hidden;}
+  .sl-report .cev-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,20,26,.55) 0%,rgba(20,20,26,.20) 34%,rgba(20,20,26,.72) 100%);z-index:1;}
+  .sl-report .cev-top{position:relative;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .sl-report .cev-lbl{font-size:10px;letter-spacing:.16em;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,.62);}
+  .sl-report .cev-qr{background:#fff;border-radius:8px;padding:5px;line-height:0;flex:none;}
+  .sl-report .cev-qr .qr{display:block;border-radius:3px;}
+  .sl-report .cev-foot{position:relative;z-index:2;}
+  .sl-report .cev-k{font-size:10px;letter-spacing:.12em;font-weight:700;text-transform:uppercase;color:var(--orange);}
+  .sl-report .cev-u{font-size:12.5px;font-weight:700;color:#fff;margin-top:5px;word-break:break-all;}
+  .sl-report .cev-p{font-size:11px;color:rgba(255,255,255,.55);margin-top:3px;}
 
-  /* findings */
-  .sl-report .find-grid{display:flex;gap:40px;margin-top:20px;flex:1;}
-  .sl-report .cba{flex:1;}
-  .sl-report .cba .crow{display:flex;justify-content:space-between;font-size:13.5px;padding:9px 0;border-bottom:1px solid var(--line);}
-  .sl-report .cba .crow.t{font-weight:700;border-bottom:2px solid var(--ink);}
-  .sl-report .cba .crow.sw-head{font-weight:700;color:var(--orange);border-bottom:1px solid var(--line);}
-  .sl-report .cba .crow.sw-sub{font-weight:700;border-bottom:1px solid var(--ink);}
-  .sl-report .note{font-size:11px;color:var(--grey);line-height:1.5;margin-top:12px;}
-  .sl-report .find-r{width:430px;}
-  .sl-report .narr{font-size:13px;line-height:1.6;color:#3f4044;margin-top:6px;}
-  .sl-report .three{display:flex;gap:30px;margin-top:22px;}
-  .sl-report .three .k{font-size:10px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
-  .sl-report .three .v{font-size:26px;font-weight:700;margin-top:6px;}
-  .sl-report .contact{display:flex;gap:46px;margin-top:24px;padding-top:20px;border-top:1px solid var(--line);}
-  .sl-report .contact .k{font-size:10px;letter-spacing:.14em;font-weight:700;color:var(--orange);text-transform:uppercase;}
-  .sl-report .contact .v{font-size:14px;font-weight:700;margin-top:5px;}
+  /* findings (p11) - left cost-by-area card (content-sized) + right dark totals
+     panel (fixed content, distributes evenly). The left card is density-adaptive
+     (comfy / mid / tight) so 12 areas x 8 standing items never clip. */
+  .sl-report .sheet.sl-find .pad{padding-bottom:54px;}
+  .sl-report .sl-find .find2{display:flex;gap:38px;margin-top:16px;flex:1;align-items:flex-start;min-height:0;}
+  .sl-report .fcard{flex:1;min-width:0;border:1px solid var(--line);border-radius:14px;padding:24px 30px 22px;box-shadow:0 1px 3px rgba(20,20,30,.05);}
+  .sl-report .fcard .fc-k{font-size:11px;letter-spacing:.16em;font-weight:700;text-transform:uppercase;color:var(--grey);margin-bottom:10px;}
+  .sl-report .fc-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-bottom:1px dotted #cfd2d6;}
+  .sl-report .fc-row .fl{color:var(--ink);}
+  .sl-report .fc-row .fv{font-weight:800;color:var(--ink);white-space:nowrap;}
+  .sl-report .fc-swhead{letter-spacing:.14em;font-weight:700;text-transform:uppercase;color:var(--grey);}
+  .sl-report .fc-row.sw{padding-left:14px;border-bottom:1px dotted #e4e6e9;}
+  .sl-report .fc-row.sw .fl{color:#55565a;font-weight:400;}
+  .sl-report .fc-row.sw .fv{font-weight:600;color:#3f4044;}
+  .sl-report .fc-row.swsub{border-bottom:none;border-top:1px solid var(--ink);}
+  .sl-report .fc-row.swsub .fl,.sl-report .fc-row.swsub .fv{font-weight:800;}
+  .sl-report .fc-total{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-top:2px solid var(--ink);}
+  .sl-report .fc-total .fl{font-weight:800;}
+  .sl-report .fc-total .fv{font-weight:800;}
+  .sl-report .fc-total .vat{font-weight:600;color:var(--grey);}
+  /* density tiers: row padding + font scale by list length so long lists fit */
+  .sl-report .fcard.comfy .fc-row{padding-top:7px;padding-bottom:7px;font-size:14px;}
+  .sl-report .fcard.comfy .fc-swhead{font-size:10px;padding-top:13px;padding-bottom:4px;}
+  .sl-report .fcard.comfy .fc-total{margin-top:13px;padding-top:14px;}
+  .sl-report .fcard.comfy .fc-total .fl{font-size:15px;} .sl-report .fcard.comfy .fc-total .fv{font-size:22px;} .sl-report .fcard.comfy .fc-total .vat{font-size:12px;}
+  .sl-report .fcard.mid .fc-row{padding-top:3.5px;padding-bottom:3.5px;font-size:12.5px;}
+  .sl-report .fcard.mid .fc-swhead{font-size:9.5px;padding-top:8px;padding-bottom:2px;}
+  .sl-report .fcard.mid .fc-total{margin-top:9px;padding-top:10px;}
+  .sl-report .fcard.mid .fc-total .fl{font-size:14px;} .sl-report .fcard.mid .fc-total .fv{font-size:20px;} .sl-report .fcard.mid .fc-total .vat{font-size:11px;}
+  .sl-report .fcard.tight .fc-row{padding-top:2px;padding-bottom:2px;font-size:11.5px;}
+  .sl-report .fcard.tight .fc-swhead{font-size:9px;padding-top:6px;padding-bottom:1px;}
+  .sl-report .fcard.tight .fc-total{margin-top:6px;padding-top:7px;}
+  .sl-report .fcard.tight .fc-total .fl{font-size:13px;} .sl-report .fcard.tight .fc-total .fv{font-size:18px;} .sl-report .fcard.tight .fc-total .vat{font-size:10px;}
+  .sl-report .fcard.xtight{padding:16px 26px 14px;}
+  .sl-report .fcard.xtight .fc-k{margin-bottom:6px;}
+  .sl-report .fcard.xtight .fc-row{padding-top:0.5px;padding-bottom:0.5px;font-size:10.5px;}
+  .sl-report .fcard.xtight .fc-swhead{font-size:8.5px;padding-top:4px;padding-bottom:0;}
+  .sl-report .fcard.xtight .fc-total{margin-top:4px;padding-top:5px;}
+  .sl-report .fcard.xtight .fc-total .fl{font-size:12px;} .sl-report .fcard.xtight .fc-total .fv{font-size:16px;} .sl-report .fcard.xtight .fc-total .vat{font-size:9px;}
+  /* right dark totals panel */
+  .sl-report .ftot{flex:0 0 45%;align-self:stretch;background:var(--ink);color:#fff;border-top:3px solid var(--orange);border-radius:16px;padding:30px 36px 32px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;}
+  .sl-report .ftot .ft-zone{position:relative;z-index:2;}
+  .sl-report .ft-k{font-size:11px;letter-spacing:.16em;font-weight:700;text-transform:uppercase;color:var(--orange);}
+  .sl-report .ft-big{font-size:60px;font-weight:800;letter-spacing:-.02em;line-height:1.02;margin-top:6px;}
+  .sl-report .ft-big .vat{font-size:22px;font-weight:700;color:rgba(255,255,255,.82);margin-left:8px;letter-spacing:0;}
+  .sl-report .ft-recon{font-size:13px;line-height:1.55;color:rgba(255,255,255,.72);margin-top:15px;max-width:430px;}
+  .sl-report .ft-mid{border-top:1px solid rgba(255,255,255,.15);padding-top:20px;}
+  .sl-report .ft-life-zone{border-top:1px solid rgba(255,255,255,.15);padding-top:20px;}
+  .sl-report .ft-sevgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px 44px;margin-top:14px;}
+  .sl-report .ft-sev{display:flex;align-items:center;justify-content:space-between;gap:14px;}
+  .sl-report .ft-sev .lab{display:flex;align-items:center;gap:10px;font-size:14px;color:#fff;}
+  .sl-report .ft-sev .dot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .sl-report .ft-sev .n{font-size:16px;font-weight:800;}
+  .sl-report .ft-sev.zero .lab,.sl-report .ft-sev.zero .n{color:rgba(255,255,255,.42);}
+  .sl-report .ft-sev.zero .dot{background:rgba(255,255,255,.3)!important;}
+  .sl-report .ft-life{display:flex;align-items:center;margin-top:14px;}
+  .sl-report .ft-life .lk{font-size:10px;letter-spacing:.14em;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,.55);width:104px;line-height:1.35;}
+  .sl-report .ft-life .tile{padding:0 26px;}
+  .sl-report .ft-life .tile+.tile{border-left:1px solid rgba(255,255,255,.15);}
+  .sl-report .ft-life .big{font-size:42px;font-weight:800;line-height:1;}
+  .sl-report .ft-life .big .u{font-size:15px;font-weight:700;margin-left:2px;}
+  .sl-report .ft-life .cap{font-size:11px;color:rgba(255,255,255,.62);margin-top:6px;}
+  .sl-report .ft-life .do .big{color:#e8837f;}
+  .sl-report .ft-life .wk .big{color:#7fc99b;}
+  .sl-report .fnote{font-size:11px;color:var(--grey);line-height:1.5;margin-top:14px;}
 
   /* findings — "next step" page (5b): the closing paragraph centred with real
      breathing room. margin:auto 0 centres it in the flex-column .pad (needs the
@@ -2905,6 +2980,35 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .closer-r .k{ font-size:10px; letter-spacing:.18em; font-weight:700; color:var(--grey); text-transform:uppercase; }
   .sl-report .closer-r .phone{ font-size:26px; font-weight:800; color:var(--orange); margin-top:6px; }
 
+  /* next-step (p12) v2 - recommendation/next-steps cards, journey tracker, dark
+     band; the .pad distributes the four zones evenly (Amendment 3, no dead band) */
+  .sl-report .sheet.sl-next .pad{ justify-content:space-between; padding-bottom:52px; }
+  .sl-report .nx-head{ flex:none; }
+  .sl-report .nx-cards{ display:flex; gap:34px; }
+  .sl-report .nx-card{ flex:1; min-width:0; border:1px solid var(--line); border-radius:14px; padding:26px 32px; box-shadow:0 1px 3px rgba(20,20,30,.05); }
+  .sl-report .nx-card.rec{ border-top:3px solid var(--orange); }
+  .sl-report .nx-k{ font-size:11px; letter-spacing:.16em; font-weight:700; text-transform:uppercase; color:var(--grey); margin-bottom:14px; }
+  .sl-report .nx-rec{ font-size:20px; font-weight:700; line-height:1.32; color:var(--ink); }
+  .sl-report .nx-body{ font-size:14px; line-height:1.66; color:#3f4044; margin:0; }
+  .sl-report .nx-journey{ flex:none; }
+  .sl-report .nx-jk{ font-size:11px; letter-spacing:.16em; font-weight:700; text-transform:uppercase; color:var(--grey); margin-bottom:16px; }
+  .sl-report .nx-steps{ display:flex; gap:20px; }
+  .sl-report .nx-step{ flex:1; min-width:0; }
+  .sl-report .nx-bar{ height:3px; border-radius:2px; background:#e0e2e5; margin-bottom:15px; }
+  .sl-report .nx-step.done .nx-bar, .sl-report .nx-step.current .nx-bar{ background:var(--orange); }
+  .sl-report .nx-circrow{ display:flex; align-items:center; gap:11px; height:30px; }
+  .sl-report .nx-circle{ width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex:none; }
+  .sl-report .nx-step.done .nx-circle{ background:var(--orange); color:#fff; }
+  .sl-report .nx-step.current .nx-circle{ background:var(--orange); color:#fff; }
+  .sl-report .nx-step.future .nx-circle{ background:#eceef0; color:var(--grey); }
+  .sl-report .nx-here{ font-size:9px; font-weight:800; letter-spacing:.06em; color:var(--orange); text-transform:uppercase; white-space:nowrap; line-height:1.15; }
+  .sl-report .nx-label{ font-size:13px; font-weight:700; color:var(--ink); line-height:1.25; margin-top:13px; }
+  .sl-report .nx-desc{ font-size:10.5px; color:var(--grey); line-height:1.35; margin-top:4px; }
+  .sl-report .nx-band{ flex:none; background:var(--ink); border-radius:14px; padding:24px 34px; display:flex; align-items:center; gap:26px; position:relative; overflow:hidden; }
+  .sl-report .nx-band-k{ font-size:11px; letter-spacing:.16em; font-weight:700; text-transform:uppercase; color:rgba(255,255,255,.6); flex:none; position:relative; z-index:2; }
+  .sl-report .nx-band-txt{ flex:1; font-size:14px; line-height:1.5; color:rgba(255,255,255,.85); position:relative; z-index:2; }
+  .sl-report .nx-band-phone{ font-size:26px; font-weight:800; color:var(--orange); white-space:nowrap; position:relative; z-index:2; }
+
   /* back — closer composition */
   .sl-report .bk-eyebrow{ font-size:11px; letter-spacing:.2em; font-weight:700; color:var(--orange); text-transform:uppercase; margin-top:44px; }
   .sl-report .bk-closer{ font-size:34px; font-weight:700; color:#fff; line-height:1.15; letter-spacing:-.01em; margin-top:14px; max-width:680px; }
@@ -2913,8 +3017,45 @@ input.derived-field { background: #f6f8fa; color: #555; }
   /* ---- TIER 1 unified report — surveyor narrative landings ---- */
   /* exec: surveyor's own executive summary paragraph(s), under the auto-lede */
   .sl-report .ex-summary{ margin-top:14px; max-width:980px; }
-  .sl-report .ex-summary p{ font-size:13px; line-height:1.6; color:var(--ink); }
-  .sl-report .ex-summary p + p{ margin-top:8px; }
+  .sl-report .ex-summary p{ font-size:14px; line-height:1.65; color:#3f4044; }
+  .sl-report .ex-summary p + p{ margin-top:12px; }
+
+  /* Exec v2 (target p2/p3) */
+  .sl-report .ex-grid{ display:flex; gap:48px; margin-top:34px; flex:1; min-height:0; }
+  .sl-report .ex-left{ flex:1; display:flex; flex-direction:column; min-width:0; }
+  .sl-report .ex-lede{ font-size:15px; line-height:1.7; color:#3f4044; }
+  .sl-report .ex-spacer{ flex:1; min-height:34px; }
+  .sl-report .ex-sitecard{ border:1px solid var(--line); border-top:3px solid var(--orange); border-radius:12px; padding:22px 26px; }
+  .sl-report .ex-sc-k{ font-size:11px; letter-spacing:.14em; font-weight:700; color:var(--grey); text-transform:uppercase; margin-bottom:16px; }
+  .sl-report .ex-srow{ display:flex; margin-bottom:13px; }
+  .sl-report .ex-srow:last-child{ margin-bottom:0; }
+  .sl-report .ex-srow .sk{ width:130px; flex:none; font-size:11px; letter-spacing:.1em; font-weight:700; color:var(--orange); text-transform:uppercase; padding-top:2px; }
+  .sl-report .ex-srow .sv{ color:#3f4044; font-size:13.5px; line-height:1.5; font-weight:600; }
+  .sl-report .ex-right{ flex:0 0 46%; display:flex; flex-direction:column; min-width:0; }
+  .sl-report .ex-fig-label{ font-size:11px; letter-spacing:.14em; font-weight:700; color:var(--grey); text-transform:uppercase; margin-bottom:12px; }
+  .sl-report .ex-right .aerial{ flex:1; height:auto; min-height:0; border-radius:12px; }
+  .sl-report .aerial .aerial-cap{ position:absolute; left:0; bottom:0; padding:16px 22px; color:rgba(255,255,255,.75); font-size:12.5px; z-index:3; }
+  /* p3 */
+  .sl-report .ex-cards{ display:flex; gap:28px; margin-top:10px; }
+  .sl-report .ex-card{ flex:1; border:1px solid var(--line); border-top:3px solid var(--orange); border-radius:12px; padding:22px 28px; background:#fff; }
+  .sl-report .ex-card-k{ font-size:11px; letter-spacing:.14em; font-weight:700; color:var(--grey); text-transform:uppercase; margin-bottom:13px; }
+  .sl-report .ex-card p{ font-size:14px; line-height:1.6; color:#3f4044; }
+  .sl-report .ex-card p + p{ margin-top:10px; }
+  .sl-report .ex-standpanel{ margin-top:28px; background:var(--ink); color:#fff; border-radius:16px; position:relative; overflow:hidden; padding:38px 44px 42px; }
+  .sl-report .ex-sp-in{ position:relative; z-index:2; }
+  .sl-report .ex-sp-k{ font-size:11px; letter-spacing:.16em; font-weight:700; color:var(--orange); text-transform:uppercase; }
+  .sl-report .ex-sp-title{ font-size:34px; font-weight:800; line-height:1.16; color:#fff; margin:16px 0 26px; max-width:920px; }
+  .sl-report .ex-sev-strip{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; }
+  .sl-report .ex-life{ display:flex; gap:24px; }
+  .sl-report .ex-life-tile{ flex:1; border-radius:12px; padding:24px 28px; border:1px solid; }
+  .sl-report .ex-life-tile.do{ background:rgba(194,20,59,.12); border-color:rgba(194,20,59,.32); }
+  .sl-report .ex-life-tile.works{ background:rgba(47,158,92,.12); border-color:rgba(47,158,92,.32); }
+  .sl-report .ex-life-tile .k{ font-size:11px; letter-spacing:.14em; font-weight:700; text-transform:uppercase; }
+  .sl-report .ex-life-tile.do .k{ color:#e69a97; } .sl-report .ex-life-tile.works .k{ color:#8fcaa6; }
+  .sl-report .ex-life-tile .v{ margin-top:12px; font-size:17px; font-weight:700; color:rgba(255,255,255,.85); }
+  .sl-report .ex-life-tile .v .num{ font-size:50px; font-weight:800; }
+  .sl-report .ex-life-tile.do .v .num{ color:#e8837f; } .sl-report .ex-life-tile.works .v .num{ color:#7fc99b; }
+  .sl-report .ex-life-tile .sub{ font-size:13px; color:rgba(255,255,255,.58); margin-top:10px; }
   /* exec: background row — client-reported + site-context panels, side by side */
   .sl-report .ex-bg-row{ display:flex; gap:24px; margin-top:18px; }
   .sl-report .ex-bg-col{ flex:1; background:#fafbfc; border:1px solid #e5e7eb; border-radius:6px; padding:14px 18px; }
@@ -14315,6 +14456,24 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
   return comparison('Rated Poor today. Priority works return the roof to ' + fmtLife(lifeWorks) + ' of life.', 'Before serious failure');
 }
 
+// Rating -> stand statement + life-tile sublabels (shared by the exec-continued
+// panel). Mirrors slExecCTA's rating vocabulary.
+function slStandMeta(rating){
+  var r = (rating || '').toLowerCase();
+  if (r === 'excellent') return { title:'Rated Excellent today. Continued routine maintenance keeps the roof in service indefinitely.', comparison:false, withSub:'Of remaining life with routine maintenance' };
+  if (r === 'good')      return { title:'Rated Good today. Planned maintenance keeps the roof in service for the long term.', comparison:false, withSub:'Of remaining life with planned maintenance' };
+  if (r === 'fair')      return { title:'Rated Fair today. Targeted works extend the life of the roof significantly.', comparison:false, withSub:'Of remaining life with the recommended works' };
+  if (r === 'critical')  return { title:'Rated Critical today. Urgent works are needed to prevent serious failure.', comparison:true, doSub:'Before water ingress', withSub:'Of remaining life with works' };
+  if (r === 'end of life') return { title:'Rated End of Life today. Replacement is required to restore the roof to a serviceable condition.', comparison:true, doSub:'Before failure', withSub:'Of remaining life with replacement' };
+  return { title:'Rated Poor today. Priority works return the roof to a serviceable condition.', comparison:true, doSub:'Before serious failure', withSub:'Of remaining life with works' };
+}
+// Life figure for the tiles: number -> "N", worded values pass through, empty -> dash.
+function slLifeFig(v){
+  if (v == null) return '—';
+  var str = String(v).trim(); if (str === '' || str.toUpperCase() === 'TBC') return 'TBC';
+  var n = (typeof slNum1 === 'function') ? slNum1(str) : null;
+  return (n != null) ? n : str;
+}
 function slRenderCover(survey) {
   const s = survey || {};
   // Site label shares the schedule eyebrow's rule (slSchedSiteLabel).
@@ -15199,9 +15358,8 @@ function slAerialFigure(s, src, rot){
     var u = Math.min(1, Math.max(0, Number(f.imgU)));            // clamp on-image markers into the figure
     var v = Math.min(1, Math.max(0, Number(f.imgV)));
     var px = offX + u * dispW, py = offY + v * dispH;            // on the contained image
-    var col = (typeof FAULT_SEV_COLORS !== 'undefined' && FAULT_SEV_COLORS[f.severity]) || '#9ca3af';
     var up = rot ? (' rotate(-' + rot + 'deg)') : '';
-    dots += '<span class="aerial-mk" style="left:' + (px / SW * 100) + '%;top:' + (py / SH * 100) + '%;background:' + col + ';transform:translate(-50%,-50%)' + up + ';">F' + (f.number != null ? f.number : '?') + '</span>';
+    dots += '<span class="aerial-mk" style="left:' + (px / SW * 100) + '%;top:' + (py / SH * 100) + '%;transform:translate(-50%,-50%)' + up + ';"><span class="amk-c">' + (f.number != null ? f.number : '?') + '</span></span>';
   });
   var stageStyle = 'position:absolute;top:50%;left:50%;width:' + SW + 'px;height:' + SH + 'px;' +
     'transform:translate(-50%,-50%)' + (rot ? (' rotate(' + rot + 'deg)') : '') + ';';
@@ -15269,70 +15427,82 @@ function slRenderExec(survey) {
         ? '<div class="aerial-plan">' + slRoofPlanSVG(s, { idSuffix: 'aerial', hideNotToScale: true }) + '<div class="aerial-plan-badge">Roof plan &middot; used as aerial</div></div>'
         : '<div class="bleed"><svg class="rings" style="right:-60px;bottom:-60px;" width="240" height="240" viewBox="0 0 240 240"><g fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"><circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="100"/><circle cx="200" cy="200" r="140"/></g></svg></div>SITE OVERVIEW &middot; AERIAL');
 
-  const row = function(k, vHtml) {
-    return '<div class="row"><div class="rk">' + k + '</div><div class="rv">' + (vHtml || 'TBC') + '</div></div>';
-  };
-
-  // The rating panel (CTA) is ALWAYS on the LAST exec page, anchored to the foot
-  // via the flex:1 spacer. One page when the content fits; otherwise the content
-  // takes page 1 and the rating panel takes page 2 (eyebrow "… (continued)"). The
-  // background row prefers page 1 but flows to page 2 if it does not fit there.
-  const burst = slBurst('ink', 'top:50%;right:-180px;width:460px;transform:translateY(-50%);opacity:.12;z-index:1;');
   const foot  = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
-  const ctaHtml = slExecCTA(condition, lifeNow, lifeWorks);
-  const topHtml =
-    '<div class="ex-top">' +
+
+  // PAGE 2 (target p2) — narrative + "The site" card on the left, labelled aerial right.
+  const srow = function(k, v){ return '<div class="ex-srow"><div class="sk">' + k + '</div><div class="sv">' + (v || 'TBC') + '</div></div>'; };
+  const siteCard =
+    '<div class="ex-sitecard">' +
+      '<div class="ex-sc-k">THE SITE</div>' +
+      srow('ADDRESS', addrHtml) + srow('VISIT', visitHtml) + srow('SURVEYOR', surveyorHtml) + srow('WORKS BRIEF', worksHtml) +
+    '</div>';
+  const p2 =
+    '<section class="sheet sl-exec"><div class="pad">' +
       '<div class="eyebrow">01 &middot; Executive summary</div>' +
       '<h2><span class="gt">&raquo;</span>The picture at a glance.</h2>' +
-      '<p class="body" style="margin-top:14px;">' + lede + '</p>' +
-      execSummaryHtml +
+      '<div class="ex-grid">' +
+        '<div class="ex-left">' +
+          '<p class="ex-lede">' + lede + '</p>' + execSummaryHtml +
+          '<div class="ex-spacer"></div>' + siteCard +
+        '</div>' +
+        '<div class="ex-right">' +
+          '<div class="ex-fig-label">AERIAL SITE FIGURE</div>' +
+          '<div class="aerial">' + aerialInner + '<div class="aerial-cap">Aerial capture with fault locations</div></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' + foot + '</section>';
+
+  // PAGE 3 (target p3) — two orange-ruled cards + dark stand panel.
+  const stand = slStandMeta(condition);
+  const chips = slSevChip('critical', stats.bySeverity.critical) + slSevChip('poor', stats.bySeverity.poor) +
+                slSevChip('fair', stats.bySeverity.fair) + slSevChip('monitor', stats.bySeverity.monitor);
+  const lifeTiles =
+    '<div class="ex-life">' +
+      '<div class="ex-life-tile do"><div class="k">IF YOU DO NOTHING</div><div class="v"><span class="num">' + escapeHtml(slLifeFig(lifeNow)) + '</span> years</div><div class="sub">' + escapeHtml(stand.doSub || 'Before failure') + '</div></div>' +
+      '<div class="ex-life-tile works"><div class="k">WITH THE PRIORITY WORKS</div><div class="v"><span class="num">' + escapeHtml(slLifeFig(lifeWorks)) + '</span> years</div><div class="sub">' + escapeHtml(stand.withSub || 'Of remaining life') + '</div></div>' +
     '</div>';
-  const siteHtml =
-    '<div class="ex-mid">' +
-      '<div class="site"><h3>The site</h3>' + row('Address', addrHtml) + row('Visit', visitHtml) +
-        row('Surveyor', surveyorHtml) + row('Works brief', worksHtml) + '</div>' +
-      '<div class="aerial">' + aerialInner + '</div>' +
+  const cards =
+    '<div class="ex-cards">' +
+      (clientIssuesTxt ? '<div class="ex-card"><div class="ex-card-k">WHAT THE CLIENT REPORTED</div>' + paras(clientIssuesTxt) + '</div>' : '') +
+      (siteContextTxt ? '<div class="ex-card"><div class="ex-card-k">SITE CONTEXT</div>' + paras(siteContextTxt) + '</div>' : '') +
     '</div>';
+  const standPanel =
+    '<div class="ex-standpanel">' +
+      slBurst('white', 'bottom:-90px;right:-70px;width:380px;opacity:.10;z-index:1;') +
+      '<div class="ex-sp-in">' +
+        '<div class="ex-sp-k">WHERE THIS ROOF STANDS</div>' +
+        '<h3 class="ex-sp-title">' + escapeHtml(stand.title) + '</h3>' +
+        '<div class="ex-sev-strip">' + chips + '</div>' +
+        lifeTiles +
+      '</div>' +
+    '</div>';
+  const p3 =
+    '<section class="sheet sl-exec"><div class="pad">' +
+      '<div class="eyebrow">01 &middot; Executive summary (continued)</div>' +
+      ((clientIssuesTxt || siteContextTxt) ? cards : '') +
+      standPanel +
+    '</div>' + foot + '</section>';
 
-  // Crude content-height estimate (px at A4 landscape) to choose 1 vs 2 pages.
-  const estLines = function(txt, cpl){ return txt ? txt.split(/\n{2,}/).reduce(function(n, p){ return n + Math.max(1, Math.ceil(p.replace(/\n/g, ' ').length / cpl)); }, 0) : 0; };
-  const estParas = function(txt){ return txt ? txt.split(/\n{2,}/).length : 0; };
-  const estBase = 80 + Math.max(1, estLines(lede, 120)) * 20;
-  const estSum  = execSummaryTxt ? (12 + estLines(execSummaryTxt, 118) * 20 + Math.max(0, estParas(execSummaryTxt) - 1) * 8) : 0;
-  const estSite = 224;
-  const estBg   = (clientIssuesTxt || siteContextTxt || buildupStmt) ? (95 + Math.max(estLines(clientIssuesTxt, 60), estLines(siteContextTxt, 60), estLines(buildupStmt, 60)) * 16) : 0;
-  const estCta  = 196;
-  const ONE_PAGE = 586;
-  const content  = estBase + estSum + estSite + estBg;
-
-  const sheet = function(inner){ return '<section class="sheet sl-exec">' + burst + '<div class="pad">' + inner + '</div>' + foot + '</section>'; };
-
-  if (content + estCta <= ONE_PAGE) {
-    // One page: everything, with the rating panel anchored to the foot.
-    return sheet(topHtml + siteHtml + bgRowHtml + '<div style="flex:1;"></div>' + ctaHtml);
-  }
-  // Two pages: page 1 carries the heading, summary and site details; page 2
-  // (continued) carries the background panels and the rating panel anchored to
-  // its foot — the balanced reading signed off through eye-check.
-  const contEyebrow = '<div class="ex-top"><div class="eyebrow">01 &middot; Executive summary (continued)</div></div>';
-  return sheet(topHtml + siteHtml) +
-         sheet(contEyebrow + bgRowHtml + '<div style="flex:1;"></div>' + ctaHtml);
+  return p2 + p3;
 }
 
 function slRenderAreasOverview(survey) {
   const s = survey || {};
   const stats = slFaultStats(s);
-  const SEV = ['critical', 'poor', 'fair', 'monitor'];
-  const VAR = { critical: 'var(--crit)', poor: 'var(--poor)', fair: 'var(--fair)', monitor: 'var(--mon)' };
-
+  // Four-column severity matrix (target p4): a tinted pill sits in the column
+  // matching each severity the area carries. Fair + Monitor share the last column.
   const rows = stats.areas.map(function(a) {
-    const pills = SEV.filter(function(k){ return a.bySeverity[k] > 0; })
-      .map(function(k){ return '<span class="pill" style="background:' + VAR[k] + '"></span>'; }).join('');
+    const b = a.bySeverity;
+    const critCell = b.critical > 0 ? slSevPill('critical') : '';
+    const poorCell = b.poor > 0 ? slSevPill('poor') : '';
+    const fmCell   = b.fair > 0 ? slSevPill('fair') : (b.monitor > 0 ? slSevPill('monitor') : '');
     const countTxt = a.count + ' fault' + (a.count === 1 ? '' : 's');
-    return '<div class="area">' +
-             '<div><div class="an">' + escapeHtml(a.name) + '</div><div class="af">' + countTxt + '</div></div>' +
-             '<div class="pills">' + pills + '</div>' +
-           '</div>';
+    return '<tr class="am-row">' +
+      '<td class="am-area"><div class="am-an">' + escapeHtml(slCap(a.name)) + '</div><div class="am-af">' + countTxt + '</div></td>' +
+      '<td class="am-cell">' + critCell + '</td>' +
+      '<td class="am-cell">' + poorCell + '</td>' +
+      '<td class="am-cell">' + fmCell + '</td>' +
+    '</tr>';
   }).join('');
 
   return '' +
@@ -15342,7 +15512,15 @@ function slRenderAreasOverview(survey) {
       '<div class="eyebrow">Areas surveyed</div>' +
       '<h2><span class="gt">&raquo;</span>' + stats.areaCount + ' area' + (stats.areaCount === 1 ? '' : 's') +
         ', ' + stats.total + ' fault' + (stats.total === 1 ? '' : 's') + '.</h2>' +
-      '<div class="areas" style="margin-top:18px;">' + rows + '</div>' +
+      '<table class="am-table ' + (stats.areaCount > 8 ? 'am-dense' : (stats.areaCount > 6 ? 'am-mid' : '')) + '">' +
+        '<thead><tr>' +
+          '<th class="am-h-area">AREA</th>' +
+          '<th><span class="am-hd" style="background:var(--crit)"></span>CRITICAL</th>' +
+          '<th><span class="am-hd" style="background:var(--poor)"></span>POOR</th>' +
+          '<th><span class="am-hd" style="background:var(--mon)"></span>FAIR / MONITOR</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
     '</div>' +
     '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
   '</section>';
@@ -15420,6 +15598,30 @@ function slSchedFaultRowUnits(f){
 function slCap(str){
   var s = String(str == null ? '' : str);
   return s ? (s.charAt(0).toUpperCase() + s.slice(1)) : s;
+}
+// Visual-target v2 severity vocabulary (tinted pills + dots). One source so the
+// areas matrix, schedule, cards, findings and exec panels stay consistent.
+var SL_SEV_META = {
+  critical: { label:'Critical', dot:'var(--crit)' },
+  poor:     { label:'Poor',     dot:'var(--poor)' },
+  fair:     { label:'Fair',     dot:'var(--fair)' },
+  monitor:  { label:'Monitor',  dot:'var(--mon)' }
+};
+function slSevKey(sev){ var k = String(sev || '').toLowerCase(); return SL_SEV_META[k] ? k : ''; }
+// A tinted severity pill. upper -> uppercase (schedule/cards); count appends "N".
+function slSevPill(sev, opts){
+  opts = opts || {};
+  var k = slSevKey(sev); if (!k) return '';
+  var m = SL_SEV_META[k];
+  var txt = m.label + (opts.count != null ? (' ' + opts.count) : '');
+  return '<span class="sl-sev-pill sev-' + k + (opts.upper ? ' up' : '') + '">' + escapeHtml(opts.upper ? m.label.toUpperCase() : txt) + '</span>';
+}
+// A severity chip pill (exec-continued strip). Zero-count chips read muted.
+function slSevChip(sev, count){
+  var k = slSevKey(sev); if (!k) return '';
+  var m = SL_SEV_META[k];
+  var zero = (Number(count) === 0);
+  return '<span class="sl-sev-chip sev-' + k + (zero ? ' zero' : '') + '"><span class="dot"></span>' + escapeHtml(m.label) + ' ' + count + '</span>';
 }
 // The site address the report / banner / copy blocks should read. The capture
 // form writes s.site.address (current schema); s['f-site-address'] is the legacy
@@ -15565,8 +15767,8 @@ function slRenderSchedule(survey, costInfo, opts) {
       const num = (f.number != null ? f.number : '?');
       const sev = (f.severity || '').toLowerCase();
       const sevPill = SEVSET[sev]
-        ? '<span class="sev ' + sev + '">' + sev.toUpperCase() + '</span>'
-        : '<span class="sev" style="background:var(--grey)">UNRATED</span>';
+        ? slSevPill(sev, { upper: true })
+        : '<span class="sl-sev-pill up" style="background:#ececec;color:#8a898b;">UNRATED</span>';
       const url = 'https://nova-limited.com/g/' + slug + '?f=F' + num;
       const ev = '<a class="evlink" href="' + url + '" target="_blank" rel="noopener"><span class="evbox">&#8599;</span></a>';
       const c = costsByRef['F' + num];
@@ -15584,8 +15786,8 @@ function slRenderSchedule(survey, costInfo, opts) {
     const contHeadRow = '<tr class="grp"><td colspan="6">' + escapeHtml(slCap(g.area)) +
       ' <span class="gf">continued</span></td></tr>';
     const subVal = !costsPresent ? 'TBC' : ((mode === 'works') ? 'Included' : slGBP(areaSum));
-    const subRow = '<tr class="sub"><td colspan="6">SUBTOTAL &middot; ' + escapeHtml(slCap(g.area)) +
-      '&nbsp;&nbsp;<b>' + subVal + '</b></td></tr>';
+    const subRow = '<tr class="sub"><td colspan="5" class="sub-lbl">SUBTOTAL &middot; ' + escapeHtml(slCap(g.area).toUpperCase()) +
+      '</td><td class="sub-cost">' + subVal + '</td></tr>';
     return { area: g.area, subVal: subVal, headRow: headRow, contHeadRow: contHeadRow,
              faultRows: faultRows, faultUnits: faultUnits, subRow: subRow,
              rowCount: SL_SCHED_GRP_PX + SL_SCHED_SUB_PX + faultUnits.reduce(function(a, c){ return a + c; }, 0) };
@@ -15598,11 +15800,11 @@ function slRenderSchedule(survey, costInfo, opts) {
   if (swItems.length) {
     const swHead = '<tr class="grp"><td colspan="6">Site-wide items <span class="gf">' + swItems.length + ' item' + (swItems.length === 1 ? '' : 's') + '</span></td></tr>';
     const swRows = swItems.map(function(it) {
-      return '<tr><td class="ref"></td><td class="loc" colspan="3">' + escapeHtml(slCap(it.label)) + '</td>' +
-             '<td class="ev"></td><td class="cost">' + slGBP(it.amount) + '</td></tr>';
+      return '<tr class="sw-row"><td class="ref"></td><td class="loc"><b>' + escapeHtml(slCap(it.label)) + '</b></td>' +
+             '<td></td><td class="sw-prov">Site-wide provision</td><td class="ev"></td><td class="cost">' + slGBP(it.amount) + '</td></tr>';
     });
     const swTotal = slGBP(ci.standingTotal || 0);
-    const swSub = '<tr class="sub"><td colspan="6">SUBTOTAL &middot; Site-wide items&nbsp;&nbsp;<b>' + swTotal + '</b></td></tr>';
+    const swSub = '<tr class="sub"><td colspan="5" class="sub-lbl">SUBTOTAL &middot; SITE-WIDE ITEMS</td><td class="sub-cost">' + swTotal + '</td></tr>';
     var swItemPx = SL_SCHED_ROWPAD_PX + SL_SCHED_LINE_PX;
     areaBlocks.push({ area: 'Site-wide items', subVal: swTotal, headRow: swHead, contHeadRow: swHead,
       faultRows: swRows, faultUnits: swRows.map(function(){ return swItemPx; }), subRow: swSub,
@@ -15652,47 +15854,57 @@ function slRenderSchedule(survey, costInfo, opts) {
   if (cur.length) chunks.push(cur);
 
   const chunkRows = function(c) { return c.reduce(function(n, b) { return n + b.rowCount; }, 0); };
+  // The totals box grows with the reconciliation panel - one row per area, in two
+  // columns - so a many-area survey has a much taller box than the WAYE7 baseline.
+  // Budget the last sheet against the box's ACTUAL height (measured px), so the
+  // closing panels never overflow the sheet they share (they flow to their own
+  // sheet instead). For <=7 areas this equals the previous fixed 300px budget.
+  const reconRowsPerCol = Math.ceil(areaBlocks.length / 2);
+  const boxHeightPx = 36 /*margin-top*/ + Math.max(184 /*dark total panel*/, 64 /*recon chrome*/ + reconRowsPerCol * 31 /*per area line*/);
+  const ROWS_WITH_BOX_DYN = Math.min(ROWS_WITH_BOX, ROWS_PLAIN - boxHeightPx - 24 /*safety*/);
   // Prefer to carry the totals boxrow on the last fault sheet rather than spill
   // it onto a lonely sheet. If the last chunk is too full to also hold the box,
   // peel its final area into a new last chunk when that area alone leaves room
   // for the box. Only when even a single trailing area cannot fit both does the
   // box get its own sheet.
-  if (chunks.length && chunkRows(chunks[chunks.length - 1]) > ROWS_WITH_BOX) {
+  if (chunks.length && chunkRows(chunks[chunks.length - 1]) > ROWS_WITH_BOX_DYN) {
     const last = chunks[chunks.length - 1];
-    if (last.length > 1 && last[last.length - 1].rowCount <= ROWS_WITH_BOX) {
+    if (last.length > 1 && last[last.length - 1].rowCount <= ROWS_WITH_BOX_DYN) {
       const peeled = last.pop();
       chunks.push([peeled]);
     }
   }
 
   const lastRows = chunks.length ? chunkRows(chunks[chunks.length - 1]) : 0;
-  const boxOnLast = chunks.length > 0 && lastRows <= ROWS_WITH_BOX;
+  const boxOnLast = chunks.length > 0 && lastRows <= ROWS_WITH_BOX_DYN;
   const totalSheets = chunks.length + ((chunks.length && !boxOnLast) ? 1 : 0);
 
-  // Totals content (boxrow): per-area breakdown, grand total, severity counts.
-  const brk = areaBlocks.map(function(b) { return escapeHtml(slCap(b.area)) + '&nbsp;&nbsp;' + b.subVal; }).join('<br>');
+  // Closing panels (target p7): a light RECONCILIATION card + a dark TOTAL panel,
+  // side by side. Amendment 1: these FOLLOW the table content (no foot anchor).
   const grandHtml = !costsPresent ? 'TBC' : (slGBP(ci.total) + ' <small>+VAT</small>');
-  const sevRows =
-    '<div class="sr"><span><span class="dot" style="background:var(--crit)"></span>Critical</span><span class="n">' + stats.bySeverity.critical + '</span></div>' +
-    '<div class="sr"><span><span class="dot" style="background:var(--poor)"></span>Poor</span><span class="n">' + stats.bySeverity.poor + '</span></div>' +
-    '<div class="sr"><span><span class="dot" style="background:var(--fair)"></span>Fair</span><span class="n">' + stats.bySeverity.fair + '</span></div>' +
-    '<div class="sr"><span><span class="dot" style="background:var(--mon)"></span>Monitor</span><span class="n">' + stats.bySeverity.monitor + '</span></div>' +
-    '<div class="sr tot"><span>Total</span><span class="n">' + stats.total + '</span></div>';
+  const reconItems = areaBlocks.map(function(b) { return { label: slCap(b.area), val: b.subVal }; });
+  const reconHalf = Math.ceil(reconItems.length / 2);
+  const reconCol = function(items) {
+    return items.map(function(it) { return '<div class="rc-row"><span>' + escapeHtml(it.label) + '</span><span>' + it.val + '</span></div>'; }).join('');
+  };
+  const sevLine = 'Critical ' + stats.bySeverity.critical + ' &middot; Poor ' + stats.bySeverity.poor +
+    ' &middot; Fair ' + stats.bySeverity.fair + ' &middot; Monitor ' + stats.bySeverity.monitor +
+    ' &middot; ' + stats.total + ' fault' + (stats.total === 1 ? '' : 's') + ' total';
   const boxrow =
-    '<div class="boxrow">' +
-      '<div class="boxcell">' +
-        '<div class="totalbox">' +
-          '<div class="bleed"><svg class="rings" style="right:-40px;bottom:-40px;" width="200" height="200" viewBox="0 0 200 200"><g fill="none" stroke="rgba(255,255,255,.06)" stroke-width="14"><circle cx="170" cy="170" r="50"/><circle cx="170" cy="170" r="85"/><circle cx="170" cy="170" r="120"/></g></svg></div>' +
-          '<div class="brk">' + brk + '</div>' +
-          '<div class="tk">Total for the works</div>' +
-          '<div class="tv">' + grandHtml + '</div>' +
+    '<div class="sl-closerow">' +
+      '<div class="sl-recon">' +
+        '<div class="rc-k">RECONCILIATION</div>' +
+        '<div class="rc-cols">' +
+          '<div class="rc-col">' + reconCol(reconItems.slice(0, reconHalf)) + '</div>' +
+          '<div class="rc-col">' + reconCol(reconItems.slice(reconHalf)) + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="boxcell gap"></div>' +
-      '<div class="boxcell" style="width:380px;">' +
-        '<div class="sevbox">' +
-          '<div class="sk">Faults by severity</div>' +
-          sevRows +
+      '<div class="sl-totalpanel">' +
+        slBurst('white', 'bottom:-70px;right:-70px;width:300px;opacity:.12;z-index:1;') +
+        '<div class="tp-in">' +
+          '<div class="tp-k">TOTAL FOR THE WORKS</div>' +
+          '<div class="tp-v">' + grandHtml + '</div>' +
+          '<div class="tp-sev">' + sevLine + '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -15703,11 +15915,11 @@ function slRenderSchedule(survey, costInfo, opts) {
   const ref = (typeof novaSurveyIdFor === 'function') ? novaSurveyIdFor(s) : '';
   const foot = '<div class="foot"><div class="tag">The truth from above.</div><div>' +
     (ref ? escapeHtml(ref) + ' &middot; ' : '') + 'Condition schedule</div></div>';
-  const numTag = function(n) { return (totalSheets > 1) ? ' &middot; ' + n + '/' + totalSheets : ''; };
-  const sheet = function(eyebrow, h2, inner, subline) {
+  const pageTag = function(n) { return (totalSheets > 1) ? '<div class="sched-page">' + n + ' / ' + totalSheets + '</div>' : ''; };
+  const sheet = function(n, h2, inner, subline) {
     return '<section class="sheet sl-sched">' +
       '<div class="pad">' +
-        '<div class="eyebrow">' + eyebrow + '</div>' +
+        '<div class="sched-head"><div class="eyebrow">' + eyebrowBase + '</div>' + pageTag(n) + '</div>' +
         '<h2><span class="gt">&raquo;</span>' + h2 + '</h2>' +
         (subline || '') +
         inner +
@@ -15728,10 +15940,10 @@ function slRenderSchedule(survey, costInfo, opts) {
       '</table>' + (includeBox ? boxrow : '');
     const subline = (i === 0 && foldedAreasLine)
       ? '<div class="sched-areas-summary">' + escapeHtml(foldedAreasLine) + '</div>' : '';
-    html += sheet(eyebrowBase + numTag(i + 1), 'Every fault, and the cost.', inner, subline);
+    html += sheet(i + 1, 'Every fault, and the cost.', inner, subline);
   });
-  // Totals boxrow overflows onto its own final sheet when it will not fit.
-  if (!boxOnLast) html += sheet(eyebrowBase + numTag(totalSheets), 'The cost, in total.', boxrow);
+  // Closing panels overflow onto their own final sheet when they will not fit.
+  if (!boxOnLast) html += sheet(totalSheets, 'Every fault, and the cost.', boxrow);
 
   return html;
 }
@@ -18085,13 +18297,11 @@ function slRenderCards(survey, opts) {
   let chosen = cardAll ? all : all.filter(function(f){ return (f.severity || '').toLowerCase() === 'critical'; });
   chosen = chosen.slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); });
 
-  const SEVVAR = { critical: 'var(--crit)', poor: 'var(--poor)', fair: 'var(--fair)', monitor: 'var(--mon)' };
   const labelFor = function(f){ return faultTypeLabel(f); };
 
   const cardHtml = function(f) {
     const num = (f.number != null ? f.number : '?');
-    const sev = (f.severity || '').toLowerCase();
-    const col = SEVVAR[sev] || 'var(--grey)';
+    const sevKey = slSevKey(f.severity);
     const title = slCap(labelFor(f));
     const ext = faultExtent(f);
     const extTxt = slFmtExtent(ext);   // <=1 dp, unit carried, zero -> dash
@@ -18100,75 +18310,112 @@ function slRenderCards(survey, opts) {
     const url = 'https://nova-limited.com/g/' + slug + '?f=F' + num;
     const lead = faultImageSrcFor(f) || (photos.length ? imgSrcFor(photos[0]) : null);
 
-    let photoBlock;
-    if (inlinePhotos && photos.length) {
-      const thumbs = photos.slice(0, 3).map(function(p){
-        const src = imgSrcFor(p);
-        return src ? '<div class="photo" style="flex:1;background-image:url(\'' + src + '\');background-size:cover;background-position:center;"></div>' : '';
-      }).filter(Boolean).join('');
-      photoBlock = thumbs
-        ? '<div style="display:flex;gap:8px;margin-top:11px;">' + thumbs + '</div>'
-        : '<div class="photo">F' + num + ' · ' + escapeHtml(title) + '</div>';
-    } else if (lead) {
-      photoBlock = '<div class="photo" style="background-image:url(\'' + lead + '\');background-size:cover;background-position:center;">' +
-        '<span style="position:relative;z-index:1;">F' + num + ' · ' + escapeHtml(title) + '</span></div>';
-    } else {
-      photoBlock = '<div class="photo">F' + num + ' · ' + escapeHtml(title) + '</div>';
-    }
+    // Severity pill (tinted); UNRATED falls back to a neutral pill.
+    const sevPill = sevKey
+      ? slSevPill(f.severity, { upper: true })
+      : '<span class="sl-sev-pill up" style="background:#ececec;color:#8a898b;">UNRATED</span>';
 
-    const evText = 'Filter F' + num + ' · ' + photoCount + ' photo' + (photoCount === 1 ? '' : 's');
-    const qr = slQR(url, 46);
+    // Evidence column: real photo cover-fits behind a scrim; only when there is
+    // NO photo do we drop in the brand burst placeholder (Amendment / brief).
+    const evText = 'Filter F' + num + ' &middot; ' + photoCount + ' photo' + (photoCount === 1 ? '' : 's');
+    const qr = slQR(url, 44);
+    const cevStyle = lead
+      ? ' style="background-image:url(\'' + lead + '\');"'
+      : '';
+    const cevInner =
+      (lead ? '<div class="cev-scrim"></div>' : slBurst('ink', 'bottom:34px;right:-70px;width:250px;opacity:.16;z-index:1;')) +
+      '<div class="cev-top"><span class="cev-lbl">Evidence photo</span>' +
+        '<span class="cev-qr">' + qr + '</span></div>' +
+      '<div class="cev-foot"><div class="cev-k">Full evidence set</div>' +
+        '<div class="cev-u">' + escapeHtml(url.replace(/^https:\/\//, '')) + '</div>' +
+        '<div class="cev-p">' + evText + '</div></div>';
 
-    return '<div class="card" style="border-left-color:' + col + ';">' +
-      '<div class="chead"><div class="cid">' +
-        '<span class="ftag" style="background:' + col + ';">F' + num + '</span>' +
-        '<span class="ctitle">' + escapeHtml(title) + '</span></div>' +
-        '<span class="csev" style="background:' + col + ';">' + (sev ? sev.toUpperCase() : 'UNRATED') + '</span></div>' +
-      '<div class="kv">' +
-        '<div><div class="label">Location</div><div class="val">' + (f.location ? escapeHtml(slCap(f.location)) : 'TBC') + '</div></div>' +
-        '<div><div class="label">Extent</div><div class="val">' + escapeHtml(extTxt) + '</div></div>' +
+    return '<div class="scard' + (sevKey ? ' sev-' + sevKey : '') + '"><div class="scard-in">' +
+      '<div class="cbody">' +
+        '<div class="cb-head"><div class="cb-id">' +
+          '<span class="cb-f">F' + num + '</span>' +
+          '<span class="cb-t">' + escapeHtml(title) + '</span></div>' + sevPill + '</div>' +
+        '<div class="cb-kv">' +
+          '<div><div class="cb-lbl o">Location</div><div class="cb-val">' + (f.location ? escapeHtml(slCap(f.location)) : 'TBC') + '</div></div>' +
+          '<div><div class="cb-lbl o">Extent</div><div class="cb-val">' + escapeHtml(extTxt) + '</div></div>' +
+        '</div>' +
+        '<div class="cb-sec"><div class="cb-lbl">Observation</div><p>' + (f.description ? escapeHtml(f.description) : 'TBC') + '</p></div>' +
+        '<div class="cb-sec"><div class="cb-lbl">Recommended action</div><p>' + (f.recommendation ? escapeHtml(f.recommendation) : 'TBC') + '</p></div>' +
       '</div>' +
-      '<div class="block"><div class="label">Observation</div><p>' + (f.description ? escapeHtml(f.description) : 'TBC') + '</p></div>' +
-      '<div class="block"><div class="label">Recommended action</div><p>' + (f.recommendation ? escapeHtml(f.recommendation) : 'TBC') + '</p></div>' +
-      '<div class="cardbtm">' + photoBlock +
-      '<div class="ev-set">' + qr +
-        '<div><div class="et">Full evidence set</div>' +
-        '<div class="eu">' + escapeHtml(url.replace(/^https:\/\//, '')) + '</div>' +
-        '<div class="ep">' + escapeHtml(evText) + '</div></div>' +
-      '</div></div>' +
-    '</div>';
+      '<div class="cev"' + cevStyle + '>' + cevInner + '</div>' +
+    '</div></div>';
   };
 
   const sub = cardAll
-    ? 'Every fault is detailed below with evidence. Each fault’s complete photo set lives in the online gallery, referenced by fault number.'
-    : 'The schedule covers all ' + slSpellCount(total) + ' faults. The ' + slSpellCount(chosen.length) + ' critical fault' + (chosen.length === 1 ? '' : 's') + ' ' + (chosen.length === 1 ? 'is' : 'are') + ' detailed here in full with evidence. Every fault’s complete photo set lives in the online gallery, referenced by fault number.';
+    ? 'Every fault is detailed below with evidence. Each fault’s full photo set lives in the online gallery, referenced by fault number.'
+    : 'The schedule covers all ' + slSpellCount(total) + ' faults. The ' + slSpellCount(chosen.length) + ' critical fault' + (chosen.length === 1 ? '' : 's') + ' ' + (chosen.length === 1 ? 'is' : 'are') + ' detailed here with evidence. Every fault’s full photo set lives in the online gallery, referenced by fault number.';
 
-  // Per-page fixed sheets, two cards each. Every card page carries its own
-  // in-content foot (like the schedule) so the section prints correctly under
-  // Chrome "Margins: None". The eyebrow/intro sits on the first sheet only;
-  // a continuation page is just its two cards (as before). The burst repeats
-  // bottom-right on every card page.
+  // Per-page fixed sheets, two full-width cards each. Every card page carries
+  // its own in-content foot (like the schedule) so the section prints correctly
+  // under Chrome "Margins: None". The eyebrow/intro (h2 left, sub right) sits on
+  // the first sheet only; a continuation page is just its cards. The burst
+  // repeats bottom-right on every card page. A lone final card renders in a
+  // .solo wrap at natural content height, top-aligned (Amendment 4).
   const cburst = slBurst('ink', 'bottom:-120px;right:-120px;width:480px;opacity:.12;z-index:1;');
   const cfoot  = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
   const chead  =
-      '<div class="eyebrow">03 · Priority faults in detail</div>' +
-      '<h2><span class="gt">&raquo;</span>The serious few, up close.</h2>' +
-      '<div class="sub">' + escapeHtml(sub) + '</div>';
+      '<div class="eyebrow">03 &middot; Priority faults in detail</div>' +
+      '<div class="chead-row">' +
+        '<h2><span class="gt">&raquo;</span>The serious few, up close.</h2>' +
+        '<div class="sub">' + escapeHtml(sub) + '</div>' +
+      '</div>';
 
   if (!chosen.length) {
     return '<section class="sheet sl-cards-sheet">' + cburst + '<div class="pad">' + chead +
       '<p class="body" style="margin-top:18px;">No priority faults to detail.</p></div>' + cfoot + '</section>';
   }
 
+  // Height-estimated packing so a page never clips a card's tail (Amendment 4:
+  // foot respected at every count). Each card's height is estimated from its
+  // observation + recommendation length (calibrated CONSERVATIVELY - the model
+  // slightly over-estimates, so it never over-packs). At most two cards per page
+  // (per the target); the first page reserves the header, so it takes only one
+  // card when two maximal cards would not fit. A page with two cards fills the
+  // sheet evenly (.pair); a page with one card sits at natural height, top-
+  // aligned (.solo) - which also gives the lone final card its Amendment-4 look.
+  // Calibrated near-exact against measured card heights (h ~= 195 + 0.12*chars).
+  // BUDGET_HEAD is the binding gate - the header page rejects two maximal cards
+  // and takes one instead; full pages fit any realistic pair, so BUDGET_FULL is
+  // generous and only drops to one card for pathologically long pairs.
+  const EST_BASE = 195, EST_PER_CHAR = 0.12;
+  const BUDGET_HEAD = 560, BUDGET_FULL = 655, GAP = 16;
+  const cardEst = function(f){
+    const t = String(f.description || '').length + String(f.recommendation || '').length;
+    return EST_BASE + EST_PER_CHAR * t;
+  };
+  const pages = [];
+  let idx = 0;
+  while (idx < chosen.length) {
+    const first = (pages.length === 0);
+    const budget = first ? BUDGET_HEAD : BUDGET_FULL;
+    const a = chosen[idx];
+    const b = chosen[idx + 1];
+    // Take two only when both fit together; otherwise this page takes just one.
+    if (b && (cardEst(a) + GAP + cardEst(b)) <= budget) {
+      pages.push([a, b]); idx += 2;
+    } else {
+      pages.push([a]); idx += 1;
+    }
+  }
+
   let sheets = '';
-  for (let i = 0; i < chosen.length; i += 2) {
+  pages.forEach(function(pg, pi){
+    const isFirst = (pi === 0);
+    const isPair  = pg.length === 2;
+    const wrapCls = isPair ? 'cardwrap pair' : 'cardwrap solo';
+    const wrapMt  = isFirst ? 'margin-top:10px;' : 'margin-top:2px;';
     sheets += '<section class="sheet sl-cards-sheet">' + cburst + '<div class="pad">' +
-      (i === 0 ? chead : '') +
-      '<div class="cardwrap" style="margin-top:18px;display:flex;flex-direction:column;gap:30px;">' +
-        '<div class="cards">' + cardHtml(chosen[i]) + (chosen[i + 1] ? cardHtml(chosen[i + 1]) : '') + '</div>' +
+      (isFirst ? chead : '') +
+      '<div class="' + wrapCls + '" style="' + wrapMt + '">' +
+        pg.map(cardHtml).join('') +
       '</div>' +
     '</div>' + cfoot + '</section>';
-  }
+  });
   return sheets;
 }
 
@@ -18187,86 +18434,101 @@ function slRenderFindings(survey, costInfo) {
   const groups = slGroupFaultsByArea(s);
   const stats  = slFaultStats(s);
 
+  // Cost-by-area rows + running area subtotal (repair mode). Non-priced surveys
+  // print TBC so the page still reads as a condition document.
+  let areaTotalSum = 0;
   const areaRows = groups.map(function(g) {
     let sum = 0;
     g.faults.forEach(function(f) {
       const c = costsByRef['F' + (f.number)];
       if (mode === 'repair' && typeof c === 'number' && isFinite(c)) sum += c;
     });
+    areaTotalSum += sum;
     const val = !costsPresent ? 'TBC' : ((mode === 'works') ? 'Included' : slGBP(sum));
-    return '<div class="crow"><span>' + escapeHtml(slCap(g.area)) + '</span><span>' + val + '</span></div>';
+    return '<div class="fc-row"><span class="fl">' + escapeHtml(slCap(g.area)) + '</span><span class="fv">' + val + '</span></div>';
   }).join('');
-  // Site-wide items group (Defect 3): itemised in the Cost by area panel with its
-  // own subtotal so the printed total reconciles with the visible lines.
+  // Site-wide items group (Defect 3): itemised with its own subtotal so the
+  // printed total reconciles with the visible lines.
   const swList = (costsPresent && mode === 'repair' && Array.isArray(ci.standing)) ? ci.standing : [];
+  const standingTotal = ci.standingTotal || 0;
   const siteWideRows = swList.length
-    ? ('<div class="crow sw-head"><span>Site-wide items</span><span></span></div>' +
-        swList.map(function(it){ return '<div class="crow"><span>' + escapeHtml(slCap(it.label)) + '</span><span>' + slGBP(it.amount) + '</span></div>'; }).join('') +
-        '<div class="crow sw-sub"><span>Site-wide items subtotal</span><span>' + slGBP(ci.standingTotal || 0) + '</span></div>')
+    ? ('<div class="fc-row fc-swhead"><span class="fl">Site-wide items</span><span class="fv"></span></div>' +
+        swList.map(function(it){ return '<div class="fc-row sw"><span class="fl">' + escapeHtml(slCap(it.label)) + '</span><span class="fv">' + slGBP(it.amount) + '</span></div>'; }).join('') +
+        '<div class="fc-row swsub"><span class="fl">Site-wide items subtotal</span><span class="fv">' + slGBP(standingTotal) + '</span></div>')
     : '';
 
-  const grand     = !costsPresent ? 'TBC' : slGBP(ci.total);
-  const grandRow  = !costsPresent ? 'TBC' : (slGBP(ci.total) + ' +VAT');
+  const grandBig  = !costsPresent ? 'TBC' : slGBP(ci.total);
+  const grandRow  = !costsPresent ? '<span class="fv">TBC</span>' : ('<span class="fv">' + slGBP(ci.total) + ' <span class="vat">+VAT</span></span>');
   const condition = s['f-overall-rating'] || 'TBC';
   const lifeNow   = s['f-remaining-life-asstands'] || 'TBC';
   const lifeWorks = s['f-remaining-life-postworks'] || 'TBC';
   const critN     = stats.critical;
-  const windowTxt = critN > 0 ? '3 months' : 'next cycle';
-  const siteTitle = deriveSiteShortName(s) || 'the site';
 
-  const critSentence = critN > 0
-    ? 'The ' + slSpellCount(critN) + ' critical fault' + (critN === 1 ? '' : 's') + ' need' + (critN === 1 ? 's' : '') + ' addressing within ' + windowTxt + ' to keep the building watertight; the poor and fair items can be programmed alongside.'
-    : 'No faults are critical; the works can be programmed at the next planned opportunity.';
-  const narr = 'Overall condition is rated ' + escapeHtml(condition) + '. As it stands the estimated remaining life is ' + escapeHtml(slFmtYears(lifeNow)) + '; with the recommended works completed, ' + escapeHtml(slFmtYears(lifeWorks)) + '. ' + escapeHtml(critSentence);
+  // Reconciliation sentence: area totals + site-wide items = the grand total.
+  const areaWord = groups.length === 1 ? 'area total' : 'area totals';
+  const reconSentence = costsPresent
+    ? (slCap(slSpellCount(groups.length)) + ' ' + areaWord + ' of ' + slGBP(areaTotalSum) +
+        (swList.length ? (' plus site-wide items of ' + slGBP(standingTotal) + '.') : '.') +
+        (critN > 0 ? ' Targeted repairs, area by area.' : ' Programmed at the next planned opportunity.'))
+    : 'Costs are indicative until the priced schedule is confirmed.';
 
-  const sevRows =
-    '<div class="crow"><span>Critical</span><span>' + stats.bySeverity.critical + '</span></div>' +
-    '<div class="crow"><span>Poor</span><span>' + stats.bySeverity.poor + '</span></div>' +
-    '<div class="crow"><span>Fair</span><span>' + stats.bySeverity.fair + '</span></div>' +
-    '<div class="crow"><span>Monitor</span><span>' + stats.bySeverity.monitor + '</span></div>';
+  // Faults-by-severity 2x2 grid (row-major: Critical, Poor, Fair, Monitor).
+  const sevCell = function(key){
+    const m = SL_SEV_META[key]; const n = stats.bySeverity[key] || 0;
+    return '<div class="ft-sev' + (n === 0 ? ' zero' : '') + '"><span class="lab"><span class="dot" style="background:' + m.dot + ';"></span>' + m.label + '</span><span class="n">' + n + '</span></div>';
+  };
+  const sevGrid = sevCell('critical') + sevCell('poor') + sevCell('fair') + sevCell('monitor');
 
-  // Page 6 ("By the numbers") — four stacked zones:
-  //  ROW 1: cost-by-area (left)  |  faults-by-severity (right)
-  //  ROW 2: targeted-repairs narrative (left)  |  totals stack (right)
-  //  ROW 3: the small grey italic "priced line by line" line.
-  const totalCell = costsPresent
-    ? grand + ' <span style="font-size:13px;font-weight:600;color:var(--grey);">+VAT</span>'
-    : grand;
+  // Life-expectancy tiles.
+  const lifeTile = function(cls, v, cap){
+    const fig = slLifeFig(v);
+    const unit = (fig === 'TBC' || fig === '—') ? '' : '<span class="u">yr</span>';
+    return '<div class="tile ' + cls + '"><div class="big">' + escapeHtml(String(fig)) + unit + '</div><div class="cap">' + cap + '</div></div>';
+  };
+
+  // Left-card density so long lists (up to 12 areas x 8 standing = 20 units)
+  // fit the fixed panel height without clipping. Four tiers, chosen by list
+  // length; the card is content-sized, so short lists stay comfortable.
+  const listLen = groups.length + swList.length;
+  const density = listLen <= 9 ? 'comfy' : (listLen <= 12 ? 'mid' : (listLen <= 15 ? 'tight' : 'xtight'));
+
+  const fnote = 'Priced line by line in the condition schedule. Subject to access and to no concealed defects being found on opening up.' +
+    ((typeof surveyLinerNotVisible === 'function' && surveyLinerNotVisible(s)) ? ' The roof liner could not be identified from the survey. Pricing assumes a conventional metal liner; identification on opening up may affect cost and programme.' : '');
+
   return '' +
   '<section class="sheet sl-find">' +
     slBurst('ink', 'bottom:-120px;right:-120px;width:480px;opacity:.12;z-index:1;') +
     '<div class="pad">' +
       '<div class="eyebrow">04 &middot; Findings and costs</div>' +
       '<h2><span class="gt">&raquo;</span>By the numbers.</h2>' +
-      '<div class="find-zones">' +
-        '<div class="frow">' +
-          '<div class="fcol cba">' +
-            '<div class="label" style="margin-bottom:6px;">Cost by area</div>' +
-            areaRows +
-            siteWideRows +
-            '<div class="crow t"><span>Total for all works</span><span>' + grandRow + '</span></div>' +
-          '</div>' +
-          '<div class="fcol cba">' +
-            '<div class="label" style="margin-bottom:6px;">Faults by severity</div>' +
-            sevRows +
-          '</div>' +
+      '<div class="find2">' +
+        '<div class="fcard ' + density + '">' +
+          '<div class="fc-k">Cost by area</div>' +
+          areaRows +
+          siteWideRows +
+          '<div class="fc-total"><span class="fl">Total for all works</span>' + grandRow + '</div>' +
         '</div>' +
-        '<div class="frow">' +
-          '<div class="fcol">' +
-            '<div class="label" style="margin-bottom:6px;">Targeted repairs, area by area.</div>' +
-            '<p class="narr">' + narr + '</p>' +
+        '<div class="ftot">' +
+          slBurst('ink', 'bottom:-70px;right:-70px;width:300px;opacity:.16;z-index:1;') +
+          '<div class="ft-zone ft-top">' +
+            '<div class="ft-k">Total for all works</div>' +
+            '<div class="ft-big">' + grandBig + (costsPresent ? '<span class="vat">+VAT</span>' : '') + '</div>' +
+            '<div class="ft-recon">' + escapeHtml(reconSentence) + '</div>' +
           '</div>' +
-          '<div class="fcol">' +
-            '<div class="find-totals">' +
-              '<div><div class="k">Total for all works</div><div class="v">' + totalCell + '</div></div>' +
-              '<div><div class="k">Priority works within</div><div class="v">' + escapeHtml(windowTxt) + '</div></div>' +
-              '<div><div class="k">Life after works</div><div class="v">' + escapeHtml(slFmtYears(lifeWorks)) + '</div></div>' +
+          '<div class="ft-zone ft-mid">' +
+            '<div class="ft-k" style="color:rgba(255,255,255,.6);">Faults by severity</div>' +
+            '<div class="ft-sevgrid">' + sevGrid + '</div>' +
+          '</div>' +
+          '<div class="ft-zone ft-life-zone">' +
+            '<div class="ft-life">' +
+              '<div class="lk">Life expectancy</div>' +
+              lifeTile('do', lifeNow, 'Do nothing') +
+              lifeTile('wk', lifeWorks, 'With works') +
             '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="fnote">Priced line by line in the condition schedule. Subject to access and to no concealed defects being found on opening up.' +
-          ((typeof surveyLinerNotVisible === 'function' && surveyLinerNotVisible(s)) ? ' The roof liner could not be identified from the survey. Pricing assumes a conventional metal liner; identification on opening up may affect cost and programme.' : '') + '</div>' +
       '</div>' +
+      '<div class="fnote">' + escapeHtml(fnote) + '</div>' +
     '</div>' +
     '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
   '</section>';
@@ -18315,36 +18577,46 @@ function slRenderFindingsNext(survey) {
     { st:'',        dot:'06', num:'06', label:'Complete works',         desc:'Delivered to programme',            badge:'' },
     { st:'',        dot:'07', num:'07', label:'Sign-off and handover',  desc:'Documented, with clear records',    badge:'' }
   ];
+  // v2 layout: recommendation + next-steps cards, a seven-step journey tracker,
+  // and a dark GET IN TOUCH band. The .pad distributes these zones evenly
+  // (Amendment 3), so there are no dead bands at any content length.
   const stepHtml = steps.map(function(p){
-    const dotCls = 'rm-dot' + (p.st ? ' ' + p.st : '');
-    const labelCls = 'rm-label' + (p.cur ? ' cur' : '');
-    return '<div class="rm-step">' +
-      '<div class="rm-dotwrap"><div class="' + dotCls + '">' + p.dot + '</div></div>' +
-      '<div class="rm-num">' + p.num + '</div>' +
-      '<div class="' + labelCls + '">' + escapeHtml(p.label) + '</div>' +
-      '<div class="rm-desc">' + escapeHtml(p.desc) + '</div>' +
-      (p.badge || '') +
+    const cls = (p.st === 'done') ? 'done' : (p.st === 'current' ? 'current' : 'future');
+    const inner = (cls === 'done') ? TICK : p.num;
+    return '<div class="nx-step ' + cls + '">' +
+      '<div class="nx-bar"></div>' +
+      '<div class="nx-circrow"><div class="nx-circle">' + inner + '</div>' +
+        (cls === 'current' ? '<span class="nx-here">You are here</span>' : '') + '</div>' +
+      '<div class="nx-label">' + escapeHtml(p.label) + '</div>' +
+      '<div class="nx-desc">' + escapeHtml(p.desc) + '</div>' +
     '</div>';
   }).join('');
+
+  const recCopy  = recSentence || 'Targeted repairs to the priority defects, programmed to keep the building watertight.';
+  const nextCopy = nextStepsTxt || 'We are happy to provide a work schedule for the required tasks, or to price against this report for replacement if that is your chosen way forward. One accountable process, whether a single building or a national estate.';
+
   return '' +
   '<section class="sheet sl-next">' +
-    slBurst('ink', 'top:-160px;left:-160px;width:480px;opacity:.12;z-index:1;') +
     '<div class="pad">' +
-      '<div class="eyebrow">05 &middot; Then the next step</div>' +
-      '<h2><span class="gt">&raquo;</span>From this report to a roof signed off.</h2>' +
-      recBlock +
-      '<p class="rm-intro">One accountable process, the same whether it is a single building or a national estate. You are here, with the survey complete and the report and fixed price in hand. The next conversation is the practical one.</p>' +
-      '<div class="roadmap">' +
-        '<div class="rm-line"></div><div class="rm-fill"></div>' +
-        '<div class="rm-steps">' + stepHtml + '</div>' +
+      '<div class="nx-head">' +
+        '<div class="eyebrow">05 &middot; Then the next step</div>' +
+        '<h2><span class="gt">&raquo;</span>From this report to a roof signed off.</h2>' +
       '</div>' +
-      '<div style="flex:1;"></div>' +
-      '<div class="closer">' +
-        '<hr class="closer-rule">' +
-        '<div class="closer-row">' +
-          '<div class="closer-l"><b>We have laid out what we found at ' + escapeHtml(siteTitle) + ' and what we recommend.</b> The next conversation is the practical one: programming, sequencing, and getting the right works on site at the right time. Get in touch when you are ready.</div>' +
-          '<div class="closer-r"><div class="k">Get in touch</div><div class="phone">0203&nbsp;479&nbsp;2994</div></div>' +
-        '</div>' +
+      '<div class="nx-cards">' +
+        '<div class="nx-card rec"><div class="nx-k">Our recommendation</div>' +
+          '<div class="nx-rec">' + escapeHtml(recCopy) + '</div></div>' +
+        '<div class="nx-card next"><div class="nx-k">Next steps</div>' +
+          '<p class="nx-body">' + escapeHtml(nextCopy) + '</p></div>' +
+      '</div>' +
+      '<div class="nx-journey">' +
+        '<div class="nx-jk">The journey</div>' +
+        '<div class="nx-steps">' + stepHtml + '</div>' +
+      '</div>' +
+      '<div class="nx-band">' +
+        slBurst('ink', 'bottom:-90px;right:-60px;width:280px;opacity:.18;z-index:1;') +
+        '<div class="nx-band-k">Get in touch</div>' +
+        '<div class="nx-band-txt">We have laid out what we found at ' + escapeHtml(siteTitle) + ' and what we recommend. The next conversation is the practical one.</div>' +
+        '<div class="nx-band-phone">0203&nbsp;479&nbsp;2994</div>' +
       '</div>' +
     '</div>' +
     '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>' +
