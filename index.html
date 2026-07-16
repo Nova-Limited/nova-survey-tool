@@ -18353,7 +18353,14 @@ function slRenderCards(survey, opts) {
     const extTxt = slFmtExtent(ext);   // <=1 dp, unit carried, zero -> dash
     const photos = Array.isArray(f.photos) ? f.photos : [];
     const photoCount = photos.length;
-    const url = 'https://nova-limited.com/g/' + slug + '?f=F' + num;
+    // SAMPLE REPORTS: the per-fault gallery does not exist yet, so a prospect
+    // scanning the QR must never hit a dead end - the QR and written link point
+    // at the homepage and the caption says why. Real surveys are untouched
+    // (per-fault gallery URL + Filter caption exactly as before).
+    const sample = !!s.sampleReport;
+    const url = sample
+      ? 'https://nova-limited.com'
+      : 'https://nova-limited.com/g/' + slug + '?f=F' + num;
     const lead = faultImageSrcFor(f) || (photos.length ? imgSrcFor(photos[0]) : null);
 
     // Severity pill (tinted); UNRATED falls back to a neutral pill.
@@ -18363,7 +18370,9 @@ function slRenderCards(survey, opts) {
 
     // Evidence column: real photo cover-fits behind a scrim; only when there is
     // NO photo do we drop in the brand burst placeholder (Amendment / brief).
-    const evText = 'Filter F' + num + ' &middot; ' + photoCount + ' photo' + (photoCount === 1 ? '' : 's');
+    const evText = sample
+      ? 'Sample report. The live evidence gallery accompanies a real survey.'
+      : 'Filter F' + num + ' &middot; ' + photoCount + ' photo' + (photoCount === 1 ? '' : 's');
     const qr = slQR(url, 44);
     const cevStyle = lead
       ? ' style="background-image:url(\'' + lead + '\');"'
