@@ -15815,7 +15815,13 @@ function slRenderSchedule(survey, costInfo, opts) {
       const sevPill = SEVSET[sev]
         ? slSevPill(sev, { upper: true })
         : '<span class="sl-sev-pill up" style="background:#ececec;color:#8a898b;">UNRATED</span>';
-      const url = 'https://nova-limited.com/g/' + slug + '?f=F' + num;
+      // SAMPLE REPORTS: the per-fault gallery does not exist yet, so the
+      // evidence arrow links to the homepage (same principle as the evidence
+      // panels' QR). Real surveys keep the per-fault gallery URL untouched.
+      // The arrow's appearance is identical in both modes.
+      const url = s.sampleReport
+        ? 'https://nova-limited.com'
+        : 'https://nova-limited.com/g/' + slug + '?f=F' + num;
       const ev = '<a class="evlink" href="' + url + '" target="_blank" rel="noopener"><span class="evbox">&#8599;</span></a>';
       const c = costsByRef['F' + num];
       if (costsPresent && mode === 'repair' && typeof c === 'number' && isFinite(c)) areaSum += c;
