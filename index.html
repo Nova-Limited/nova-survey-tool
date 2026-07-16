@@ -15374,16 +15374,16 @@ function slAerialFigure(s, src, rot, boxW, boxH){
   // pill's position is mapped from unrotated stage coords into the DISPLAYED
   // (figure-aligned) box in JS, so no CSS transform maths is left to the
   // rasteriser. Screen output is pixel-identical to the in-stage rendering.
-  var MK_HALF = 17;                                              // half the 34px pill
   var dots = '';
   (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).forEach(function(f){
     if (!f || f.unlocatable || !isFinite(Number(f.imgU)) || !isFinite(Number(f.imgV))) return;
-    // NEVER drop a located marker: a fraction at or beyond the image edge is
-    // CLAMPED to the image boundary and still drawn (pinned to the edge). The
-    // off-image pre-print banner (slMarkerOffImage) still flags it for the
-    // surveyor, but the client render always shows every numbered fault.
-    var u = Math.min(1, Math.max(0, Number(f.imgU)));
-    var v = Math.min(1, Math.max(0, Number(f.imgV)));
+    // TRUE POSITION, never repositioned: every located marker draws at exactly
+    // its fraction-derived spot - on the photo, out in the dark margin beside
+    // it, or clustered - wherever the fault actually sits. No clamping, no
+    // inset, no edge-pinning (the earlier clamp dragged true-edge markers
+    // inward). The figure's own bounds are the only clip, and the pre-print
+    // banner still flags genuinely off-image markers for the surveyor.
+    var u = Number(f.imgU), v = Number(f.imgV);
     var px = offX + u * dispW, py = offY + v * dispH;            // unrotated stage coords
     // Rotate into displayed (figure-aligned) coords - the same mapping the CSS
     // rotate performed, done here so the pill needs no transform of its own.
@@ -15392,10 +15392,6 @@ function slAerialFigure(s, src, rot, boxW, boxH){
     else if (rot === 180) { fx = SW - px; fy = SH - py; }
     else if (rot === 270) { fx = py;      fy = SW - px; }
     else                  { fx = px;      fy = py; }
-    // Inset the pill centre by its half-size so every pill paints whole inside
-    // the marker layer (edge markers pin just inside the image boundary).
-    fx = Math.min(boxW - MK_HALF, Math.max(MK_HALF, fx));
-    fy = Math.min(boxH - MK_HALF, Math.max(MK_HALF, fy));
     dots += '<span class="aerial-mk" style="left:' + (fx / boxW * 100) + '%;top:' + (fy / boxH * 100) + '%;transform:translate(-50%,-50%);"><span class="amk-c">' + (f.number != null ? f.number : '?') + '</span></span>';
   });
   var stageStyle = 'position:absolute;top:50%;left:50%;width:' + SW + 'px;height:' + SH + 'px;' +
