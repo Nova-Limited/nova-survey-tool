@@ -2629,7 +2629,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .sp-key-line{width:18px;height:0;border-top:2px solid var(--ink);flex:0 0 auto;}
   .sl-report .sp-key-dim{width:18px;height:0;border-top:2px solid var(--orange);flex:0 0 auto;}
   .sl-report .sp-key-note{font-size:11px;color:var(--grey);line-height:1.55;max-width:280px;margin-top:6px;}
-  .sl-report .aerial .aerial-stage{overflow:hidden;}
+  /* No overflow clip on the stage: an edge-pinned marker pill (centre clamped to
+     the image boundary) may extend up to 17px past the stage into the panel's
+     26px inset. The figure (.aerial) keeps overflow:hidden as the hard bound. */
+  .sl-report .aerial .aerial-stage{overflow:visible;}
   .sl-report .aerial .aerial-mk{position:absolute;width:34px;height:34px;border-radius:7px;background:#26262e;
           display:flex;align-items:center;justify-content:center;box-shadow:0 2px 7px rgba(0,0,0,.45);z-index:2;}
   .sl-report .aerial .aerial-mk .amk-c{width:26px;height:26px;border-radius:50%;background:var(--orange);color:#fff;
@@ -2712,7 +2715,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .ex-mid .site{ flex:1; }
   .sl-report .ex-mid .aerial{ width:380px; }
   /* Areas surveyed — four-column severity matrix (target p4) */
-  .sl-report .am-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:22px;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  /* Opaque card above the sheet burst (explicit stacking): the anthracite burst
+     stays a low-opacity watermark BEHIND the table, so severity pills in the
+     lower-right rows always render in front of it. */
+  .sl-report .am-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:22px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;position:relative;z-index:2;}
   .sl-report .am-table thead th{background:var(--ink);color:#fff;text-align:left;font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;padding:16px 22px;}
   .sl-report .am-table thead th.am-h-area{width:41%;}
   .sl-report .am-hd{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:9px;vertical-align:1px;}
@@ -15361,8 +15367,11 @@ function slAerialFigure(s, src, rot, boxW, boxH){
   var dots = '';
   (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).forEach(function(f){
     if (!f || f.unlocatable || !isFinite(Number(f.imgU)) || !isFinite(Number(f.imgV))) return;
-    if (slMarkerOffImage(f)) return;                             // genuinely off-image -> pre-print banner, not drawn
-    var u = Math.min(1, Math.max(0, Number(f.imgU)));            // clamp on-image markers into the figure
+    // NEVER drop a located marker: a fraction at or beyond the image edge is
+    // CLAMPED to the image boundary and still drawn (pinned to the edge). The
+    // off-image pre-print banner (slMarkerOffImage) still flags it for the
+    // surveyor, but the client render always shows every numbered fault.
+    var u = Math.min(1, Math.max(0, Number(f.imgU)));
     var v = Math.min(1, Math.max(0, Number(f.imgV)));
     var px = offX + u * dispW, py = offY + v * dispH;            // on the contained image
     var up = rot ? (' rotate(-' + rot + 'deg)') : '';
@@ -15713,7 +15722,7 @@ function slReportPrintWarnings(survey){
   var hasAerial = (s.siteImageSource === 'upload') && !!(s.siteImageData || s.siteImageKey);
   if (hasAerial){
     faults.slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); }).forEach(function(f){
-      if (typeof slMarkerOffImage === 'function' && slMarkerOffImage(f)) warns.push({ msg: 'Fault F' + (f.number != null ? f.number : '?') + ' is pinned off the site image, so it is omitted from the aerial figure. Re-place it on the plan (Footprint / site plan) to show it.' });
+      if (typeof slMarkerOffImage === 'function' && slMarkerOffImage(f)) warns.push({ msg: 'Fault F' + (f.number != null ? f.number : '?') + ' is pinned off the site image, so the aerial figure shows it pinned to the nearest image edge. Re-place it on the plan (Footprint / site plan) to position it exactly.' });
     });
   }
   // Roof build-up asbestos - noted so an asbestos status is never silently dropped.
