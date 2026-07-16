@@ -2629,10 +2629,11 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .sp-key-line{width:18px;height:0;border-top:2px solid var(--ink);flex:0 0 auto;}
   .sl-report .sp-key-dim{width:18px;height:0;border-top:2px solid var(--orange);flex:0 0 auto;}
   .sl-report .sp-key-note{font-size:11px;color:var(--grey);line-height:1.55;max-width:280px;margin-top:6px;}
-  /* No overflow clip on the stage: an edge-pinned marker pill (centre clamped to
-     the image boundary) may extend up to 17px past the stage into the panel's
-     26px inset. The figure (.aerial) keeps overflow:hidden as the hard bound. */
-  .sl-report .aerial .aerial-stage{overflow:visible;}
+  /* The stage clips its OWN children (same-element containment): the printed
+     PDF is a Paged.js rebuild that does not honour ancestor clips reliably, so
+     containment must live on the pills' own parent. Marker centres are inset by
+     the pill half-size in slAerialFigure, so no pill is ever paint-clipped. */
+  .sl-report .aerial .aerial-stage{overflow:hidden;}
   .sl-report .aerial .aerial-mk{position:absolute;width:34px;height:34px;border-radius:7px;background:#26262e;
           display:flex;align-items:center;justify-content:center;box-shadow:0 2px 7px rgba(0,0,0,.45);z-index:2;}
   .sl-report .aerial .aerial-mk .amk-c{width:26px;height:26px;border-radius:50%;background:var(--orange);color:#fff;
@@ -15374,6 +15375,13 @@ function slAerialFigure(s, src, rot, boxW, boxH){
     var u = Math.min(1, Math.max(0, Number(f.imgU)));
     var v = Math.min(1, Math.max(0, Number(f.imgV)));
     var px = offX + u * dispW, py = offY + v * dispH;            // on the contained image
+    // Inset the pill CENTRE by the pill half-size (34px pill -> 17px) so the
+    // whole pill paints inside the stage's own overflow clip - an edge marker
+    // pins just inside the image boundary, fully painted, never half-cut and
+    // never able to escape the figure in the paged print rebuild.
+    var MK_HALF = 17;
+    px = Math.min(SW - MK_HALF, Math.max(MK_HALF, px));
+    py = Math.min(SH - MK_HALF, Math.max(MK_HALF, py));
     var up = rot ? (' rotate(-' + rot + 'deg)') : '';
     dots += '<span class="aerial-mk" style="left:' + (px / SW * 100) + '%;top:' + (py / SH * 100) + '%;transform:translate(-50%,-50%)' + up + ';"><span class="amk-c">' + (f.number != null ? f.number : '?') + '</span></span>';
   });
