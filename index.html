@@ -15392,14 +15392,19 @@ function slAerialFigure(s, src, rot, boxW, boxH){
     else if (rot === 180) { fx = SW - px; fy = SH - py; }
     else if (rot === 270) { fx = py;      fy = SW - px; }
     else                  { fx = px;      fy = py; }
-    dots += '<span class="aerial-mk" style="left:' + (fx / boxW * 100) + '%;top:' + (fy / boxH * 100) + '%;transform:translate(-50%,-50%);"><span class="amk-c">' + (f.number != null ? f.number : '?') + '</span></span>';
+    // Pill centred by fixed negative margins (34px pill -> -17px), positioned
+    // in px, transform:none - Chrome's print raster mis-applies CSS transforms
+    // in the marker path (three confirmed instances), so none are used here.
+    dots += '<span class="aerial-mk" style="left:' + fx.toFixed(2) + 'px;top:' + fy.toFixed(2) + 'px;margin-left:-17px;margin-top:-17px;transform:none;"><span class="amk-c">' + (f.number != null ? f.number : '?') + '</span></span>';
   });
   var stageStyle = 'position:absolute;top:50%;left:50%;width:' + SW + 'px;height:' + SH + 'px;' +
     'transform:translate(-50%,-50%)' + (rot ? (' rotate(' + rot + 'deg)') : '') + ';';
   return '<div class="aerial-stage" style="' + stageStyle + '">' +
            '<img src="' + src + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;">' +
          '</div>' +
-         '<div class="aerial-marks" style="position:absolute;top:50%;left:50%;width:' + boxW + 'px;height:' + boxH + 'px;transform:translate(-50%,-50%);z-index:2;">' +
+         // Marks layer centred by fixed negative margins (box dims are render-
+         // time constants) - no transform, for the same print-raster reason.
+         '<div class="aerial-marks" style="position:absolute;top:50%;left:50%;width:' + boxW + 'px;height:' + boxH + 'px;margin-left:-' + (boxW / 2) + 'px;margin-top:-' + (boxH / 2) + 'px;z-index:2;">' +
            dots +
          '</div>';
 }
