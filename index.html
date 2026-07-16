@@ -15365,6 +15365,16 @@ function slAerialFigure(s, src, rot, boxW, boxH){
   var scale = Math.min(SW / IW, SH / IH);
   var dispW = IW * scale, dispH = IH * scale;
   var offX = (SW - dispW) / 2, offY = (SH - dispH) / 2;         // letterbox margins (>=0)
+  // PRINT-SAFE MARKERS: the pills live in an UNTRANSFORMED sibling layer, not
+  // inside the rotated stage. Chrome's print raster (the window.print pipeline
+  // the report's Print button uses) mis-resolves counter-rotated pills nested
+  // in a clipped, transformed parent to PAGE coordinates once the enlarged
+  // stage ~fills the print-size figure - markers escaped into the sheet/foot.
+  // The photo keeps its rotate transform (it always printed correctly); each
+  // pill's position is mapped from unrotated stage coords into the DISPLAYED
+  // (figure-aligned) box in JS, so no CSS transform maths is left to the
+  // rasteriser. Screen output is pixel-identical to the in-stage rendering.
+  var MK_HALF = 17;                                              // half the 34px pill
   var dots = '';
   (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).forEach(function(f){
     if (!f || f.unlocatable || !isFinite(Number(f.imgU)) || !isFinite(Number(f.imgV))) return;
@@ -15374,21 +15384,26 @@ function slAerialFigure(s, src, rot, boxW, boxH){
     // surveyor, but the client render always shows every numbered fault.
     var u = Math.min(1, Math.max(0, Number(f.imgU)));
     var v = Math.min(1, Math.max(0, Number(f.imgV)));
-    var px = offX + u * dispW, py = offY + v * dispH;            // on the contained image
-    // Inset the pill CENTRE by the pill half-size (34px pill -> 17px) so the
-    // whole pill paints inside the stage's own overflow clip - an edge marker
-    // pins just inside the image boundary, fully painted, never half-cut and
-    // never able to escape the figure in the paged print rebuild.
-    var MK_HALF = 17;
-    px = Math.min(SW - MK_HALF, Math.max(MK_HALF, px));
-    py = Math.min(SH - MK_HALF, Math.max(MK_HALF, py));
-    var up = rot ? (' rotate(-' + rot + 'deg)') : '';
-    dots += '<span class="aerial-mk" style="left:' + (px / SW * 100) + '%;top:' + (py / SH * 100) + '%;transform:translate(-50%,-50%)' + up + ';"><span class="amk-c">' + (f.number != null ? f.number : '?') + '</span></span>';
+    var px = offX + u * dispW, py = offY + v * dispH;            // unrotated stage coords
+    // Rotate into displayed (figure-aligned) coords - the same mapping the CSS
+    // rotate performed, done here so the pill needs no transform of its own.
+    var fx, fy;
+    if (rot === 90)       { fx = SH - py; fy = px; }
+    else if (rot === 180) { fx = SW - px; fy = SH - py; }
+    else if (rot === 270) { fx = py;      fy = SW - px; }
+    else                  { fx = px;      fy = py; }
+    // Inset the pill centre by its half-size so every pill paints whole inside
+    // the marker layer (edge markers pin just inside the image boundary).
+    fx = Math.min(boxW - MK_HALF, Math.max(MK_HALF, fx));
+    fy = Math.min(boxH - MK_HALF, Math.max(MK_HALF, fy));
+    dots += '<span class="aerial-mk" style="left:' + (fx / boxW * 100) + '%;top:' + (fy / boxH * 100) + '%;transform:translate(-50%,-50%);"><span class="amk-c">' + (f.number != null ? f.number : '?') + '</span></span>';
   });
   var stageStyle = 'position:absolute;top:50%;left:50%;width:' + SW + 'px;height:' + SH + 'px;' +
     'transform:translate(-50%,-50%)' + (rot ? (' rotate(' + rot + 'deg)') : '') + ';';
   return '<div class="aerial-stage" style="' + stageStyle + '">' +
            '<img src="' + src + '" alt="Site aerial" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;">' +
+         '</div>' +
+         '<div class="aerial-marks" style="position:absolute;top:50%;left:50%;width:' + boxW + 'px;height:' + boxH + 'px;transform:translate(-50%,-50%);z-index:2;">' +
            dots +
          '</div>';
 }
