@@ -4045,7 +4045,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
       </details>
 
       <div class="form-actions">
-        <button class="btn btn-primary" id="save-btn" onclick="saveSurvey()">Save Survey</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveSurvey()">Save</button>
+        <button class="btn btn-secondary" id="save-print-btn" onclick="saveSurveyAndPrint()">Save and print</button>
         <button class="link-btn" onclick="cancelEdit()">Cancel</button>
       </div>
       <div class="draft-indicator" id="draft-indicator"></div>
@@ -8245,8 +8246,12 @@ function validateForm() {
   }
   return true;
 }
-function saveSurvey() {
-  if (!validateForm()) return;
+// Core save: validate, persist, kick off the photo backup. Returns the saved
+// record, or null when validation fails or storage is full (user stays on the
+// form, exactly as before). Save semantics are untouched - only what happens
+// AFTER a save differs between the two exits below.
+function saveSurveyCore(flashBtnId) {
+  if (!validateForm()) return null;
   const data = collectFormData();
   const now = new Date().toISOString();
   const surveys = loadSurveys();
@@ -8266,7 +8271,7 @@ function saveSurvey() {
     surveys.push(saved);
   }
 
-  if (!saveSurveysSafe(surveys)) return;  // storage full: keep user on form, data in memory, warning shown
+  if (!saveSurveysSafe(surveys)) return null;  // storage full: keep user on form, data in memory, warning shown
   clearDraft();
   stopAutoSave();
   currentSurveyId = saved.id;
@@ -8285,15 +8290,45 @@ function saveSurvey() {
     })();
   }
 
-  const btn = document.getElementById('save-btn');
+  const btn = document.getElementById(flashBtnId || 'save-btn');
   if (btn) {
     const orig = btn.textContent;
     btn.textContent = '✓ Saved';
     btn.disabled = true;
     setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 900);
   }
-  setTimeout(() => goHome(), 750);
-  setTimeout(() => showToast('Survey saved — ' + saved.id, 'ok'), 100);
+  return saved;
+}
+
+// On-site exit: save and land on THAT record's detail hub, so the next action
+// is one tap away (previously this returned to the home list).
+function saveSurvey() {
+  const saved = saveSurveyCore('save-btn');
+  if (!saved) return;
+  setTimeout(() => goToSurvey(saved.id), 750);
+  setTimeout(() => showToast('Survey saved · ' + saved.id, 'ok'), 100);
+}
+
+// Desk exit: save, regenerate the condition report FRESH from the just-saved
+// record (goToReportCurrent re-reads storage and re-renders - never a cached
+// render), land on the report view and open the print dialogue via the same
+// window.print() path the report's own Print / Save as PDF button uses. A
+// record with no captured faults saves normally and lands on the detail hub
+// instead - never a half-generated report.
+function saveSurveyAndPrint() {
+  const saved = saveSurveyCore('save-print-btn');
+  if (!saved) return;
+  const faults = Array.isArray(saved.siteFaultMarkers) ? saved.siteFaultMarkers : [];
+  if (!faults.length) {
+    setTimeout(() => goToSurvey(saved.id), 750);
+    setTimeout(() => showToast('Survey saved · capture faults to generate the report', 'ok'), 100);
+    return;
+  }
+  setTimeout(() => showToast('Survey saved · ' + saved.id, 'ok'), 100);
+  setTimeout(() => {
+    goToReportCurrent();
+    setTimeout(() => window.print(), 400);
+  }, 750);
 }
 
 // ---- Auto-save draft ----
