@@ -22096,9 +22096,21 @@ function _spOvInputs(key, derived) {
       ' style="width:130px;font-size:11px;padding:2px 4px;border:1px solid #e2e2dd;border-radius:4px;margin-left:6px;">';
 }
 
+// Costing surface is chosen by visit purpose, exclusively. The works-mode
+// machinery - the rate-card DERIVED COSTED SCHEDULE (+ its "rate card not cached"
+// banner), the LABOUR duration/crew/visits panel, and the WORKS JOB TOTAL line
+// (schedule + labour) - is ESTIMATE-ONLY. On a condition-purpose record it must
+// not render at all: condition jobs are priced in the repair-mode Costing panel
+// (one all-in client figure per fault, labour inside, plus site-wide standing
+// items), and keying judged labour on a fault-list job would double-count the
+// labour already inside those per-fault figures. Absent, not collapsed. Any
+// stored labourInputs / overrides stay in the record, harmless and untouched.
+function spWorksCostingHidden() { return flowVisitPurpose === 'condition'; }
+
 function spRenderCostedSchedule() {
   const host = document.getElementById('sp-costed-schedule');
   if (!host) return;
+  if (spWorksCostingHidden()) { host.style.display = 'none'; host.innerHTML = ''; return; }
   const survey = spCurrentSurvey();
   const faults = (survey && survey.siteFaultMarkers) ? survey.siteFaultMarkers : [];
   if (!faults.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
@@ -22256,6 +22268,7 @@ function spLabourCompute() {
 function spRenderLabourSection() {
   const host = document.getElementById('sp-labour-section');
   if (!host) return;
+  if (spWorksCostingHidden()) { host.style.display = 'none'; host.innerHTML = ''; return; }
   const survey = spCurrentSurvey();
   if (!survey || !(survey.siteFaultMarkers || []).length) { host.style.display = 'none'; host.innerHTML = ''; return; }
   host.style.display = 'block';
