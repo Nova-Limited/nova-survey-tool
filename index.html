@@ -3088,6 +3088,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   .sl-report .nx-card.rec{ border-top:3px solid var(--orange); }
   .sl-report .nx-k{ font-size:11px; letter-spacing:.16em; font-weight:700; text-transform:uppercase; color:var(--grey); margin-bottom:14px; }
   .sl-report .nx-rec{ font-size:20px; font-weight:700; line-height:1.32; color:var(--ink); }
+  .sl-report .nx-rec-budget{ font-size:12.5px; font-weight:400; line-height:1.5; color:var(--grey); margin-top:14px; }
   .sl-report .nx-body{ font-size:14px; line-height:1.66; color:#3f4044; margin:0; }
   .sl-report .nx-journey{ flex:none; }
   .sl-report .nx-jk{ font-size:11px; letter-spacing:.16em; font-weight:700; text-transform:uppercase; color:var(--grey); margin-bottom:16px; }
@@ -4116,7 +4117,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
           <div class="field-row">
             <div class="field">
               <label for="f-recommendation">Recommendation</label>
-              <select id="f-recommendation">
+              <select id="f-recommendation" onchange="updateReplacementBudget()">
                 <option value="">—</option>
                 <option>Continue maintenance</option>
                 <option>Targeted repairs</option>
@@ -4124,6 +4125,20 @@ input.derived-field { background: #f6f8fa; color: #555; }
                 <option>Replace</option>
                 <option>Further investigation</option>
               </select>
+            </div>
+          </div>
+          <!-- Indicative replacement budget: shown only when the recommendation is
+               Recover or Replace. Feeds ONE planning-budget line on the report's
+               recommendation card (area x rate); neither costing surface. Hidden
+               otherwise; keyed values are retained in the record (display:none). -->
+          <div class="field-row" id="replacement-budget-row" style="display:none;">
+            <div class="field">
+              <label for="f-repl-area">Roof area (m2)</label>
+              <input type="number" id="f-repl-area" min="0" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label for="f-repl-rate">Budget rate (per m2)</label>
+              <input type="number" id="f-repl-rate" min="0" inputmode="numeric" value="160">
             </div>
           </div>
           <div class="field-row">
@@ -4940,6 +4955,8 @@ const FIELD_MAP = [
   { id: 'f-remaining-life-postworks', type: 'number', path: 'f-remaining-life-postworks' },
   { id: 'f-executive-summary',  type: 'textarea', path: 'f-executive-summary' },
   { id: 'f-recommendation',     type: 'text',     path: 'f-recommendation' },
+  { id: 'f-repl-area',          type: 'number',   path: 'f-repl-area' },
+  { id: 'f-repl-rate',          type: 'number',   path: 'f-repl-rate', dflt: 160 },
   { id: 'f-purlin-type',        type: 'text',     path: 'purlinType', dflt: 'Steel' },
   { id: 'f-overclad-override',  type: 'checkbox', path: 'overcladOverride' },
   { id: 'f-carrier-linm',       type: 'number',   path: 'carrierLinM' },
@@ -8877,6 +8894,17 @@ function resetForm() {
 function updateConditionals() {
   const asbSeen = document.getElementById('f-asb-register-seen').checked;
   document.querySelectorAll('[data-cond="asb-seen"]').forEach(el => el.hidden = !asbSeen);
+  updateReplacementBudget();
+}
+// Reveal the indicative replacement-budget inputs only when the recommendation is
+// Recover or Replace (the replace / over-clad / re-cover values). Any other value
+// hides them; keyed values are kept in the DOM (display:none) so they round-trip
+// through collectFormData unchanged - lossless, exactly like the cost-band field.
+function updateReplacementBudget() {
+  var rec = (document.getElementById('f-recommendation') || {}).value || '';
+  var show = (rec === 'Recover' || rec === 'Replace');
+  var row = document.getElementById('replacement-budget-row');
+  if (row) row.style.display = show ? '' : 'none';
 }
 
 function monthsBetween(earlier, later) {
@@ -19406,6 +19434,23 @@ function slRenderFindingsNext(survey) {
   const recCopy  = recSentence || 'Targeted repairs to the priority defects, programmed to keep the building watertight.';
   const nextCopy = nextStepsTxt || 'We are happy to provide a work schedule for the required tasks, or to price against this report for replacement if that is your chosen way forward. One accountable process, whether a single building or a national estate.';
 
+  // ONE indicative replacement budget line - renders inside the recommendation
+  // card only when the recommendation is a replacement / re-cover value (Recover
+  // or Replace) AND a positive roof area is keyed. Plain area x rate (rate
+  // defaults to 160), rounded to the nearest 100. A standalone planning guide: it
+  // appears in no schedule, reconciliation, By-the-Numbers figure or total.
+  const replRec = (recVal === 'Recover' || recVal === 'Replace');
+  let replArea = Number(s['f-repl-area']);
+  let replRate = Number(s['f-repl-rate']); if (!isFinite(replRate) || replRate <= 0) replRate = 160;
+  let replBudgetLine = '';
+  if (replRec && isFinite(replArea) && replArea > 0) {
+    const replFig = Math.round((replArea * replRate) / 100) * 100;
+    const replFigStr = String(replFig).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    replBudgetLine = '<div class="nx-rec-budget">Budget guide for replacement: in the region of &pound;' + replFigStr +
+      ' plus VAT, based on approximately ' + replArea + ' square metres. This is a planning budget only, not a quotation; ' +
+      'a full replacement survey would be required to specify and price the works.</div>';
+  }
+
   return '' +
   '<section class="sheet sl-next">' +
     '<div class="pad">' +
@@ -19415,7 +19460,7 @@ function slRenderFindingsNext(survey) {
       '</div>' +
       '<div class="nx-cards">' +
         '<div class="nx-card rec"><div class="nx-k">Our recommendation</div>' +
-          '<div class="nx-rec">' + escapeHtml(recCopy) + '</div></div>' +
+          '<div class="nx-rec">' + escapeHtml(recCopy) + '</div>' + replBudgetLine + '</div>' +
         '<div class="nx-card next"><div class="nx-k">Next steps</div>' +
           '<p class="nx-body">' + escapeHtml(nextCopy) + '</p></div>' +
       '</div>' +
