@@ -1,2 +1,14 @@
 # Local design target — never commit (large, embeds brand assets)
 _meridian-target.html
+
+# Working-tree / verification artifacts — never commit (2026-07-17 sweep cleanup).
+# Going forward: stage files explicitly, never `git add -A` on this repo.
+.writeback-snapshot-*.json
+_HEAD_*.html
+_print_*.html
+.claude/
+# loose verification screenshots at repo root
+/elev-*.png
+/flow-*.png
+/s5-*.png
+/widen-*.png
