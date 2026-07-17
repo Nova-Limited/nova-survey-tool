@@ -955,6 +955,41 @@ body.mode-site #ctx-strip.shown { display: flex; position: fixed; left: 0; right
 .visit-v { font-size: 1.02rem; color: var(--ink); margin-top: 2px; }
 .visit-start { width: 100%; }
 
+/* Fault ledger - fast site-capture loop (condition surveys) */
+#view-faultledger { padding: 0; }
+.ledger-wrap { max-width: 620px; margin: 0 auto; padding: 0.6rem 0.9rem 3rem; }
+.ledger-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0.2rem 0 0.8rem; }
+.ledger-h-n { font-size: 1.35rem; font-weight: 800; color: var(--ink); }
+.ledger-h-count { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.ledger-sec-lbl { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 1.1rem 0 0.35rem; }
+.ledger-field { width: 100%; box-sizing: border-box; border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.7rem 0.8rem; font-family: inherit; font-size: 1.02rem; color: var(--ink); resize: vertical; line-height: 1.4; }
+.ledger-field:focus { outline: none; border-color: var(--orange); }
+.ledger-photos { display: flex; flex-wrap: wrap; gap: 8px; }
+.ledger-photo { position: relative; width: 92px; height: 92px; border-radius: 10px; overflow: hidden; border: 1px solid var(--rule); background: #f3f2ef; }
+.ledger-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ledger-photo-ph { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 0.7rem; color: var(--muted); }
+.ledger-photo-x { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,0.6); color: #fff; font-size: 15px; line-height: 1; cursor: pointer; padding: 0; }
+.ledger-photo-t { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); color: #fff;
+  font-size: 0.62rem; text-align: center; padding: 1px 2px; letter-spacing: 0.02em; }
+.ledger-btn { width: 100%; margin-top: 0.6rem; }
+.ledger-photo-add { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.ledger-defer { font-size: 0.9rem; }
+.ledger-defer.on { color: #15803d; border-color: #15803d; }
+.ledger-actions { margin-top: 1.4rem; display: flex; flex-direction: column; gap: 0; }
+.ledger-saved { text-align: center; padding: 2rem 0.5rem 1rem; }
+.ledger-saved-tick { font-size: 1.2rem; font-weight: 800; color: #15803d; }
+.ledger-saved-sub { font-size: 0.95rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.5; }
+.ledger-done { margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 0.8rem; }
+.ledger-done-h { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 0.6rem; }
+.ledger-done-row { display: flex; gap: 10px; align-items: flex-start; padding: 0.5rem 0; border-bottom: 1px solid #f0efec; }
+.ledger-done-thumb { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: #f3f2ef; display: flex; align-items: center; justify-content: center; }
+.ledger-done-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ledger-done-defer { font-size: 0.62rem; color: var(--muted); }
+.ledger-done-txt { font-size: 0.95rem; color: var(--ink); }
+.ledger-done-desc { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+
 /* Desk mode: light context strip on the record's detail hub */
 .detail-ctx { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
   border: 1px solid var(--rule); border-left: 3px solid var(--orange); border-radius: 8px;
@@ -3411,6 +3446,11 @@ input.derived-field { background: #f6f8fa; color: #555; }
     </div>
   </section>
 
+  <!-- FAULT LEDGER (site capture) -->
+  <section id="view-faultledger" class="view">
+    <div id="faultledger-body"></div>
+  </section>
+
   <!-- FORM -->
   <section id="view-form" class="view">
     <div class="container">
@@ -4470,6 +4510,16 @@ input.derived-field { background: #f6f8fa; color: #555; }
 
   <style id="fp-styles">
     #view-footprint .fp-wrap { max-width: 640px; }
+    /* Ledger-captured faults awaiting placement (desk panel) */
+    #view-footprint .fp-unpinned { max-width: 640px; margin: 10px auto 0; padding: 12px 14px; border: 1px solid #e2e3e5; border-left: 3px solid #F7901E; border-radius: 10px; background: #fffaf3; }
+    #view-footprint .fp-unpinned-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: #fff; border: 1px solid #ecdcc4; border-radius: 8px; padding: 8px 10px; margin-top: 8px; cursor: pointer; }
+    #view-footprint .fp-unpinned-thumb { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 6px; overflow: hidden; background: #f3f2ef; display: flex; align-items: center; justify-content: center; }
+    #view-footprint .fp-unpinned-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    #view-footprint .fp-unpinned-later { font-size: 10px; color: #8a898b; }
+    #view-footprint .fp-unpinned-txt { flex: 1 1 auto; font-size: 13px; color: #434244; min-width: 0; }
+    #view-footprint .fp-unpinned-desc { display: block; font-size: 12px; color: #8a898b; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #view-footprint .fp-unpinned-cta { flex: 0 0 auto; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #F7901E; }
+    #view-footprint .fp-opt-primary { background: #F7901E; color: #fff; border-color: #F7901E; font-weight: 700; }
     #view-footprint .fp-tools, #view-footprint .fp-forms { margin-bottom: 14px; }
     #view-footprint .fp-tools-lbl { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #8a898b; margin-bottom: 8px; }
     #view-footprint .fp-buildup { margin: 4px 0 14px; padding: 12px 14px; border: 1px solid #e2e3e5; border-radius: 10px; background: #fafaf8; }
@@ -6737,12 +6787,19 @@ function novaSurveyIdFor(s) {
 function normalisePhotoEntry(p) {
   if (typeof p === 'string') return { data: p, key: '', pendingUpload: false, caption: '' };
   if (p && typeof p === 'object') {
-    return {
+    var e = {
       data:          typeof p.data === 'string' ? p.data : '',
       key:           typeof p.key === 'string' ? p.key : '',
       pendingUpload: !!p.pendingUpload,
       caption:       typeof p.caption === 'string' ? p.caption : ''
     };
+    // Fault-ledger (site-capture) photos live in IndexedDB, not the record store:
+    // the entry carries only a durable idbId reference + the capture timestamp
+    // (the desk pairing key for deferred drone imagery). Preserve both so the
+    // ledger reference survives every normalise pass (ensurePhotosUploaded etc.).
+    if (typeof p.idbId === 'string' && p.idbId) e.idbId = p.idbId;
+    if (typeof p.capturedAt === 'string' && p.capturedAt) e.capturedAt = p.capturedAt;
+    return e;
   }
   return { data: '', key: '', pendingUpload: false, caption: '' };
 }
@@ -6753,6 +6810,11 @@ function imgSrcFor(slot) {
   if (typeof slot === 'string') return slot || null;
   if (slot.key)  return WORKER_BASE + '/photo/' + slot.key;
   if (slot.data) return slot.data;
+  // Fault-ledger photo: the bytes are in IndexedDB. imgSrcFor is synchronous, so
+  // the desk hydration step (idbHydrateLedgerPhotos) resolves each idbId to an
+  // object URL cached here before render; unhydrated -> null (caller shows a
+  // placeholder, never an error).
+  if (slot.idbId && LEDGER_PHOTO_URLS[slot.idbId]) return LEDGER_PHOTO_URLS[slot.idbId];
   return null;
 }
 
@@ -6768,6 +6830,114 @@ function faultImageSrcFor(fault) {
   if (fault.faultImageKey) return WORKER_BASE + '/photo/' + fault.faultImageKey;
   if (fault.faultImage)    return fault.faultImage;
   return null;
+}
+
+// ===== FAULT-LEDGER PHOTO STORE (IndexedDB) + FUTURE-SYNC STUBS ==============
+// Site-capture (fault-ledger) photos must NOT go into the record's localStorage
+// store (that store holds many surveys and blows the ~5MB quota once real photos
+// land). They live in a separate, durable IndexedDB store; the fault record
+// carries only a client-generated idbId reference plus the capture timestamp.
+var LEDGER_IDB_NAME = 'nova_ledger_photos_v1';
+var LEDGER_IDB_STORE = 'photos';
+var _ledgerIdbPromise = null;
+var LEDGER_PHOTO_URLS = {};   // idbId -> object URL (hydrated cache; imgSrcFor reads it)
+
+// A client-generated unique id (fault client_uuid + photo idbId). crypto.randomUUID
+// where available, else a timestamp+counter fallback - both are process-unique,
+// which is all the D1 upsert-by-client_uuid contract needs.
+var _uuidCounter = 0;
+function novaClientUuid() {
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (_) {}
+  _uuidCounter++;
+  return 'u-' + Date.now().toString(36) + '-' + _uuidCounter.toString(36) + '-' +
+    Math.floor((window.crypto ? (crypto.getRandomValues(new Uint32Array(1))[0]) : (Math.random() * 4294967295))).toString(36);
+}
+
+function idbOpen() {
+  if (_ledgerIdbPromise) return _ledgerIdbPromise;
+  _ledgerIdbPromise = new Promise(function (resolve, reject) {
+    if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+    var req = indexedDB.open(LEDGER_IDB_NAME, 1);
+    req.onupgradeneeded = function () {
+      var db = req.result;
+      if (!db.objectStoreNames.contains(LEDGER_IDB_STORE)) db.createObjectStore(LEDGER_IDB_STORE);
+    };
+    req.onsuccess = function () { resolve(req.result); };
+    req.onerror = function () { reject(req.error || new Error('IndexedDB open failed')); };
+  });
+  return _ledgerIdbPromise;
+}
+// Store a photo Blob (+ its capturedAt/faultId/surveyId metadata) under idbId.
+function idbPutLedgerPhoto(idbId, blob, meta) {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(LEDGER_IDB_STORE, 'readwrite');
+      tx.objectStore(LEDGER_IDB_STORE).put({ blob: blob, meta: meta || {} }, idbId);
+      tx.oncomplete = function () { resolve(true); };
+      tx.onerror = function () { reject(tx.error || new Error('IndexedDB put failed')); };
+    });
+  });
+}
+function idbGetLedgerPhoto(idbId) {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(LEDGER_IDB_STORE, 'readonly');
+      var rq = tx.objectStore(LEDGER_IDB_STORE).get(idbId);
+      rq.onsuccess = function () { resolve(rq.result || null); };
+      rq.onerror = function () { reject(rq.error || new Error('IndexedDB get failed')); };
+    });
+  });
+}
+function idbDeleteLedgerPhoto(idbId) {
+  if (LEDGER_PHOTO_URLS[idbId]) { try { URL.revokeObjectURL(LEDGER_PHOTO_URLS[idbId]); } catch (_) {} delete LEDGER_PHOTO_URLS[idbId]; }
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve) {
+      var tx = db.transaction(LEDGER_IDB_STORE, 'readwrite');
+      tx.objectStore(LEDGER_IDB_STORE).delete(idbId);
+      tx.oncomplete = function () { resolve(true); };
+      tx.onerror = function () { resolve(false); };
+    });
+  }).catch(function () { return false; });
+}
+// Resolve every ledger-photo idbId on a survey to an object URL in LEDGER_PHOTO_URLS
+// so the synchronous imgSrcFor can show them on the desk. Returns a promise that
+// resolves true if it hydrated anything new (caller re-renders).
+function idbHydrateLedgerPhotos(survey, cb) {
+  var faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers : [];
+  var ids = [];
+  faults.forEach(function (f) {
+    (f && Array.isArray(f.photos) ? f.photos : []).forEach(function (p) {
+      if (p && p.idbId && !LEDGER_PHOTO_URLS[p.idbId]) ids.push(p.idbId);
+    });
+  });
+  if (!ids.length) { if (typeof cb === 'function') cb(false); return Promise.resolve(false); }
+  return Promise.all(ids.map(function (id) {
+    return idbGetLedgerPhoto(id).then(function (rec) {
+      if (rec && rec.blob) { try { LEDGER_PHOTO_URLS[id] = URL.createObjectURL(rec.blob); } catch (_) {} }
+    }).catch(function () {});
+  })).then(function () { if (typeof cb === 'function') cb(true); return true; });
+}
+// dataURL -> Blob (store real bytes in IndexedDB, not a base64 string).
+function dataUrlToBlob(dataUrl) {
+  var parts = String(dataUrl).split(',');
+  var mimeMatch = /data:([^;]+)/.exec(parts[0] || '');
+  var mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  var bin = atob(parts[1] || '');
+  var len = bin.length, arr = new Uint8Array(len);
+  for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+// ---- FUTURE D1 SYNC TOUCHPOINTS (no-op stubs; NO network in this brief) -----
+// The agreed D1 model is survey_faults / survey_fault_photos, upsert by
+// client_uuid. Every fault carries clientUuid; every ledger photo carries idbId
+// (its client_uuid). These are the ONLY places a later brief wires the sync;
+// they deliberately do nothing now.
+function syncQueueFaultUpsert(surveyId, fault) {
+  /* D1 survey_faults upsert by client_uuid - wired in a later brief. No-op. */
+}
+function syncQueueFaultPhotoUpsert(surveyId, faultId, photo) {
+  /* D1 survey_fault_photos upsert by client_uuid (photo.idbId) - later brief. No-op. */
 }
 
 // Downscale a base64 JPEG to a small thumbnail for local storage.
@@ -7513,10 +7683,24 @@ function renderDaySheet() {
     .sort(function(a, b) { return timeKey(a).localeCompare(timeKey(b)); });
   var upcoming = surveys.filter(function(s) { var d = (s.visit || {}).date; return d && d > today; })
     .sort(function(a, b) { return ((a.visit.date + timeKey(a)).localeCompare(b.visit.date + timeKey(b))); });
+  // Recent: a quiet catch-all so site mode can always reach a job whose visit is
+  // past or was never dated. Most recent first (undated last), capped sensibly.
+  var RECENT_CAP = 20;
+  var recent = surveys.filter(function(s) { var d = (s.visit || {}).date; return !d || d < today; })
+    .sort(function(a, b) {
+      var da = (a.visit || {}).date || '', db = (b.visit || {}).date || '';
+      if (da && db) return db.localeCompare(da);   // both dated: newest first
+      if (da && !db) return -1;                    // dated before undated
+      if (!da && db) return 1;
+      return String(b.id).localeCompare(String(a.id));  // both undated: newest record first
+    })
+    .slice(0, RECENT_CAP);
   var h = '<div class="ds-h">Today &middot; ' + escapeHtml(fmtDate(today)) + '</div>';
   h += todayList.length ? rows(todayList) : '<div class="ds-empty">Nothing booked today.</div>';
   h += '<div class="ds-sub">Upcoming</div>';
   h += upcoming.length ? rows(upcoming) : '<div class="ds-empty">No upcoming visits.</div>';
+  h += '<div class="ds-sub">Recent</div>';
+  h += recent.length ? rows(recent) : '<div class="ds-empty">No recent visits.</div>';
   host.innerHTML = h;
 }
 
@@ -7548,7 +7732,258 @@ function renderVisit(s) {
 function startSurvey(id) {
   currentSurveyId = id;
   showContext(id);
+  // Capture entrance by purpose: a CONDITION survey opens the fast fault ledger
+  // (aerial imagery does not exist yet at capture time, so nothing here depends
+  // on it - pin placement stays a desk activity). Every other purpose opens the
+  // existing footprint capture surface exactly as before. Desk mode is unchanged
+  // (goDetail/editCurrent still enter the footprint surface directly).
+  var s = srLoadSurvey(id);
+  if (s && s.visitPurpose === 'condition') { openFaultLedger(id); return; }
   fpOpen(id);
+}
+
+// ===== FAULT LEDGER - fast site-capture loop for condition surveys ===========
+// One thumb-first screen, context strip pinned above (startSurvey called
+// showContext). A ledger fault is an ORDINARY siteFaultMarkers entry with
+// footprintLoc:null (unpinned) plus a clientUuid, so it flows straight into the
+// existing fault model - schedule / report / costing pick it up, and it is
+// pinnable on the desk once the aerial is inserted. NO severity / library pick /
+// pinning / pricing here: those are desk work.
+var ledgerSurveyId = null;
+var ledgerFaultId = null;
+var ledgerStage = 'edit';   // 'edit' (fields shown) | 'saved' (Next / Finish)
+
+function ledgerFindFault(survey, id) {
+  return (survey && Array.isArray(survey.siteFaultMarkers) ? survey.siteFaultMarkers : [])
+    .find(function (f) { return f.id === id; }) || null;
+}
+// A draft never touched: unpinned and carrying no content of any kind. Pruned on
+// entry / leave so empty drafts never accumulate in the fault list.
+function ledgerFaultIsEmpty(f) {
+  if (!f) return true;
+  if (f.footprintLoc) return false;
+  var hasPhoto = Array.isArray(f.photos) && f.photos.length > 0;
+  return !hasPhoto && !f.photoDeferred && !f.location && !f.description && !f.faultType && !f.severity;
+}
+function ledgerPruneEmpty(survey) {
+  if (!survey || !Array.isArray(survey.siteFaultMarkers)) return false;
+  var before = survey.siteFaultMarkers.length;
+  survey.siteFaultMarkers = survey.siteFaultMarkers.filter(function (f) { return !ledgerFaultIsEmpty(f); });
+  return survey.siteFaultMarkers.length !== before;
+}
+function ledgerNewDraft(survey) {
+  var idn = fpNewFaultId(survey);
+  var f = { id: idn.id, number: idn.number, clientUuid: novaClientUuid(),
+    lat: null, lng: null, severity: '', faultType: '', location: '', area: '',
+    description: '', recommendation: '', dbDesc: false, dbRec: false, photos: [], qtyCount: '', qtyWhat: '', qtyWhatOther: '',
+    sizeEach: '', sizeUnit: '', sizeUnitOther: '', faultImage: '', faultImageKey: '', faultImageW: 0, faultImageH: 0,
+    faultMarkerX: null, faultMarkerY: null, footprintLoc: null, unlocatable: false,
+    photoDeferred: false, ledgerCaptured: true };
+  if (!Array.isArray(survey.siteFaultMarkers)) survey.siteFaultMarkers = [];
+  survey.siteFaultMarkers.push(f);
+  return f;
+}
+function openFaultLedger(id) {
+  currentSurveyId = id;
+  ledgerSurveyId = id;
+  // Same autosave-clobber protection fpOpen relies on: the form's 10s autosave
+  // persists collectFormData() over the record and would wipe ledger faults
+  // captured here. The form re-arms its autosave on re-entry, so this loses nothing.
+  if (typeof stopAutoSave === 'function') stopAutoSave();
+  var survey = srLoadSurvey(id); if (!survey) { showToast('Survey not found', 'err'); return; }
+  ledgerPruneEmpty(survey);
+  var draft = ledgerNewDraft(survey);
+  ledgerFaultId = draft.id;
+  ledgerStage = 'edit';
+  srPersist(survey);
+  showContext(id);
+  showView('faultledger');
+  idbHydrateLedgerPhotos(survey, function () { renderFaultLedger(); });
+  renderFaultLedger();
+}
+function ledgerCapturedList(survey) {
+  return (survey && Array.isArray(survey.siteFaultMarkers) ? survey.siteFaultMarkers : [])
+    .filter(function (f) { return f.ledgerCaptured && f.id !== ledgerFaultId && !ledgerFaultIsEmpty(f); });
+}
+function fmtCapturedAt(iso) {
+  if (!iso) return '';
+  var d = new Date(iso); if (isNaN(d.getTime())) return '';
+  var hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+  var todayIso = localTodayISO();
+  var dIso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return (dIso === todayIso ? '' : (fmtDate(dIso) + ' ')) + hh + ':' + mm;
+}
+function renderFaultLedger() {
+  var host = document.getElementById('faultledger-body'); if (!host) return;
+  var survey = srLoadSurvey(ledgerSurveyId); if (!survey) return;
+  var f = ledgerFindFault(survey, ledgerFaultId);
+  if (!f) { var d = ledgerNewDraft(survey); ledgerFaultId = d.id; srPersist(survey); f = d; }
+  var done = ledgerCapturedList(survey);
+  var h = '<div class="ledger-wrap">';
+  h += '<div class="ledger-head"><span class="ledger-h-n">Fault ' + (f.number || '') + '</span>' +
+    '<span class="ledger-h-count">' + (done.length ? (done.length + ' captured') : 'First fault') + '</span></div>';
+
+  if (ledgerStage === 'saved') {
+    h += '<div class="ledger-saved"><div class="ledger-saved-tick">Fault ' + (f.number || '') + ' saved</div>' +
+      '<div class="ledger-saved-sub">Photos, location and description are stored on the record. Add the next fault, or finish and return to the visit.</div></div>';
+    h += '<div class="ledger-actions">' +
+      '<button class="btn btn-primary btn-big ledger-btn" onclick="ledgerNextFault()">Next fault</button>' +
+      '<button class="btn btn-ghost btn-big ledger-btn" onclick="ledgerFinish()">Finish capture</button></div>';
+    if (done.length) h += ledgerCapturedStrip(done);
+    h += '</div>';
+    host.innerHTML = h;
+    return;
+  }
+
+  // (b) Photo - primary opens the device camera / library; a clear secondary defers.
+  h += '<div class="ledger-sec-lbl">Photo</div>';
+  h += '<div class="ledger-photos">';
+  (f.photos || []).forEach(function (p, pi) {
+    var src = imgSrcFor(p);
+    h += '<div class="ledger-photo">' +
+      (src ? '<img src="' + src + '" alt="Fault photo">' : '<div class="ledger-photo-ph">photo</div>') +
+      '<button class="ledger-photo-x" onclick="ledgerRemovePhoto(' + pi + ')" aria-label="Remove photo">&times;</button>' +
+      '<span class="ledger-photo-t">' + escapeHtml(fmtCapturedAt(p.capturedAt) || '&mdash;') + '</span>' +
+    '</div>';
+  });
+  h += '</div>';
+  h += '<label class="btn btn-primary btn-big ledger-btn ledger-photo-add">Take or choose photo' +
+    '<input type="file" accept="image/*" capture="environment" multiple onchange="ledgerAddPhoto(this)" style="display:none;"></label>';
+  h += '<button class="btn btn-ghost ledger-btn ledger-defer' + (f.photoDeferred ? ' on' : '') + '" onclick="ledgerDeferPhoto()">' +
+    (f.photoDeferred ? 'Photo will be added at the desk &check;' : 'Add photo later') + '</button>';
+
+  // (c) Location - one large free-text field (standard keyboard, dictation-capable).
+  h += '<div class="ledger-sec-lbl">Where is it</div>';
+  h += '<textarea class="ledger-field" rows="2" placeholder="e.g. north slope, third bay from the gable" ' +
+    'oninput="ledgerSetField(\'location\', this.value)">' + escapeHtml(f.location || '') + '</textarea>';
+
+  // (d) Description - one free-text field.
+  h += '<div class="ledger-sec-lbl">What is it</div>';
+  h += '<textarea class="ledger-field" rows="3" placeholder="e.g. two slipped tiles, felt torn beneath" ' +
+    'oninput="ledgerSetField(\'description\', this.value)">' + escapeHtml(f.description || '') + '</textarea>';
+
+  // (e) Save fault (primary) - already autosaved; this finalises and offers Next / Finish.
+  h += '<div class="ledger-actions">' +
+    '<button class="btn btn-primary btn-big ledger-btn" onclick="ledgerSaveFault()">Save fault</button>' +
+    '<button class="btn btn-ghost btn-big ledger-btn" onclick="ledgerFinish()">Finish capture</button></div>';
+
+  if (done.length) h += ledgerCapturedStrip(done);
+  h += '</div>';
+  host.innerHTML = h;
+}
+function ledgerCapturedStrip(done) {
+  var h = '<div class="ledger-done"><div class="ledger-done-h">Captured this visit</div>';
+  done.slice().reverse().forEach(function (f) {
+    var thumb = imgSrcFor((f.photos || [])[0]);
+    h += '<div class="ledger-done-row">' +
+      '<div class="ledger-done-thumb">' + (thumb ? '<img src="' + thumb + '">' : (f.photoDeferred ? '<span class="ledger-done-defer">later</span>' : '<span class="ledger-done-defer">&mdash;</span>')) + '</div>' +
+      '<div class="ledger-done-txt"><b>Fault ' + (f.number || '') + '</b>' +
+        (f.location ? ' &middot; ' + escapeHtml(f.location) : '') +
+        (f.description ? '<div class="ledger-done-desc">' + escapeHtml(f.description) + '</div>' : '') +
+      '</div></div>';
+  });
+  h += '</div>';
+  return h;
+}
+function ledgerSetField(field, val) {
+  var survey = srLoadSurvey(ledgerSurveyId); if (!survey) return;
+  var f = ledgerFindFault(survey, ledgerFaultId); if (!f) return;
+  f[field] = val;
+  survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+  srPersist(survey);
+  syncQueueFaultUpsert(ledgerSurveyId, f);
+}
+function ledgerAddPhoto(input) {
+  var files = Array.prototype.slice.call(input.files || []); if (!files.length) return;
+  var faultId = ledgerFaultId, surveyId = ledgerSurveyId;
+  files.forEach(function (file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var maxW = 1280, w = img.width, ph = img.height;
+        if (w > maxW) { ph = Math.round(ph * maxW / w); w = maxW; }
+        var cv = document.createElement('canvas'); cv.width = w; cv.height = ph;
+        cv.getContext('2d').drawImage(img, 0, 0, w, ph);
+        var fullDataUrl = cv.toDataURL('image/jpeg', 0.7);
+        var blob;
+        try { blob = dataUrlToBlob(fullDataUrl); } catch (_) { blob = null; }
+        var idbId = novaClientUuid();
+        // Prefer the file's own capture time (deferred-drone pairing key); else now.
+        var capturedAt = (file && file.lastModified) ? new Date(file.lastModified).toISOString() : new Date().toISOString();
+        var finish = function () {
+          var sv = srLoadSurvey(surveyId); if (!sv) return;
+          var ff = ledgerFindFault(sv, faultId); if (!ff) return;
+          if (!Array.isArray(ff.photos)) ff.photos = [];
+          var entry = { idbId: idbId, capturedAt: capturedAt, key: '', data: '', pendingUpload: false, caption: '' };
+          ff.photos.push(entry);
+          ff.photoDeferred = false;
+          sv.siteFaultMarkers = fpFaultsForBuilding(sv);
+          srPersist(sv);
+          syncQueueFaultPhotoUpsert(surveyId, faultId, entry);
+          syncQueueFaultUpsert(surveyId, ff);
+          if (ledgerSurveyId === surveyId && ledgerFaultId === faultId) renderFaultLedger();
+        };
+        if (blob) {
+          idbPutLedgerPhoto(idbId, blob, { capturedAt: capturedAt, faultId: faultId, surveyId: surveyId }).then(function () {
+            try { LEDGER_PHOTO_URLS[idbId] = URL.createObjectURL(blob); } catch (_) {}
+            finish();
+          }).catch(function () { /* store failed - skip this photo rather than bloat the record */ });
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+function ledgerDeferPhoto() {
+  var survey = srLoadSurvey(ledgerSurveyId); if (!survey) return;
+  var f = ledgerFindFault(survey, ledgerFaultId); if (!f) return;
+  f.photoDeferred = !f.photoDeferred;
+  survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+  srPersist(survey);
+  syncQueueFaultUpsert(ledgerSurveyId, f);
+  renderFaultLedger();
+}
+function ledgerRemovePhoto(pidx) {
+  var survey = srLoadSurvey(ledgerSurveyId); if (!survey) return;
+  var f = ledgerFindFault(survey, ledgerFaultId); if (!f || !Array.isArray(f.photos)) return;
+  var removed = f.photos.splice(pidx, 1)[0];
+  if (removed && removed.idbId) idbDeleteLedgerPhoto(removed.idbId);
+  survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+  srPersist(survey);
+  renderFaultLedger();
+}
+function ledgerSaveFault() {
+  var survey = srLoadSurvey(ledgerSurveyId); if (!survey) return;
+  var f = ledgerFindFault(survey, ledgerFaultId); if (!f) return;
+  var hasPhoto = Array.isArray(f.photos) && f.photos.length > 0;
+  if (!hasPhoto && !f.photoDeferred && !f.location && !f.description) {
+    showToast('Add a photo, a location or a description first', 'err');
+    return;
+  }
+  survey.noFaultsFound = false;   // a genuinely captured fault clears any "no faults" declaration
+  survey.siteFaultMarkers = fpFaultsForBuilding(survey);
+  srPersist(survey);
+  syncQueueFaultUpsert(ledgerSurveyId, f);
+  ledgerStage = 'saved';
+  renderFaultLedger();
+}
+function ledgerNextFault() {
+  var survey = srLoadSurvey(ledgerSurveyId); if (!survey) return;
+  var draft = ledgerNewDraft(survey);
+  ledgerFaultId = draft.id;
+  ledgerStage = 'edit';
+  srPersist(survey);
+  renderFaultLedger();
+}
+function ledgerFinish() {
+  var survey = srLoadSurvey(ledgerSurveyId);
+  if (survey) { ledgerPruneEmpty(survey); srPersist(survey); }
+  var id = ledgerSurveyId;
+  ledgerSurveyId = null; ledgerFaultId = null; ledgerStage = 'edit';
+  openVisit(id);
 }
 
 function showContext(id) {
@@ -11624,6 +12059,9 @@ function fpOpen(id){
   fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpElevOpen = null;
   if (typeof showView === 'function') showView('footprint');
   fpRender();
+  // Fault-ledger faults carry photos in IndexedDB; resolve them to object URLs so
+  // the desk fault cards show them, then re-render once ready (no-op if none).
+  if (typeof idbHydrateLedgerPhotos === 'function') idbHydrateLedgerPhotos(s0, function (did) { if (did) fpRender(); });
 }
 // Leaving the capture surface must RENDER the survey detail, not just switch to
 // the view. Capture-first enters capture straight from the form (never through
@@ -11823,6 +12261,7 @@ function fpRender(){
     h += fpRenderKeypad();
     h += fpRenderFeatureSheet(survey);   // Stage 4: placed-feature edit sheet
     h += fpRenderFaultUnpinSheet(survey); // Stage 4: plotted-fault quick sheet
+    h += fpRenderUnpinnedFaults(survey);  // ledger-captured faults awaiting placement
     h += fpRenderDatum(survey);
     h += fpRenderBays(survey);   // Stage 3: bay definition (multi-bay only)
     h += fpRenderElevations(survey);   // Stage 4: wall elevations
@@ -13377,7 +13816,7 @@ function fpFaultPin(faultId){
   var f = faults.find(function(x){ return x.id === faultId; }); if (!f) return;
   f.footprintLoc = { bi: fpClampBuildingIdx(survey, fpActiveBuildingIdx), x: fpFaultPick.x, y: fpFaultPick.y };
   survey.siteFaultMarkers = faults;
-  fpFaultPick = null; fpPlaceMode = null;
+  fpFaultPick = null; fpPlaceMode = null; fpFaultPinTarget = null;
   srPersist(survey); fpRender();
 }
 function fpFaultPinNew(){
@@ -13403,7 +13842,19 @@ function fpFaultUnpin(faultId){
   survey.siteFaultMarkers = faults;
   srPersist(survey); fpRender();
 }
-function fpFaultCancelPick(){ fpFaultPick = null; fpRender(); }
+function fpFaultCancelPick(){ fpFaultPick = null; fpFaultPinTarget = null; fpRender(); }
+// A ledger-captured (unpinned) fault, pinned through the EXISTING placement flow:
+// arm fault place mode and remember which fault the next tap should pin. The tap
+// handler + place sheet already exist; fpFaultPinTarget just lets the sheet offer
+// a one-tap "Pin Fault N here" (still via fpFaultPin) instead of a scan of the list.
+var fpFaultPinTarget = null;
+function fpFaultBeginPin(faultId){
+  fpFaultOpenId = null;
+  fpFaultPinTarget = faultId;
+  fpPlaceMode = 'fault';
+  fpFaultPick = null;
+  fpRender();
+}
 // --- render: the place-toolbar row above the canvas + the feature/opening sheets ---
 function fpRenderPlaceToolbar(){
   var h = '<div class="fp-place-row">';
@@ -13474,9 +13925,13 @@ function fpRenderPlaceSheet(survey){
   if (fpFaultPick){
     var existingFaults = fpFaultsForBuilding(survey);
     var hx = '<div class="fp-sheet fp-place-sheet">';
-    hx += '<div class="fp-sheet-head"><span class="fp-sheet-title">Pin a fault</span><button class="fp-sheet-x" onclick="fpFaultCancelPick()">Cancel</button></div>';
-    hx += '<div class="fp-sheet-sub">Drop a new defect photo at the pin, or move an existing fault to it &middot; tap the plan again to move the pin</div>';
+    var pinTarget = fpFaultPinTarget ? existingFaults.find(function(x){ return x.id === fpFaultPinTarget; }) : null;
+    hx += '<div class="fp-sheet-head"><span class="fp-sheet-title">' + (pinTarget ? ('Pin Fault ' + (pinTarget.number || '')) : 'Pin a fault') + '</span><button class="fp-sheet-x" onclick="fpFaultCancelPick()">Cancel</button></div>';
+    hx += '<div class="fp-sheet-sub">' + (pinTarget ? ('Place ledger Fault ' + (pinTarget.number || '') + ' at the pin &middot; tap the plan again to move it') : 'Drop a new defect photo at the pin, or move an existing fault to it &middot; tap the plan again to move the pin') + '</div>';
     hx += '<div class="fp-opts">';
+    if (pinTarget){
+      hx += '<button class="fp-opt fp-opt-primary" onclick="fpFaultPin(\'' + pinTarget.id + '\')">Pin Fault ' + (pinTarget.number || '') + ' here</button>';
+    }
     hx += '<button class="fp-opt" onclick="fpFaultPinNew()">+ New defect photo here</button>';
     existingFaults.forEach(function(fl){
       hx += '<button class="fp-opt" onclick="fpFaultPin(\'' + fl.id + '\')">Fault ' + (fl.number || '') + (fl.faultType ? ' &middot; ' + escapeHtml(fl.faultType) : '') + (fl.footprintLoc ? ' (move pin)' : '') + '</button>';
@@ -13644,12 +14099,44 @@ function fpRenderFaultUnpinSheet(survey){
     h += '<button type="button" class="fp-fault-sev' + (on ? ' on sev-' + sv.id : '') + '" onclick="fpFaultSetSeverity(\'' + sv.id + '\')">' + escapeHtml(sv.label) + '</button>';
   });
   h += '</div>';
+  // location ("Where is it") - captured in the ledger; editable here for refinement
+  h += '<div class="fp-sheet-sub">Where is it</div>';
+  h += '<textarea class="fp-fault-note" rows="1" placeholder="Where on the roof" oninput="fpFaultSetField(\'location\', this.value)">' + escapeHtml(f.location || '') + '</textarea>';
   // note (the fault description) - persisted live, no re-render so typing stays smooth
   h += '<div class="fp-sheet-sub">Note</div>';
   h += '<textarea class="fp-fault-note" rows="2" placeholder="Add a note" oninput="fpFaultSetField(\'description\', this.value)">' + escapeHtml(f.description || '') + '</textarea>';
-  h += '<div class="fp-fault-plane-note">Pinned on ' + escapeHtml(planeName) + '.</div>';
-  h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultAddAnother()">Add another</button>' +
-    '<button class="fp-sheet-2nd" onclick="fpFaultUnpin(\'' + f.id + '\')">Unpin from plan</button></div></div>';
+  if (f.footprintLoc){
+    h += '<div class="fp-fault-plane-note">Pinned on ' + escapeHtml(planeName) + '.</div>';
+    h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultAddAnother()">Add another</button>' +
+      '<button class="fp-sheet-2nd" onclick="fpFaultUnpin(\'' + f.id + '\')">Unpin from plan</button></div></div>';
+  } else {
+    // Ledger-captured fault awaiting placement: pin it through the existing flow.
+    h += '<div class="fp-fault-plane-note">Captured in the fault ledger &middot; not yet pinned. Pin it once the aerial is placed.</div>';
+    h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultBeginPin(\'' + f.id + '\')">Pin on plan</button></div></div>';
+  }
+  return h;
+}
+// Desk panel: ledger-captured faults that are not yet pinned. They are ordinary
+// siteFaultMarkers entries with footprintLoc:null, so they already reach the
+// schedule/report; this makes them visible on the capture surface with their
+// photo/location/description and openable (fpFaultOpenId) so they can be refined
+// and pinned through the existing placement flow.
+function fpRenderUnpinnedFaults(survey){
+  var faults = fpFaultsForBuilding(survey).filter(function(f){
+    if (f.footprintLoc || f.unlocatable) return false;
+    return (Array.isArray(f.photos) && f.photos.length) || f.location || f.description || f.faultType || f.photoDeferred;
+  });
+  if (!faults.length) return '';
+  var h = '<div class="fp-unpinned"><div class="fp-tools-lbl">Faults to place &middot; captured in the ledger, not yet pinned</div>';
+  faults.forEach(function(f){
+    var thumb = imgSrcFor((f.photos || [])[0]);
+    h += '<button class="fp-unpinned-row" onclick="fpFaultOpenId=\'' + f.id + '\';fpRender();">' +
+      '<span class="fp-unpinned-thumb">' + (thumb ? '<img src="' + thumb + '">' : '<span class="fp-unpinned-later">' + (f.photoDeferred ? 'later' : '&mdash;') + '</span>') + '</span>' +
+      '<span class="fp-unpinned-txt"><b>Fault ' + (f.number || '') + '</b>' + (f.location ? ' &middot; ' + escapeHtml(f.location) : '') +
+        (f.description ? '<span class="fp-unpinned-desc">' + escapeHtml(f.description) + '</span>' : '') + '</span>' +
+      '<span class="fp-unpinned-cta">Open</span></button>';
+  });
+  h += '</div>';
   return h;
 }
 var fpFaultOpenId = null;   // id of a plotted fault marker whose one-act card is open
