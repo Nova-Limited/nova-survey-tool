@@ -917,6 +917,54 @@ input, button, select, textarea { font-family: inherit; font-size: inherit; colo
 }
 .brand-name { font-weight: 700; font-size: 1.4rem; letter-spacing: -0.02em; color: var(--gold); }
 .brand-sub { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.72); font-weight: 600; }
+/* Mode toggle (quiet, always visible in the topbar). */
+.mode-toggle { margin-left: auto; align-self: center; background: transparent;
+  border: 1px solid rgba(255,255,255,0.4); color: #fff; border-radius: 7px;
+  padding: 5px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.mode-toggle:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ---- SITE MODE journey shell (additive; desk mode is unchanged) ---- */
+/* Pinned top chrome in site mode: the topbar and context strip both fixed so
+   they never scroll away; #app is padded by JS to clear them. */
+body.mode-site .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 101; }
+#ctx-strip { display: none; }
+body.mode-site #ctx-strip.shown { display: flex; position: fixed; left: 0; right: 0; z-index: 100;
+  align-items: baseline; flex-wrap: wrap; gap: 6px 14px;
+  background: var(--ink); color: #fff; padding: 8px 16px calc(8px);
+  border-top: 2px solid var(--orange); font-size: 0.82rem; }
+#ctx-strip .ctx-client { font-weight: 700; }
+#ctx-strip .ctx-site { color: rgba(255,255,255,0.82); }
+#ctx-strip .ctx-time { margin-left: auto; color: var(--orange); font-weight: 700; white-space: nowrap; }
+
+/* Day sheet */
+.ds-h { font-size: 1.2rem; font-weight: 700; margin: 0.4rem 0 0.2rem; }
+.ds-sub { font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin: 1.4rem 0 0.6rem; }
+.ds-empty { font-size: 0.95rem; color: var(--muted); padding: 0.6rem 0; }
+.ds-row { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid var(--rule);
+  border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.6rem; cursor: pointer; }
+.ds-row.upcoming { background: #faf9f7; }
+.ds-row-time { font-size: 0.8rem; font-weight: 700; color: var(--orange); }
+.ds-row-client { font-size: 1.02rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
+.ds-row-site { font-size: 0.86rem; color: var(--muted); margin-top: 2px; }
+
+/* Visit page */
+.visit-card { background: #fff; border: 1px solid var(--rule); border-top: 3px solid var(--orange);
+  border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1.1rem; }
+.visit-k { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-top: 0.9rem; }
+.visit-k:first-child { margin-top: 0; }
+.visit-v { font-size: 1.02rem; color: var(--ink); margin-top: 2px; }
+.visit-start { width: 100%; }
+
+/* Desk mode: light context strip on the record's detail hub */
+.detail-ctx { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  border: 1px solid var(--rule); border-left: 3px solid var(--orange); border-radius: 8px;
+  padding: 8px 12px; margin: 0 0 1rem; background: #faf9f7; font-size: 0.85rem; }
+.detail-ctx .dc-job { font-weight: 700; color: var(--ink); }
+.detail-ctx .dc-job.prov { color: var(--muted); font-weight: 600; }
+.detail-ctx .dc-sep { color: var(--rule); }
+.detail-ctx .dc-client { font-weight: 700; }
+.detail-ctx .dc-site { color: var(--muted); }
+.detail-ctx:empty { display: none; }
 
 /* LAYOUT */
 main { padding-bottom: env(safe-area-inset-bottom); }
@@ -3323,7 +3371,13 @@ input.derived-field { background: #f6f8fa; color: #555; }
 <header class="topbar no-print">
   <span class="brand-name">nova</span>
   <span class="brand-sub">Site Survey Tool</span>
+  <button type="button" class="mode-toggle" id="mode-toggle" onclick="toggleMode()">Site view</button>
 </header>
+
+<!-- Site-mode context strip: pinned below the topbar from the visit page onward
+     (including throughout the capture surface), never scrolls away. Hidden in
+     desk mode and on the site-mode day sheet. -->
+<div id="ctx-strip" class="no-print" aria-live="polite"></div>
 
 <main id="app">
   <!-- HOME -->
@@ -3337,6 +3391,23 @@ input.derived-field { background: #f6f8fa; color: #555; }
       </div>
       <h2 class="section-title">Saved surveys</h2>
       <div id="survey-list" class="survey-list"></div>
+    </div>
+  </section>
+
+  <!-- SITE MODE: DAY SHEET (site mode's home) -->
+  <section id="view-daysheet" class="view">
+    <div class="container">
+      <div id="daysheet-body"></div>
+    </div>
+  </section>
+
+  <!-- SITE MODE: VISIT PAGE -->
+  <section id="view-visit" class="view">
+    <div class="container">
+      <div class="view-header">
+        <button class="link-btn" onclick="goHome()" style="align-self:flex-start;">← Day sheet</button>
+      </div>
+      <div id="visit-body"></div>
     </div>
   </section>
 
@@ -4063,6 +4134,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
         <h1 id="detail-title">Survey</h1>
         <div class="meta" id="detail-meta"></div>
       </div>
+      <div id="detail-ctx" class="detail-ctx"></div>
       <div id="detail-body"></div>
       <!-- Action bar is populated by renderSurveyDetail() so the Save-to-Airtable
            button is guaranteed to be present whenever the detail view shows. -->
@@ -7353,11 +7425,159 @@ function showView(name) {
   window.scrollTo(0, 0);
 }
 
+// ---- Site / Desk mode journey shell (additive; desk mode is today's tool) ---
+// Mode is presentation only - same records, same jobs, two screens. Per-session
+// state, re-derived on each open: a narrow touch device opens in site mode, a
+// desktop opens in desk mode. Nothing here touches the report renderer.
+var appMode = null;
+
+function deriveDefaultMode() {
+  var touch = ('ontouchstart' in window) || ((navigator.maxTouchPoints || 0) > 0);
+  var narrow = (window.innerWidth || 9999) < 820;
+  return (touch && narrow) ? 'site' : 'desk';
+}
+function updateModeToggle() {
+  var b = document.getElementById('mode-toggle');
+  if (b) b.textContent = (appMode === 'site') ? 'Desk view' : 'Site view';
+}
+// In site mode the topbar + context strip are fixed; pad #app to clear them.
+function updateSiteChromeOffset() {
+  var app = document.getElementById('app');
+  if (appMode !== 'site') { if (app) app.style.paddingTop = ''; return; }
+  var tb = document.querySelector('.topbar');
+  var cs = document.getElementById('ctx-strip');
+  var tbh = tb ? tb.offsetHeight : 0;
+  var shown = cs && cs.classList.contains('shown');
+  if (shown) cs.style.top = tbh + 'px';
+  if (app) app.style.paddingTop = (tbh + (shown ? cs.offsetHeight : 0)) + 'px';
+}
+function applyMode(m) {
+  appMode = (m === 'site') ? 'site' : 'desk';
+  document.body.classList.toggle('mode-site', appMode === 'site');
+  document.body.classList.toggle('mode-desk', appMode !== 'site');
+  updateModeToggle();
+  updateSiteChromeOffset();
+}
+function toggleMode() {
+  applyMode(appMode === 'site' ? 'desk' : 'site');
+  hideContext();
+  goHome();
+}
+
+function clientNameOf(s) {
+  var ec = (s && s.endClient) || {};
+  return ec.company || ec.contactName || '(no client name)';
+}
+// Who Jamie is meeting: the site contact, else the client contact, else the
+// client (company) name - all existing Section A fields, no new form fields.
+function visitContactOf(s) {
+  var st = (s && s.site) || {}, ec = (s && s.endClient) || {};
+  return st.contactName || ec.contactName || ec.company || '(no named contact)';
+}
+function localTodayISO() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Provisional job number NOV-YYYY-NNNN, sequential across local records. Kept in
+// ONE place so a central registry can later replace provisional numbers on sync.
+function mintProvisionalJobNumber() {
+  var year = new Date().getFullYear();
+  var max = 0;
+  loadSurveys().forEach(function(s) {
+    var m = /^NOV-\d{4}-(\d{1,})$/.exec((s && s.jobNumber) || '');
+    if (m) { var n = parseInt(m[1], 10); if (isFinite(n) && n > max) max = n; }
+  });
+  return 'NOV-' + year + '-' + String(max + 1).padStart(4, '0');
+}
+
+// --- Site mode screens -------------------------------------------------------
+function renderDaySheet() {
+  var host = document.getElementById('daysheet-body'); if (!host) return;
+  var today = localTodayISO();
+  var surveys = loadSurveys();
+  var timeKey = function(s) { var v = (s.visit || {}); return (v.appointmentStart || '99:99'); };
+  var rows = function(list) {
+    return list.map(function(s) {
+      var v = s.visit || {};
+      var t = apptTimeDisplay(v, false) || (v.date ? '' : '');
+      var when = t || (v.date ? fmtDate(v.date) : '');
+      return '<button class="ds-row' + (list === upcoming ? ' upcoming' : '') + '" onclick="openVisit(\'' + s.id + '\')">' +
+        '<div class="ds-row-time">' + escapeHtml(when || 'Time TBC') + '</div>' +
+        '<div class="ds-row-client">' + escapeHtml(clientNameOf(s)) + '</div>' +
+        '<div class="ds-row-site">' + escapeHtml(firstLine((s.site || {}).address) || '(no site address)') + '</div>' +
+      '</button>';
+    }).join('');
+  };
+  var todayList = surveys.filter(function(s) { return (s.visit || {}).date === today; })
+    .sort(function(a, b) { return timeKey(a).localeCompare(timeKey(b)); });
+  var upcoming = surveys.filter(function(s) { var d = (s.visit || {}).date; return d && d > today; })
+    .sort(function(a, b) { return ((a.visit.date + timeKey(a)).localeCompare(b.visit.date + timeKey(b))); });
+  var h = '<div class="ds-h">Today &middot; ' + escapeHtml(fmtDate(today)) + '</div>';
+  h += todayList.length ? rows(todayList) : '<div class="ds-empty">Nothing booked today.</div>';
+  h += '<div class="ds-sub">Upcoming</div>';
+  h += upcoming.length ? rows(upcoming) : '<div class="ds-empty">No upcoming visits.</div>';
+  host.innerHTML = h;
+}
+
+function openVisit(id) {
+  var s = srLoadSurvey(id);
+  if (!s) { showToast('Survey not found', 'err'); return; }
+  currentSurveyId = id;
+  renderVisit(s);
+  showContext(id);
+  showView('visit');
+}
+function renderVisit(s) {
+  var host = document.getElementById('visit-body'); if (!host) return;
+  var v = s.visit || {};
+  var when = [v.date ? fmtDate(v.date) : '', apptTimeDisplay(v, false)].filter(Boolean).join(' &middot; ') || 'Time TBC';
+  host.innerHTML =
+    '<h1 class="ds-h">' + escapeHtml(clientNameOf(s)) + '</h1>' +
+    '<div class="visit-card">' +
+      '<div class="visit-k">Site address</div><div class="visit-v">' + escapeHtml(firstLine((s.site || {}).address) || '(no site address)') + '</div>' +
+      '<div class="visit-k">Meeting</div><div class="visit-v">' + escapeHtml(visitContactOf(s)) + '</div>' +
+      '<div class="visit-k">Appointment</div><div class="visit-v">' + when + '</div>' +
+    '</div>' +
+    '<button class="btn btn-primary btn-big visit-start" onclick="startSurvey(\'' + s.id + '\')">Start survey</button>';
+}
+// Start survey -> the existing capture surface (footprint / fault capture).
+// JUDGEMENT CALL: view-footprint (fpOpen) is the tool's full-screen capture
+// surface for the site plan + tap-to-place faults, so it is the capture entry;
+// the context strip stays pinned over it.
+function startSurvey(id) {
+  currentSurveyId = id;
+  showContext(id);
+  fpOpen(id);
+}
+
+function showContext(id) {
+  var s = srLoadSurvey(id); if (!s) return;
+  var strip = document.getElementById('ctx-strip'); if (!strip) return;
+  strip.innerHTML =
+    '<span class="ctx-client">' + escapeHtml(clientNameOf(s)) + '</span>' +
+    '<span class="ctx-site">' + escapeHtml(firstLine((s.site || {}).address) || '') + '</span>' +
+    '<span class="ctx-time">' + escapeHtml(apptTimeDisplay(s.visit || {}, false) || 'Time TBC') + '</span>';
+  strip.classList.add('shown');
+  updateSiteChromeOffset();
+}
+function hideContext() {
+  var strip = document.getElementById('ctx-strip');
+  if (strip) strip.classList.remove('shown');
+  updateSiteChromeOffset();
+}
+
 function goHome() {
   stopAutoSave();
   reportSurveyId = null;
-  renderSurveyList();
-  showView('home');
+  if (appMode === 'site') {
+    hideContext();
+    renderDaySheet();
+    showView('daysheet');
+  } else {
+    renderSurveyList();
+    showView('home');
+  }
 }
 
 async function goToNewSurvey() {
@@ -8313,14 +8533,14 @@ function saveSurveyCore(flashBtnId) {
   if (currentSurveyId) {
     const idx = surveys.findIndex(x => x.id === currentSurveyId);
     if (idx === -1) {
-      saved = { id: nextSurveyId(), createdAt: now, updatedAt: now, ...data };
+      saved = { id: nextSurveyId(), jobNumber: mintProvisionalJobNumber(), jobNumberProvisional: true, createdAt: now, updatedAt: now, ...data };
       surveys.push(saved);
     } else {
       saved = { ...surveys[idx], ...data, updatedAt: now };
       surveys[idx] = saved;
     }
   } else {
-    saved = { id: nextSurveyId(), createdAt: now, updatedAt: now, ...data };
+    saved = { id: nextSurveyId(), jobNumber: mintProvisionalJobNumber(), jobNumberProvisional: true, createdAt: now, updatedAt: now, ...data };
     surveys.push(saved);
   }
 
@@ -8447,6 +8667,19 @@ function renderSurveyDetail(s) {
   document.getElementById('detail-meta').textContent =
     s.id + ' · visit ' + (vi.date ? fmtDate(vi.date) : '—') +
     ' · last updated ' + fmtDate(s.updatedAt);
+  // Light context strip (job number, client, site). Legacy records with no job
+  // number simply omit it - their existing references stand, no backfill.
+  var dctx = document.getElementById('detail-ctx');
+  if (dctx) {
+    var jobHtml = s.jobNumber
+      ? '<span class="dc-job' + (s.jobNumberProvisional ? ' prov' : '') + '">' + escapeHtml(s.jobNumber) +
+          (s.jobNumberProvisional ? ' (provisional)' : '') + '</span><span class="dc-sep">&middot;</span>'
+      : '';
+    dctx.innerHTML = jobHtml +
+      '<span class="dc-client">' + escapeHtml(clientNameOf(s)) + '</span>' +
+      '<span class="dc-sep">&middot;</span>' +
+      '<span class="dc-site">' + escapeHtml(firstLine(st.address) || '(no site address)') + '</span>';
+  }
   document.getElementById('detail-body').innerHTML = renderDetailBlocks(s);
   // Rebuild the action bar each detail-view load so the Save-to-Airtable
   // button is guaranteed to render. Edit / Generate Report / Save / Delete
@@ -11414,9 +11647,11 @@ function goDetail(){
   }
   if (typeof showView === 'function') showView('detail');
 }
-// Capture exit: prefer the capture-current survey, then delegate to goDetail.
+// Capture exit: prefer the capture-current survey. In site mode return to the
+// visit page (the site journey); in desk mode delegate to goDetail (unchanged).
 function fpBackToDetail(){
   if (fpCurrentId) currentSurveyId = fpCurrentId;
+  if (appMode === 'site' && currentSurveyId) { openVisit(currentSurveyId); return; }
   goDetail();
 }
 
@@ -21816,7 +22051,10 @@ document.addEventListener('DOMContentLoaded', () => {
     var _sid = window._novaPrintSurveyId || params.get('survey');
     if (_sid) { enterPrintMode(_sid); return; }
   }
-  renderSurveyList();
+  // Mode is presentation only, defaulted by device and re-derived on each open.
+  applyMode(deriveDefaultMode());
+  window.addEventListener('resize', updateSiteChromeOffset);
+  goHome();
 });
 </script>
 </body>
