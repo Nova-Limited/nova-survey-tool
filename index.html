@@ -4510,16 +4510,6 @@ input.derived-field { background: #f6f8fa; color: #555; }
 
   <style id="fp-styles">
     #view-footprint .fp-wrap { max-width: 640px; }
-    /* Ledger-captured faults awaiting placement (desk panel) */
-    #view-footprint .fp-unpinned { max-width: 640px; margin: 10px auto 0; padding: 12px 14px; border: 1px solid #e2e3e5; border-left: 3px solid #F7901E; border-radius: 10px; background: #fffaf3; }
-    #view-footprint .fp-unpinned-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: #fff; border: 1px solid #ecdcc4; border-radius: 8px; padding: 8px 10px; margin-top: 8px; cursor: pointer; }
-    #view-footprint .fp-unpinned-thumb { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 6px; overflow: hidden; background: #f3f2ef; display: flex; align-items: center; justify-content: center; }
-    #view-footprint .fp-unpinned-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    #view-footprint .fp-unpinned-later { font-size: 10px; color: #8a898b; }
-    #view-footprint .fp-unpinned-txt { flex: 1 1 auto; font-size: 13px; color: #434244; min-width: 0; }
-    #view-footprint .fp-unpinned-desc { display: block; font-size: 12px; color: #8a898b; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #view-footprint .fp-unpinned-cta { flex: 0 0 auto; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #F7901E; }
-    #view-footprint .fp-opt-primary { background: #F7901E; color: #fff; border-color: #F7901E; font-weight: 700; }
     #view-footprint .fp-tools, #view-footprint .fp-forms { margin-bottom: 14px; }
     #view-footprint .fp-tools-lbl { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #8a898b; margin-bottom: 8px; }
     #view-footprint .fp-buildup { margin: 4px 0 14px; padding: 12px 14px; border: 1px solid #e2e3e5; border-radius: 10px; background: #fafaf8; }
@@ -12059,9 +12049,6 @@ function fpOpen(id){
   fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpElevOpen = null;
   if (typeof showView === 'function') showView('footprint');
   fpRender();
-  // Fault-ledger faults carry photos in IndexedDB; resolve them to object URLs so
-  // the desk fault cards show them, then re-render once ready (no-op if none).
-  if (typeof idbHydrateLedgerPhotos === 'function') idbHydrateLedgerPhotos(s0, function (did) { if (did) fpRender(); });
 }
 // Leaving the capture surface must RENDER the survey detail, not just switch to
 // the view. Capture-first enters capture straight from the form (never through
@@ -12261,7 +12248,6 @@ function fpRender(){
     h += fpRenderKeypad();
     h += fpRenderFeatureSheet(survey);   // Stage 4: placed-feature edit sheet
     h += fpRenderFaultUnpinSheet(survey); // Stage 4: plotted-fault quick sheet
-    h += fpRenderUnpinnedFaults(survey);  // ledger-captured faults awaiting placement
     h += fpRenderDatum(survey);
     h += fpRenderBays(survey);   // Stage 3: bay definition (multi-bay only)
     h += fpRenderElevations(survey);   // Stage 4: wall elevations
@@ -13816,7 +13802,7 @@ function fpFaultPin(faultId){
   var f = faults.find(function(x){ return x.id === faultId; }); if (!f) return;
   f.footprintLoc = { bi: fpClampBuildingIdx(survey, fpActiveBuildingIdx), x: fpFaultPick.x, y: fpFaultPick.y };
   survey.siteFaultMarkers = faults;
-  fpFaultPick = null; fpPlaceMode = null; fpFaultPinTarget = null;
+  fpFaultPick = null; fpPlaceMode = null;
   srPersist(survey); fpRender();
 }
 function fpFaultPinNew(){
@@ -13842,19 +13828,7 @@ function fpFaultUnpin(faultId){
   survey.siteFaultMarkers = faults;
   srPersist(survey); fpRender();
 }
-function fpFaultCancelPick(){ fpFaultPick = null; fpFaultPinTarget = null; fpRender(); }
-// A ledger-captured (unpinned) fault, pinned through the EXISTING placement flow:
-// arm fault place mode and remember which fault the next tap should pin. The tap
-// handler + place sheet already exist; fpFaultPinTarget just lets the sheet offer
-// a one-tap "Pin Fault N here" (still via fpFaultPin) instead of a scan of the list.
-var fpFaultPinTarget = null;
-function fpFaultBeginPin(faultId){
-  fpFaultOpenId = null;
-  fpFaultPinTarget = faultId;
-  fpPlaceMode = 'fault';
-  fpFaultPick = null;
-  fpRender();
-}
+function fpFaultCancelPick(){ fpFaultPick = null; fpRender(); }
 // --- render: the place-toolbar row above the canvas + the feature/opening sheets ---
 function fpRenderPlaceToolbar(){
   var h = '<div class="fp-place-row">';
@@ -13925,13 +13899,9 @@ function fpRenderPlaceSheet(survey){
   if (fpFaultPick){
     var existingFaults = fpFaultsForBuilding(survey);
     var hx = '<div class="fp-sheet fp-place-sheet">';
-    var pinTarget = fpFaultPinTarget ? existingFaults.find(function(x){ return x.id === fpFaultPinTarget; }) : null;
-    hx += '<div class="fp-sheet-head"><span class="fp-sheet-title">' + (pinTarget ? ('Pin Fault ' + (pinTarget.number || '')) : 'Pin a fault') + '</span><button class="fp-sheet-x" onclick="fpFaultCancelPick()">Cancel</button></div>';
-    hx += '<div class="fp-sheet-sub">' + (pinTarget ? ('Place ledger Fault ' + (pinTarget.number || '') + ' at the pin &middot; tap the plan again to move it') : 'Drop a new defect photo at the pin, or move an existing fault to it &middot; tap the plan again to move the pin') + '</div>';
+    hx += '<div class="fp-sheet-head"><span class="fp-sheet-title">Pin a fault</span><button class="fp-sheet-x" onclick="fpFaultCancelPick()">Cancel</button></div>';
+    hx += '<div class="fp-sheet-sub">Drop a new defect photo at the pin, or move an existing fault to it &middot; tap the plan again to move the pin</div>';
     hx += '<div class="fp-opts">';
-    if (pinTarget){
-      hx += '<button class="fp-opt fp-opt-primary" onclick="fpFaultPin(\'' + pinTarget.id + '\')">Pin Fault ' + (pinTarget.number || '') + ' here</button>';
-    }
     hx += '<button class="fp-opt" onclick="fpFaultPinNew()">+ New defect photo here</button>';
     existingFaults.forEach(function(fl){
       hx += '<button class="fp-opt" onclick="fpFaultPin(\'' + fl.id + '\')">Fault ' + (fl.number || '') + (fl.faultType ? ' &middot; ' + escapeHtml(fl.faultType) : '') + (fl.footprintLoc ? ' (move pin)' : '') + '</button>';
@@ -14099,44 +14069,12 @@ function fpRenderFaultUnpinSheet(survey){
     h += '<button type="button" class="fp-fault-sev' + (on ? ' on sev-' + sv.id : '') + '" onclick="fpFaultSetSeverity(\'' + sv.id + '\')">' + escapeHtml(sv.label) + '</button>';
   });
   h += '</div>';
-  // location ("Where is it") - captured in the ledger; editable here for refinement
-  h += '<div class="fp-sheet-sub">Where is it</div>';
-  h += '<textarea class="fp-fault-note" rows="1" placeholder="Where on the roof" oninput="fpFaultSetField(\'location\', this.value)">' + escapeHtml(f.location || '') + '</textarea>';
   // note (the fault description) - persisted live, no re-render so typing stays smooth
   h += '<div class="fp-sheet-sub">Note</div>';
   h += '<textarea class="fp-fault-note" rows="2" placeholder="Add a note" oninput="fpFaultSetField(\'description\', this.value)">' + escapeHtml(f.description || '') + '</textarea>';
-  if (f.footprintLoc){
-    h += '<div class="fp-fault-plane-note">Pinned on ' + escapeHtml(planeName) + '.</div>';
-    h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultAddAnother()">Add another</button>' +
-      '<button class="fp-sheet-2nd" onclick="fpFaultUnpin(\'' + f.id + '\')">Unpin from plan</button></div></div>';
-  } else {
-    // Ledger-captured fault awaiting placement: pin it through the existing flow.
-    h += '<div class="fp-fault-plane-note">Captured in the fault ledger &middot; not yet pinned. Pin it once the aerial is placed.</div>';
-    h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultBeginPin(\'' + f.id + '\')">Pin on plan</button></div></div>';
-  }
-  return h;
-}
-// Desk panel: ledger-captured faults that are not yet pinned. They are ordinary
-// siteFaultMarkers entries with footprintLoc:null, so they already reach the
-// schedule/report; this makes them visible on the capture surface with their
-// photo/location/description and openable (fpFaultOpenId) so they can be refined
-// and pinned through the existing placement flow.
-function fpRenderUnpinnedFaults(survey){
-  var faults = fpFaultsForBuilding(survey).filter(function(f){
-    if (f.footprintLoc || f.unlocatable) return false;
-    return (Array.isArray(f.photos) && f.photos.length) || f.location || f.description || f.faultType || f.photoDeferred;
-  });
-  if (!faults.length) return '';
-  var h = '<div class="fp-unpinned"><div class="fp-tools-lbl">Faults to place &middot; captured in the ledger, not yet pinned</div>';
-  faults.forEach(function(f){
-    var thumb = imgSrcFor((f.photos || [])[0]);
-    h += '<button class="fp-unpinned-row" onclick="fpFaultOpenId=\'' + f.id + '\';fpRender();">' +
-      '<span class="fp-unpinned-thumb">' + (thumb ? '<img src="' + thumb + '">' : '<span class="fp-unpinned-later">' + (f.photoDeferred ? 'later' : '&mdash;') + '</span>') + '</span>' +
-      '<span class="fp-unpinned-txt"><b>Fault ' + (f.number || '') + '</b>' + (f.location ? ' &middot; ' + escapeHtml(f.location) : '') +
-        (f.description ? '<span class="fp-unpinned-desc">' + escapeHtml(f.description) + '</span>' : '') + '</span>' +
-      '<span class="fp-unpinned-cta">Open</span></button>';
-  });
-  h += '</div>';
+  h += '<div class="fp-fault-plane-note">Pinned on ' + escapeHtml(planeName) + '.</div>';
+  h += '<div class="fp-sheet-foot"><button class="fp-sheet-2nd" onclick="fpFaultAddAnother()">Add another</button>' +
+    '<button class="fp-sheet-2nd" onclick="fpFaultUnpin(\'' + f.id + '\')">Unpin from plan</button></div></div>';
   return h;
 }
 var fpFaultOpenId = null;   // id of a plotted fault marker whose one-act card is open
@@ -22376,6 +22314,14 @@ function spLabourRecalc() {
 function spRestoreImageState() {
   var survey = spCurrentSurvey();
   if (!survey) return;
+  // Fault-ledger faults carry their photos in IndexedDB. Resolve them to object
+  // URLs so the desk fault schedule / fault panel show them, then re-render once
+  // ready (no-op when there are none - e.g. estimate surveys).
+  if (typeof idbHydrateLedgerPhotos === 'function') {
+    idbHydrateLedgerPhotos(survey, function (did) {
+      if (did) { if (typeof spRenderSchedule === 'function') spRenderSchedule(); if (spActiveFaultId && typeof spRenderFaultPhotos === 'function') spRenderFaultPhotos(); }
+    });
+  }
   if (survey.siteLat) document.getElementById('sp-lat').value = survey.siteLat;
   if (survey.siteLng) document.getElementById('sp-lng').value = survey.siteLng;
   spFaultCounter = (survey.siteFaultMarkers || []).length;
