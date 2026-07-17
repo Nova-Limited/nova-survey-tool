@@ -4004,19 +4004,6 @@ input.derived-field { background: #f6f8fa; color: #555; }
           </div>
           <div class="field-row">
             <div class="field">
-              <label for="f-total-cost-band">Total indicative cost band</label>
-              <select id="f-total-cost-band">
-                <option value="">—</option>
-                <option>Under £10k</option>
-                <option>£10k-£25k</option>
-                <option>£25k-£50k</option>
-                <option>£50k-£100k</option>
-                <option>£100k-£250k</option>
-                <option>£250k+</option>
-                <option>TBC</option>
-              </select>
-            </div>
-            <div class="field">
               <label for="f-recommendation">Recommendation</label>
               <select id="f-recommendation">
                 <option value="">—</option>
@@ -4840,7 +4827,6 @@ const FIELD_MAP = [
   { id: 'f-remaining-life-asstands',  type: 'number', path: 'f-remaining-life-asstands' },
   { id: 'f-remaining-life-postworks', type: 'number', path: 'f-remaining-life-postworks' },
   { id: 'f-executive-summary',  type: 'textarea', path: 'f-executive-summary' },
-  { id: 'f-total-cost-band',    type: 'text',     path: 'f-total-cost-band' },
   { id: 'f-recommendation',     type: 'text',     path: 'f-recommendation' },
   { id: 'f-purlin-type',        type: 'text',     path: 'purlinType', dflt: 'Steel' },
   { id: 'f-overclad-override',  type: 'checkbox', path: 'overcladOverride' },
@@ -20480,6 +20466,47 @@ function spAddFaultOffPlan() {
 // spLoadSatellite so the tile appears immediately. Selector matches the
 // existing #f-site-address textarea; the [name=…] and #sp-site-addr fallbacks
 // guard against future renames without forcing a separate edit here.
+// Accept a single pasted coordinate line in the Google Maps format the map
+// gives on right-click, e.g. "50.7086, -3.4747" (also a space-only separator
+// and surplus whitespace). Two signed decimals, comma or whitespace between,
+// the whole trimmed string - so an address ("100 High Street") never matches.
+// Returns {lat,lng} in valid ranges, or null.
+function spParseLatLng(str) {
+  var m = String(str || '').trim().match(/^(-?\d+(?:\.\d+)?)[\s,]+(-?\d+(?:\.\d+)?)$/);
+  if (!m) return null;
+  var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+  if (!isFinite(lat) || !isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat: lat, lng: lng };
+}
+
+// The shared "resolved to a point" path: re-anchor markers, set + persist the
+// lat/lng and map view, and build the map. Reached from a successful geocode
+// AND from a pasted coordinate line, so both behave identically.
+function spResolveToLatLng(lat, lng) {
+  // Re-anchor: when a plan already existed, translate every marker by the same
+  // centre delta so the marker GROUP moves with the re-geocoded plan (relative
+  // layout preserved) instead of being orphaned at old coordinates.
+  var prevLat = Number(currentSiteImage.siteMapCentreLat);
+  var prevLng = Number(currentSiteImage.siteMapCentreLng);
+  if (isFinite(prevLat) && isFinite(prevLng)) {
+    spTranslateMarkersBy(lat - prevLat, lng - prevLng);
+  }
+  document.getElementById('sp-lat').value = lat.toFixed(6);
+  document.getElementById('sp-lng').value = lng.toFixed(6);
+  spSaveSurveyField('siteLat', String(lat.toFixed(6)));
+  spSaveSurveyField('siteLng', String(lng.toFixed(6)));
+  // Persist source + centre + zoom so a reload restores this exact view.
+  spSaveSurveyField('siteImageSource', 'map');
+  spSaveSurveyField('siteMapCentreLat', lat);
+  spSaveSurveyField('siteMapCentreLng', lng);
+  spSaveSurveyField('siteMapZoom', 18);
+  document.getElementById('sp-image-area').style.display = 'block';
+  spBuildMap([lat, lng], 18, 'geographic', null);
+}
+
+// Geocode the site address (Section A textarea) via the Worker's /geocode
+// endpoint, or - when the field holds a single coordinate line - resolve to
+// those coordinates directly, exactly as a successful find would.
 function spFindFromAddress() {
   const addressField = document.querySelector('#f-site-address, [name="site-address"], #sp-site-addr');
   const address = addressField ? addressField.value.trim() : '';
@@ -20487,6 +20514,8 @@ function spFindFromAddress() {
     alert('Enter the site address in the survey form first.');
     return;
   }
+  const coord = spParseLatLng(address);
+  if (coord) { spResolveToLatLng(coord.lat, coord.lng); return; }
   const btn = document.getElementById('sp-find-btn');
   if (btn) { btn.textContent = 'Finding...'; btn.disabled = true; }
   fetch('https://nova-ch-proxy.jamie-b41.workers.dev/geocode'
@@ -20497,25 +20526,7 @@ function spFindFromAddress() {
         alert('Could not find coordinates for that address.');
         return;
       }
-      // Re-anchor: when a plan already existed, translate every marker by the
-      // same centre delta so the marker GROUP moves with the re-geocoded plan
-      // (relative layout preserved) instead of being orphaned at old coordinates.
-      var prevLat = Number(currentSiteImage.siteMapCentreLat);
-      var prevLng = Number(currentSiteImage.siteMapCentreLng);
-      if (isFinite(prevLat) && isFinite(prevLng)) {
-        spTranslateMarkersBy(data.lat - prevLat, data.lng - prevLng);
-      }
-      document.getElementById('sp-lat').value = data.lat.toFixed(6);
-      document.getElementById('sp-lng').value = data.lng.toFixed(6);
-      spSaveSurveyField('siteLat', String(data.lat.toFixed(6)));
-      spSaveSurveyField('siteLng', String(data.lng.toFixed(6)));
-      // Persist source + centre + zoom so a reload restores this exact view.
-      spSaveSurveyField('siteImageSource', 'map');
-      spSaveSurveyField('siteMapCentreLat', data.lat);
-      spSaveSurveyField('siteMapCentreLng', data.lng);
-      spSaveSurveyField('siteMapZoom', 18);
-      document.getElementById('sp-image-area').style.display = 'block';
-      spBuildMap([data.lat, data.lng], 18, 'geographic', null);
+      spResolveToLatLng(data.lat, data.lng);
     })
     .catch(function() {
       alert('Geocoding request failed. Check connection.');
