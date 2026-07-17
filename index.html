@@ -1556,6 +1556,14 @@ input.derived-field { background: #f6f8fa; color: #555; }
 }
 .form-actions .btn { width: 100%; }
 .draft-indicator { font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem; }
+/* Purpose-driven form: a quiet toggle revealing the sections a condition
+   survey does not use, and the hide state applied to those sections. */
+.form-section-toggle { margin: 0.4rem 0 1rem; }
+.show-all-toggle { display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.82rem; color: var(--muted); cursor: pointer; user-select: none; }
+.show-all-toggle input { cursor: pointer; }
+.show-all-count { color: var(--muted); }
+.section.section-purpose-hidden { display: none; }
 
 /* DETAIL VIEW */
 .detail-grid { display: grid; gap: 0.85rem; grid-template-columns: 1fr; }
@@ -3541,7 +3549,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
               Fetch satellite view
             </button>
             <label style="background:transparent;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;color:#434244;">
-              Upload drone image
+              Upload image
               <input type="file" id="sp-upload-input" accept="image/*" style="display:none;" onchange="spUploadImage(this)">
             </label>
           </div>
@@ -3788,6 +3796,13 @@ input.derived-field { background: #f6f8fa; color: #555; }
         </div>
       </details>
 
+      <div class="form-section-toggle" id="form-section-toggle" style="display:none;">
+        <label class="show-all-toggle">
+          <input type="checkbox" id="form-show-all" onchange="toggleFormShowAll(this.checked)">
+          <span>Show all sections</span><span id="form-show-all-count" class="show-all-count"></span>
+        </label>
+      </div>
+
       <details class="section" id="section-b">
         <summary>Section B — Building Overview</summary>
         <div class="section-body">
@@ -3975,11 +3990,11 @@ input.derived-field { background: #f6f8fa; color: #555; }
               </select>
             </div>
             <div class="field">
-              <label for="f-remaining-life-asstands">Remaining life as it stands (years)</label>
+              <label for="f-remaining-life-asstands">Expected life of current system (years)</label>
               <input type="number" id="f-remaining-life-asstands" min="0" inputmode="numeric">
             </div>
             <div class="field">
-              <label for="f-remaining-life-postworks">Remaining life with recommended works (years)</label>
+              <label for="f-remaining-life-postworks">Expected life after all remedial works (years)</label>
               <input type="number" id="f-remaining-life-postworks" min="0" inputmode="numeric">
             </div>
           </div>
@@ -6999,6 +7014,56 @@ function updateEngagementVisibility() {
   if (et && mc) mc.hidden = (et.value !== 'subcontracted');
 }
 
+// ---- Purpose-driven form layout -------------------------------------------
+// On the Condition survey journey the form shows only what a condition report
+// consumes: the record/site basics (Section A), the capture surface (Site
+// Plan -> faults / elevations / photos / roof build-up) and the rating +
+// narrative block (Section E). The building-overview, buildings/slopes,
+// pricing-pack access, access/safety and asbestos sections are hidden -
+// verified: the condition report + costing surfaces read none of their fields
+// on this journey. Data is NEVER discarded: display:none keeps their inputs in
+// the DOM so collectFormData still round-trips them on save; if any hidden
+// section holds content the toggle says so. Other visit purposes (priced /
+// both / legacy-unset) render every section exactly as today.
+var CONDITION_HIDE_SECTIONS = ['section-b', 'section-b2', 'section-b3', 'section-d', 'section-e'];
+var formShowAll = false;   // per-session; default hidden
+
+function sectionHasContent(sec) {
+  if (!sec) return false;
+  var els = sec.querySelectorAll('input, select, textarea');
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    if (el.type === 'file' || el.disabled || el.hasAttribute('hidden')) continue;
+    if (el.tagName === 'SELECT') { if (el.selectedIndex > 0) return true; }
+    else if (el.type === 'checkbox') { if (el.checked) return true; }
+    else if (String(el.value || '').trim() !== '') return true;
+  }
+  return false;
+}
+
+function toggleFormShowAll(on) { formShowAll = !!on; applyConditionFormLayout(); }
+
+function applyConditionFormLayout() {
+  var toggleBar = document.getElementById('form-section-toggle');
+  var isCondition = (flowVisitPurpose === 'condition');
+  var hideNow = isCondition && !formShowAll;
+  var withContent = 0;
+  CONDITION_HIDE_SECTIONS.forEach(function(id) {
+    var sec = document.getElementById(id);
+    if (!sec) return;
+    // Count content on every apply (before hiding changes nothing in the DOM).
+    if (isCondition && sectionHasContent(sec)) withContent++;
+    sec.classList.toggle('section-purpose-hidden', hideNow);
+  });
+  if (toggleBar) {
+    toggleBar.style.display = isCondition ? '' : 'none';
+    var cb = document.getElementById('form-show-all');
+    if (cb) cb.checked = formShowAll;
+    var cnt = document.getElementById('form-show-all-count');
+    if (cnt) cnt.textContent = (isCondition && withContent > 0) ? (' · ' + withContent + ' with content') : '';
+  }
+}
+
 // ---- Survey content check (used by draft auto-save + cancel-discard prompt).
 // Treats default values (engagementType=direct, surveyor=Jamie Gibbs, etc.) as
 // "empty" so a freshly-opened form doesn't trip an auto-save on its defaults. */
@@ -7370,6 +7435,7 @@ async function goToNewSurvey() {
   spRenderNoFaultsControl();
   updateConditionals();
   updateEngagementVisibility();
+  applyConditionFormLayout();
   startAutoSave();
   showView('form');
   // Flow stage F1: ask once, on genuine creation. A resumed draft that
@@ -7422,6 +7488,7 @@ function editCurrent() {
   spRenderNoFaultsControl();
   updateConditionals();
   updateEngagementVisibility();
+  applyConditionFormLayout();
   startAutoSave();
   showView('form');
 }
@@ -8512,8 +8579,8 @@ function renderDetailBlocks(s) {
     ]],
     ['Summary', [
       ['Overall condition rating', s['f-overall-rating']],
-      ['Remaining life as it stands (years)', s['f-remaining-life-asstands']],
-      ['Remaining life with recommended works (years)', s['f-remaining-life-postworks']],
+      ['Expected life of current system (years)', s['f-remaining-life-asstands']],
+      ['Expected life after all remedial works (years)', s['f-remaining-life-postworks']],
       ['Total indicative cost band', s['f-total-cost-band']],
       ['Recommendation', s['f-recommendation']]
     ]]
@@ -13498,6 +13565,8 @@ function flowSetPurpose(surveyId, purpose){
     var survey = srLoadSurvey(surveyId);
     if (survey){ survey.visitPurpose = purpose; srPersist(survey); }
   }
+  // Reshape the form immediately if it is on screen (purpose picked from the form).
+  if (typeof applyConditionFormLayout === 'function') applyConditionFormLayout();
 }
 
 // --- Amendment 2: "no faults found" is a finding, not an absence of one ---
