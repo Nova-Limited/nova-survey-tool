@@ -2410,6 +2410,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
      Section 2 page master with default margin boxes off. */
   html, body { background: white !important; }
   .topbar, .form-actions, .report-actions, .view-header, .no-print { display: none !important; }
+  /* Transient tool overlays must never be captured on a printed page (the green
+     save toast was printing onto the report cover). Belt-and-braces for every
+     print path; the deliberate pre-print advisory is .no-print already. */
+  #toast, #modal-overlay { display: none !important; }
   .view { display: none !important; }
   #view-report.active { display: block !important; }
   #view-pp.active { display: block !important; }
@@ -2998,9 +3002,13 @@ input.derived-field { background: #f6f8fa; color: #555; }
 
   /* back */
   .sl-report .bk-foot{position:absolute;left:60px;right:60px;bottom:46px;display:flex;
-          justify-content:space-between;align-items:flex-end;gap:32px;}
-  .sl-report .bk-foot .tag{font-size:13px;font-weight:700;color:var(--orange);}
-  .sl-report .bk-foot .rg{font-size:11px;color:rgba(255,255,255,.45);text-align:right;}
+          justify-content:space-between;align-items:flex-end;gap:20px;}
+  /* tagline is a fixed one-line column (never shrinks or wraps); the legal + sample
+     columns take the rest. rg segments are nowrap so the legal line, if it must
+     wrap, breaks only at the middot separators - never inside a word or the URL. */
+  .sl-report .bk-foot .tag{font-size:13px;font-weight:700;color:var(--orange);white-space:nowrap;flex-shrink:0;}
+  .sl-report .bk-foot .rg{font-size:10px;line-height:1.45;color:rgba(255,255,255,.45);text-align:right;min-width:0;}
+  .sl-report .bk-foot .rg .nb{white-space:nowrap;}
   /* back — contact row, four columns, anchored at the foot of .pad via a flex
      spacer above it (the .sl-back .pad carries the extra bottom padding that
      clears the absolute .bk-foot). */
@@ -4208,7 +4216,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
       <div id="report-prewarn-host" class="no-print"></div>
       <div id="report-body"></div>
       <div class="report-actions no-print">
-        <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
+        <button class="btn btn-primary" onclick="printReport()">Print / Save as PDF</button>
         <button class="link-btn" onclick="backToDetail()">Close</button>
       </div>
     </div>
@@ -4234,7 +4242,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
       </div>
       <div id="pp-body"></div>
       <div class="report-actions no-print">
-        <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
+        <button class="btn btn-primary" onclick="printReport()">Print / Save as PDF</button>
         <button class="link-btn" onclick="ppBackToDetail()">Close</button>
       </div>
     </div>
@@ -9050,11 +9058,22 @@ function saveSurveyAndPrint() {
     setTimeout(() => showToast('Survey saved · capture faults to generate the report', 'ok'), 100);
     return;
   }
-  setTimeout(() => showToast('Survey saved · ' + saved.id, 'ok'), 100);
+  // No save toast on the print path: the print dialogue is the feedback, and a
+  // toast still on screen at print time was being captured onto the report cover.
   setTimeout(() => {
     goToReportCurrent();
-    setTimeout(() => window.print(), 400);
+    setTimeout(() => printReport(), 400);
   }, 750);
+}
+// The single print choke for the report. Clears any live transient toast (and its
+// auto-hide timer) from the render before opening the print dialogue, so no tool
+// overlay is captured on the printed page - from THIS path or the report's own
+// Print / Save as PDF button. The pre-print advisory is .no-print and untouched.
+function printReport() {
+  const t = document.getElementById('toast');
+  if (t) { t.hidden = true; t.textContent = ''; }
+  if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+  window.print();
 }
 
 // ---- Auto-save draft ----
@@ -19502,7 +19521,7 @@ function slRenderBack(survey) {
     '<div class="bk-foot">' +
       '<div class="tag">The truth from above.</div>' +
       (s.sampleReport ? '<div class="rg">Sample report. Based on a real survey; client identity anonymised.</div>' : '') +
-      '<div class="rg">Nova (SW) Limited &middot; Registered in England &amp; Wales &middot; Company No. 16369950 &middot; nova-limited.com</div>' +
+      '<div class="rg"><span class="nb">Nova (SW) Limited</span> &middot; <span class="nb">Registered in England &amp; Wales</span> &middot; <span class="nb">Company No. 16369950</span> &middot; <span class="nb">nova-limited.com</span></div>' +
     '</div>' +
   '</section>';
 }
