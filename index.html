@@ -4484,6 +4484,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
   <style id="cost-styles">
     #view-costing .cost-jobbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; padding:11px 14px; background:#434244; color:#fff; border-radius:9px; }
     #view-costing .cost-internal-tag { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; background:#F7901E; color:#1f1f1f; padding:3px 9px; border-radius:5px; }
+    #view-costing .cost-advisory { margin:-4px 0 14px; padding:9px 13px; background:#fff8ec; border:1px solid #f0d9b0; border-left:3px solid #F7901E; border-radius:8px; font-size:12.5px; color:#7a5a1e; line-height:1.5; }
     #view-costing .cost-jobtotal { display:flex; align-items:baseline; gap:10px; }
     #view-costing .cost-jt-lbl { font-size:11px; color:#cfcfce; }
     #view-costing .cost-jt-val { font-size:20px; font-weight:800; }
@@ -10382,6 +10383,84 @@ function costJobTotal(survey){
   var margin = priced ? (sell - actual) : null;
   return { sell: sell, margin: margin, actual: actual, priced: priced, buildings: C.buildings.length };
 }
+// A capture building's display name, falling back to its capture position.
+function costCaptureName(capB, idx){
+  return (capB && capB.name && String(capB.name).trim()) ? String(capB.name).trim() : ('Building ' + (idx + 1));
+}
+// RECONCILE the costing against the capture buildings (Structure C only; NEVER on
+// a condition record - purpose picks the costing surface, and condition jobs are
+// priced in the repair-mode panel). A capture building never represented in this
+// costing is added, in capture order, carrying its name, with a default (empty,
+// unpriced) scope so it contributes ZERO to the job total: the reconcile makes an
+// omission visible, it never moves money by itself.
+//   survey.costing.knownCaptureIds  - every capture building id the costing has
+//     EVER known (including any since removed). Reconcile adds only ids never
+//     known, so a building deliberately removed from the costing stays removed.
+//   costing building .captureId / .captureOrder  - the link back to capture.
+// Bootstraps a costing that predates these fields by mapping capture->costing 1:1
+// in order (the original seed order), so an existing matched costing gains the
+// tracking metadata but no visible building and no money change.
+function costReconcileCaptures(survey){
+  if (!survey || survey.visitPurpose === 'condition') return false;
+  var C = survey && survey.costing; if (!C || !Array.isArray(C.buildings)) return false;
+  var caps = Array.isArray(survey.buildings) ? survey.buildings : [];
+  var mutated = false;
+  if (!Array.isArray(C.knownCaptureIds)){
+    C.knownCaptureIds = [];
+    var lim = Math.min(C.buildings.length, caps.length);
+    for (var i = 0; i < lim; i++){
+      var cid = caps[i] && caps[i].id; if (!cid) continue;
+      if (!C.buildings[i].captureId) C.buildings[i].captureId = cid;
+      if (typeof C.buildings[i].captureOrder !== 'number') C.buildings[i].captureOrder = i;
+      if (C.knownCaptureIds.indexOf(cid) === -1) C.knownCaptureIds.push(cid);
+    }
+    mutated = true;
+  }
+  caps.forEach(function(capB, idx){
+    var cid = capB && capB.id; if (!cid) return;
+    if (C.knownCaptureIds.indexOf(cid) === -1){
+      var nb = costNewBuilding(costCaptureName(capB, idx), '');
+      nb.captureId = cid; nb.captureOrder = idx;
+      C.buildings.push(nb);
+      C.knownCaptureIds.push(cid);
+      mutated = true;
+    }
+  });
+  if (mutated) srPersist(survey);
+  return mutated;
+}
+// Advisory shown wherever the Structure C job total is presented: no job total may
+// read as complete while a building in the costing carries no priced scope. Names
+// the unpriced buildings (multi-building only - a single-building total shows its
+// one price transparently and stays byte-identical), and names any capture
+// building the costing has known but that now sits deliberately outside it. Never
+// on a condition record. British English, no em/en dashes, middot separators.
+function costUnpricedAdvisory(survey){
+  if (!survey || survey.visitPurpose === 'condition') return '';
+  var C = survey && survey.costing; if (!C || !Array.isArray(C.buildings)) return '';
+  var parts = [];
+  if (C.buildings.length > 1){
+    var unpriced = C.buildings.filter(function(b){ return costBuildingFigures(b).priced === 0; });
+    if (unpriced.length){
+      var names = unpriced.map(function(b){ return b.name || 'Building'; }).join(', ');
+      parts.push(unpriced.length + ' building' + (unpriced.length === 1 ? '' : 's') + ' here ' +
+        (unpriced.length === 1 ? 'has' : 'have') + ' no priced scope yet &middot; ' + escapeHtml(names) +
+        '. The job total is not complete until every building is priced.');
+    }
+  }
+  var present = {}; C.buildings.forEach(function(b){ if (b.captureId) present[b.captureId] = true; });
+  var caps = Array.isArray(survey.buildings) ? survey.buildings : [];
+  var outside = (Array.isArray(C.knownCaptureIds) ? C.knownCaptureIds : [])
+    .filter(function(id){ return !present[id]; })
+    .map(function(id){ var j = caps.findIndex(function(x){ return x.id === id; }); return j > -1 ? costCaptureName(caps[j], j) : null; })
+    .filter(Boolean);
+  if (outside.length){
+    parts.push(escapeHtml(outside.join(', ')) + ' ' + (outside.length === 1 ? 'is' : 'are') +
+      ' captured but held outside this costing.');
+  }
+  if (!parts.length) return '';
+  return '<div class="cost-advisory">' + parts.join(' ') + '</div>';
+}
 // Locate a scope's element/row for build-up editing (mirrors estFindRow).
 function costFindRow(survey, bi, si, elId, rowId){
   var C = survey && survey.costing; if (!C) return null;
@@ -10399,7 +10478,7 @@ var costCurrentId = null;
 function costOpen(id){
   costCurrentId = id || currentSurveyId;
   var survey = srLoadSurvey(costCurrentId);
-  if (survey){ costEnsure(survey); srPersist(survey); }   // persist the lazy migration so it survives snapshot save/load
+  if (survey){ costEnsure(survey); costReconcileCaptures(survey); srPersist(survey); }   // persist the lazy migration + capture reconcile so it survives snapshot save/load
   if (typeof showView === 'function') showView('costing');
   costRender();
 }
@@ -10409,6 +10488,7 @@ function costRender(){
   var survey = srLoadSurvey(costCurrentId);
   if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
   var C = costEnsure(survey);
+  costReconcileCaptures(survey);   // add any capture building missing from the costing (Structure C, non-condition only)
   var job = costJobTotal(survey);
   var h = '<div class="cost-jobbar">';
   h += '<div class="cost-internal-tag">Internal working view &middot; rates and margin shown</div>';
@@ -10416,6 +10496,7 @@ function costRender(){
     '<span class="cost-jt-val">' + srMoney(job.sell) + '</span>' +
     (job.margin != null ? '<span class="cost-jt-mar ' + srMarginColour(job.margin) + '">margin ' + srMoney(job.margin) + '</span>' : '') + '</div>';
   h += '</div>';
+  h += costUnpricedAdvisory(survey);   // no job total reads as complete while a building carries no priced scope
   C.buildings.forEach(function(b, bi){ h += costRenderBuilding(survey, b, bi); });
   h += '<div class="cost-addbldg"><button class="btn btn-secondary" onclick="costAddBuilding()">+ Add building</button></div>';
   host.innerHTML = h;
