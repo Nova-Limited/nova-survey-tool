@@ -15347,11 +15347,15 @@ function slRenderCover(survey) {
 function slRoofPlanSVG(survey, opts){
   opts = opts || {};
   var idp = 'rp-' + (opts.idSuffix || 'a');
-  var b  = (typeof fpBuilding === 'function') ? fpBuilding(survey) : null;
-  var fp = (typeof fpFootprint === 'function') ? fpFootprint(survey) : null;
+  // opts.building + opts.faults scope the drawing to ONE building (the
+  // multi-building fault plan and the aerial substitute pass them). Absent, it
+  // falls back to the active building + every pinned fault, exactly as before, so
+  // the single-building path stays byte-identical.
+  var b  = opts.building || ((typeof fpBuilding === 'function') ? fpBuilding(survey) : null);
+  var fp = opts.building ? (opts.building.footprint || null) : ((typeof fpFootprint === 'function') ? fpFootprint(survey) : null);
   var form = (b && b.roofForm) || 'duo-pitch';
   var faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers : [];
-  var pinned = faults.filter(function(f){ return f.footprintLoc && f.footprintLoc.x != null; });
+  var pinned = opts.faults ? opts.faults : faults.filter(function(f){ return f.footprintLoc && f.footprintLoc.x != null; });
   var INK = '#434244', ORANGE = '#F7901E', PAPER = '#faf9f6', LINE = '#8a8d91';
   var hasAsb = (typeof f5BuildingHasAsbestos === 'function') ? !!f5BuildingHasAsbestos(b) : false;
 
@@ -15418,12 +15422,36 @@ function slHasPinnedFaults(survey){
 // dedicated A4-landscape sheet that joins the report flow via the existing
 // auto-pagination (no existing sheet is redesigned). Renders ONLY when a fault is
 // located; otherwise returns '' and the report is unchanged.
-function slRenderFaultPlanFigure(survey){
-  var s = survey || {};
-  if (!slHasPinnedFaults(s)) return '';
-  var b = (typeof fpBuilding === 'function') ? fpBuilding(s) : null;
+// Pinned faults attributed to building index bi (footprintLoc.bi; legacy faults
+// without bi count as building 0, so a single-building survey keeps every fault).
+function slPinnedFaultsForBuilding(survey, bi){
+  var faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers : [];
+  return faults.filter(function(f){ return f.footprintLoc && f.footprintLoc.x != null && ((f.footprintLoc.bi == null ? 0 : f.footprintLoc.bi) === bi); });
+}
+// The single aerial-substitute slot (roof plan used as aerial, when no drone
+// image) must not depend on which building is active, or switching the active
+// building would change the report. Draw the FIRST captured building + its own
+// faults deterministically. Single-building: the first captured building IS
+// buildings[0] and carries every fault, so this is byte-identical to the previous
+// active-building call.
+function slAerialPlanOpts(survey){
+  var ab = slCapturedBuildings(survey)[0];
+  if (!ab) return { idSuffix: 'aerial', hideNotToScale: true };
+  var abi = (Array.isArray(survey.buildings) ? survey.buildings : []).indexOf(ab);
+  return { idSuffix: 'aerial', hideNotToScale: true, building: ab, faults: slPinnedFaultsForBuilding(survey, abi) };
+}
+// One Figure 4.2 sheet. opts absent = the previous single-building behaviour
+// (active building, every pinned fault, no building label, idSuffix 'fig') and is
+// byte-identical. opts = { building, buildingIdx, faults, label } draws that one
+// building's footprint + only its own faults, labelled with its captured identity.
+function slFaultPlanSheet(s, opts){
+  opts = opts || {};
+  var single = !opts.building;
+  var b = single ? ((typeof fpBuilding === 'function') ? fpBuilding(s) : null) : opts.building;
   var form = (b && b.roofForm) || '';
-  var pinned = (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).filter(function(f){ return f.footprintLoc && f.footprintLoc.x != null; });
+  var pinned = single
+    ? (Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers : []).filter(function(f){ return f.footprintLoc && f.footprintLoc.x != null; })
+    : (opts.faults || []);
   var capNote = '';
   if (form === 'multi-bay' && typeof fpBayFigures === 'function'){
     var bf = fpBayFigures(b);
@@ -15441,13 +15469,15 @@ function slRenderFaultPlanFigure(survey){
   var hasAsb = (typeof f5BuildingHasAsbestos === 'function') ? !!f5BuildingHasAsbestos(b) : false;
   if (hasAsb) legend += '<span class="rp-leg-item"><span class="rp-leg-hatch"></span>Asbestos, hatched</span>';
 
-  var svg = slRoofPlanSVG(s, { idSuffix: 'fig' });
+  var svg = single ? slRoofPlanSVG(s, { idSuffix: 'fig' })
+                   : slRoofPlanSVG(s, { idSuffix: 'fig-' + opts.buildingIdx, building: b, faults: pinned });
+  var bldLabel = single ? '' : (' &middot; ' + escapeHtml(opts.label || ''));
   var foot = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
   return '<section class="sheet sl-faultplan">' +
     '<div class="pad">' +
       '<div class="eyebrow">04 &middot; Findings and costs</div>' +
       '<h2><span class="gt">&raquo;</span>The roof plan, and where the faults are.</h2>' +
-      '<div class="rp-figcap">Figure 4.2 &middot; Roof plan, faults &middot; not to scale' + (capNote ? ' &middot; ' + capNote : '') + '</div>' +
+      '<div class="rp-figcap">Figure 4.2 &middot; Roof plan, faults' + bldLabel + ' &middot; not to scale' + (capNote ? ' &middot; ' + capNote : '') + '</div>' +
       '<div class="rp-figwrap">' +
         '<div class="rp-frame">' + svg + '</div>' +
         '<div class="rp-legend">' + legend +
@@ -15456,6 +15486,26 @@ function slRenderFaultPlanFigure(survey){
       '</div>' +
     '</div>' + foot +
   '</section>';
+}
+// Figure 4.2 - the roof/fault plan. Single captured building (or footprint-less):
+// exactly as before (byte-identical). MULTI-BUILDING: one fault-plan sheet PER
+// captured building, in building order, each labelled and drawing only the faults
+// attributed to it. Survey-scoped content (schedule/totals/exec/aerial) is
+// untouched and still renders once.
+function slRenderFaultPlanFigure(survey){
+  var s = survey || {};
+  if (!slHasPinnedFaults(s)) return '';
+  var captured = slCapturedBuildings(s);
+  if (captured.length <= 1) return slFaultPlanSheet(s, null);
+  var allB = Array.isArray(s.buildings) ? s.buildings : [];
+  var out = [];
+  allB.forEach(function(b, bi){
+    if (!(b && b.footprint && Array.isArray(b.footprint.corners) && b.footprint.corners.length >= 3)) return;
+    var bFaults = slPinnedFaultsForBuilding(s, bi);
+    if (!bFaults.length) return;
+    out.push(slFaultPlanSheet(s, { building: b, buildingIdx: bi, faults: bFaults, label: fpBuildingLabelSafe(s, bi) }));
+  });
+  return out.join('');
 }
 
 // ===== DOCUMENTS BUILD STAGE D2: THE SITE PLAN =====================
@@ -16267,7 +16317,7 @@ function slRenderExec(survey) {
   const aerialInner = aerialSrc
     ? slAerialFigure(s, aerialSrc, aerialRot, EX_AERIAL_W - 2 * EX_AERIAL_INSET, EX_AERIAL_H - 2 * EX_AERIAL_INSET)
     : (slHasPinnedFaults(s)
-        ? '<div class="aerial-plan">' + slRoofPlanSVG(s, { idSuffix: 'aerial', hideNotToScale: true }) + '<div class="aerial-plan-badge">Roof plan &middot; used as aerial</div></div>'
+        ? '<div class="aerial-plan">' + slRoofPlanSVG(s, slAerialPlanOpts(s)) + '<div class="aerial-plan-badge">Roof plan &middot; used as aerial</div></div>'
         : '<div class="bleed"><svg class="rings" style="right:-60px;bottom:-60px;" width="240" height="240" viewBox="0 0 240 240"><g fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"><circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="100"/><circle cx="200" cy="200" r="140"/></g></svg></div>SITE OVERVIEW &middot; AERIAL');
 
   const foot  = '<div class="foot"><div class="tag">The truth from above.</div><div>' + escapeHtml('NOV-' + (s.id || '')) + '</div></div>';
