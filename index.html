@@ -4452,6 +4452,9 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .pwe-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
     #view-proposal .pwe-toggle{font-size:12.5px;font-weight:700;background:#434244;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-family:inherit;}
     #view-proposal .pwe-head-tot{font-size:13px;color:#434244;} #view-proposal .pwe-head-tot b{font-size:15px;}
+    #view-proposal .np-elem-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin:26px 0 10px;padding-bottom:7px;border-bottom:2px solid #434244;}
+    #view-proposal .np-elem-name{font-size:16px;font-weight:800;color:#434244;}
+    #view-proposal .np-elem-meta{font-size:11px;color:#8a898b;}
     #view-proposal .np-notready{display:block;margin-top:6px;font-size:11px;font-weight:700;color:#a3620f;}
     #view-proposal .np-accept-gate{margin-top:8px;padding:9px 13px;background:#fff8ec;border:1px solid #f0d9b0;border-left:3px solid #F7901E;border-radius:8px;font-size:12.5px;color:#7a5a1e;line-height:1.5;}
     #view-proposal .pwe-ready{margin:10px 0 0;padding:8px 12px;background:#fff8ec;border:1px solid #f0d9b0;border-left:3px solid #F7901E;border-radius:8px;font-size:12px;color:#7a5a1e;}
@@ -10480,6 +10483,23 @@ function costUnpricedAdvisory(survey){
     parts.push(bits.join(' &middot; ') + ' in ' + escapeHtml(faulted.map(function(x){ return x.name; }).join(', ')) +
       '. Those lines price at zero, so the job total reads lower than the work.');
   }
+  // ELEMENT READINESS at the summing point: an element whose ACCEPTED route is
+  // not ready is named here, so a job total is never read as settled while one of
+  // its elements is still unfinished. Same tone and placement as the lines above.
+  var unreadyEls = [];
+  if (typeof pweRouteReadiness === 'function' && survey.proposal && survey.proposal.elements){
+    propObjects(survey).forEach(function(o){
+      var E = survey.proposal.elements[o.id]; if (!E || !E.accepted) return;
+      var view = pweElemView(survey, o.id); if (!view) return;
+      var rd = pweRouteReadiness(view, E.accepted);
+      if (!rd.ready) unreadyEls.push(o.name + ' (' + rd.failures.join('; ') + ')');
+    });
+  }
+  if (unreadyEls.length){
+    parts.push(unreadyEls.length + ' element' + (unreadyEls.length === 1 ? '' : 's') + ' ' +
+      (unreadyEls.length === 1 ? 'carries' : 'carry') + ' an accepted route that is not ready to present &middot; ' +
+      escapeHtml(unreadyEls.join(' &middot; ')) + '.');
+  }
   var present = {}; C.buildings.forEach(function(b){ if (b.captureId) present[b.captureId] = true; });
   var caps = Array.isArray(survey.buildings) ? survey.buildings : [];
   var outside = (Array.isArray(C.knownCaptureIds) ? C.knownCaptureIds : [])
@@ -11443,10 +11463,107 @@ function proposalState(survey){
 }
 function proposalSysById(family, id){ return (PROPOSAL_SYSTEMS[family] || []).filter(function(s){ return s.id === id; })[0] || null; }
 
+// ===== THE ELEMENT MODEL ====================================================
+// The ELEMENT IS THE CAPTURED OBJECT. Everything capture calls a building today
+// (footprint, datum, bays, slopes, elevations, gutters, features and all sixteen
+// derivations) is the element, unchanged in behaviour. Routes, estimates, the
+// accepted route and the purlin grid attach per element. Its id is the captured
+// object's own id, so nothing new has to be minted or kept in step.
+// NOTE obId is the CAPTURE OBJECT id. Inside an estimate, elId already means the
+// estimate's own element (its line group) - the two never share a name here.
+function propObjects(survey){
+  return ((survey && survey.buildings) || []).map(function(b, i){
+    return { id: (b && b.id) ? b.id : ('B' + (i + 1)), idx: i,
+      name: (b && b.name && String(b.name).trim()) ? String(b.name).trim() : ('Building ' + (i + 1)), b: b };
+  });
+}
+function propObjById(survey, obId){ return propObjects(survey).filter(function(o){ return o.id === obId; })[0] || null; }
+function propObjLabel(survey, obId){ var o = propObjById(survey, obId); return o ? o.name : 'this element'; }
+// Family from THIS element's OWN slopes: dominant by area, area-weighted where the
+// slopes carry areas, otherwise a straight count. The survey-level pool no longer
+// participates in the estimate path. A desk override always wins.
+function propObjDeriveFamily(b){
+  var slopes = (b && b.slopes) || [];
+  if (!slopes.length) return { family: 'pitched', source: 'default, no slopes captured' };
+  var flat = 0, pitched = 0, weighted = false;
+  slopes.forEach(function(s){
+    var a = srNum(s && s.areaM2); if (a != null && a > 0) weighted = true; else a = 1;
+    if (String((s && s.pitch) || '') === 'Flat') flat += a; else pitched += a;
+  });
+  return { family: (flat > pitched) ? 'flat' : 'pitched',
+    source: (weighted ? 'dominant by area' : 'dominant by slope count') + ' from this element' };
+}
+function propObjFamily(survey, obId){
+  var E = ((survey.proposal || {}).elements || {})[obId] || {};
+  if (E.familyOverride && PROPOSAL_SYSTEMS[E.familyOverride]) return { family: E.familyOverride, source: 'set at the desk' };
+  var o = propObjById(survey, obId);
+  return propObjDeriveFamily(o && o.b);
+}
+// MIGRATION, LOSSLESS, ON READ. A survey-level proposal moves onto the element the
+// geometry belongs to: one captured object is unambiguous, several attach to the
+// ACTIVE object. Figures are carried by reference, none recomputed. The legacy keys
+// are left in place, so nothing is lost and a migrated-then-saved record re-opens
+// through the same branch. Writes nothing: the caller persists only when the user does.
+function propMigrateToElements(survey){
+  var P = survey && survey.proposal;
+  if (!P || typeof P !== 'object') return null;
+  if (P.elements && typeof P.elements === 'object') return null;      // already element-shaped
+  var legacy = !!(P.family || P.accepted || (P.routes && P.routes.length) ||
+    (P.estimates && Object.keys(P.estimates).length));
+  var objs = propObjects(survey);
+  if (!objs.length) return null;
+  P.elements = {};
+  if (!legacy) return null;
+  var i = (typeof survey.activeBuildingIdx === 'number' && objs[survey.activeBuildingIdx]) ? survey.activeBuildingIdx : 0;
+  var target = objs[i];
+  P.elements[target.id] = { family: P.family, routes: P.routes, accepted: P.accepted,
+    estimates: P.estimates, migratedFrom: 'survey-level proposal' };
+  return { obId: target.id, name: target.name, multiObject: objs.length > 1 };
+}
+// The element's own proposal record, lazily initialised in EXACTLY the shape the
+// survey-level record had, so every downstream reader works unchanged.
+function propElemState(survey, obId){
+  if (!survey.proposal || typeof survey.proposal !== 'object') survey.proposal = {};
+  propMigrateToElements(survey);
+  var P = survey.proposal;
+  if (!P.elements || typeof P.elements !== 'object') P.elements = {};
+  var E = P.elements[obId];
+  if (!E || typeof E !== 'object') E = P.elements[obId] = {};
+  var fam = propObjFamily(survey, obId);
+  if (!E.family || !PROPOSAL_SYSTEMS[E.family]) E.family = fam.family;
+  var famIds = PROPOSAL_SYSTEMS[E.family].map(function(s){ return s.id; });
+  if (!Array.isArray(E.routes) || !E.routes.length) E.routes = famIds.slice(0, 4);
+  E.routes = famIds.filter(function(id){ return E.routes.indexOf(id) > -1; });
+  if (E.routes.length < 2) E.routes = famIds.slice(0, Math.min(4, famIds.length));
+  if (E.routes.length > 4) E.routes = E.routes.slice(0, 4);
+  if (!E.accepted || E.routes.indexOf(E.accepted) < 0){
+    var rec = PROPOSAL_SYSTEMS[E.family].filter(function(s){ return s.recommended && E.routes.indexOf(s.id) > -1; })[0];
+    E.accepted = rec ? rec.id : (E.routes[0] || null);
+  }
+  if (!E.estimates || typeof E.estimates !== 'object') E.estimates = {};
+  return E;
+}
+// THE VIEW (proven): a shallow survey carrying ONE captured object and that
+// element's proposal record. Every existing derivation and every pwe*/proposal
+// reader resolves for this element alone, unchanged - no new geometry machinery.
+function pweElemView(survey, obId){
+  var o = propObjById(survey, obId); if (!o) return null;
+  var v = Object.assign({}, survey);
+  v.buildings = [o.b];
+  v.proposal = propElemState(survey, obId);
+  return v;
+}
+
 function proposalOpen(id){
   proposalCurrentId = id || currentSurveyId;
   var survey = srLoadSurvey(proposalCurrentId);
-  if (survey){ proposalState(survey); srPersist(survey); }   // persist the lazy-init so it survives snapshot save/load
+  // element model: migrate a legacy survey-level proposal on read, then lazily
+  // initialise each captured object's own record, and persist that once.
+  if (survey){
+    propMigrateToElements(survey);
+    propObjects(survey).forEach(function(o){ propElemState(survey, o.id); });
+    srPersist(survey);
+  }
   if (typeof showView === 'function') showView('proposal');
   proposalRender();
 }
@@ -11456,103 +11573,114 @@ function proposalRender(){
   var host = document.getElementById('proposal-body'); if (!host) return;
   var survey = srLoadSurvey(proposalCurrentId);
   if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
-  var P = proposalState(survey);
-  var area = proposalRoofArea(survey);
+  propMigrateToElements(survey);                      // lossless, on read, writes nothing
+  var objs = propObjects(survey);
+  if (!objs.length){ host.innerHTML = '<p>No captured objects yet. Capture the roof in Section B2; each captured object is an element and carries its own routes.</p>'; return; }
   var rates = proposalRates();
-  var fam = PROPOSAL_SYSTEMS[P.family];
+  var multi = objs.length > 1;
+  var h = '';
 
-  // --- rates panel + family selector + route picker (the on-tool controls) ---
-  var h = '<div class="np-controls">';
-  // family selector
-  h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof type</span><span class="np-pills">';
-  PROPOSAL_FAMILY_ORDER.forEach(function(f){
-    h += '<button class="np-pill' + (f === P.family ? ' on' : '') + '" onclick="proposalSetFamily(\'' + f + '\')">' + srEsc(PROPOSAL_FAMILY_LABELS[f]) + '</button>';
+  objs.forEach(function(o){
+    var obId = o.id;
+    var E = propElemState(survey, obId);
+    var view = pweElemView(survey, obId) || survey;
+    var area = proposalRoofArea(view);                 // THIS element's own area
+    var famInfo = propObjFamily(survey, obId);
+    var fam = PROPOSAL_SYSTEMS[E.family];
+
+    // element heading only where there is more than one element, so a
+    // single-object survey reads exactly as it did.
+    if (multi){
+      h += '<div class="np-elem-head"><span class="np-elem-name">' + srEsc(o.name) + '</span>' +
+        '<span class="np-elem-meta">' + srEsc(PROPOSAL_FAMILY_LABELS[E.family]) + ' &middot; ' + srEsc(famInfo.source) +
+        (area != null && area > 0 ? (' &middot; ' + Math.round(area).toLocaleString('en-GB') + ' m²') : '') + '</span></div>';
+    }
+
+    // --- rates panel + family selector + route picker (the on-tool controls) ---
+    h += '<div class="np-controls">';
+    h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof type</span><span class="np-pills">';
+    PROPOSAL_FAMILY_ORDER.forEach(function(f){
+      h += '<button class="np-pill' + (f === E.family ? ' on' : '') + '" onclick="proposalSetFamily(\'' + obId + '\',\'' + f + '\')">' + srEsc(PROPOSAL_FAMILY_LABELS[f]) + '</button>';
+    });
+    h += '</span><span class="np-ctl-note">' + srEsc(famInfo.source.charAt(0).toUpperCase() + famInfo.source.slice(1)) + '; switch if presenting a different family.</span></div>';
+    h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Routes to present</span><span class="np-pills">';
+    fam.forEach(function(sy){
+      var on = E.routes.indexOf(sy.id) > -1;
+      h += '<button class="np-pill' + (on ? ' on' : '') + '" onclick="proposalToggleRoute(\'' + obId + '\',\'' + sy.id + '\')">' + srEsc(sy.name) + (sy.recommended ? ' ★' : '') + '</button>';
+    });
+    h += '</span><span class="np-ctl-note">Pick 2 to 4. The comparison renders one column per route.</span></div>';
+    h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof area</span><span class="np-area">' +
+      (area != null && area > 0 ? (Math.round(area).toLocaleString('en-GB') + ' m² <span class="np-area-src">(Section B derived total)</span>') : '<span class="np-pending">pending measure - add slopes in Section B2</span>') +
+      '</span></div>';
+    h += '<div class="np-rates"><div class="np-rates-h">Indicative rates (£/m²) - business-wide, editable here</div><div class="np-rates-grid">';
+    fam.forEach(function(sy){
+      h += '<label class="np-rate"><span class="np-rate-name">' + srEsc(sy.name) + '</span>' +
+        '<input type="number" step="1" min="0" value="' + rates[sy.id] + '" data-rid="' + sy.id + '" oninput="proposalRateEdit(this)"></label>';
+    });
+    h += '</div></div>';
+    h += '</div>';
+
+    // --- THE SETTLED PRESENTATION ---
+    var opts = E.routes.map(function(id){ return proposalSysById(E.family, id); }).filter(Boolean);
+    h += '<div class="np-proposal">';
+    h += '<div class="np-eyebrow">Works proposal <b>·</b> the right roof, made simple</div>';
+    h += '<h2 class="np-h2">Four routes, compared</h2>';
+    h += '<p class="np-lead">' + opts.length + ' system' + (opts.length > 1 ? 's' : '') + ' for this ' + srEsc(PROPOSAL_FAMILY_LABELS[E.family].toLowerCase()) +
+      ', set side by side so the decision rests on what each route gives, not on price alone. Our recommended route is highlighted.</p>';
+    h += proposalSitePlanPanel(view);
+
+    h += '<div class="np-optgrid" style="grid-template-columns:repeat(' + opts.length + ',1fr)">';
+    opts.forEach(function(sy){
+      var K = pweKey(obId, sy.id);
+      var hd = pweHeadline(view, sy.id);
+      var timeTxt = (hd.worked && hd.days > 0) ? ('~' + (Math.round(hd.days * 4) / 4) + ' days') : srEsc(sy.time);
+      h += '<div class="np-opt-col' + (sy.recommended ? ' feature' : '') + '">' +
+        (sy.recommended ? '<div class="np-ribbon">Recommended</div>' : '') +
+        '<div class="np-top"><div class="np-name">' + srEsc(sy.name) + '</div><div class="np-for">Best for ' + srEsc(sy.best) + '</div></div>' +
+        '<div class="np-price"><div class="np-amt" id="np-amt-' + K + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-vat">plus VAT</span></div>' +
+        '<div class="np-perm2" id="np-pm-' + K + '">' + (hd.worked ? (hd.perM2 != null ? proposalMoney(hd.perM2) + '/m² worked' : 'worked') : (proposalMoney(hd.indicativeRate) + '/m² indicative')) + '</div>' +
+        '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '" id="np-bdg-' + K + '">' + (hd.worked ? 'Worked estimate' : 'Indicative') + '</span>' +
+        pweReadinessMark(survey, obId, sy.id) + '</div>' +
+        '<div class="np-specs"><div class="np-r"><span class="np-k">Lifespan</span><span class="np-v">' + srEsc(sy.life) + '</span></div>' +
+        '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + timeTxt + '</span></div></div></div>';
+    });
+    h += '</div>';
+    h += '<p class="np-caption">Figures plus VAT. A <b>worked</b> headline is this route’s item-by-item build-up Total to Client, with a derived £/m² (total divided by roof area). An <b>indicative</b> headline is the roof area times the flat per-system rate, pending final measure; build its estimate below to replace it.</p>';
+
+    h += '<h2 class="np-h2 np-h2-sp">Each route in detail</h2>';
+    opts.forEach(function(sy){
+      var K = pweKey(obId, sy.id);
+      var hd = pweHeadline(view, sy.id);
+      h += '<div class="np-detail' + (sy.recommended ? ' feature' : '') + '"><div class="np-dhead"><span class="np-dname">' + srEsc(sy.name) + '</span>' +
+        (sy.recommended ? '<span class="np-tag-rec">Recommended</span>' : '') +
+        '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '">' + (hd.worked ? 'Worked' : 'Indicative') + '</span>' +
+        '<span class="np-damt" id="np-damt-' + K + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span>' +
+        pweReadinessMark(survey, obId, sy.id) + '</div>' +
+        '<p class="np-what">' + srEsc(sy.what) + '</p>' +
+        '<div class="np-getconsider">' +
+        '<div class="np-gc np-get"><h4>What you get</h4><ul>' + sy.get.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
+        '<div class="np-gc np-consider"><h4>What to consider</h4><ul>' + sy.consider.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
+        '</div>' +
+        pweRenderEditor(survey, obId, sy.id) +
+        '</div>';
+    });
+
+    h += '<div class="np-accept"><div class="np-accept-h">Accepted route</div>' +
+      '<p class="np-accept-note">Record the route the client accepts. Stored against this element, ready to flow forward.</p>' +
+      '<div class="np-accept-pills">';
+    opts.forEach(function(sy){
+      h += '<button class="np-pill np-accept-pill' + (E.accepted === sy.id ? ' on' : '') + '" onclick="proposalSetAccepted(\'' + obId + '\',\'' + sy.id + '\')">' + srEsc(sy.name) + '</button>';
+    });
+    h += '</div>';
+    var acc = proposalSysById(E.family, E.accepted);
+    var accFig = acc ? proposalFigure(area, rates[acc.id]) : null;
+    h += '<div class="np-accept-readout" id="np-accept-readout-' + obId + '">' +
+      (acc ? ('Accepted: <b>' + srEsc(acc.name) + '</b> at ' + (accFig != null ? proposalMoney(accFig) + ' plus VAT (indicative)' : 'a price pending final measure')) : 'No route accepted yet.') +
+      '</div>' + (acc ? pweAcceptedGateNote(survey, obId, acc) : '') + '</div>';
+
+    h += '</div>';   // .np-proposal
   });
-  h += '</span><span class="np-ctl-note">Derived from the survey slopes; switch if presenting a different family.</span></div>';
-  // route picker
-  h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Routes to present</span><span class="np-pills">';
-  fam.forEach(function(s){
-    var on = P.routes.indexOf(s.id) > -1;
-    h += '<button class="np-pill' + (on ? ' on' : '') + '" onclick="proposalToggleRoute(\'' + s.id + '\')">' + srEsc(s.name) + (s.recommended ? ' ★' : '') + '</button>';
-  });
-  h += '</span><span class="np-ctl-note">Pick 2 to 4. The comparison renders one column per route.</span></div>';
-  // roof area
-  h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof area</span><span class="np-area">' +
-    (area != null && area > 0 ? (Math.round(area).toLocaleString('en-GB') + ' m² <span class="np-area-src">(Section B derived total)</span>') : '<span class="np-pending">pending measure - add slopes in Section B2</span>') +
-    '</span></div>';
-  // editable per-system rates (one place)
-  h += '<div class="np-rates"><div class="np-rates-h">Indicative rates (£/m²) - business-wide, editable here</div><div class="np-rates-grid">';
-  fam.forEach(function(s){
-    h += '<label class="np-rate"><span class="np-rate-name">' + srEsc(s.name) + '</span>' +
-      '<input type="number" step="1" min="0" value="' + rates[s.id] + '" data-rid="' + s.id + '" oninput="proposalRateEdit(this)"></label>';
-  });
-  h += '</div></div>';
-  h += '</div>';
 
-  // --- THE SETTLED PRESENTATION ---
-  var opts = P.routes.map(function(id){ return proposalSysById(P.family, id); }).filter(Boolean);
-  h += '<div class="np-proposal">';
-  h += '<div class="np-eyebrow">Works proposal <b>·</b> the right roof, made simple</div>';
-  h += '<h2 class="np-h2">Four routes, compared</h2>';
-  h += '<p class="np-lead">' + opts.length + ' system' + (opts.length > 1 ? 's' : '') + ' for this ' + srEsc(PROPOSAL_FAMILY_LABELS[P.family].toLowerCase()) +
-    ', set side by side so the decision rests on what each route gives, not on price alone. Our recommended route is highlighted.</p>';
-
-  // D2: the measured site plan, once, above the route comparison - lends the
-  // indicative figures a measured base. '' when no footprint (proposal unchanged).
-  h += proposalSitePlanPanel(survey);
-
-  // comparison grid - each headline reads the WORKED total where a build-up exists,
-  // else the flat indicative rate (pre-measure fallback). The badge marks which.
-  h += '<div class="np-optgrid" style="grid-template-columns:repeat(' + opts.length + ',1fr)">';
-  opts.forEach(function(s){
-    var hd = pweHeadline(survey, s.id);
-    var timeTxt = (hd.worked && hd.days > 0) ? ('~' + (Math.round(hd.days * 4) / 4) + ' days') : srEsc(s.time);
-    h += '<div class="np-opt-col' + (s.recommended ? ' feature' : '') + '">' +
-      (s.recommended ? '<div class="np-ribbon">Recommended</div>' : '') +
-      '<div class="np-top"><div class="np-name">' + srEsc(s.name) + '</div><div class="np-for">Best for ' + srEsc(s.best) + '</div></div>' +
-      '<div class="np-price"><div class="np-amt" id="np-amt-' + s.id + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-vat">plus VAT</span></div>' +
-      '<div class="np-perm2" id="np-pm-' + s.id + '">' + (hd.worked ? (hd.perM2 != null ? proposalMoney(hd.perM2) + '/m² worked' : 'worked') : (proposalMoney(hd.indicativeRate) + '/m² indicative')) + '</div>' +
-      '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '" id="np-bdg-' + s.id + '">' + (hd.worked ? 'Worked estimate' : 'Indicative') + '</span>' +
-      pweReadinessMark(survey, s.id) + '</div>' +
-      '<div class="np-specs"><div class="np-r"><span class="np-k">Lifespan</span><span class="np-v">' + srEsc(s.life) + '</span></div>' +
-      '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + timeTxt + '</span></div></div></div>';
-  });
-  h += '</div>';
-  h += '<p class="np-caption">Figures plus VAT. A <b>worked</b> headline is this route’s item-by-item build-up Total to Client, with a derived £/m² (total divided by roof area). An <b>indicative</b> headline is the roof area times the flat per-system rate, pending final measure; build its estimate below to replace it.</p>';
-
-  // per-option detail pages
-  h += '<h2 class="np-h2 np-h2-sp">Each route in detail</h2>';
-  opts.forEach(function(s){
-    var hd = pweHeadline(survey, s.id);
-    h += '<div class="np-detail' + (s.recommended ? ' feature' : '') + '"><div class="np-dhead"><span class="np-dname">' + srEsc(s.name) + '</span>' +
-      (s.recommended ? '<span class="np-tag-rec">Recommended</span>' : '') +
-      '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '">' + (hd.worked ? 'Worked' : 'Indicative') + '</span>' +
-      '<span class="np-damt" id="np-damt-' + s.id + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span>' +
-      pweReadinessMark(survey, s.id) + '</div>' +
-      '<p class="np-what">' + srEsc(s.what) + '</p>' +
-      '<div class="np-getconsider">' +
-      '<div class="np-gc np-get"><h4>What you get</h4><ul>' + s.get.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
-      '<div class="np-gc np-consider"><h4>What to consider</h4><ul>' + s.consider.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
-      '</div>' +
-      pweRenderEditor(survey, s.id) +
-      '</div>';
-  });
-
-  // accepted option
-  h += '<div class="np-accept"><div class="np-accept-h">Accepted route</div>' +
-    '<p class="np-accept-note">Record the route the client accepts. Stored against this survey, ready to flow forward.</p>' +
-    '<div class="np-accept-pills">';
-  opts.forEach(function(s){
-    h += '<button class="np-pill np-accept-pill' + (P.accepted === s.id ? ' on' : '') + '" onclick="proposalSetAccepted(\'' + s.id + '\')">' + srEsc(s.name) + '</button>';
-  });
-  h += '</div>';
-  var acc = proposalSysById(P.family, P.accepted);
-  var accFig = acc ? proposalFigure(area, rates[acc.id]) : null;
-  h += '<div class="np-accept-readout" id="np-accept-readout">' +
-    (acc ? ('Accepted: <b>' + srEsc(acc.name) + '</b> at ' + (accFig != null ? proposalMoney(accFig) + ' plus VAT (indicative)' : 'a price pending final measure')) : 'No route accepted yet.') +
-    '</div>' + (acc ? pweAcceptedGateNote(survey, acc) : '') + '</div>';
-
-  h += '</div>';   // .np-proposal
   host.innerHTML = h;
 }
 
@@ -11561,49 +11689,51 @@ function proposalRateEdit(input){
   proposalSetRate(input.getAttribute('data-rid'), input.value);
   proposalRender();   // a rate change moves every figure on that route
 }
-function proposalSetFamily(family){
+function proposalSetFamily(obId, family){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   if (!PROPOSAL_SYSTEMS[family]) return;
-  var P = proposalState(survey);
-  if (P.family === family) return;
-  P.family = family;
-  P.routes = PROPOSAL_SYSTEMS[family].map(function(s){ return s.id; }).slice(0, 4);   // reset routes to the new family
-  P.accepted = null;                                                                   // family changed -> re-pick
-  proposalState(survey);   // re-derive accepted/routes defaults
+  var E = propElemState(survey, obId);
+  if (E.family === family) return;
+  E.family = family;
+  E.familyOverride = family;            // a desk override on THIS element only
+  E.routes = PROPOSAL_SYSTEMS[family].map(function(s){ return s.id; }).slice(0, 4);
+  E.accepted = null;
+  propElemState(survey, obId);          // re-derive routes/accepted defaults
   srPersist(survey); proposalRender();
 }
-function proposalToggleRoute(id){
+function proposalToggleRoute(obId, id){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var P = proposalState(survey);
-  var famIds = PROPOSAL_SYSTEMS[P.family].map(function(s){ return s.id; });
-  var on = P.routes.indexOf(id) > -1;
+  var E = propElemState(survey, obId);
+  var famIds = PROPOSAL_SYSTEMS[E.family].map(function(s){ return s.id; });
+  var on = E.routes.indexOf(id) > -1;
   if (on){
-    if (P.routes.length <= 2){ showToast('Keep at least 2 routes in the comparison.', 'err'); return; }
-    P.routes = P.routes.filter(function(r){ return r !== id; });
+    if (E.routes.length <= 2){ showToast('Keep at least 2 routes in the comparison.', 'err'); return; }
+    E.routes = E.routes.filter(function(r){ return r !== id; });
   } else {
-    if (P.routes.length >= 4){ showToast('Present at most 4 routes.', 'err'); return; }
-    P.routes = famIds.filter(function(f){ return P.routes.indexOf(f) > -1 || f === id; });   // keep family order
+    if (E.routes.length >= 4){ showToast('Present at most 4 routes.', 'err'); return; }
+    E.routes = famIds.filter(function(f){ return E.routes.indexOf(f) > -1 || f === id; });
   }
-  if (P.accepted && P.routes.indexOf(P.accepted) < 0) P.accepted = null;
-  proposalState(survey);
+  if (E.accepted && E.routes.indexOf(E.accepted) < 0) E.accepted = null;
+  propElemState(survey, obId);
   srPersist(survey); proposalRender();
 }
-function proposalSetAccepted(id){
+function proposalSetAccepted(obId, id){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var P = proposalState(survey);
-  if (P.routes.indexOf(id) < 0) return;
-  // THE GATE. Recording an accepted route carries it toward the client, so an
-  // unready route is refused here with its reasons. Estimating, editing and
-  // saving are untouched: only this one act is refused.
+  var E = propElemState(survey, obId);
+  if (E.routes.indexOf(id) < 0) return;
+  // THE GATE, per element. Recording an accepted route carries THIS element
+  // toward the client, so an unready route is refused here with its reasons and
+  // the element named. Estimating, editing and saving are untouched.
   if (pweGateApplies(survey)){
-    var rd = pweRouteReadiness(survey, id);
+    var view = pweElemView(survey, obId);
+    var rd = view ? pweRouteReadiness(view, id) : { ready: true };
     if (!rd.ready){
-      showToast('Not ready to present &middot; ' + rd.failures.join(' &middot; '), 'err');
+      showToast(propObjLabel(survey, obId) + ' &middot; not ready to present &middot; ' + rd.failures.join(' &middot; '), 'err');
       proposalRender();
       return;
     }
   }
-  P.accepted = id;
+  E.accepted = id;
   srPersist(survey); proposalRender();
 }
 
@@ -12096,36 +12226,43 @@ function pweRouteReadiness(survey, routeId){
 function pweReadinessText(rd){ return (rd.failures || []).join(' &middot; '); }
 // Presentation marker. A READY route returns '' so client-facing output for a
 // finished route is unchanged; an unready one is named as such with its reasons.
-function pweReadinessMark(survey, routeId){
+function pweReadinessMark(survey, obId, routeId){
   if (!pweGateApplies(survey)) return '';
-  var rd = pweRouteReadiness(survey, routeId);
+  var view = pweElemView(survey, obId); if (!view) return '';
+  var rd = pweRouteReadiness(view, routeId);
   if (rd.ready) return '';
   return '<span class="np-notready">Not ready to present &middot; ' + pweReadinessText(rd) + '</span>';
 }
 // The accepted route is the one carried toward the client, so it says so plainly.
-function pweAcceptedGateNote(survey, acc){
+function pweAcceptedGateNote(survey, obId, acc){
   if (!pweGateApplies(survey) || !acc) return '';
-  var rd = pweRouteReadiness(survey, acc.id);
+  var view = pweElemView(survey, obId); if (!view) return '';
+  var rd = pweRouteReadiness(view, acc.id);
   if (rd.ready) return '';
-  return '<div class="np-accept-gate">This route is not ready to present &middot; ' + pweReadinessText(rd) +
+  return '<div class="np-accept-gate">' + srEsc(propObjLabel(survey, obId)) +
+    ' &middot; this route is not ready to present &middot; ' + pweReadinessText(rd) +
     '. Settle it before the figure goes to the client.</div>';
 }
 // The working marker on the route surface itself: what is missing, factually.
-function pweReadinessPanel(survey, routeId){
+function pweReadinessPanel(survey, obId, routeId){
   if (!pweGateApplies(survey)) return '';
-  var rd = pweRouteReadiness(survey, routeId);
-  if (rd.ready) return '<div class="pwe-ready pwe-ready-on">Ready to present</div>';
-  return '<div class="pwe-ready">Not ready to present &middot; ' + pweReadinessText(rd) + '</div>';
+  var view = pweElemView(survey, obId); if (!view) return '';
+  var rd = pweRouteReadiness(view, routeId);
+  var who = srEsc(propObjLabel(survey, obId));
+  if (rd.ready) return '<div class="pwe-ready pwe-ready-on">' + who + ' &middot; ready to present</div>';
+  return '<div class="pwe-ready">' + who + ' &middot; not ready to present &middot; ' + pweReadinessText(rd) + '</div>';
 }
 function pweFindRow(est, elId, rowId){
   var el = (est.elements || []).find(function(e){ return e.id === elId; }); if (!el) return null;
   var row = (el.rows || []).find(function(r){ return r.id === rowId; }); return row ? { el: el, row: row } : null;
 }
-function pweEstimatesStore(survey){
-  if (!survey.proposal) proposalState(survey);
-  if (!survey.proposal.estimates || typeof survey.proposal.estimates !== 'object') survey.proposal.estimates = {};
-  return survey.proposal.estimates;
+function pweEstimatesStore(survey, obId){
+  return propElemState(survey, obId).estimates;
 }
+// The element's estimate for one route, or null.
+function pweEstOf(survey, obId, routeId){ return pweEstimatesStore(survey, obId)[routeId] || null; }
+// UI keys are namespaced by element so two elements never collide.
+function pweKey(obId, routeId){ return obId + '-' + routeId; }
 function pweCatForGroup(name){
   var m = { 'Covering and build-up':'Sheeting','Flashing and detailing':'Flashing','Drainage':'Drainage',
     'Fix':'Fix','Consumables':'Cons','Access':'Access','Hire':'Hire','Waste':'Waste','H&S':'H&S',
@@ -12157,28 +12294,30 @@ function pweBuildupHtml(idNs, f){
       '<div class="cl-bu-line tot"><span>Labour total</span><span id="' + idNs + '-lt">' + srMoney(f.labTot) + '</span></div></div>';
 }
 
-function pweRenderEditor(survey, routeId){
-  var est = (survey.proposal.estimates || {})[routeId];
-  var open = !!pweOpen[routeId];
+function pweRenderEditor(survey, obId, routeId){
+  var view = pweElemView(survey, obId) || survey;
+  var K = pweKey(obId, routeId);
+  var est = pweEstOf(survey, obId, routeId);
+  var open = !!pweOpen[K];
   var h = '<div class="pwe-wrap">';
   if (!est){
-    h += '<button class="pwe-build-btn" onclick="pweBuild(\'' + routeId + '\')">Build worked estimate</button>' +
+    h += '<button class="pwe-build-btn" onclick="pweBuild(\'' + obId + '\',\'' + routeId + '\')">Build worked estimate</button>' +
       '<span class="pwe-hint">Opens this route populated with its system lines, seeded from the measured roof. Strike what does not apply, add anything extra.</span>';
     return h + '</div>';
   }
   var t = pweOptionTotals(est);
-  var area = proposalRoofArea(survey);
-  h += '<div class="pwe-head"><button class="pwe-toggle" onclick="pweToggle(\'' + routeId + '\')">' + (open ? '▾ Hide' : '▸ Show') + ' worked estimate</button>' +
+  var area = proposalRoofArea(view);
+  h += '<div class="pwe-head"><button class="pwe-toggle" onclick="pweToggle(\'' + obId + '\',\'' + routeId + '\')">' + (open ? '▾ Hide' : '▸ Show') + ' worked estimate</button>' +
     '<span class="pwe-head-tot">Total to client <b>' + proposalMoney(t.sell) + '</b> plus VAT' +
     (area > 0 && t.sell > 0 ? ' <span class="pwe-head-pm">(' + proposalMoney(t.sell / area) + '/m² worked)</span>' : '') + '</span>' +
-    '<button class="pwe-reseed" onclick="pweReseed(\'' + routeId + '\')" title="Rebuild from the system template">Reseed</button></div>';
+    '<button class="pwe-reseed" onclick="pweReseed(\'' + obId + '\',\'' + routeId + '\')" title="Rebuild from the system template">Reseed</button></div>';
   if (!open) return h + '</div>';
 
   // readiness marker: what this route still needs before it can be presented
-  h += pweReadinessPanel(survey, routeId);
+  h += pweReadinessPanel(survey, obId, routeId);
 
   // purlin grid: desk input on the routes whose covering hangs on bar and bracket
-  h += pweRenderPurlinBlock(survey, routeId, est);
+  h += pweRenderPurlinBlock(view, obId, routeId, est);
 
   // calm scope list: collapsible element groups, calm rows, build-up behind a per-line expander
   h += '<div class="cl-wrap" style="margin-top:10px;">';
@@ -12186,20 +12325,20 @@ function pweRenderEditor(survey, routeId){
     var e = pweElementTotals(el, est.rates);
     var collapsed = pweGroupCollapsed(est, el);
     h += '<div class="cl-grp' + (collapsed ? ' collapsed' : '') + '">';
-    h += '<div class="cl-grp-head" onclick="pweToggleGroup(\'' + routeId + '\',\'' + el.id + '\')">' +
+    h += '<div class="cl-grp-head" onclick="pweToggleGroup(\'' + obId + '\',\'' + routeId + '\',\'' + el.id + '\')">' +
       '<span class="cl-caret">' + (collapsed ? '▸' : '▾') + '</span>' +
       '<span class="cl-grp-name">' + srEsc(el.name) + ' <span class="cl-grp-meta">(' + e.live + ' line' + (e.live === 1 ? '' : 's') + ')</span></span>' +
-      '<span class="cl-grp-sub" id="pwe-elt-' + routeId + '-' + el.id + '">' + srMoney(e.sell) + '</span></div>';
+      '<span class="cl-grp-sub" id="pwe-elt-' + K + '-' + el.id + '">' + srMoney(e.sell) + '</span></div>';
     h += '<div class="cl-grp-body">';
     (el.rows || []).forEach(function(r){
       var f = estRowFigures(r, est.rates);
-      var d = 'data-rid="' + routeId + '" data-elid="' + el.id + '" data-rowid="' + r.id + '"';
+      var d = 'data-obid="' + obId + '" data-rid="' + routeId + '" data-elid="' + el.id + '" data-rowid="' + r.id + '"';
       var struck = r.off;
       var dis = struck ? ' disabled' : '';
-      var rowOpen = !!pweRowOpen[routeId + '/' + r.id];
+      var rowOpen = !!pweRowOpen[K + '/' + r.id];
       h += '<div class="cl-row' + (struck ? ' struck' : '') + '">';
       // control: strike / restore
-      h += '<button class="cl-ctrl" title="' + (struck ? 'Restore line' : 'Strike line') + '" onclick="pweStrike(\'' + routeId + '\',\'' + el.id + '\',\'' + r.id + '\')">' + (struck ? '↺' : '✕') + '</button>';
+      h += '<button class="cl-ctrl" title="' + (struck ? 'Restore line' : 'Strike line') + '" onclick="pweStrike(\'' + obId + '\',\'' + routeId + '\',\'' + el.id + '\',\'' + r.id + '\')">' + (struck ? '↺' : '✕') + '</button>';
       // item (name + quiet spec beneath)
       h += '<div class="cl-item"><input type="text" ' + d + ' data-field="item" value="' + srEsc(r.item) + '" oninput="pweText(this)"' + dis + ' placeholder="item">' +
         '<input type="text" ' + d + ' data-field="spec" value="' + srEsc(r.spec) + '" oninput="pweText(this)"' + dis + ' class="cl-spec" placeholder="spec (optional)"></div>';
@@ -12213,39 +12352,40 @@ function pweRenderEditor(survey, routeId){
         '<div class="cl-field"><label>Days</label><input type="number" step="0.25" min="0" ' + d + ' data-field="days" value="' + (r.days != null ? r.days : '') + '" oninput="pweNum(this)"' + dis + ' placeholder="hand" style="width:58px;"></div>' +
         '</div>';
       // line total (bold)
-      h += '<div class="cl-line-total" id="pwe-lt-' + routeId + '-' + r.id + '">' + (struck ? '&mdash;' : srMoney(f.sell)) + '</div>';
+      h += '<div class="cl-line-total" id="pwe-lt-' + K + '-' + r.id + '">' + (struck ? '&mdash;' : srMoney(f.sell)) + '</div>';
       // expander
-      h += '<button class="cl-expander" title="Show the cost, contingency and margin build-up" onclick="pweToggleRow(\'' + routeId + '\',\'' + r.id + '\')">' + (rowOpen ? '&times;' : '&hellip;') + '</button>';
+      h += '<button class="cl-expander" title="Show the cost, contingency and margin build-up" onclick="pweToggleRow(\'' + obId + '\',\'' + routeId + '\',\'' + r.id + '\')">' + (rowOpen ? '&times;' : '&hellip;') + '</button>';
       // hidden build-up
       if (rowOpen) h += pweBuildupHtml('pwe-bu-' + r.id, f) + '</div></div>';   // close cl-bu-row + cl-buildup
       h += '</div>';   // cl-row
     });
-    h += '<button class="cl-addrow" onclick="pweAddRow(\'' + routeId + '\',\'' + el.id + '\')">+ Add line</button>';
+    h += '<button class="cl-addrow" onclick="pweAddRow(\'' + obId + '\',\'' + routeId + '\',\'' + el.id + '\')">+ Add line</button>';
     h += '</div></div>';   // cl-grp-body + cl-grp
   });
   // option total bar
   h += '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:#434244;color:#fff;border-radius:8px;margin-top:4px;">' +
     '<span style="font-weight:800;letter-spacing:.04em;">TOTAL TO CLIENT</span>' +
     '<span style="font-size:11px;color:#cfcfcf;">(' + t.live + ' live, ' + (t.lines - t.live) + ' struck' + (t.days > 0 ? '; ' + (Math.round(t.days * 4) / 4) + ' days' : '') + ')</span>' +
-    '<span id="pwe-tot-' + routeId + '" style="margin-left:auto;font-weight:800;font-size:16px;background:var(--green);padding:4px 12px;border-radius:6px;">' + proposalMoney(t.sell) + '</span></div>';
+    '<span id="pwe-tot-' + K + '" style="margin-left:auto;font-weight:800;font-size:16px;background:var(--green);padding:4px 12px;border-radius:6px;">' + proposalMoney(t.sell) + '</span></div>';
   h += '</div>';   // cl-wrap
-  h += '<div class="pwe-foot">Each line shows quantity, the quiet material rate (carried from the rate card), and the by-hand labour and time; the line total is on the right. Open a line (&hellip;) for its cost, contingency and margin build-up. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + routeId + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
+  h += '<div class="pwe-foot">Each line shows quantity, the quiet material rate (carried from the rate card), and the by-hand labour and time; the line total is on the right. Open a line (&hellip;) for its cost, contingency and margin build-up. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + K + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
   return h + '</div>';
 }
 
 // --- editor handlers ---
-function pweBuild(routeId){
+function pweBuild(obId, routeId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var store = pweEstimatesStore(survey);
-  if (!store[routeId]) store[routeId] = pweSeedEstimate(survey, routeId);
-  pweOpen[routeId] = true;
+  var store = pweEstimatesStore(survey, obId);
+  // seeded through the ELEMENT view, so quantities come from this element's own derivations
+  if (!store[routeId]) store[routeId] = pweSeedEstimate(pweElemView(survey, obId) || survey, routeId);
+  pweOpen[pweKey(obId, routeId)] = true;
   srPersist(survey); proposalRender();
 }
-function pweToggle(routeId){ pweOpen[routeId] = !pweOpen[routeId]; proposalRender(); }
-function pweToggleRow(routeId, rowId){ var k = routeId + '/' + rowId; pweRowOpen[k] = !pweRowOpen[k]; proposalRender(); }
-function pweToggleGroup(routeId, elId){
+function pweToggle(obId, routeId){ var k = pweKey(obId, routeId); pweOpen[k] = !pweOpen[k]; proposalRender(); }
+function pweToggleRow(obId, routeId, rowId){ var k = pweKey(obId, routeId) + '/' + rowId; pweRowOpen[k] = !pweRowOpen[k]; proposalRender(); }
+function pweToggleGroup(obId, routeId, elId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  var est = pweEstOf(survey, obId, routeId); if (!est) return;
   if (!est.collapsed || typeof est.collapsed !== 'object') est.collapsed = {};
   var el = (est.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
   est.collapsed[elId] = !pweGroupCollapsed(est, el);   // toggle from the effective (default-aware) state
@@ -12270,27 +12410,27 @@ function pwePurlinApply(survey, routeId, est){
     });
   });
 }
-function pwePurlinSet(routeId, field, value){
+function pwePurlinSet(obId, routeId, field, value){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var est = (pweEstimatesStore(survey) || {})[routeId]; if (!est) return;
+  var est = pweEstOf(survey, obId, routeId); if (!est) return;
   if (!est.purlin || typeof est.purlin !== 'object') est.purlin = {};
   if (field === 'known') est.purlin.known = !!value;
   else { var n = Number(value); est.purlin[field] = (isFinite(n) && n > 0) ? n : null; }
-  pwePurlinApply(survey, routeId, est);
+  pwePurlinApply(pweElemView(survey, obId) || survey, routeId, est);
   srPersist(survey); proposalRender();
 }
-function pweRenderPurlinBlock(survey, routeId, est){
+function pweRenderPurlinBlock(survey, obId, routeId, est){
   var mode = pwePurlinMode(routeId); if (!mode) return '';
   var cfg = pwePurlinCfg(est);
   var t = pwePurlinDerive(survey, est, mode);
   var fld = function(lbl, key, val, unit){
     return '<label class="pwe-pl-f"><span>' + lbl + '</span>' +
       '<input type="number" min="1" step="1" value="' + srEsc(String(val)) + '" ' +
-      'onchange="pwePurlinSet(\'' + routeId + '\',\'' + key + '\',this.value)"><span class="pwe-pl-u">' + unit + '</span></label>';
+      'onchange="pwePurlinSet(\'' + obId + '\',\'' + routeId + '\',\'' + key + '\',this.value)"><span class="pwe-pl-u">' + unit + '</span></label>';
   };
   var h = '<div class="pwe-purlin"><div class="pwe-pl-head">Purlin grid' +
     '<label class="pwe-pl-known"><input type="checkbox"' + (cfg.known ? ' checked' : '') +
-    ' onchange="pwePurlinSet(\'' + routeId + '\',\'known\',this.checked)"> Centres known</label></div>';
+    ' onchange="pwePurlinSet(\'' + obId + '\',\'' + routeId + '\',\'known\',this.checked)"> Centres known</label></div>';
   h += '<div class="pwe-pl-row">' +
     fld('Ridge offset','ridgeOffsetMm',cfg.ridgeOffsetMm,'mm') +
     fld('Eave offset','eaveOffsetMm',cfg.eaveOffsetMm,'mm') +
@@ -12309,24 +12449,24 @@ function pweRenderPurlinBlock(survey, routeId, est){
   }
   return h + '</div>';
 }
-function pweReseed(routeId){
+function pweReseed(obId, routeId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   if (!window.confirm('Rebuild this estimate from the system template? Your edits to this route are replaced.')) return;
-  var store = pweEstimatesStore(survey);
-  store[routeId] = pweSeedEstimate(survey, routeId);
-  pweOpen[routeId] = true;
+  var store = pweEstimatesStore(survey, obId);
+  store[routeId] = pweSeedEstimate(pweElemView(survey, obId) || survey, routeId);
+  pweOpen[pweKey(obId, routeId)] = true;
   srPersist(survey); proposalRender();
 }
-function pweStrike(routeId, elId, rowId){
+function pweStrike(obId, routeId, elId, rowId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  var est = pweEstOf(survey, obId, routeId); if (!est) return;
   var hit = pweFindRow(est, elId, rowId); if (!hit) return;
   hit.row.off = !hit.row.off;
   srPersist(survey); proposalRender();
 }
-function pweAddRow(routeId, elId){
+function pweAddRow(obId, routeId, elId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  var est = pweEstOf(survey, obId, routeId); if (!est) return;
   var el = (est.elements || []).find(function(e){ return e.id === elId; }); if (!el) return;
   el.rows.push({ id: estNewId('r'), category: pweCatForGroup(el.name), item: '', spec: '', uom: '',
     units: null, matPerUnit: null, labPerUnit: null, matActual: null, labActual: null, basis: 'manual', days: null, off: false });
@@ -12334,46 +12474,48 @@ function pweAddRow(routeId, elId){
 }
 function pweText(input){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var est = (survey.proposal.estimates || {})[input.getAttribute('data-rid')]; if (!est) return;
+  var est = pweEstOf(survey, input.getAttribute('data-obid'), input.getAttribute('data-rid')); if (!est) return;
   var hit = pweFindRow(est, input.getAttribute('data-elid'), input.getAttribute('data-rowid')); if (!hit) return;
   hit.row[input.getAttribute('data-field')] = input.value;
   srPersist(survey);   // text does not change the build-up totals - no recompute
 }
 function pweNum(input){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var routeId = input.getAttribute('data-rid');
-  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+  var routeId = input.getAttribute('data-rid'), obId = input.getAttribute('data-obid');
+  var est = pweEstOf(survey, obId, routeId); if (!est) return;
   var elId = input.getAttribute('data-elid'), rowId = input.getAttribute('data-rowid');
   var hit = pweFindRow(est, elId, rowId); if (!hit) return;
   var v = srNum(input.value);
   hit.row[input.getAttribute('data-field')] = (v == null ? null : v);
   srPersist(survey);
-  pweRecompute(survey, routeId, elId, rowId);   // in place, keep focus
+  pweRecompute(survey, obId, routeId, elId, rowId);   // in place, keep focus
 }
 function pweSet(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; }
-function pweRecompute(survey, routeId, elId, rowId){
-  var est = (survey.proposal.estimates || {})[routeId]; if (!est) return;
+function pweRecompute(survey, obId, routeId, elId, rowId){
+  var K = pweKey(obId, routeId);
+  var est = pweEstOf(survey, obId, routeId); if (!est) return;
   var hit = pweFindRow(est, elId, rowId);
   if (hit && !hit.row.off){
     var f = estRowFigures(hit.row, est.rates);
-    pweSet('pwe-lt-' + routeId + '-' + rowId, srMoney(f.sell));
+    pweSet('pwe-lt-' + K + '-' + rowId, srMoney(f.sell));
     // open expander cells (no-op when the line is collapsed)
     var ns = 'pwe-bu-' + rowId;
     pweSet(ns + '-mc', srMoney(f.matCost)); pweSet(ns + '-mco', srMoney(f.matCont)); pweSet(ns + '-mm', srMoney(f.matMar)); pweSet(ns + '-mt', srMoney(f.matTot));
     pweSet(ns + '-lc', srMoney(f.labCost)); pweSet(ns + '-lco', srMoney(f.labCont)); pweSet(ns + '-lm', srMoney(f.labMar)); pweSet(ns + '-lt', srMoney(f.labTot));
   }
   var el = (est.elements || []).find(function(e){ return e.id === elId; });
-  if (el) pweSet('pwe-elt-' + routeId + '-' + elId, srMoney(pweElementTotals(el, est.rates).sell));
+  if (el) pweSet('pwe-elt-' + K + '-' + elId, srMoney(pweElementTotals(el, est.rates).sell));
   var t = pweOptionTotals(est);
-  var area = proposalRoofArea(survey);
-  pweSet('pwe-tot-' + routeId, proposalMoney(t.sell));
-  pweSet('pwe-pm-' + routeId, (area > 0 && t.sell > 0) ? (proposalMoney(t.sell / area) + '/m²') : 'pending');
-  // comparison + detail headline for this route
-  var hd = pweHeadline(survey, routeId);
-  pweSet('np-amt-' + routeId, hd.total != null ? proposalMoney(hd.total) : 'Pending measure');
-  pweSet('np-damt-' + routeId, hd.total != null ? proposalMoney(hd.total) : 'Pending measure');
-  pweSet('np-pm-' + routeId, hd.worked ? (hd.perM2 != null ? proposalMoney(hd.perM2) + '/m² worked' : 'worked') : (proposalMoney(hd.indicativeRate) + '/m² indicative'));
-  var bdg = document.getElementById('np-bdg-' + routeId);
+  var view = pweElemView(survey, obId) || survey;
+  var area = proposalRoofArea(view);
+  pweSet('pwe-tot-' + K, proposalMoney(t.sell));
+  pweSet('pwe-pm-' + K, (area > 0 && t.sell > 0) ? (proposalMoney(t.sell / area) + '/m²') : 'pending');
+  // comparison + detail headline for this route ON THIS ELEMENT
+  var hd = pweHeadline(view, routeId);
+  pweSet('np-amt-' + K, hd.total != null ? proposalMoney(hd.total) : 'Pending measure');
+  pweSet('np-damt-' + K, hd.total != null ? proposalMoney(hd.total) : 'Pending measure');
+  pweSet('np-pm-' + K, hd.worked ? (hd.perM2 != null ? proposalMoney(hd.perM2) + '/m² worked' : 'worked') : (proposalMoney(hd.indicativeRate) + '/m² indicative'));
+  var bdg = document.getElementById('np-bdg-' + K);
   if (bdg){ bdg.textContent = hd.worked ? 'Worked estimate' : 'Indicative'; bdg.className = 'np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind'); }
 }
 
