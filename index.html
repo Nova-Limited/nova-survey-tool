@@ -4565,6 +4565,28 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .pwe-pl-u{color:#999;}
     #view-proposal .pwe-pl-out{margin-top:8px;font-size:11.5px;color:#434244;}
     #view-proposal .pwe-pl-none{margin-top:8px;font-size:11.5px;color:#8a898b;}
+    #view-proposal .pwe-pl-inh{margin:6px 0;font-size:11.5px;color:#5b6470;background:#eef1f4;border-radius:6px;padding:5px 9px;}
+    #view-proposal .pwe-pl-dep{margin:6px 0;font-size:11.5px;color:#7a5a1e;background:#fff8ec;border:1px solid #f0d9b0;border-radius:6px;padding:5px 9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    #view-proposal .pwe-pl-return{border:1px solid #cdb98f;background:#fff;color:#7a5a1e;border-radius:6px;padding:3px 9px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;}
+    /* purlin site capture sheet (walk step 5) */
+    .walk-purlin-sheet{max-height:80vh;overflow-y:auto;}
+    .walk-pl-group{margin-top:12px;}
+    .walk-pl-gh{display:flex;align-items:center;justify-content:space-between;font-size:0.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a898b;margin-bottom:6px;}
+    .walk-pl-rep{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 9px;font-size:0.72rem;cursor:pointer;color:#434244;}
+    .walk-pl-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid #f0efe9;}
+    .walk-pl-row.nv{opacity:.55;}
+    .walk-pl-lbl{flex:1 1 130px;font-size:0.88rem;color:var(--ink);}
+    .walk-pl-dim{color:var(--muted);font-size:0.78rem;}
+    .walk-pl-cnt{display:inline-flex;align-items:center;gap:4px;}
+    .walk-pl-cnt input{width:70px;padding:7px 8px;border:1px solid var(--rule);border-radius:7px;font-family:inherit;font-size:0.95rem;}
+    .walk-pl-u{font-size:0.78rem;color:var(--muted);}
+    .walk-pl-nv{font-size:0.8rem;color:var(--muted);display:inline-flex;align-items:center;gap:4px;}
+    .walk-pl-centres{margin-top:12px;border-top:1px solid #eee;padding-top:10px;}
+    .walk-pl-known{font-size:0.85rem;color:var(--ink);display:inline-flex;align-items:center;gap:6px;}
+    .walk-pl-crow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+    .walk-pl-crow label{font-size:0.75rem;color:var(--muted);display:flex;flex-direction:column;gap:2px;}
+    .walk-pl-crow input{width:78px;padding:6px 8px;border:1px solid var(--rule);border-radius:7px;font-family:inherit;font-size:0.9rem;}
+    .walk-pl-none{margin-top:10px;font-size:0.85rem;color:var(--muted);}
     #view-proposal .pwe-head-pm{color:var(--green);font-size:12px;}
     #view-proposal .pwe-reseed{font-size:11px;background:#fff;border:1px solid #d8d8d2;border-radius:5px;padding:5px 9px;cursor:pointer;color:#666;font-family:inherit;margin-left:auto;}
     #view-proposal .pwe-addrow{margin-left:12px;font-size:10.5px;font-weight:700;background:#fff;border:1px solid #e0c6a6;border-radius:4px;padding:2px 8px;cursor:pointer;color:#434244;font-family:inherit;}
@@ -12357,8 +12379,10 @@ function pweScaffoldArea(survey){
 // yields five brackets per 3 m rail).
 var PWE_PURLIN_DEFAULTS = { ridgeOffsetMm:200, eaveOffsetMm:200, centresMm:1400,
   railLengthM:3, bracketCentresMm:900, endInsetMm:100 };
-function pwePurlinCfg(est){
-  var p = (est && est.purlin && typeof est.purlin === 'object') ? est.purlin : {};
+// A cfg from ANY raw record (a route override est.purlin, or the element record
+// building.purlinGrid). The defaults arm is byte-identical to the original.
+function pwePurlinCfgFrom(p){
+  p = (p && typeof p === 'object') ? p : {};
   var num = function(v, d){ var n = Number(v); return (isFinite(n) && n > 0) ? n : d; };
   return {
     known:            !!p.known,
@@ -12369,6 +12393,41 @@ function pwePurlinCfg(est){
     bracketCentresMm: num(p.bracketCentresMm, PWE_PURLIN_DEFAULTS.bracketCentresMm),
     endInsetMm:       num(p.endInsetMm,       PWE_PURLIN_DEFAULTS.endInsetMm)
   };
+}
+function pwePurlinCfg(est){ return pwePurlinCfgFrom(est && est.purlin); }
+// ===== PURLIN ONE-STORE (Step 2b part 2 slice 2) ============================
+// The element-level record captured through walk step 5 and desk-editable. It
+// holds the shared centres cfg plus PER-PLANE data: {count, notVisible}. Counted
+// runs are site truth and take precedence; not-visible falls to centres/defaults.
+// Lives on building.purlinGrid; on the element view survey.buildings[0] is the
+// element, so this reads the element's own record.
+function pwePurlinRecord(survey){
+  var b = (survey && survey.buildings) ? survey.buildings[0] : null;
+  return (b && b.purlinGrid && typeof b.purlinGrid === 'object') ? b.purlinGrid : null;
+}
+function pwePurlinEnsureRecord(b){
+  if (!b.purlinGrid || typeof b.purlinGrid !== 'object') b.purlinGrid = {};
+  if (!Array.isArray(b.purlinGrid.roofPlanes)) b.purlinGrid.roofPlanes = [];
+  if (!Array.isArray(b.purlinGrid.wallPlanes)) b.purlinGrid.wallPlanes = [];
+  return b.purlinGrid;
+}
+// The EFFECTIVE grid for a route: STRICT PRECEDENCE.
+//   route override (est.purlin present) -> the override drives, exactly as the
+//     wiring shipped: spacing math, NO per-plane counts. Byte-identical to today.
+//   else element record present         -> inherit its cfg AND its per-plane counts
+//   else                                -> defaults, spacing math (byte-identical)
+function pwePurlinEffective(survey, est){
+  var hasOverride = !!(est && est.purlin && typeof est.purlin === 'object');
+  if (hasOverride) return { cfg: pwePurlinCfgFrom(est.purlin), overridden: true, recordRoof: null, recordWall: null, hasRecord: false };
+  var rec = pwePurlinRecord(survey);
+  if (rec) return { cfg: pwePurlinCfgFrom(rec), overridden: false, recordRoof: rec.roofPlanes || [], recordWall: rec.wallPlanes || [], hasRecord: true };
+  return { cfg: pwePurlinCfgFrom(null), overridden: false, recordRoof: null, recordWall: null, hasRecord: false };
+}
+// Normalise a spacing entry: metres or millimetres accepted. A value below the
+// threshold is read as metres (1.4 -> 1400); at or above it, as millimetres.
+function pwePurlinNormMm(v){
+  var n = Number(v); if (!isFinite(n) || n <= 0) return null;
+  return (n < 20) ? Math.round(n * 1000) : Math.round(n);
 }
 // The captured planes the grid runs against, as {slopeLengthM, buildingLengthM}.
 // mode 'roof' reads the roof geometry (slope run eaves-to-apex x building length,
@@ -12422,24 +12481,44 @@ function pwePurlinPlanes(survey, mode){
 //   brackets = rails x perRail
 // Returns null when no plane is captured, so the seed stays null and never zero.
 function pwePurlinDerive(survey, est, mode){
-  var cfg = pwePurlinCfg(est);
-  var planes = pwePurlinPlanes(survey, mode || 'roof');
+  mode = mode || 'roof';
+  var eff = pwePurlinEffective(survey, est);
+  var cfg = eff.cfg;
+  var planes = pwePurlinPlanes(survey, mode);
   if (!planes.length) return null;
+  // per-plane counts inherit from the element record; an override never carries
+  // counts (its planeData is null), so an overridden route is spacing-only exactly
+  // as the wiring shipped.
+  var planeData = eff.overridden ? null : (mode === 'wall' ? eff.recordWall : eff.recordRoof);
   var up = function(v){ return Math.ceil(Math.round(v * 1e6) / 1e6); };
   var centres = cfg.centresMm / 1000, ridgeOff = cfg.ridgeOffsetMm / 1000, eaveOff = cfg.eaveOffsetMm / 1000;
   var railLen = cfg.railLengthM, bracketC = cfg.bracketCentresMm / 1000, inset = cfg.endInsetMm / 1000;
   var perRail = up((railLen - 2 * inset) / bracketC) + 1;
-  var t = { planes: planes.length, purlins: 0, barLinM: 0, rails: 0, brackets: 0, perRail: perRail, cfg: cfg, rows: [] };
-  planes.forEach(function(pl){
-    var usable = pl.slopeLengthM - ridgeOff - eaveOff;
-    var spaces = (usable > 0) ? up(usable / centres) : 0;
-    var purlins = Math.max(2, spaces + 1);
+  var t = { planes: planes.length, purlins: 0, barLinM: 0, rails: 0, brackets: 0, perRail: perRail, cfg: cfg, rows: [], counted: 0 };
+  planes.forEach(function(pl, i){
+    var pd = planeData && planeData[i];
+    var count = (pd && !pd.notVisible) ? srNum(pd.count) : null;
+    var counted = (count != null && count > 0);
+    var spaces, purlins;
+    if (counted){
+      // COUNTED RUNS: site truth. Purlins = the count as keyed, no rounding
+      // adjustment and no minimum-two guard; the spacing derivation is skipped.
+      purlins = Math.round(count);
+      spaces = purlins - 1;
+      t.counted++;
+    } else {
+      var usable = pl.slopeLengthM - ridgeOff - eaveOff;
+      spaces = (usable > 0) ? up(usable / centres) : 0;
+      purlins = Math.max(2, spaces + 1);
+    }
+    // bar and brackets flow through the SAME rail arithmetic in every mode
     var railsPerLine = up(pl.buildingLengthM / railLen);
     var rails = purlins * railsPerLine;
     var barLinM = purlins * pl.buildingLengthM;
     t.purlins += purlins; t.rails += rails; t.brackets += rails * perRail; t.barLinM += barLinM;
     t.rows.push({ slopeLengthM: pl.slopeLengthM, buildingLengthM: pl.buildingLengthM,
-      spaces: spaces, purlins: purlins, railsPerLine: railsPerLine, rails: rails, barLinM: barLinM });
+      spaces: spaces, purlins: purlins, railsPerLine: railsPerLine, rails: rails, barLinM: barLinM,
+      mode: counted ? 'counted' : 'spacing' });
   });
   t.barLinM = Math.round(t.barLinM * 100) / 100;
   return t;
@@ -12855,24 +12934,66 @@ function pwePurlinApply(survey, routeId, est){
 function pwePurlinSet(obId, routeId, field, value){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   var est = pweEstOf(survey, obId, routeId); if (!est) return;
-  if (!est.purlin || typeof est.purlin !== 'object') est.purlin = {};
+  // Editing a desk field CREATES an override. Seed it from the current effective
+  // cfg (inherited record or defaults) so a single edit does not reset the other
+  // fields to defaults - the override starts equal to what it inherited.
+  if (!est.purlin || typeof est.purlin !== 'object'){
+    var eff = pwePurlinEffective(pweElemView(survey, obId) || survey, null);
+    est.purlin = { known: eff.cfg.known, ridgeOffsetMm: eff.cfg.ridgeOffsetMm, eaveOffsetMm: eff.cfg.eaveOffsetMm,
+      centresMm: eff.cfg.centresMm, railLengthM: eff.cfg.railLengthM, bracketCentresMm: eff.cfg.bracketCentresMm, endInsetMm: eff.cfg.endInsetMm };
+  }
   if (field === 'known') est.purlin.known = !!value;
   else { var n = Number(value); est.purlin[field] = (isFinite(n) && n > 0) ? n : null; }
   pwePurlinApply(pweElemView(survey, obId) || survey, routeId, est);
   srPersist(survey); proposalRender();
 }
+// Return an overridden route grid to the element's captured record: drop the
+// override and re-derive from what the element carries. One tap.
+function pwePurlinReturn(obId, routeId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var est = pweEstOf(survey, obId, routeId); if (!est) return;
+  if (est.purlin) delete est.purlin;
+  pwePurlinApply(pweElemView(survey, obId) || survey, routeId, est);
+  srPersist(survey); proposalRender();
+}
+// Live inheritance: after the element record changes (a site recount, a desk
+// edit of the record), re-derive every route of this element that is NOT
+// overridden, so untouched grids follow the record. Overridden routes are left
+// exactly as they are.
+function pwePurlinReapplyElement(survey, obId){
+  var store = ((survey.proposal || {}).elements || {})[obId];
+  var ests = (store && store.estimates) || {};
+  var view = pweElemView(survey, obId) || survey;
+  Object.keys(ests).forEach(function(rid){
+    var est = ests[rid]; if (!est) return;
+    if (est.purlin && typeof est.purlin === 'object') return;   // overridden: leave it
+    if (!pwePurlinMode(rid)) return;
+    pwePurlinApply(view, rid, est);
+  });
+}
 function pweRenderPurlinBlock(survey, obId, routeId, est){
   var mode = pwePurlinMode(routeId); if (!mode) return '';
-  var cfg = pwePurlinCfg(est);
+  var eff = pwePurlinEffective(survey, est);
+  var cfg = eff.cfg;
   var t = pwePurlinDerive(survey, est, mode);
   var fld = function(lbl, key, val, unit){
     return '<label class="pwe-pl-f"><span>' + lbl + '</span>' +
       '<input type="number" min="1" step="1" value="' + srEsc(String(val)) + '" ' +
       'onchange="pwePurlinSet(\'' + obId + '\',\'' + routeId + '\',\'' + key + '\',this.value)"><span class="pwe-pl-u">' + unit + '</span></label>';
   };
+  // Inherit / depart banner. Untouched routes follow the element's captured
+  // record live; an overridden route says so and returns in one tap.
+  var banner = '';
+  if (eff.overridden){
+    banner = '<div class="pwe-pl-dep">This route’s grid departs from the element’s captured record. ' +
+      '<button class="pwe-pl-return" onclick="pwePurlinReturn(\'' + obId + '\',\'' + routeId + '\')">Return to the element record</button></div>';
+  } else if (eff.hasRecord){
+    banner = '<div class="pwe-pl-inh">Following the element’s captured record' + (t && t.counted ? (' &middot; ' + t.counted + ' plane' + (t.counted === 1 ? '' : 's') + ' counted on site') : '') + '. Editing here overrides it for this route.</div>';
+  }
   var h = '<div class="pwe-purlin"><div class="pwe-pl-head">Purlin grid' +
     '<label class="pwe-pl-known"><input type="checkbox"' + (cfg.known ? ' checked' : '') +
     ' onchange="pwePurlinSet(\'' + obId + '\',\'' + routeId + '\',\'known\',this.checked)"> Centres known</label></div>';
+  h += banner;
   h += '<div class="pwe-pl-row">' +
     fld('Ridge offset','ridgeOffsetMm',cfg.ridgeOffsetMm,'mm') +
     fld('Eave offset','eaveOffsetMm',cfg.eaveOffsetMm,'mm') +
@@ -12885,6 +13006,7 @@ function pweRenderPurlinBlock(survey, obId, routeId, est){
       ' behind this route yet, so the grid seeds nothing. Bar and bracket stay manual until the capture resolves.</div>';
   } else {
     h += '<div class="pwe-pl-out">' + t.planes + ' ' + (mode === 'wall' ? 'elevation' : 'slope') + (t.planes === 1 ? '' : 's') +
+      (t.counted ? (' &middot; ' + t.counted + ' counted') : '') +
       ' &middot; ' + t.purlins + ' purlin line' + (t.purlins === 1 ? '' : 's') +
       ' &middot; bar ' + t.barLinM + ' m &middot; ' + t.rails + ' rails at ' + t.perRail + ' brackets each &middot; ' +
       t.brackets + ' brackets</div>';
@@ -15731,10 +15853,29 @@ function flowComputeSteps(survey){
     traceDetail = wTrace.confirmed ? 'trace confirmed on site' : 'provisional (aerial) — confirm on site'; }
   else { traceState = geometryStep.state; traceDetail = 'no trace · ' + geometryStep.detail; }
   steps.push({ key:'trace', label:'Confirm the trace', state: traceState, detail: traceDetail, walk: true });
-  // PURLIN spacing where visible - the site door onto the per-element grid ships
-  // in slice 2; here the step is present in the walk order (advisory, never
-  // blocks) so the order and routing are settled.
-  steps.push({ key:'purlin', label:'Purlin spacing', state: 'not-started', detail: 'capture where visible (desk grid)', walk: true, advisory: true });
+  // PURLIN spacing where visible (slice 2). Complete when every plane carries a
+  // count, centres, or an explicit not-visible mark; not-visible falls to the
+  // next precedence. Advisory: never blocks the handoff.
+  var purlinRec = (b && b.purlinGrid && typeof b.purlinGrid === 'object') ? b.purlinGrid : null;
+  var purlinPlanes = 0, purlinResolved = 0, purlinCounted = 0;
+  if (typeof pwePurlinPlanes === 'function'){
+    var pv = { buildings: [b] };
+    ['roof','wall'].forEach(function(md){
+      var pls = pwePurlinPlanes(pv, md);
+      var list = purlinRec ? (md === 'wall' ? purlinRec.wallPlanes : purlinRec.roofPlanes) : null;
+      pls.forEach(function(pl, i){
+        purlinPlanes++;
+        var pd = list && list[i];
+        var counted = pd && !pd.notVisible && srNum(pd.count) != null && srNum(pd.count) > 0;
+        if (counted) purlinCounted++;
+        if (counted || (pd && pd.notVisible) || (purlinRec && purlinRec.known)) purlinResolved++;
+      });
+    });
+  }
+  var purlinState = (purlinPlanes === 0) ? 'done' : (purlinResolved === purlinPlanes ? 'done' : (purlinResolved > 0 ? 'partial' : 'not-started'));
+  var purlinDetail = (purlinPlanes === 0) ? 'no purlin planes on this element'
+    : (purlinResolved + ' of ' + purlinPlanes + ' plane' + (purlinPlanes === 1 ? '' : 's') + ' resolved' + (purlinCounted ? (' · ' + purlinCounted + ' counted') : ''));
+  steps.push({ key:'purlin', label:'Purlin spacing', state: purlinState, detail: purlinDetail, walk: true, advisory: true });
   // JUNCTIONS CONFIRMED - reserved for part 3. Inert and invisible until then
   // (the walk renderer skips reserved steps), holding its position between faults
   // and abutments so part 3 slots in without restructuring.
@@ -15806,8 +15947,9 @@ var flowActiveWalkIdx = 0;
 function flowWalkRoute(key, survey){
   currentSurveyId = flowCurrentId || currentSurveyId;
   switch (key){
-    case 'trace': case 'datum': case 'elevations': case 'purlin': case 'features':
+    case 'trace': case 'datum': case 'elevations': case 'features':
       fpOpen(currentSurveyId); return;
+    case 'purlin': flowWalkPurlin(); return;             // per-plane count capture (slice 2)
     case 'covering': fpOpen(currentSurveyId); return;   // build-up + construction live on the footprint surface
     case 'faults': fpOpen(currentSurveyId); return;
     case 'abutments': flowWalkAbutmentFlag(); return;
@@ -15838,15 +15980,23 @@ function flowRenderWalk(){
   }
   h += '<div class="walk-head"><span class="walk-title">Element walk</span><span class="walk-sub">' + escapeHtml(active.name) + ' · tap a step to capture it</span></div>';
   h += '<div class="walk-steps">';
+  // downpipe count for the heights (datum) step's eaves moment - the existing
+  // outlet-count derivation the wiring consumes, surfaced in the walk (no new UI)
+  var downCount = 0;
+  (function(){ var fs = (typeof fpFeatures === 'function') ? (fpFeatures(active.b) || []) : [];
+    fs.forEach(function(ft){ if (ft && /outlet/i.test(String(ft.type || ''))){ downCount += Math.max(1, Math.round(srNum(ft.count) || 1)); } }); })();
   WALK_ORDER.forEach(function(key){
     var s = byKey[key]; if (!s) return;
     if (s.reserved) return;   // junctions: invisible until part 3
     var st = s.state || 'not-started';
+    var label = s.label, detail = s.detail || '';
+    if (key === 'datum'){ label = 'Heights and downpipe count';
+      detail = detail + ' · ' + (downCount > 0 ? (downCount + ' downpipe' + (downCount === 1 ? '' : 's') + ' placed') : 'place downpipes at the eaves'); }
     var dot = st === 'done' ? '✓' : st === 'partial' ? '◐' : '○';
     h += '<button class="walk-step walk-' + st + '" onclick="flowWalkRoute(\'' + key + '\', srLoadSurvey(flowCurrentId))">' +
       '<span class="walk-dot">' + dot + '</span>' +
-      '<span class="walk-step-body"><span class="walk-step-label">' + escapeHtml(s.label) + (s.advisory ? ' <span class="walk-adv">where visible</span>' : '') + '</span>' +
-      '<span class="walk-step-detail">' + escapeHtml(s.detail || '') + '</span></span></button>';
+      '<span class="walk-step-body"><span class="walk-step-label">' + escapeHtml(label) + (s.advisory ? ' <span class="walk-adv">where visible</span>' : '') + '</span>' +
+      '<span class="walk-step-detail">' + escapeHtml(detail) + '</span></span></button>';
   });
   h += '</div>';
   h += '<div class="walk-foot"><button class="btn btn-secondary" onclick="flowOpenHandoff(flowCurrentId)">Finish &middot; go to handoff</button></div>';
@@ -15881,6 +16031,127 @@ function flowRenderAbutFlagSheet(){
   document.body.appendChild(el);
 }
 function flowAbutFlagClose(){ var b = document.getElementById('walk-abut-back'); if (b) b.parentNode.removeChild(b); }
+
+// ===== PURLIN SITE CAPTURE (walk step 5) ====================================
+// Counting the runs per plane is the primary capture: the arithmetic consumes
+// the count and counting is faster and truer than measuring spacing on a roof.
+// Centres are the fallback where the runs cannot be seen. Writes through to the
+// element record (building.purlinGrid); untouched route grids re-derive live.
+var flowPurlinObId = null;
+function flowWalkPurlin(){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var objs = (typeof propObjects === 'function') ? propObjects(survey) : [];
+  var o = objs[flowActiveWalkIdx]; if (!o) return;
+  flowPurlinObId = o.id; flowRenderPurlinSheet();
+}
+function flowPurlinPlanesFor(o, md){
+  return (typeof pwePurlinPlanes === 'function') ? pwePurlinPlanes({ buildings: [o.b] }, md) : [];
+}
+function flowRenderPurlinSheet(){
+  var back = document.getElementById('walk-purlin-back'); if (back) back.parentNode.removeChild(back);
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var o = (typeof propObjById === 'function') ? propObjById(survey, flowPurlinObId) : null; if (!o) return;
+  var rec = (o.b.purlinGrid && typeof o.b.purlinGrid === 'object') ? o.b.purlinGrid : {};
+  var roof = flowPurlinPlanesFor(o, 'roof'), wall = flowPurlinPlanesFor(o, 'wall');
+  var planeRows = function(pls, type, list){
+    if (!pls.length) return '';
+    var h = '<div class="walk-pl-group"><div class="walk-pl-gh">' + (type === 'wall' ? 'Wall planes' : 'Roof planes') +
+      '<button class="walk-pl-rep" onclick="flowPurlinRepeatLast(\'' + type + '\')">Repeat last to all</button></div>';
+    pls.forEach(function(pl, i){
+      var pd = (list && list[i]) || {};
+      var nv = !!pd.notVisible;
+      h += '<div class="walk-pl-row' + (nv ? ' nv' : '') + '">' +
+        '<span class="walk-pl-lbl">Plane ' + (i + 1) + ' <span class="walk-pl-dim">' + Math.round(pl.slopeLengthM * 10) / 10 + 'm × ' + Math.round(pl.buildingLengthM * 10) / 10 + 'm</span></span>' +
+        '<span class="walk-pl-cnt"><input type="number" min="1" step="1" inputmode="numeric" value="' + (srNum(pd.count) != null && !nv ? Math.round(pd.count) : '') + '"' + (nv ? ' disabled' : '') +
+          ' placeholder="runs" oninput="flowPurlinSetCount(\'' + type + '\',' + i + ',this.value)"><span class="walk-pl-u">runs</span></span>' +
+        '<label class="walk-pl-nv"><input type="checkbox"' + (nv ? ' checked' : '') + ' onchange="flowPurlinSetNotVisible(\'' + type + '\',' + i + ',this.checked)"> Not visible</label>' +
+      '</div>';
+    });
+    return h + '</div>';
+  };
+  var el = document.createElement('div');
+  el.id = 'walk-purlin-back'; el.className = 'walk-sheet-back';
+  var body = '<div class="walk-sheet walk-purlin-sheet" role="dialog" aria-label="Purlin runs">' +
+    '<div class="walk-sheet-head"><span>Purlin runs</span><button class="walk-sheet-x" onclick="flowPurlinClose()">Done</button></div>' +
+    '<div class="walk-sheet-sub">Count the purlin lines on each plane — the fast, true capture. Mark a plane not visible to fall back to spacing.</div>';
+  if (!roof.length && !wall.length){
+    body += '<div class="walk-pl-none">No purlin planes on this element yet — capture the geometry (heights and footprint) first.</div>';
+  } else {
+    body += planeRows(roof, 'roof', rec.roofPlanes) + planeRows(wall, 'wall', rec.wallPlanes);
+    body += '<div class="walk-pl-centres"><label class="walk-pl-known"><input type="checkbox"' + (rec.known ? ' checked' : '') +
+      ' onchange="flowPurlinSetKnown(this.checked)"> Centres known (fallback where a plane is not counted)</label>';
+    if (rec.known){
+      body += '<div class="walk-pl-crow">' +
+        '<label>Ridge offset <input type="number" step="1" inputmode="decimal" value="' + (srNum(rec.ridgeOffsetMm) != null ? rec.ridgeOffsetMm : '') + '" placeholder="200" oninput="flowPurlinSetCentres(\'ridgeOffsetMm\',this.value)"><span>mm/m</span></label>' +
+        '<label>Eave offset <input type="number" step="1" inputmode="decimal" value="' + (srNum(rec.eaveOffsetMm) != null ? rec.eaveOffsetMm : '') + '" placeholder="200" oninput="flowPurlinSetCentres(\'eaveOffsetMm\',this.value)"><span>mm/m</span></label>' +
+        '<label>Centres <input type="number" step="1" inputmode="decimal" value="' + (srNum(rec.centresMm) != null ? rec.centresMm : '') + '" placeholder="1400" oninput="flowPurlinSetCentres(\'centresMm\',this.value)"><span>mm/m</span></label>' +
+      '</div>';
+    }
+    body += '</div>';
+  }
+  body += '</div>';
+  el.innerHTML = body;
+  document.body.appendChild(el);
+}
+function flowPurlinClose(){ var b = document.getElementById('walk-purlin-back'); if (b) b.parentNode.removeChild(b); }
+function flowPurlinRec(survey, o){
+  if (!o.b.purlinGrid || typeof o.b.purlinGrid !== 'object') o.b.purlinGrid = {};
+  if (!Array.isArray(o.b.purlinGrid.roofPlanes)) o.b.purlinGrid.roofPlanes = [];
+  if (!Array.isArray(o.b.purlinGrid.wallPlanes)) o.b.purlinGrid.wallPlanes = [];
+  return o.b.purlinGrid;
+}
+function flowPurlinCommit(mutate, rerenderSheet){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var o = (typeof propObjById === 'function') ? propObjById(survey, flowPurlinObId) : null; if (!o) return;
+  var rec = flowPurlinRec(survey, o);
+  mutate(rec, o);
+  // live inheritance: re-derive every untouched route grid on THIS survey object,
+  // then persist once - so the re-derive is saved (not lost to a reload).
+  if (typeof pwePurlinReapplyElement === 'function') pwePurlinReapplyElement(survey, flowPurlinObId);
+  srPersist(survey);
+  if (rerenderSheet !== false) flowRenderPurlinSheet();
+  flowRenderWalk();
+}
+function flowPurlinPlaneSlot(rec, type, i){
+  var key = (type === 'wall') ? 'wallPlanes' : 'roofPlanes';
+  if (!Array.isArray(rec[key])) rec[key] = [];
+  while (rec[key].length <= i) rec[key].push({});
+  return rec[key][i];
+}
+function flowPurlinSetCount(type, i, value){
+  flowPurlinCommit(function(rec){
+    var slot = flowPurlinPlaneSlot(rec, type, i);
+    var n = Number(value); slot.count = (value !== '' && isFinite(n) && n > 0) ? Math.round(n) : null;
+    if (slot.count != null) slot.notVisible = false;
+  }, false);   // count typing keeps focus, no sheet re-render
+}
+function flowPurlinSetNotVisible(type, i, checked){
+  flowPurlinCommit(function(rec){
+    var slot = flowPurlinPlaneSlot(rec, type, i);
+    slot.notVisible = !!checked; if (checked) slot.count = null;
+  });
+}
+function flowPurlinRepeatLast(type){
+  flowPurlinCommit(function(rec, o){
+    var key = (type === 'wall') ? 'wallPlanes' : 'roofPlanes';
+    var pls = flowPurlinPlanesFor(o, type);
+    var list = rec[key] || [];
+    // the last plane that carries a real count
+    var last = null;
+    for (var j = 0; j < list.length; j++){ if (list[j] && !list[j].notVisible && srNum(list[j].count) > 0) last = Math.round(list[j].count); }
+    if (last == null) return;
+    for (var i = 0; i < pls.length; i++){ var slot = flowPurlinPlaneSlot(rec, type, i); if (!slot.notVisible && srNum(slot.count) == null){ slot.count = last; } }
+  });
+}
+function flowPurlinSetKnown(checked){
+  flowPurlinCommit(function(rec){ rec.known = !!checked; });
+}
+function flowPurlinSetCentres(field, value){
+  flowPurlinCommit(function(rec){
+    var mm = (typeof pwePurlinNormMm === 'function') ? pwePurlinNormMm(value) : (Number(value) || null);
+    rec[field] = mm;
+  }, false);
+}
 function flowAbutFlagPick(kind){
   var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
   var noteEl = document.getElementById('walk-abut-note');
