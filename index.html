@@ -946,6 +946,35 @@ body.mode-site #ctx-strip.shown { display: flex; position: fixed; left: 0; right
 .ds-row-time { font-size: 0.8rem; font-weight: 700; color: var(--orange); }
 .ds-row-client { font-size: 1.02rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
 .ds-row-site { font-size: 0.86rem; color: var(--muted); margin-top: 2px; }
+/* day-sheet "what the desk knows" line (part 2) - amber provisional per part 1 */
+.ds-row-desk { font-size: 0.8rem; color: #b26b00; margin-top: 4px; font-weight: 600; }
+/* the estimate element walk (part 2) */
+#view-walk .walk-wrap { max-width: 560px; margin: 0 auto; }
+#view-walk .walk-elems { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+#view-walk .walk-elem { border: 1px solid var(--rule); background: #fff; border-radius: 999px; padding: 5px 13px; font-size: 0.82rem; cursor: pointer; }
+#view-walk .walk-elem.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+#view-walk .walk-head { margin-bottom: 10px; }
+#view-walk .walk-title { display: block; font-size: 1.15rem; font-weight: 800; color: var(--ink); }
+#view-walk .walk-sub { font-size: 0.85rem; color: var(--muted); }
+#view-walk .walk-steps { display: flex; flex-direction: column; gap: 8px; }
+#view-walk .walk-step { display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
+#view-walk .walk-step.walk-done { background: #f5faf6; border-color: #cfe6d4; }
+#view-walk .walk-step.walk-partial { background: #fff8ec; border-color: #f0d9b0; }
+#view-walk .walk-dot { font-size: 1.05rem; line-height: 1.3; width: 20px; text-align: center; color: var(--muted); }
+#view-walk .walk-done .walk-dot { color: #2f7a3f; }
+#view-walk .walk-partial .walk-dot { color: #b26b00; }
+#view-walk .walk-step-label { display: block; font-weight: 700; color: var(--ink); font-size: 0.98rem; }
+#view-walk .walk-adv { font-weight: 500; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+#view-walk .walk-step-detail { display: block; font-size: 0.83rem; color: var(--muted); margin-top: 1px; }
+#view-walk .walk-foot { margin-top: 16px; }
+.walk-sheet-back { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
+.walk-sheet { background: #fff; width: 100%; max-width: 520px; border-radius: 16px 16px 0 0; padding: 16px 18px 22px; }
+.walk-sheet-head { display: flex; align-items: center; justify-content: space-between; font-weight: 800; font-size: 1.05rem; }
+.walk-sheet-x { border: none; background: none; color: var(--muted); font-size: 0.9rem; cursor: pointer; }
+.walk-sheet-sub { font-size: 0.85rem; color: var(--muted); margin: 4px 0 12px; }
+.walk-abut-kinds { display: flex; flex-direction: column; gap: 8px; }
+.walk-abut-kind { border: 1px solid var(--rule); background: #fff; border-radius: 9px; padding: 12px 14px; font-size: 0.98rem; text-align: left; cursor: pointer; }
+.walk-abut-note { width: 100%; margin-top: 10px; border: 1px solid var(--rule); border-radius: 8px; padding: 9px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; }
 
 /* Visit page */
 .visit-card { background: #fff; border: 1px solid var(--rule); border-top: 3px solid var(--orange);
@@ -3455,6 +3484,16 @@ input.derived-field { background: #f6f8fa; color: #555; }
     </div>
   </section>
 
+  <!-- SITE MODE: ESTIMATE ELEMENT WALK (part 2) -->
+  <section id="view-walk" class="view">
+    <div class="container">
+      <div class="view-header">
+        <button class="link-btn" onclick="goHome()" style="align-self:flex-start;">← Day sheet</button>
+      </div>
+      <div id="walk-body"></div>
+    </div>
+  </section>
+
   <!-- FAULT LEDGER (site capture) -->
   <section id="view-faultledger" class="view">
     <div id="faultledger-body"></div>
@@ -4474,6 +4513,9 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .ab-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
     #view-proposal .ab-title{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a898b;}
     #view-proposal .ab-note{font-size:11.5px;color:#8a898b;}
+    #view-proposal .ab-await{margin:0 0 8px;padding:7px 11px;background:#fff8ec;border:1px solid #f0d9b0;border-left:3px solid #F7901E;border-radius:7px;font-size:12px;font-weight:700;color:#7a5a1e;}
+    #view-proposal .ab-row-await{background:#fffdf6;border-radius:7px;padding:3px;margin:0 -3px 7px;}
+    #view-proposal .ab-flagtag{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#b26b00;background:#fdeecb;border-radius:10px;padding:2px 7px;white-space:nowrap;}
     #view-proposal .ab-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
     #view-proposal .ab-row input,#view-proposal .ab-row select{padding:7px 8px;border:1px solid #d4d4d0;border-radius:7px;font-family:inherit;font-size:13px;box-sizing:border-box;background:#fff;}
     #view-proposal .ab-name{flex:1 1 160px;min-width:110px;}
@@ -7876,6 +7918,7 @@ function renderDaySheet() {
         '<div class="ds-row-time">' + escapeHtml(when || 'Time TBC') + '</div>' +
         '<div class="ds-row-client">' + escapeHtml(clientNameOf(s)) + '</div>' +
         '<div class="ds-row-site">' + escapeHtml(firstLine((s.site || {}).address) || '(no site address)') + '</div>' +
+        flowDeskKnowsLine(s) +
       '</button>';
     }).join('');
   };
@@ -7939,6 +7982,10 @@ function startSurvey(id) {
   // (goDetail/editCurrent still enter the footprint surface directly).
   var s = srLoadSurvey(id);
   if (s && s.visitPurpose === 'condition') { openFaultLedger(id); return; }
+  // ESTIMATE journeys in site mode open the element walk (part 2): navigation +
+  // completeness over the existing capture surfaces. Every step routes to the
+  // same capture the desk uses; fault pinning stays reachable via the faults step.
+  if (typeof flowWalkApplies === 'function' && flowWalkApplies(s)){ flowCurrentId = id; flowOpenWalk(id); return; }
   fpOpen(id);
 }
 
@@ -12911,10 +12958,17 @@ function pweRenderAbutmentBlock(survey, obId){
   var o = propObjById(survey, obId); if (!o) return '';
   var list = elemAbutments(o.b);
   var runs = elemAbutmentRuns(o.b);
+  // Site flags arrive lengthless (part 2). List them PROMINENTLY as awaiting their
+  // desk length - a lengthless flag seeds nothing until keyed.
+  var awaiting = list.filter(function(a){ return srNum(a && a.lengthM) == null; }).length;
   var h = '<div class="ab-wrap"><div class="ab-head"><span class="ab-title">Abutments and soakers</span>' +
     '<span class="ab-note">Keyed per job. These runs seed the upstand, soaker and cover-flashing lines on every route of this element.</span></div>';
+  if (awaiting){
+    h += '<div class="ab-await">' + awaiting + ' flagged abutment' + (awaiting === 1 ? '' : 's') + ' awaiting a length &middot; key the length below to seed the run.</div>';
+  }
   list.forEach(function(a){
-    h += '<div class="ab-row">' +
+    var noLen = (srNum(a.lengthM) == null);
+    h += '<div class="ab-row' + (noLen ? ' ab-row-await' : '') + '">' +
       '<input type="text" class="ab-name" value="' + srEsc(a.name || '') + '" placeholder="Name this run" ' +
         'oninput="abutSet(\'' + obId + '\',\'' + a.id + '\',\'name\',this.value,false)">' +
       '<select class="ab-kind" onchange="abutSet(\'' + obId + '\',\'' + a.id + '\',\'kind\',this.value,true)">' +
@@ -12922,6 +12976,7 @@ function pweRenderAbutmentBlock(survey, obId){
       '</select>' +
       '<span class="ab-len"><input type="number" step="0.01" min="0" value="' + (a.lengthM != null ? a.lengthM : '') + '" placeholder="0" ' +
         'oninput="abutSet(\'' + obId + '\',\'' + a.id + '\',\'lengthM\',this.value,false)"><span class="ab-u">m</span></span>' +
+      (noLen && a.siteFlag ? '<span class="ab-flagtag" title="Flagged on site, length to key">site flag</span>' : '') +
       '<input type="text" class="ab-note-in" value="' + srEsc(a.note || '') + '" placeholder="Note (optional)" ' +
         'oninput="abutSet(\'' + obId + '\',\'' + a.id + '\',\'note\',this.value,false)">' +
       '<button class="ab-x" title="Remove this run" onclick="abutRemove(\'' + obId + '\',\'' + a.id + '\')">&times;</button>' +
@@ -15548,7 +15603,9 @@ var FLOW_STEP_PURPOSES = {
   geometry: ['priced'], datum: ['priced'], elevations: ['priced'],
   buildup: ['condition','priced'],
   faults: ['condition'], features: ['condition','priced'],
-  scaffold: ['priced'], covering: ['condition','priced'], photos: ['condition']
+  scaffold: ['priced'], covering: ['condition','priced'], photos: ['condition'],
+  // walk steps (part 2) - PRICED ONLY, so no condition surface ever shows them
+  trace: ['priced'], purlin: ['priced'], junctions: ['priced'], abutments: ['priced'], access: ['priced']
 };
 // UNIFIED completeness derivation - the ONE authoritative source. Reconciles F1's
 // steps with the post-capture landing into eight rows covering the whole survey
@@ -15657,8 +15714,184 @@ function flowComputeSteps(survey){
   }
   steps.push({ key:'photos', label:'Photos', state: photoState, detail: photoDetail });
 
+  // ===== WALK STEPS (Step 2b part 2, estimate journey / site mode) ===========
+  // ADDITIVE and walk-tagged. They extend THIS single derivation (never a second
+  // list), but are surfaced ONLY by the site walk renderer and the estimate
+  // handoff gate. Every desk checklist surface, the percentage, and every
+  // condition surface EXCLUDE walk-tagged steps (st.walk), so those stay
+  // byte-identical. Priced-purpose only, so a condition journey never sees them.
+  var geometryStep = steps[0];   // the existing geometry step, for the no-trace case
+  // CONFIRM THE TRACE. A provisional aerial trace (part 1) is incomplete until
+  // confirmed on site; an element captured without a trace reads its geometry
+  // completeness instead. The laser always wins - confirming writes the keyed
+  // lengths, unchanged from part 1.
+  var wTrace = (typeof fpTraceOf === 'function') ? fpTraceOf(b) : null;
+  var traceState, traceDetail;
+  if (wTrace){ traceState = wTrace.confirmed ? 'done' : 'partial';
+    traceDetail = wTrace.confirmed ? 'trace confirmed on site' : 'provisional (aerial) — confirm on site'; }
+  else { traceState = geometryStep.state; traceDetail = 'no trace · ' + geometryStep.detail; }
+  steps.push({ key:'trace', label:'Confirm the trace', state: traceState, detail: traceDetail, walk: true });
+  // PURLIN spacing where visible - the site door onto the per-element grid ships
+  // in slice 2; here the step is present in the walk order (advisory, never
+  // blocks) so the order and routing are settled.
+  steps.push({ key:'purlin', label:'Purlin spacing', state: 'not-started', detail: 'capture where visible (desk grid)', walk: true, advisory: true });
+  // JUNCTIONS CONFIRMED - reserved for part 3. Inert and invisible until then
+  // (the walk renderer skips reserved steps), holding its position between faults
+  // and abutments so part 3 slots in without restructuring.
+  steps.push({ key:'junctions', label:'Junctions confirmed', state: 'not-started', detail: 'part 3', walk: true, reserved: true });
+  // ABUTMENTS FLAGGED on site. A site flag is the same abutment record the desk
+  // edits (elemAbutments), arriving lengthless; a lengthless flag seeds nothing
+  // yet and is what the desk lists prominently as awaiting its length.
+  var abuts = (typeof elemAbutments === 'function') ? elemAbutments(b) : [];
+  var lengthless = abuts.filter(function(a){ return srNum(a && a.lengthM) == null; }).length;
+  var abutState = !abuts.length ? 'not-started' : (lengthless ? 'partial' : 'done');
+  steps.push({ key:'abutments', label:'Abutments flagged', state: abutState,
+    detail: !abuts.length ? 'none flagged' : (lengthless ? (lengthless + ' flag' + (lengthless === 1 ? '' : 's') + ' awaiting a desk length') : (abuts.length + ' with lengths')), walk: true });
+  // ACCESS PICKS - survey-level (2a), positioned last in the walk.
+  var accessSet = (typeof accessConstraintsAny === 'function') && accessConstraintsAny(s);
+  steps.push({ key:'access', label:'Access picks', state: accessSet ? 'done' : 'not-started',
+    detail: accessSet ? 'site constraints recorded' : 'not recorded yet', walk: true, advisory: true });
+
   steps.forEach(function(st){ st.purposes = FLOW_STEP_PURPOSES[st.key] || ['condition','priced']; });
   return steps;
+}
+// The walk order (design section 3): the estimate element walk, in sequence.
+// Reuses the existing step keys where the capture already exists and threads in
+// the walk-tagged steps. Junctions sits between faults and abutments (reserved).
+var WALK_ORDER = ['trace','datum','covering','elevations','purlin','features','faults','junctions','abutments','access'];
+// Walk-tagged keys, for excluding them from the desk checklist / percentage.
+function flowStepIsWalk(st){ return !!(st && st.walk); }
+
+// ===== THE ESTIMATE ELEMENT WALK (site mode, estimate journeys) =============
+// A site-mode ordered VIEW over the single flowComputeSteps derivation, per
+// element, in the design's order. Navigation and completeness, not new capture:
+// each step routes to the existing capture surface. Desk mode and condition
+// journeys never reach this renderer.
+function flowWalkApplies(survey){
+  return !!survey && survey.visitPurpose !== 'condition';
+}
+// The day-sheet "what the desk knows" line: traced elements with their amber
+// provisional plan areas. The junction clause is built to appear only once
+// junctions exist (part 3); none exist yet, so it never shows.
+function flowDeskKnowsLine(survey){
+  if (!flowWalkApplies(survey)) return '';
+  var bits = [];
+  ((survey.buildings) || []).forEach(function(b, i){
+    if (typeof fpTraceIsProvisional === 'function' && fpTraceIsProvisional(b)){
+      var a = fpBuildingProvisionalArea(b);
+      var nm = (typeof fpBuildingLabelSafe === 'function') ? fpBuildingLabelSafe(survey, i) : ((b && b.name) || ('Building ' + (i + 1)));
+      bits.push(escapeHtml(nm) + ' ' + (a.value != null ? a.value.toLocaleString('en-GB') + ' m² plan' : 'traced'));
+    }
+  });
+  // junction clause reserved for part 3: appears only when junctions exist
+  var junctions = (typeof flowSurveyJunctions === 'function') ? flowSurveyJunctions(survey) : [];
+  var jClause = junctions.length ? (junctions.length + ' junction' + (junctions.length === 1 ? '' : 's') + ' to confirm') : '';
+  if (!bits.length && !jClause) return '';
+  var parts = [];
+  if (bits.length) parts.push('Traced (provisional): ' + bits.join(', '));
+  if (jClause) parts.push(jClause);
+  return '<div class="ds-row-desk">' + parts.join(' · ') + '</div>';
+}
+// Enter the walk (site mode, estimate journey). Reached from startSurvey.
+function flowOpenWalk(id){
+  flowCurrentId = id || currentSurveyId;   // like flowOpenGuide/Handoff: pin the id
+  currentSurveyId = flowCurrentId;
+  showContext(flowCurrentId);
+  showView('walk');
+  flowActiveWalkIdx = 0;
+  flowRenderWalk();
+}
+var flowActiveWalkIdx = 0;
+// Where each walk step routes: the existing capture surface for that item.
+function flowWalkRoute(key, survey){
+  currentSurveyId = flowCurrentId || currentSurveyId;
+  switch (key){
+    case 'trace': case 'datum': case 'elevations': case 'purlin': case 'features':
+      fpOpen(currentSurveyId); return;
+    case 'covering': fpOpen(currentSurveyId); return;   // build-up + construction live on the footprint surface
+    case 'faults': fpOpen(currentSurveyId); return;
+    case 'abutments': flowWalkAbutmentFlag(); return;
+    case 'access': fpOpen(currentSurveyId); return;      // access constraints capture on the footprint surface (2a)
+    default: fpOpen(currentSurveyId); return;
+  }
+}
+function flowRenderWalk(){
+  var host = document.getElementById('walk-body'); if (!host) return;
+  var survey = srLoadSurvey(flowCurrentId || currentSurveyId);
+  if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
+  flowCurrentId = survey.id;
+  var objs = (typeof propObjects === 'function') ? propObjects(survey) : [{ id: (survey.buildings && survey.buildings[0] && survey.buildings[0].id) || 'B1', name: 'Element', idx: 0 }];
+  if (!objs.length){ host.innerHTML = '<p>No elements captured yet.</p>'; return; }
+  if (flowActiveWalkIdx >= objs.length) flowActiveWalkIdx = 0;
+  var active = objs[flowActiveWalkIdx];
+  // scope the checklist to the active element (walk is per element)
+  var prevIdx = fpActiveBuildingIdx; fpActiveBuildingIdx = active.idx;
+  var steps = flowComputeSteps(survey);
+  fpActiveBuildingIdx = prevIdx;
+  var byKey = {}; steps.forEach(function(s){ byKey[s.key] = s; });
+  var h = '<div class="walk-wrap">';
+  // element switcher when more than one
+  if (objs.length > 1){
+    h += '<div class="walk-elems">';
+    objs.forEach(function(o){ h += '<button class="walk-elem' + (o.idx === active.idx ? ' on' : '') + '" onclick="flowWalkSelectElem(' + o.idx + ')">' + escapeHtml(o.name) + '</button>'; });
+    h += '</div>';
+  }
+  h += '<div class="walk-head"><span class="walk-title">Element walk</span><span class="walk-sub">' + escapeHtml(active.name) + ' · tap a step to capture it</span></div>';
+  h += '<div class="walk-steps">';
+  WALK_ORDER.forEach(function(key){
+    var s = byKey[key]; if (!s) return;
+    if (s.reserved) return;   // junctions: invisible until part 3
+    var st = s.state || 'not-started';
+    var dot = st === 'done' ? '✓' : st === 'partial' ? '◐' : '○';
+    h += '<button class="walk-step walk-' + st + '" onclick="flowWalkRoute(\'' + key + '\', srLoadSurvey(flowCurrentId))">' +
+      '<span class="walk-dot">' + dot + '</span>' +
+      '<span class="walk-step-body"><span class="walk-step-label">' + escapeHtml(s.label) + (s.advisory ? ' <span class="walk-adv">where visible</span>' : '') + '</span>' +
+      '<span class="walk-step-detail">' + escapeHtml(s.detail || '') + '</span></span></button>';
+  });
+  h += '</div>';
+  h += '<div class="walk-foot"><button class="btn btn-secondary" onclick="flowOpenHandoff(flowCurrentId)">Finish &middot; go to handoff</button></div>';
+  h += '</div>';
+  host.innerHTML = h;
+}
+function flowWalkSelectElem(idx){ flowActiveWalkIdx = idx; flowRenderWalk(); }
+// Abutment flag raised on site: the SAME abutment record the desk edits, arriving
+// lengthless (length left for the desk). Kind picked; a note optional. No duplicate
+// state - it is elemAbutments on the element, listed prominently at the desk.
+function flowWalkAbutmentFlag(){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var objs = (typeof propObjects === 'function') ? propObjects(survey) : [];
+  var o = objs[flowActiveWalkIdx]; if (!o) return;
+  flowAbutFlagObId = o.id; flowRenderAbutFlagSheet();
+}
+var flowAbutFlagObId = null;
+function flowRenderAbutFlagSheet(){
+  var back = document.getElementById('walk-abut-back');
+  if (back){ back.parentNode.removeChild(back); }
+  var host = document.getElementById('walk-body'); if (!host) return;
+  var el = document.createElement('div');
+  el.id = 'walk-abut-back'; el.className = 'walk-sheet-back';
+  el.innerHTML = '<div class="walk-sheet" role="dialog" aria-label="Flag an abutment">' +
+    '<div class="walk-sheet-head"><span>Flag an abutment</span><button class="walk-sheet-x" onclick="flowAbutFlagClose()">Cancel</button></div>' +
+    '<div class="walk-sheet-sub">Pick the kind and note where it is. The desk keys the length.</div>' +
+    '<div class="walk-abut-kinds">' +
+    ABUTMENT_KINDS.map(function(k){ return '<button class="walk-abut-kind" onclick="flowAbutFlagPick(\'' + k.v + '\')">' + escapeHtml(k.l) + '</button>'; }).join('') +
+    '</div>' +
+    '<textarea id="walk-abut-note" class="walk-abut-note" rows="2" placeholder="Where is it? (optional note)"></textarea>' +
+    '</div>';
+  document.body.appendChild(el);
+}
+function flowAbutFlagClose(){ var b = document.getElementById('walk-abut-back'); if (b) b.parentNode.removeChild(b); }
+function flowAbutFlagPick(kind){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var noteEl = document.getElementById('walk-abut-note');
+  var note = noteEl ? String(noteEl.value || '').trim() : '';
+  var o = (typeof propObjById === 'function') ? propObjById(survey, flowAbutFlagObId) : null;
+  if (!o || !o.b){ flowAbutFlagClose(); return; }
+  if (!Array.isArray(o.b.abutments)) o.b.abutments = [];
+  o.b.abutments.push({ id: (typeof estNewId === 'function' ? estNewId('ab') : ('ab' + o.b.abutments.length)),
+    name: 'Abutment ' + (o.b.abutments.length + 1), kind: kind, lengthM: null, note: note, siteFlag: true });
+  srPersist(survey);
+  flowAbutFlagClose(); flowRenderWalk();
 }
 function flowActivePurposes(purpose){
   if (purpose === 'condition') return ['condition'];
@@ -15671,7 +15904,8 @@ function flowStepInPurpose(step, purpose){
 }
 function flowPercent(survey, purpose){
   var steps = flowComputeSteps(survey);
-  var active = steps.filter(function(s){ return flowStepInPurpose(s, purpose); });
+  // walk steps are excluded from the percentage: the desk figure is byte-unchanged
+  var active = steps.filter(function(s){ return !flowStepIsWalk(s) && flowStepInPurpose(s, purpose); });
   if (!active.length) return 0;
   var sum = active.reduce(function(acc, s){ return acc + (s.state === 'done' ? 1 : s.state === 'partial' ? 0.5 : 0); }, 0);
   return Math.round(100 * sum / active.length);
@@ -15689,7 +15923,7 @@ function flowRenderGuide(){
   var survey = srLoadSurvey(flowCurrentId);
   if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
   var purpose = survey.visitPurpose || null;
-  var steps = flowComputeSteps(survey);
+  var steps = flowComputeSteps(survey).filter(function(s){ return !flowStepIsWalk(s); });   // walk steps live only in the site walk
   var inPurpose = steps.filter(function(s){ return flowStepInPurpose(s, purpose); });
   var faded = steps.filter(function(s){ return !flowStepInPurpose(s, purpose); });
   var pct = flowPercent(survey, purpose);
@@ -15730,7 +15964,7 @@ function flowRenderChecklistDetail(survey){
   var s = survey || {};
   if (!((typeof slHasCapturedFootprint === 'function') && slHasCapturedFootprint(s))) return '';
   var purpose = s.visitPurpose || null;
-  var steps = flowComputeSteps(s);
+  var steps = flowComputeSteps(s).filter(function(st){ return !flowStepIsWalk(st); });   // walk steps live only in the site walk
   var inPurpose = steps.filter(function(st){ return flowStepInPurpose(st, purpose); });
   var faded = steps.filter(function(st){ return !flowStepInPurpose(st, purpose); });
   var nextKey = flowFirstNotDone(inPurpose);
@@ -15836,11 +16070,31 @@ function flowRenderHandoffCard(kind, num, title, sub, btnLabel){
 // SOFT GATE: warns naming the unfinished steps, never blocks. Reuses the SAME
 // completeness engine the checklist uses, filtered to the slice relevant to
 // this action (report <- condition steps, estimate <- priced steps).
+// Per-element walk gating for the estimate handoff: an unconfirmed aerial trace,
+// and a flagged abutment missing its desk length. Named per element, plain
+// English. Covering is already reported by the survey-level covering step. The
+// unresolved-junction clause joins here in part 3. Report handoff never calls this.
+function flowWalkGating(survey){
+  var out = [];
+  ((survey && survey.buildings) || []).forEach(function(b, i){
+    var name = (typeof fpBuildingLabelSafe === 'function') ? fpBuildingLabelSafe(survey, i) : ((b && b.name) || ('Building ' + (i + 1)));
+    var t = (typeof fpTraceOf === 'function') ? fpTraceOf(b) : null;
+    if (t && !t.confirmed){ out.push({ label: 'Confirm the trace', detail: name + ': aerial trace not confirmed on site' }); }
+    var abuts = (typeof elemAbutments === 'function') ? elemAbutments(b) : [];
+    var lengthless = abuts.filter(function(a){ return srNum(a && a.lengthM) == null; }).length;
+    if (lengthless){ out.push({ label: 'Abutments flagged', detail: name + ': ' + lengthless + ' abutment flag' + (lengthless === 1 ? '' : 's') + ' awaiting a desk length' }); }
+  });
+  return out;
+}
 function flowAttemptAction(kind){
   var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
   var relevantPurpose = kind === 'report' ? 'condition' : 'priced';
-  var steps = flowComputeSteps(survey).filter(function(s){ return flowStepInPurpose(s, relevantPurpose); });
+  // desk/condition handoff is unchanged: walk steps are excluded from the generic
+  // list (advisory/reserved walk steps never gate), and the estimate handoff adds
+  // the specific per-element walk gating below.
+  var steps = flowComputeSteps(survey).filter(function(s){ return !flowStepIsWalk(s) && flowStepInPurpose(s, relevantPurpose); });
   var unfinished = steps.filter(function(s){ return s.state !== 'done'; });
+  if (kind === 'estimate') unfinished = unfinished.concat(flowWalkGating(survey));
   var blocking = (typeof fpAttentionBlocking === 'function') ? fpAttentionBlocking(survey) : [];
   var warnHost = document.getElementById('flow-handoff-warn');
   if ((!unfinished.length && !blocking.length) || !warnHost){ flowRunAction(kind); return; }
