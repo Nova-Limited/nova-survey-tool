@@ -4452,6 +4452,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .pwe-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
     #view-proposal .pwe-toggle{font-size:12.5px;font-weight:700;background:#434244;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-family:inherit;}
     #view-proposal .pwe-head-tot{font-size:13px;color:#434244;} #view-proposal .pwe-head-tot b{font-size:15px;}
+    #view-proposal .np-notready{display:block;margin-top:6px;font-size:11px;font-weight:700;color:#a3620f;}
+    #view-proposal .np-accept-gate{margin-top:8px;padding:9px 13px;background:#fff8ec;border:1px solid #f0d9b0;border-left:3px solid #F7901E;border-radius:8px;font-size:12.5px;color:#7a5a1e;line-height:1.5;}
+    #view-proposal .pwe-ready{margin:10px 0 0;padding:8px 12px;background:#fff8ec;border:1px solid #f0d9b0;border-left:3px solid #F7901E;border-radius:8px;font-size:12px;color:#7a5a1e;}
+    #view-proposal .pwe-ready-on{background:#f2f8f3;border-color:#cfe4d3;border-left-color:#2e7d46;color:#2e6b3f;}
     #view-proposal .pwe-purlin{margin:10px 0 0;padding:10px 12px;border:1px solid #e2e2dd;border-left:3px solid #F7901E;border-radius:8px;background:#fbfbf9;}
     #view-proposal .pwe-pl-head{display:flex;align-items:center;gap:12px;font-size:12px;font-weight:800;color:#434244;text-transform:uppercase;letter-spacing:.06em;}
     #view-proposal .pwe-pl-known{margin-left:auto;font-size:11px;font-weight:600;color:#666;text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:5px;}
@@ -10457,6 +10461,25 @@ function costUnpricedAdvisory(survey){
         '. The job total is not complete until every building is priced.');
     }
   }
+  // SUMMING POINT: a building can be priced and still contribute silently at
+  // zero on a line that carries a quantity with no rate on either side. The job
+  // total sums those scopes, so the same line-level truth the route readiness
+  // gate uses (estLineFaults, one derivation) is reported here too.
+  var faulted = [];
+  C.buildings.forEach(function(b){
+    var sc = costAcceptedScope(b); if (!sc) return;
+    var f = estLineFaults(sc);
+    if (f.noRate > 0 || f.negative > 0) faulted.push({ name: b.name || 'Building', f: f });
+  });
+  if (faulted.length){
+    var noRateTot = faulted.reduce(function(a, x){ return a + x.f.noRate; }, 0);
+    var negTot = faulted.reduce(function(a, x){ return a + x.f.negative; }, 0);
+    var bits = [];
+    if (noRateTot > 0) bits.push(noRateTot + ' line' + (noRateTot === 1 ? '' : 's') + ' carr' + (noRateTot === 1 ? 'ies' : 'y') + ' quantities but no rate');
+    if (negTot > 0) bits.push(negTot + ' line' + (negTot === 1 ? '' : 's') + ' in error, a negative quantity or rate');
+    parts.push(bits.join(' &middot; ') + ' in ' + escapeHtml(faulted.map(function(x){ return x.name; }).join(', ')) +
+      '. Those lines price at zero, so the job total reads lower than the work.');
+  }
   var present = {}; C.buildings.forEach(function(b){ if (b.captureId) present[b.captureId] = true; });
   var caps = Array.isArray(survey.buildings) ? survey.buildings : [];
   var outside = (Array.isArray(C.knownCaptureIds) ? C.knownCaptureIds : [])
@@ -11489,7 +11512,8 @@ function proposalRender(){
       '<div class="np-top"><div class="np-name">' + srEsc(s.name) + '</div><div class="np-for">Best for ' + srEsc(s.best) + '</div></div>' +
       '<div class="np-price"><div class="np-amt" id="np-amt-' + s.id + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-vat">plus VAT</span></div>' +
       '<div class="np-perm2" id="np-pm-' + s.id + '">' + (hd.worked ? (hd.perM2 != null ? proposalMoney(hd.perM2) + '/m² worked' : 'worked') : (proposalMoney(hd.indicativeRate) + '/m² indicative')) + '</div>' +
-      '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '" id="np-bdg-' + s.id + '">' + (hd.worked ? 'Worked estimate' : 'Indicative') + '</span></div>' +
+      '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '" id="np-bdg-' + s.id + '">' + (hd.worked ? 'Worked estimate' : 'Indicative') + '</span>' +
+      pweReadinessMark(survey, s.id) + '</div>' +
       '<div class="np-specs"><div class="np-r"><span class="np-k">Lifespan</span><span class="np-v">' + srEsc(s.life) + '</span></div>' +
       '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + timeTxt + '</span></div></div></div>';
   });
@@ -11503,7 +11527,8 @@ function proposalRender(){
     h += '<div class="np-detail' + (s.recommended ? ' feature' : '') + '"><div class="np-dhead"><span class="np-dname">' + srEsc(s.name) + '</span>' +
       (s.recommended ? '<span class="np-tag-rec">Recommended</span>' : '') +
       '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '">' + (hd.worked ? 'Worked' : 'Indicative') + '</span>' +
-      '<span class="np-damt" id="np-damt-' + s.id + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span></div>' +
+      '<span class="np-damt" id="np-damt-' + s.id + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span>' +
+      pweReadinessMark(survey, s.id) + '</div>' +
       '<p class="np-what">' + srEsc(s.what) + '</p>' +
       '<div class="np-getconsider">' +
       '<div class="np-gc np-get"><h4>What you get</h4><ul>' + s.get.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
@@ -11525,7 +11550,7 @@ function proposalRender(){
   var accFig = acc ? proposalFigure(area, rates[acc.id]) : null;
   h += '<div class="np-accept-readout" id="np-accept-readout">' +
     (acc ? ('Accepted: <b>' + srEsc(acc.name) + '</b> at ' + (accFig != null ? proposalMoney(accFig) + ' plus VAT (indicative)' : 'a price pending final measure')) : 'No route accepted yet.') +
-    '</div></div>';
+    '</div>' + (acc ? pweAcceptedGateNote(survey, acc) : '') + '</div>';
 
   h += '</div>';   // .np-proposal
   host.innerHTML = h;
@@ -11567,6 +11592,17 @@ function proposalSetAccepted(id){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   var P = proposalState(survey);
   if (P.routes.indexOf(id) < 0) return;
+  // THE GATE. Recording an accepted route carries it toward the client, so an
+  // unready route is refused here with its reasons. Estimating, editing and
+  // saving are untouched: only this one act is refused.
+  if (pweGateApplies(survey)){
+    var rd = pweRouteReadiness(survey, id);
+    if (!rd.ready){
+      showToast('Not ready to present &middot; ' + rd.failures.join(' &middot; '), 'err');
+      proposalRender();
+      return;
+    }
+  }
   P.accepted = id;
   srPersist(survey); proposalRender();
 }
@@ -12013,6 +12049,74 @@ function pweHeadline(survey, routeId){
     total: proposalFigure(area, rate), perM2: rate, indicativeRate: rate };
 }
 
+// ===== ESTIMATE READINESS GATE ==============================================
+// A truth-teller, never a blocker of work: it never stops Jamie estimating,
+// editing or saving, it stops an incomplete route being PRESENTED as finished.
+// ONE derivation, used by the route surface, every presentation point and the
+// summing advisory - never computed twice.
+//
+// Line-level faults, shared by the route gate AND the Structure C summing
+// advisory so both read the same truth:
+//   noRate   - a LIVE line carrying a quantity with NO rate on either side; it
+//              prices silently at zero. A struck line does not count. A line
+//              priced on one side only is legitimate (materials-only/labour-only).
+//   negative - a negative quantity or rate: an error state, not an estimate.
+function estLineFaults(est){
+  var noRate = 0, negative = 0, unitBearing = 0;
+  ((est && est.elements) || []).forEach(function(el){
+    ((el && el.rows) || []).forEach(function(r){
+      if (!r || r.off) return;
+      var u = srNum(r.units), m = srNum(r.matPerUnit), l = srNum(r.labPerUnit);
+      if ((u != null && u < 0) || (m != null && m < 0) || (l != null && l < 0)){ negative++; return; }
+      if (u != null && u > 0){ unitBearing++; if (m == null && l == null) noRate++; }
+    });
+  });
+  return { noRate: noRate, negative: negative, unitBearing: unitBearing };
+}
+// The gate lives on estimate journeys only; a condition record never sees it.
+function pweGateApplies(survey){ return !!survey && survey.visitPurpose !== 'condition'; }
+// Readiness for ONE route: { ready, failures[] } in plain English.
+function pweRouteReadiness(survey, routeId){
+  var hd = (typeof pweHeadline === 'function') ? pweHeadline(survey, routeId) : { worked: false };
+  if (!hd.worked) return { ready: false, failures: ['No worked estimate yet'], headline: hd };
+  var fails = [];
+  if (!hd.programmeKeyed) fails.push('Programme not set');
+  var est = ((survey.proposal || {}).estimates || {})[routeId];
+  var f = estLineFaults(est);
+  if (f.noRate > 0){
+    fails.push(f.noRate + ' line' + (f.noRate === 1 ? '' : 's') + ' carr' + (f.noRate === 1 ? 'ies' : 'y') +
+      ' quantities but no rate');
+  }
+  if (f.negative > 0){
+    fails.push(f.negative + ' line' + (f.negative === 1 ? '' : 's') + ' in error, a negative quantity or rate');
+  }
+  return { ready: fails.length === 0, failures: fails, headline: hd };
+}
+// The one place the failure list becomes a sentence, so every surface reads alike.
+function pweReadinessText(rd){ return (rd.failures || []).join(' &middot; '); }
+// Presentation marker. A READY route returns '' so client-facing output for a
+// finished route is unchanged; an unready one is named as such with its reasons.
+function pweReadinessMark(survey, routeId){
+  if (!pweGateApplies(survey)) return '';
+  var rd = pweRouteReadiness(survey, routeId);
+  if (rd.ready) return '';
+  return '<span class="np-notready">Not ready to present &middot; ' + pweReadinessText(rd) + '</span>';
+}
+// The accepted route is the one carried toward the client, so it says so plainly.
+function pweAcceptedGateNote(survey, acc){
+  if (!pweGateApplies(survey) || !acc) return '';
+  var rd = pweRouteReadiness(survey, acc.id);
+  if (rd.ready) return '';
+  return '<div class="np-accept-gate">This route is not ready to present &middot; ' + pweReadinessText(rd) +
+    '. Settle it before the figure goes to the client.</div>';
+}
+// The working marker on the route surface itself: what is missing, factually.
+function pweReadinessPanel(survey, routeId){
+  if (!pweGateApplies(survey)) return '';
+  var rd = pweRouteReadiness(survey, routeId);
+  if (rd.ready) return '<div class="pwe-ready pwe-ready-on">Ready to present</div>';
+  return '<div class="pwe-ready">Not ready to present &middot; ' + pweReadinessText(rd) + '</div>';
+}
 function pweFindRow(est, elId, rowId){
   var el = (est.elements || []).find(function(e){ return e.id === elId; }); if (!el) return null;
   var row = (el.rows || []).find(function(r){ return r.id === rowId; }); return row ? { el: el, row: row } : null;
@@ -12069,6 +12173,9 @@ function pweRenderEditor(survey, routeId){
     (area > 0 && t.sell > 0 ? ' <span class="pwe-head-pm">(' + proposalMoney(t.sell / area) + '/m² worked)</span>' : '') + '</span>' +
     '<button class="pwe-reseed" onclick="pweReseed(\'' + routeId + '\')" title="Rebuild from the system template">Reseed</button></div>';
   if (!open) return h + '</div>';
+
+  // readiness marker: what this route still needs before it can be presented
+  h += pweReadinessPanel(survey, routeId);
 
   // purlin grid: desk input on the routes whose covering hangs on bar and bracket
   h += pweRenderPurlinBlock(survey, routeId, est);
