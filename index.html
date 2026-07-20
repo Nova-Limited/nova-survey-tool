@@ -11594,7 +11594,7 @@ function pweHire(){ return [
   pweDef('Hire','MEWP','Hire','wk','manual') ]; }
 function pweWaste(){ return [
   pweDef('Waste','General','Waste','load','manual'),
-  pweDef('Waste','Asbestos','Waste','t','manual') ]; }
+  pweDef('Waste','Asbestos','Waste','t','asbestosTonnes') ]; }
 function pweHS(felt){ var a = [ pweDef('H&S','Air testing','H&S','nr','manual'), pweDef('H&S','PPE','H&S','item','manual') ];
   if (felt) a.push(pweDef('H&S','Hot works and fire watch','H&S','day','manual')); return a; }
 function pweLabour(){ return [
@@ -11620,19 +11620,23 @@ function pweCommon(kind, felt){
     (kind === 'flat' ? pweConsFlat() : pweConsMetal())); }
 
 // --- metal flashing / drainage / fix (pitched + wall) ---
-function pweMetalFlashing(){ return [
-  'Internal Ridge','External Ridge','Cap','Eave','Parapet','Barge','Soaker','Upstand'
-  ].map(function(n){ return pweDef('Flashing and detailing', n, 'Flashing', 'm', 'linear'); })
+// REBASED onto the captured runs: each flashing now draws its own derivation
+// rather than the whole building perimeter. Cap, Soaker and Upstand have no
+// captured run behind them, so they stay on the perimeter basis as before.
+function pweMetalFlashing(){
+  var runBasis = { 'Internal Ridge':'ridge', 'External Ridge':'ridge', 'Eave':'eave', 'Parapet':'parapet', 'Barge':'barge' };
+  return [ 'Internal Ridge','External Ridge','Cap','Eave','Parapet','Barge','Soaker','Upstand'
+  ].map(function(n){ return pweDef('Flashing and detailing', n, 'Flashing', 'm', runBasis[n] || 'linear'); })
   .concat([ pweDef('Flashing and detailing','Fabrication','Flashing','item','manual') ]); }
 function pweMetalDrainage(){ return [
-  pweDef('Drainage','Trimline Gutter','Drainage','m','linear'),
-  pweDef('Drainage','Insulated Gutter','Drainage','m','linear'),
-  pweDef('Drainage','Half-round gutter','Drainage','m','linear'),
-  pweDef('Drainage','Gutter Liner','Drainage','m','linear'),
-  pweDef('Drainage','Downpipes','Drainage','m','manual'),
-  pweDef('Drainage','Outlets','Drainage','nr','manual'),
-  pweDef('Drainage','Dektites','Drainage','nr','manual'),
-  pweDef('Drainage','Leafguards','Drainage','m','linear') ]; }
+  pweDef('Drainage','Trimline Gutter','Drainage','m','gutterRun'),
+  pweDef('Drainage','Insulated Gutter','Drainage','m','gutterRun'),
+  pweDef('Drainage','Half-round gutter','Drainage','m','halfRoundGutterRun'),
+  pweDef('Drainage','Gutter Liner','Drainage','m','gutterRun'),
+  pweDef('Drainage','Downpipes','Drainage','m','downpipeDrop'),
+  pweDef('Drainage','Outlets','Drainage','nr','downpipeCount'),
+  pweDef('Drainage','Dektites','Drainage','nr','dektiteCount'),
+  pweDef('Drainage','Leafguards','Drainage','m','gutterRun') ]; }
 function pweMetalFix(){ return [
   pweDef('Fix','Bracket Fix','Fix','nr','manual'),
   pweDef('Fix','Main Fix','Fix','m²','area'),
@@ -11642,15 +11646,15 @@ function pweMetalFix(){ return [
 // --- flat shared detailing / drainage / fix-bond ---
 function pweFlatDetailing(){ return [
   pweDef('Flashing and detailing','Upstands and kerbs','Flashing','m','linear'),
-  pweDef('Flashing and detailing','Drip and eaves trim','Flashing','m','linear'),
-  pweDef('Flashing and detailing','Parapet capping and coping','Flashing','m','linear'),
+  pweDef('Flashing and detailing','Drip and eaves trim','Flashing','m','eave'),
+  pweDef('Flashing and detailing','Parapet capping and coping','Flashing','m','parapet'),
   pweDef('Flashing and detailing','Termination and edge bar','Flashing','m','linear'),
   pweDef('Flashing and detailing','Pipe collars and penetration seals','Flashing','nr','manual'),
-  pweDef('Flashing and detailing','Rooflight kerb detailing','Flashing','nr','manual'),
+  pweDef('Flashing and detailing','Rooflight kerb detailing','Flashing','nr','rooflightCount'),
   pweDef('Flashing and detailing','Movement and expansion joint','Flashing','m','linear'),
   pweDef('Flashing and detailing','Wall abutment and chase flashing','Flashing','m','linear') ]; }
 function pweFlatDrainage(){ return [
-  pweDef('Drainage','Rainwater outlets and sumps','Drainage','nr','manual'),
+  pweDef('Drainage','Rainwater outlets and sumps','Drainage','nr','downpipeCount'),
   pweDef('Drainage','Overflow and emergency outlets','Drainage','nr','manual'),
   pweDef('Drainage','Tapered sump formers','Drainage','nr','manual'),
   pweDef('Drainage','Gratings','Drainage','nr','manual') ]; }
@@ -11675,7 +11679,7 @@ function pweTemplate(family, systemId){
       pweDef('Covering and build-up','Strip existing','Fix','m²','area'),
       pweDef('Covering and build-up','Composite Panel','Sheeting','m²','area'),
       pweDef('Covering and build-up','Insulation','Sheeting','m²','area'),
-      pweDef('Covering and build-up','Skylight','Sheeting','nr','manual') ];
+      pweDef('Covering and build-up','Skylight','Sheeting','nr','rooflightCount') ];
     else if (systemId === 'builtup') cover = [
       pweDef('Covering and build-up','Strip existing','Fix','m²','area'),
       pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
@@ -11713,10 +11717,10 @@ function pweTemplate(family, systemId){
     return pweGroup(pweFlatBase().concat(add, pweFlatDetailing(), pweFlatDrainage(), pweFlatFix(), pweCommon('flat', felt)));
   }
   // wall
-  if (systemId === 'wallcomposite') cover = [ pweDef('Covering and build-up','Wall Composite','Sheeting','m²','area') ];
+  if (systemId === 'wallcomposite') cover = [ pweDef('Covering and build-up','Wall Composite','Sheeting','m²','wallArea') ];
   else cover = [
-    pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
-    pweDef('Covering and build-up','Liner','Sheeting','m²','area') ];
+    pweDef('Covering and build-up','Single Skin','Sheeting','m²','wallSingleSkinArea'),
+    pweDef('Covering and build-up','Liner','Sheeting','m²','wallSingleSkinArea') ];
   return pweGroup(cover.concat(pweMetalFlashing(), pweMetalDrainage(), pweMetalFix(), pweCommon('metal', false)));
 }
 // fold a flat list of line defs into ordered element groups
@@ -11739,11 +11743,45 @@ function pweScaffoldArea(survey){
   var sum = 0; (acc.elevations || []).forEach(function(e){ var l = Number(e.lengthM) || 0, h = Number(e.heightM) || 0; if (l > 0 && h > 0) sum += l * h; });
   return sum > 0 ? sum : null;
 }
+// Downpipe drop: count x BARE eave height, no shoe addition (Jamie's decision).
+// The bare eave height is the tallest captured elevation height; with no captured
+// elevation or no outlet count it returns null, never zero.
+function pweDownpipeDrop(survey, m){
+  var count = Number(m && m.outletCountNr);
+  if (!(isFinite(count) && count > 0)) return null;
+  var acc = (typeof ppDeriveAccess === 'function') ? ppDeriveAccess(survey) : { elevations: [] };
+  var h = 0;
+  (acc.elevations || []).forEach(function(e){ var v = Number(e.heightM) || 0; if (v > h) h = v; });
+  if (!(h > 0)) return null;
+  return Math.round(count * h * 100) / 100;
+}
+// The seed vocabulary. 'area'/'linear'/'scaffoldArea'/'handrailLinear' are the
+// original four. Everything below draws on the capture side's OWN derivations
+// (estDeriveMeasurements, which already applies provenance and the round-up-once
+// rule) - nothing is derived afresh here. A survey missing the capture behind a
+// basis yields null, exactly as a manual line does, never zero.
 function pweSeedUnits(basis, ctx){
   if (basis === 'area') return ctx.area;
   if (basis === 'linear') return ctx.perimeter;
   if (basis === 'scaffoldArea') return ctx.scaffoldArea;
   if (basis === 'handrailLinear') return ctx.perimeter;
+  var m = ctx.m || {};
+  var pos = function(v){ var n = Number(v); return (isFinite(n) && n > 0) ? n : null; };
+  if (basis === 'ridge')             return pos(m.ridgeLinM);
+  if (basis === 'valley')            return pos(m.valleyLinM);
+  if (basis === 'barge' || basis === 'verge') return pos(m.bargeLinM);   // barge rake; verge is the same captured edge
+  if (basis === 'eave')              return pos(m.eaveFlashLinM);
+  if (basis === 'parapet')           return pos(m.parapetLinM);
+  if (basis === 'gutterRun')         return pos(m.gutterLinM);           // box / trimline run
+  if (basis === 'halfRoundGutterRun')return pos(m.halfRoundGutterLinM);  // kept separate so the two never double-count
+  if (basis === 'dektiteCount')      return pos(m.dektiteCountNr);
+  if (basis === 'wallArea')          return pos(m.wallAreaM2);
+  if (basis === 'wallSingleSkinArea')return pos(m.wallSingleSkinM2);
+  if (basis === 'rooflightArea')     return pos(m.rooflightM2);
+  if (basis === 'rooflightCount')    return pos(m.rooflightCountNr);
+  if (basis === 'asbestosTonnes')    return pos(m.asbestosT);
+  if (basis === 'downpipeCount')     return pos(m.outletCountNr);
+  if (basis === 'downpipeDrop')      return pos(ctx.downpipeDropM);
   return null;   // manual
 }
 function pweSeedMatRate(def, ctx){
@@ -11752,13 +11790,29 @@ function pweSeedMatRate(def, ctx){
   var it = ctx.rcIndex.get(String(def.item || '').trim().toLowerCase());
   return (it && typeof it.materials === 'number') ? it.materials : null;   // carried from the rate card where the item matches
 }
+// Labour counterpart of pweSeedMatRate: the SAME rate-card match, carrying the
+// item's labour cost per unit, with the same nulls where no item matches. No new
+// rate is invented. Scaffold and handrail are excluded on purpose: srRates holds
+// an all-in supply-and-fix figure for those, so their labour already sits inside
+// the materials rate and seeding it again would double-count.
+function pweSeedLabRate(def, ctx){
+  if (def.basis === 'scaffoldArea' || def.basis === 'handrailLinear') return null;
+  var it = ctx.rcIndex.get(String(def.item || '').trim().toLowerCase());
+  return (it && typeof it.labour === 'number') ? it.labour : null;
+}
 function pweSeedEstimate(survey, routeId){
   var P = survey.proposal || {};
   var groups = pweTemplate(P.family, routeId);
+  // The capture side's own derivations (provenance + round-up-once already
+  // applied) are carried into the seed context so template lines can draw on
+  // ridge/valley/barge/eave/gutter/wall/rooflight/asbestos/downpipe figures.
+  var m = (typeof estDeriveMeasurements === 'function') ? estDeriveMeasurements(survey) : {};
   var ctx = {
     area: proposalRoofArea(survey),
     perimeter: pwePerimeter(survey),
     scaffoldArea: pweScaffoldArea(survey),
+    m: m,
+    downpipeDropM: pweDownpipeDrop(survey, m),
     rates: (typeof srRates === 'function') ? srRates() : { scaffoldSqm: 35, handrailLinM: 55 },
     rcIndex: (typeof rateCardIndex === 'function') ? rateCardIndex() : new Map()
   };
@@ -11767,8 +11821,9 @@ function pweSeedEstimate(survey, routeId){
     var rows = g.lines.map(function(d){
       var u = pweSeedUnits(d.basis, ctx);
       var mat = pweSeedMatRate(d, ctx);
+      var lab = pweSeedLabRate(d, ctx);
       return { id: estNewId('r'), category: d.category, item: d.item, spec: '', uom: d.uom,
-        units: (u != null ? Math.round(u * 100) / 100 : null), matPerUnit: mat, labPerUnit: null,
+        units: (u != null ? Math.round(u * 100) / 100 : null), matPerUnit: mat, labPerUnit: lab,
         matActual: null, labActual: null, basis: d.basis, days: null, off: false };
     });
     est.elements.push({ id: estNewId('el'), name: g.name, rows: rows });
@@ -11805,10 +11860,20 @@ function pweHeadline(survey, routeId){
   var est = (P.estimates || {})[routeId];
   var t = pweOptionTotals(est);
   if (est && t.sell > 0){
-    return { worked: true, total: t.sell, perM2: (area > 0 ? t.sell / area : null), days: t.days };
+    // THIRD STATE: an estimate can be worked arithmetically (a real total, now
+    // including seeded labour) while its PROGRAMME is still unkeyed - no line
+    // carries days. Days and crew are Jamie's to key, always; nothing seeds them.
+    // `worked` keeps its old meaning so existing callers are unchanged; `state`
+    // and `programmeKeyed` let a caller tell the two apart. The readiness gate
+    // that acts on this is a later brief.
+    var programmeKeyed = (t.days > 0);
+    return { worked: true, programmeKeyed: programmeKeyed,
+      state: programmeKeyed ? 'worked' : 'worked-programme-unkeyed',
+      total: t.sell, perM2: (area > 0 ? t.sell / area : null), days: t.days };
   }
   var rate = rates[routeId];
-  return { worked: false, total: proposalFigure(area, rate), perM2: rate, indicativeRate: rate };
+  return { worked: false, programmeKeyed: false, state: 'indicative',
+    total: proposalFigure(area, rate), perM2: rate, indicativeRate: rate };
 }
 
 function pweFindRow(est, elId, rowId){
