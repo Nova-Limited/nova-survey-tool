@@ -4452,6 +4452,15 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .pwe-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
     #view-proposal .pwe-toggle{font-size:12.5px;font-weight:700;background:#434244;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-family:inherit;}
     #view-proposal .pwe-head-tot{font-size:13px;color:#434244;} #view-proposal .pwe-head-tot b{font-size:15px;}
+    #view-proposal .pwe-purlin{margin:10px 0 0;padding:10px 12px;border:1px solid #e2e2dd;border-left:3px solid #F7901E;border-radius:8px;background:#fbfbf9;}
+    #view-proposal .pwe-pl-head{display:flex;align-items:center;gap:12px;font-size:12px;font-weight:800;color:#434244;text-transform:uppercase;letter-spacing:.06em;}
+    #view-proposal .pwe-pl-known{margin-left:auto;font-size:11px;font-weight:600;color:#666;text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:5px;}
+    #view-proposal .pwe-pl-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+    #view-proposal .pwe-pl-f{display:flex;align-items:center;gap:4px;font-size:11px;color:#666;}
+    #view-proposal .pwe-pl-f input{width:62px;font-size:12px;padding:3px 5px;border:1px solid #d8d8d2;border-radius:5px;text-align:right;font-family:inherit;}
+    #view-proposal .pwe-pl-u{color:#999;}
+    #view-proposal .pwe-pl-out{margin-top:8px;font-size:11.5px;color:#434244;}
+    #view-proposal .pwe-pl-none{margin-top:8px;font-size:11.5px;color:#8a898b;}
     #view-proposal .pwe-head-pm{color:var(--green);font-size:12px;}
     #view-proposal .pwe-reseed{font-size:11px;background:#fff;border:1px solid #d8d8d2;border-radius:5px;padding:5px 9px;cursor:pointer;color:#666;font-family:inherit;margin-left:auto;}
     #view-proposal .pwe-addrow{margin-left:12px;font-size:10.5px;font-weight:700;background:#fff;border:1px solid #e0c6a6;border-radius:4px;padding:2px 8px;cursor:pointer;color:#434244;font-family:inherit;}
@@ -11322,6 +11331,11 @@ var PROPOSAL_SYSTEMS = {
       what:'Insulated composite wall panels, insulation and weatherskin in one, replacing the existing cladding.',
       get:['Insulated weatherskin in a single product','Long service life and warranty backing','Clean, fast install','Improves the building envelope'],
       consider:['Material cost higher than single skin','Lead times on panels','Warranty depends on specified fixings'] },
+    { id:'wallbuiltup', name:'Built-up wall cladding', best:'an insulated wall rebuilt in layers on a bar-and-bracket grid',
+      life:'25-30 yr', time:'varies',
+      what:'Single-skin outer sheet over liner and insulation, carried on a bar-and-bracket grid fixed to the existing wall structure.',
+      get:['Insulation specified to the thickness the building needs','Layers replaced independently','Bar and bracket sets the cavity, so the grid is measured not guessed','Lower material cost than composite'],
+      consider:['More site labour than a single composite panel','Grid must suit the existing structure','Longer programme than single skin'] },
     { id:'wallsingle', name:'Single-skin wall cladding', best:'a cost-led recladding where insulation is not required',
       life:'20-25 yr', time:'varies',
       what:'Profiled single-skin metal wall cladding, replacing the existing.',
@@ -11340,7 +11354,7 @@ var PROPOSAL_RATES_KEY = 'nova_proposal_rates_v1';
 var PROPOSAL_RATE_DEFAULTS = {
   composite:245, builtup:230, overclad:180, singleskin:155,
   hotmelt:240, liquid:185, singleply:165, felt:150,
-  wallcomposite:210, wallsingle:140
+  wallcomposite:210, wallbuiltup:175, wallsingle:140
 };
 function proposalRates(){
   var def = {}; Object.keys(PROPOSAL_RATE_DEFAULTS).forEach(function(k){ def[k] = PROPOSAL_RATE_DEFAULTS[k]; });
@@ -11592,9 +11606,11 @@ function pweHire(){ return [
   pweDef('Hire','Telehandler','Hire','wk','manual'),
   pweDef('Hire','Crane','Hire','day','manual'),
   pweDef('Hire','MEWP','Hire','wk','manual') ]; }
-function pweWaste(){ return [
+function pweWaste(strips){ return [
   pweDef('Waste','General','Waste','load','manual'),
-  pweDef('Waste','Asbestos','Waste','t','asbestosTonnes') ]; }
+  // asbestos arises only where the existing covering is stripped; an over-clad
+  // route leaves it in place, so its tonnage must not seed a disposal line
+  pweDef('Waste','Asbestos','Waste','t', strips ? 'asbestosTonnes' : 'manual') ]; }
 function pweHS(felt){ var a = [ pweDef('H&S','Air testing','H&S','nr','manual'), pweDef('H&S','PPE','H&S','item','manual') ];
   if (felt) a.push(pweDef('H&S','Hot works and fire watch','H&S','day','manual')); return a; }
 function pweLabour(){ return [
@@ -11615,8 +11631,8 @@ function pweConsFlat(){ return [
   pweDef('Consumables','Jointing and cover tapes','Cons','roll','manual'),
   pweDef('Consumables','Membrane cleaner and activator','Cons','nr','manual'),
   pweDef('Consumables','Gas for torch-on / fuel for welders','Cons','nr','manual') ]; }
-function pweCommon(kind, felt){
-  return [].concat(pweAccess(), pweHire(), pweWaste(), pweHS(felt), pweLabour(), pweWelfare(),
+function pweCommon(kind, felt, strips){
+  return [].concat(pweAccess(), pweHire(), pweWaste(strips !== false), pweHS(felt), pweLabour(), pweWelfare(),
     (kind === 'flat' ? pweConsFlat() : pweConsMetal())); }
 
 // --- metal flashing / drainage / fix (pitched + wall) ---
@@ -11685,19 +11701,20 @@ function pweTemplate(family, systemId){
       pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
       pweDef('Covering and build-up','Liner','Sheeting','m²','area'),
       pweDef('Covering and build-up','Insulation','Sheeting','m²','area'),
-      pweDef('Covering and build-up','Bar','Fix','m','linear'),
-      pweDef('Covering and build-up','Bracket','Fix','nr','manual') ];
+      pweDef('Covering and build-up','Bar','Fix','m','purlinBar'),
+      pweDef('Covering and build-up','Bracket','Fix','nr','purlinBracket') ];
     else if (systemId === 'overclad') cover = [
       pweDef('Covering and build-up','Composite Panel','Sheeting','m²','area'),
       pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
-      pweDef('Covering and build-up','Bar','Fix','m','linear'),
-      pweDef('Covering and build-up','Bracket','Fix','nr','manual') ];
+      pweDef('Covering and build-up','Bar','Fix','m','purlinBar'),
+      pweDef('Covering and build-up','Bracket','Fix','nr','purlinBracket') ];
     else if (systemId === 'singleskin') cover = [
       pweDef('Covering and build-up','Strip existing','Fix','m²','area'),
       pweDef('Covering and build-up','Single Skin','Sheeting','m²','area'),
       pweDef('Covering and build-up','Liner','Sheeting','m²','area'),
       pweDef('Covering and build-up','Insulation','Sheeting','m²','area') ];
-    return pweGroup(cover.concat(pweMetalFlashing(), pweMetalDrainage(), pweMetalFix(), pweCommon('metal', false)));
+    return pweGroup(cover.concat(pweMetalFlashing(), pweMetalDrainage(), pweMetalFix(),
+      pweCommon('metal', false, systemId !== 'overclad')));
   }
   if (family === 'flat'){
     var add = [];
@@ -11718,6 +11735,14 @@ function pweTemplate(family, systemId){
   }
   // wall
   if (systemId === 'wallcomposite') cover = [ pweDef('Covering and build-up','Wall Composite','Sheeting','m²','wallArea') ];
+  // BUILT-UP WALL: single skin outer, liner, insulation, and the bar-and-bracket
+  // grid, every quantity off the captured WALL area / wall grid, never the roof.
+  else if (systemId === 'wallbuiltup') cover = [
+    pweDef('Covering and build-up','Single Skin','Sheeting','m²','wallSingleSkinArea'),
+    pweDef('Covering and build-up','Liner','Sheeting','m²','wallSingleSkinArea'),
+    pweDef('Covering and build-up','Insulation','Sheeting','m²','wallSingleSkinArea'),
+    pweDef('Covering and build-up','Bar','Fix','m','wallPurlinBar'),
+    pweDef('Covering and build-up','Bracket','Fix','nr','wallPurlinBracket') ];
   else cover = [
     pweDef('Covering and build-up','Single Skin','Sheeting','m²','wallSingleSkinArea'),
     pweDef('Covering and build-up','Liner','Sheeting','m²','wallSingleSkinArea') ];
@@ -11743,6 +11768,104 @@ function pweScaffoldArea(survey){
   var sum = 0; (acc.elevations || []).forEach(function(e){ var l = Number(e.lengthM) || 0, h = Number(e.heightM) || 0; if (l > 0 && h > 0) sum += l * h; });
   return sum > 0 ? sum : null;
 }
+// ===== PURLIN GRID (desk input, no new capture screen) ======================
+// The bar-and-bracket grid a built-up or over-clad route hangs on. Jamie keys the
+// grid at the desk; nothing here is captured on site and nothing is invented.
+// EVERY constant lives in the config below and is read from it by the arithmetic,
+// so rail length, bracket centres and end inset are always editable and are never
+// hard-coded into a formula. Defaults: 200 mm ridge offset, 200 mm eave offset,
+// 1400 mm centres, 3 m rail, 900 mm bracket centres, 100 mm end inset (which
+// yields five brackets per 3 m rail).
+var PWE_PURLIN_DEFAULTS = { ridgeOffsetMm:200, eaveOffsetMm:200, centresMm:1400,
+  railLengthM:3, bracketCentresMm:900, endInsetMm:100 };
+function pwePurlinCfg(est){
+  var p = (est && est.purlin && typeof est.purlin === 'object') ? est.purlin : {};
+  var num = function(v, d){ var n = Number(v); return (isFinite(n) && n > 0) ? n : d; };
+  return {
+    known:            !!p.known,
+    ridgeOffsetMm:    num(p.ridgeOffsetMm,    PWE_PURLIN_DEFAULTS.ridgeOffsetMm),
+    eaveOffsetMm:     num(p.eaveOffsetMm,     PWE_PURLIN_DEFAULTS.eaveOffsetMm),
+    centresMm:        num(p.centresMm,        PWE_PURLIN_DEFAULTS.centresMm),
+    railLengthM:      num(p.railLengthM,      PWE_PURLIN_DEFAULTS.railLengthM),
+    bracketCentresMm: num(p.bracketCentresMm, PWE_PURLIN_DEFAULTS.bracketCentresMm),
+    endInsetMm:       num(p.endInsetMm,       PWE_PURLIN_DEFAULTS.endInsetMm)
+  };
+}
+// The captured planes the grid runs against, as {slopeLengthM, buildingLengthM}.
+// mode 'roof' reads the roof geometry (slope run eaves-to-apex x building length,
+// two slopes on a centre-ridge form, per bay on a multi-bay); mode 'wall' runs the
+// SAME maths against the wall grid (elevation height x elevation length). Nothing
+// is derived afresh: fpSlopeRun / fpDatumLength / fpBaySideSlope are the capture
+// side's own functions. No captured geometry yields an empty list, so the block
+// shows and seeds nothing.
+function pwePurlinPlanes(survey, mode){
+  var out = [];
+  ((survey && survey.buildings) || []).forEach(function(b){
+    if (mode === 'wall'){
+      var fp = b && b.footprint; if (!fp || !Array.isArray(fp.edges)) return;
+      fp.edges.forEach(function(e){
+        var el = e && e.elevation; if (!el) return;
+        var L = srNum(el.lengthM), H = srNum(el.heightM);
+        if (L == null || H == null || L <= 0 || H <= 0) return;
+        out.push({ slopeLengthM: H, buildingLengthM: L });
+      });
+      return;
+    }
+    var BL = (typeof fpDatumLength === 'function') ? fpDatumLength(b) : null;
+    var form = (b && b.roofForm) || 'duo-pitch';
+    if (form === 'multi-bay' && typeof fpBays === 'function'){
+      fpBays(b).forEach(function(bay){
+        var run = srNum(bay.runM); var count = Math.max(1, Number(bay.count) || 1);
+        if (run == null || run <= 0) return;
+        for (var j = 0; j < 2; j++){
+          var s = (typeof fpBaySideSlope === 'function') ? fpBaySideSlope(bay, j) : null;
+          if (s && s.len != null && s.len > 0){
+            for (var k = 0; k < count; k++) out.push({ slopeLengthM: s.len, buildingLengthM: run });
+          }
+        }
+      });
+      return;
+    }
+    if (BL == null || BL <= 0) return;
+    var sr = (typeof fpSlopeRun === 'function') ? fpSlopeRun(b) : { value: null };
+    if (sr.value == null || sr.value <= 0) return;
+    var n = (typeof FP_SLOPE_HALF_WIDTH !== 'undefined' && FP_SLOPE_HALF_WIDTH.indexOf(form) >= 0) ? 2 : 1;
+    for (var i = 0; i < n; i++) out.push({ slopeLengthM: sr.value, buildingLengthM: BL });
+  });
+  return out;
+}
+// The grid arithmetic, per plane:
+//   spaces  = roundup((slopeLength - ridgeOffset - eaveOffset) / centres)
+//   purlins = spaces + 1, guarded to a minimum of two on a short slope
+//   railsPerLine = roundup(buildingLength / railLength);  rails = purlins x railsPerLine
+//   barLinM = purlins x buildingLength
+//   perRail = roundup((railLength - 2 x endInset) / bracketCentres) + 1
+//   brackets = rails x perRail
+// Returns null when no plane is captured, so the seed stays null and never zero.
+function pwePurlinDerive(survey, est, mode){
+  var cfg = pwePurlinCfg(est);
+  var planes = pwePurlinPlanes(survey, mode || 'roof');
+  if (!planes.length) return null;
+  var up = function(v){ return Math.ceil(Math.round(v * 1e6) / 1e6); };
+  var centres = cfg.centresMm / 1000, ridgeOff = cfg.ridgeOffsetMm / 1000, eaveOff = cfg.eaveOffsetMm / 1000;
+  var railLen = cfg.railLengthM, bracketC = cfg.bracketCentresMm / 1000, inset = cfg.endInsetMm / 1000;
+  var perRail = up((railLen - 2 * inset) / bracketC) + 1;
+  var t = { planes: planes.length, purlins: 0, barLinM: 0, rails: 0, brackets: 0, perRail: perRail, cfg: cfg, rows: [] };
+  planes.forEach(function(pl){
+    var usable = pl.slopeLengthM - ridgeOff - eaveOff;
+    var spaces = (usable > 0) ? up(usable / centres) : 0;
+    var purlins = Math.max(2, spaces + 1);
+    var railsPerLine = up(pl.buildingLengthM / railLen);
+    var rails = purlins * railsPerLine;
+    var barLinM = purlins * pl.buildingLengthM;
+    t.purlins += purlins; t.rails += rails; t.brackets += rails * perRail; t.barLinM += barLinM;
+    t.rows.push({ slopeLengthM: pl.slopeLengthM, buildingLengthM: pl.buildingLengthM,
+      spaces: spaces, purlins: purlins, railsPerLine: railsPerLine, rails: rails, barLinM: barLinM });
+  });
+  t.barLinM = Math.round(t.barLinM * 100) / 100;
+  return t;
+}
+
 // Downpipe drop: count x BARE eave height, no shoe addition (Jamie's decision).
 // The bare eave height is the tallest captured elevation height; with no captured
 // elevation or no outlet count it returns null, never zero.
@@ -11778,10 +11901,16 @@ function pweSeedUnits(basis, ctx){
   if (basis === 'wallArea')          return pos(m.wallAreaM2);
   if (basis === 'wallSingleSkinArea')return pos(m.wallSingleSkinM2);
   if (basis === 'rooflightArea')     return pos(m.rooflightM2);
-  if (basis === 'rooflightCount')    return pos(m.rooflightCountNr);
+  if (basis === 'rooflightCount')    return pos(ctx.rooflightCountN);
   if (basis === 'asbestosTonnes')    return pos(m.asbestosT);
   if (basis === 'downpipeCount')     return pos(m.outletCountNr);
   if (basis === 'downpipeDrop')      return pos(ctx.downpipeDropM);
+  // purlin grid (desk input): roof grid for pitched built-up / over-clad, the
+  // same maths against the wall grid for the built-up wall system.
+  if (basis === 'purlinBar')         return ctx.purlinRoof ? pos(ctx.purlinRoof.barLinM) : null;
+  if (basis === 'purlinBracket')     return ctx.purlinRoof ? pos(ctx.purlinRoof.brackets) : null;
+  if (basis === 'wallPurlinBar')     return ctx.purlinWall ? pos(ctx.purlinWall.barLinM) : null;
+  if (basis === 'wallPurlinBracket') return ctx.purlinWall ? pos(ctx.purlinWall.brackets) : null;
   return null;   // manual
 }
 function pweSeedMatRate(def, ctx){
@@ -11813,6 +11942,14 @@ function pweSeedEstimate(survey, routeId){
     scaffoldArea: pweScaffoldArea(survey),
     m: m,
     downpipeDropM: pweDownpipeDrop(survey, m),
+    // estDeriveMeasurements sets rooflight AREA or COUNT, never both; a count-based
+    // line still needs the count when the area resolved, so fall back to the raw
+    // captured feature count (the same derivation the measurement layer uses).
+    rooflightCountN: (m.rooflightCountNr != null) ? m.rooflightCountNr
+      : ((typeof estCapturedFeatureCount === 'function') ? estCapturedFeatureCount(survey, ['Rooflight']) : null),
+    // purlin grid at the estimate's own config, or the defaults on a fresh seed
+    purlinRoof: pwePurlinDerive(survey, (P.estimates || {})[routeId], 'roof'),
+    purlinWall: pwePurlinDerive(survey, (P.estimates || {})[routeId], 'wall'),
     rates: (typeof srRates === 'function') ? srRates() : { scaffoldSqm: 35, handrailLinM: 55 },
     rcIndex: (typeof rateCardIndex === 'function') ? rateCardIndex() : new Map()
   };
@@ -11933,6 +12070,9 @@ function pweRenderEditor(survey, routeId){
     '<button class="pwe-reseed" onclick="pweReseed(\'' + routeId + '\')" title="Rebuild from the system template">Reseed</button></div>';
   if (!open) return h + '</div>';
 
+  // purlin grid: desk input on the routes whose covering hangs on bar and bracket
+  h += pweRenderPurlinBlock(survey, routeId, est);
+
   // calm scope list: collapsible element groups, calm rows, build-up behind a per-line expander
   h += '<div class="cl-wrap" style="margin-top:10px;">';
   est.elements.forEach(function(el){
@@ -12004,6 +12144,63 @@ function pweToggleGroup(routeId, elId){
   est.collapsed[elId] = !pweGroupCollapsed(est, el);   // toggle from the effective (default-aware) state
   srPersist(survey);   // collapse state rides in the snapshot
   proposalRender();
+}
+// Routes whose covering hangs on a bar-and-bracket grid.
+var PWE_PURLIN_ROUTES = { builtup:'roof', overclad:'roof', wallbuiltup:'wall' };
+function pwePurlinMode(routeId){ return PWE_PURLIN_ROUTES[routeId] || null; }
+// Re-derive the Bar / Bracket lines of this route from the current grid config.
+// Only rows seeded on a purlin basis are touched; a struck or hand-keyed line is
+// left alone by basis, and days are never written.
+function pwePurlinApply(survey, routeId, est){
+  var mode = pwePurlinMode(routeId); if (!mode) return;
+  var t = pwePurlinDerive(survey, est, mode);
+  var map = (mode === 'wall')
+    ? { wallPurlinBar: t ? t.barLinM : null, wallPurlinBracket: t ? t.brackets : null }
+    : { purlinBar: t ? t.barLinM : null, purlinBracket: t ? t.brackets : null };
+  (est.elements || []).forEach(function(el){
+    (el.rows || []).forEach(function(r){
+      if (Object.prototype.hasOwnProperty.call(map, r.basis)) r.units = map[r.basis];
+    });
+  });
+}
+function pwePurlinSet(routeId, field, value){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var est = (pweEstimatesStore(survey) || {})[routeId]; if (!est) return;
+  if (!est.purlin || typeof est.purlin !== 'object') est.purlin = {};
+  if (field === 'known') est.purlin.known = !!value;
+  else { var n = Number(value); est.purlin[field] = (isFinite(n) && n > 0) ? n : null; }
+  pwePurlinApply(survey, routeId, est);
+  srPersist(survey); proposalRender();
+}
+function pweRenderPurlinBlock(survey, routeId, est){
+  var mode = pwePurlinMode(routeId); if (!mode) return '';
+  var cfg = pwePurlinCfg(est);
+  var t = pwePurlinDerive(survey, est, mode);
+  var fld = function(lbl, key, val, unit){
+    return '<label class="pwe-pl-f"><span>' + lbl + '</span>' +
+      '<input type="number" min="1" step="1" value="' + srEsc(String(val)) + '" ' +
+      'onchange="pwePurlinSet(\'' + routeId + '\',\'' + key + '\',this.value)"><span class="pwe-pl-u">' + unit + '</span></label>';
+  };
+  var h = '<div class="pwe-purlin"><div class="pwe-pl-head">Purlin grid' +
+    '<label class="pwe-pl-known"><input type="checkbox"' + (cfg.known ? ' checked' : '') +
+    ' onchange="pwePurlinSet(\'' + routeId + '\',\'known\',this.checked)"> Centres known</label></div>';
+  h += '<div class="pwe-pl-row">' +
+    fld('Ridge offset','ridgeOffsetMm',cfg.ridgeOffsetMm,'mm') +
+    fld('Eave offset','eaveOffsetMm',cfg.eaveOffsetMm,'mm') +
+    fld('Centres','centresMm',cfg.centresMm,'mm') +
+    fld('Rail length','railLengthM',cfg.railLengthM,'m') +
+    fld('Bracket centres','bracketCentresMm',cfg.bracketCentresMm,'mm') +
+    fld('End inset','endInsetMm',cfg.endInsetMm,'mm') + '</div>';
+  if (!t){
+    h += '<div class="pwe-pl-none">No ' + (mode === 'wall' ? 'captured elevation' : 'captured slope and building length') +
+      ' behind this route yet, so the grid seeds nothing. Bar and bracket stay manual until the capture resolves.</div>';
+  } else {
+    h += '<div class="pwe-pl-out">' + t.planes + ' ' + (mode === 'wall' ? 'elevation' : 'slope') + (t.planes === 1 ? '' : 's') +
+      ' &middot; ' + t.purlins + ' purlin line' + (t.purlins === 1 ? '' : 's') +
+      ' &middot; bar ' + t.barLinM + ' m &middot; ' + t.rails + ' rails at ' + t.perRail + ' brackets each &middot; ' +
+      t.brackets + ' brackets</div>';
+  }
+  return h + '</div>';
 }
 function pweReseed(routeId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
