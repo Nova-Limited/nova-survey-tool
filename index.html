@@ -4608,6 +4608,27 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-tools, #view-footprint .fp-forms { margin-bottom: 14px; }
     #view-footprint .fp-tools-lbl { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #8a898b; margin-bottom: 8px; }
     #view-footprint .fp-buildup { margin: 4px 0 14px; padding: 12px 14px; border: 1px solid #e2e3e5; border-radius: 10px; background: #fafaf8; }
+    /* aerial trace (Part 1) */
+    #view-footprint .fp-trace-bar { margin: 6px 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    #view-footprint .fp-trace-btn { border: 1px solid #d7c9ea; background: #f7f3fd; color: #5b3f86; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+    #view-footprint .fp-trace-btn:disabled { opacity: .5; cursor: default; }
+    #view-footprint .fp-trace-note { font-size: 11.5px; color: #8a898b; }
+    #view-footprint .fp-trace-prov { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; padding: 9px 13px; background: #fff8ec; border: 1px solid #f0d9b0; border-left: 3px solid #F7901E; border-radius: 8px; }
+    #view-footprint .fp-trace-tag { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #b26b00; }
+    #view-footprint .fp-trace-figs { font-size: 13px; font-weight: 700; color: #7a5a1e; }
+    #view-footprint .fp-trace-law { font-size: 11.5px; color: #8a7a52; flex: 1 1 200px; }
+    #view-footprint .fp-trace-confirm { border: 1px solid #cdb98f; background: #fff; color: #7a5a1e; border-radius: 7px; padding: 6px 12px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+    #view-footprint .fp-trace-confirmed { font-size: 12px; color: #2f7a3f; font-weight: 600; }
+    #view-footprint .fp-trace-live { margin: 6px 0 12px; border: 1px solid #e2e3e5; border-radius: 12px; overflow: hidden; background: #fbfbf9; }
+    #view-footprint .fp-trace-livehead { padding: 10px 13px; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid #eee; }
+    #view-footprint .fp-trace-livehead > span:first-child { font-weight: 700; font-size: 13.5px; color: #2f2f31; }
+    #view-footprint .fp-trace-livesub { font-size: 11.5px; color: #8a898b; }
+    #view-footprint .fp-trace-map { width: 100%; height: 360px; background: #eceae4; }
+    #view-footprint .fp-trace-noleaflet { display: flex; align-items: center; justify-content: center; height: 100%; color: #8a898b; font-size: 13px; }
+    #view-footprint .fp-trace-livefoot { padding: 10px 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-top: 1px solid #eee; }
+    #view-footprint .fp-trace-use { border: none; background: #F7901E; color: #fff; border-radius: 7px; padding: 7px 14px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    #view-footprint .fp-trace-undo, #view-footprint .fp-trace-cancel { border: 1px solid #d4d4d0; background: #fff; color: #434244; border-radius: 7px; padding: 7px 12px; font-family: inherit; font-size: 12.5px; cursor: pointer; }
+    #view-footprint .fp-trace-livelen { margin-left: auto; font-size: 11.5px; color: #8a898b; }
     #view-footprint .fp-bu-field { margin-bottom: 10px; }
     #view-footprint .fp-bu-field:last-child { margin-bottom: 0; }
     #view-footprint .fp-bu-label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
@@ -9471,10 +9492,11 @@ function renderDetailBlocks(s) {
     buildings.forEach((b, bi) => {
       const row = (roofRes.breakdown || [])[bi] || {};
       const tot = row.value;
-      const provWord = row.source === 'captured' ? 'captured' : row.source === 'legacy' ? (b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's')) : '';
+      const isProv = row.source === 'provisional';
+      const provWord = row.source === 'captured' ? 'captured' : row.source === 'legacy' ? (b.slopeCount + ' slope' + (b.slopeCount === 1 ? '' : 's')) : isProv ? 'provisional (aerial)' : '';
       html += '<div class="detail-row">' +
         '<span class="k">' + escapeHtml(b.id + ' — ' + (b.name || 'Untitled')) + '</span>' +
-        '<span class="v">' + escapeHtml((provWord ? provWord + ' · ' : '') + (tot == null ? '— m²' : fmtAreaDisp(tot))) + '</span>' +
+        '<span class="v"' + (isProv ? ' style="color:#b26b00;"' : '') + '>' + escapeHtml((provWord ? provWord + ' · ' : '') + (tot == null ? '— m²' : (fmtAreaDisp(tot) + (isProv ? ' plan' : '')))) + '</span>' +
       '</div>';
     });
     html += '<div class="detail-row" style="border-top:2px solid var(--rule);padding-top:0.6rem;margin-top:0.3rem;">' +
@@ -13085,6 +13107,13 @@ function pweRecompute(survey, obId, routeId, elId, rowId){
 
 var fpCurrentId = null;
 var fpMode = 'edit';     // 'edit' | 'draw'
+// Aerial trace (Part 1): transient Leaflet state, never persisted. fpTraceActive
+// swaps the SVG canvas for the map; the committed trace rides in building.footprint.
+var fpTraceActive = false;
+var fpTraceMap = null;      // live L.map
+var fpTracePoly = null;     // L.polygon
+var fpTraceVerts = [];      // L.marker vertex handles
+var fpTraceDraft = null;    // [{lat,lng}] while editing
 var fpDrawPts = [];      // freeform points while drawing
 var fpDrag = null;       // { i, survey, fp, sx, sy, moved } during a corner drag
 var fpSelected = null;   // index of the tapped/selected corner (for select-then-remove)
@@ -13303,6 +13332,11 @@ function fpRender(){
 
   // Stage 4: tap-to-place toolbar (features + fault pins), only once a footprint exists
   if (fp && !drawing) h += fpRenderPlaceToolbar();
+
+  // Part 1: aerial underlay trace (estimate journeys only). Toolbar + provisional
+  // banner sit above the canvas; the Leaflet map, when open, replaces the SVG.
+  h += fpRenderTraceBar(survey, b);
+  if (fpTraceActive){ h += fpRenderTraceCanvas(survey, b); host.innerHTML = h; fpTraceMapMount(survey, b); return; }
 
   // canvas
   if (fp && fpSelected != null && (!fp.corners || fpSelected >= fp.corners.length)) fpSelected = null;   // clamp stale selection
@@ -20913,6 +20947,238 @@ function surveyTotalRoofArea(buildings) {
 //   FLAT has no slope run (nothing to derive from); a building with no footprint
 //   or no roofForm returns null - the caller falls back to buildingTotalArea, so
 //   a legacy building is completely unaffected.
+// ===== AERIAL UNDERLAY TRACE + PROVISIONAL PROVENANCE (Step 2b, part 1) ======
+// A footprint traced over the aerial carries real map coordinates on every
+// corner. Its lengths derive NATIVELY from those coordinates (haversine, no
+// scale step) and its area is the plan area of the lat/lng ring. Provenance is
+// the law: every trace-born figure is source 'provisional' (aerial), presented
+// amber, and NEVER seeds an estimate and NEVER prints. This reuses the existing
+// {value, source} model, adding 'provisional' as the sibling to 'captured' /
+// 'legacy'; it does NOT build a parallel provenance system. Site confirmation
+// (fpTraceConfirm) writes the coordinate lengths into the edges' keyed
+// dimensions, at which point the EXISTING captured machinery consumes them and
+// the figure reads 'captured' - and a laser-keyed dimension always wins.
+var FP_EARTH_R = 6371000;   // metres
+function fpHaversineM(a, b){
+  if (!a || !b || a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
+  var toR = Math.PI / 180;
+  var dLat = (b.lat - a.lat) * toR, dLng = (b.lng - a.lng) * toR;
+  var la1 = a.lat * toR, la2 = b.lat * toR;
+  var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 2 * FP_EARTH_R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+// The trace marker on the footprint: presence + confirmation state.
+function fpTraceOf(b){ var fp = b && b.footprint; var t = fp && fp.trace; return (t && t.source === 'aerial') ? t : null; }
+function fpCornerHasGeo(c){ return !!(c && c.lat != null && c.lng != null); }
+function fpFootprintHasGeo(fp){ return !!(fp && Array.isArray(fp.corners) && fp.corners.length >= 3 && fp.corners.every(fpCornerHasGeo)); }
+// PROVISIONAL = an aerial trace not yet confirmed on site. The gate the whole
+// provenance law hangs on: a provisional footprint feeds no captured reader.
+function fpTraceIsProvisional(b){ var t = fpTraceOf(b); return !!(t && !t.confirmed && fpFootprintHasGeo(b.footprint)); }
+// Coordinate-native edge length (metres), for a geo-bearing footprint. No datum,
+// no scale - straight from the corner coordinates.
+function fpGeoEdgeLen(fp, i){
+  if (!fp || !Array.isArray(fp.corners)) return null;
+  var c = fp.corners[i], n = fp.corners[(i + 1) % fp.corners.length];
+  return fpHaversineM(c, n);
+}
+// Plan area of the lat/lng ring (m2), via a local equirectangular projection
+// about the ring's mean latitude - accurate at building scale. Sign-independent.
+function fpGeoRingAreaM2(corners){
+  if (!Array.isArray(corners) || corners.length < 3 || !corners.every(fpCornerHasGeo)) return null;
+  var toR = Math.PI / 180, latSum = 0;
+  corners.forEach(function(c){ latSum += c.lat; });
+  var lat0 = (latSum / corners.length) * toR;
+  var pts = corners.map(function(c){
+    return { x: c.lng * toR * FP_EARTH_R * Math.cos(lat0), y: c.lat * toR * FP_EARTH_R };
+  });
+  var a = 0;
+  for (var i = 0; i < pts.length; i++){
+    var p = pts[i], q = pts[(i + 1) % pts.length];
+    a += p.x * q.y - q.x * p.y;
+  }
+  return Math.abs(a) / 2;
+}
+// Provisional PLAN area for a building whose footprint is an unconfirmed aerial
+// trace. Plan area only - heights do not exist yet, so this is never a roof
+// (slope) area. source 'provisional' marks it amber and un-seedable.
+function fpBuildingProvisionalArea(b){
+  if (!fpTraceIsProvisional(b)) return { value: null, source: null };
+  var v = fpGeoRingAreaM2(b.footprint.corners);
+  return (v != null && v > 0) ? { value: Math.round(v * 100) / 100, source: 'provisional' } : { value: null, source: null };
+}
+// Provisional perimeter run for the day-sheet what-the-desk-knows line etc.
+function fpBuildingProvisionalPerimeter(b){
+  if (!fpTraceIsProvisional(b)) return null;
+  var fp = b.footprint, sum = 0, any = false;
+  fp.corners.forEach(function(c, i){ var l = fpGeoEdgeLen(fp, i); if (l != null){ sum += l; any = true; } });
+  return any ? Math.round(sum * 100) / 100 : null;
+}
+// COMMIT a trace: a ring of {lat,lng} (map order) becomes building.footprint with
+// coordinate-bearing corners, projected 0-300 x/y for the existing SVG surface,
+// and the provisional aerial provenance marker. Pure and testable; the Leaflet
+// canvas is only its caller. Never confirmed on commit - the surveyor confirms
+// on site. Existing edge roles/conditions are preserved where the corner count
+// is unchanged, so a re-trace does not wipe edge work.
+function fpTraceFromLatLngs(b, latlngs){
+  if (!b || !Array.isArray(latlngs) || latlngs.length < 3) return false;
+  var pts = latlngs.map(function(p){ return { lat: Number(p.lat != null ? p.lat : p[0]), lng: Number(p.lng != null ? p.lng : p[1]) }; });
+  if (pts.some(function(p){ return !isFinite(p.lat) || !isFinite(p.lng); })) return false;
+  // local equirectangular -> raw metres, then fit into a 0-300 box with a margin
+  var toR = Math.PI / 180, latSum = 0; pts.forEach(function(p){ latSum += p.lat; });
+  var lat0 = (latSum / pts.length) * toR;
+  var proj = pts.map(function(p){ return { mx: p.lng * toR * FP_EARTH_R * Math.cos(lat0), my: p.lat * toR * FP_EARTH_R }; });
+  var minx = Math.min.apply(null, proj.map(function(p){ return p.mx; }));
+  var maxx = Math.max.apply(null, proj.map(function(p){ return p.mx; }));
+  var miny = Math.min.apply(null, proj.map(function(p){ return p.my; }));
+  var maxy = Math.max.apply(null, proj.map(function(p){ return p.my; }));
+  var spanx = Math.max(1e-6, maxx - minx), spany = Math.max(1e-6, maxy - miny);
+  var scale = 260 / Math.max(spanx, spany), pad = 20;
+  var corners = pts.map(function(p, i){
+    return { x: Math.round((proj[i].mx - minx) * scale) + pad,
+             y: Math.round((maxy - proj[i].my) * scale) + pad,   // flip: north is up
+             lat: p.lat, lng: p.lng };
+  });
+  var prevEdges = (b.footprint && Array.isArray(b.footprint.edges) && b.footprint.edges.length === corners.length) ? b.footprint.edges : null;
+  var edges = prevEdges || fpMakeEdges(corners.length);
+  b.footprint = { corners: corners, edges: edges, trace: { source: 'aerial', confirmed: false, tracedAt: (b.footprint && b.footprint.trace && b.footprint.trace.tracedAt) || null } };
+  return true;
+}
+// CONFIRM the trace on site: write each edge's coordinate length into its keyed
+// dimension (so the existing captured machinery reads it) and mark confirmed.
+// This is the aerial -> captured flip; a hand-keyed edge already set is left
+// alone (the laser wins), and the trace's provisional figures stop being
+// provisional the instant confirmed flips.
+function fpTraceConfirm(b){
+  var fp = b && b.footprint; if (!fp || !fp.trace || fp.trace.source !== 'aerial') return false;
+  if (!fpFootprintHasGeo(fp)) return false;
+  fp.edges = fp.edges || fpMakeEdges(fp.corners.length);
+  fp.corners.forEach(function(c, i){
+    var e = fp.edges[i]; if (!e) return;
+    if (srNum(e.lengthM) != null) return;                 // hand-keyed wins
+    var l = fpGeoEdgeLen(fp, i);
+    if (l != null) e.lengthM = Math.round(l * 100) / 100;
+  });
+  fp.trace.confirmed = true;
+  return true;
+}
+
+// --- the aerial trace surface (Leaflet Esri underlay) ----------------------
+// Job coordinates for centring the aerial: the survey's own lat/lng, else the
+// persisted map centre. Returns null when the job has no location yet.
+function fpTraceJobLatLng(survey){
+  var lat = srNum(survey && survey.siteLat), lng = srNum(survey && survey.siteLng);
+  if (lat == null || lng == null){ lat = srNum(survey && survey.siteMapCentreLat); lng = srNum(survey && survey.siteMapCentreLng); }
+  return (lat != null && lng != null) ? { lat: lat, lng: lng } : null;
+}
+// The toolbar row: open the trace, and (when a provisional trace exists) the amber
+// banner with the coordinate-native figures and Confirm. Estimate journeys only.
+function fpRenderTraceBar(survey, b){
+  if (typeof pweGateApplies === 'function' && !pweGateApplies(survey)) return '';   // never on condition journeys
+  var t = fpTraceOf(b);
+  var prov = fpTraceIsProvisional(b);
+  var h = '<div class="fp-trace-bar">';
+  if (fpTraceActive){ return ''; }   // the canvas carries its own controls while open
+  var loc = fpTraceJobLatLng(survey);
+  h += '<button class="fp-trace-btn" onclick="fpTraceOpen()"' + (loc ? '' : ' disabled title="Set the job address or coordinates first"') + '>' +
+    (t ? 'Re-trace over aerial' : 'Trace over aerial') + '</button>';
+  if (!loc) h += '<span class="fp-trace-note">Set the job location (Site plan) to trace over the aerial.</span>';
+  if (prov){
+    var area = fpBuildingProvisionalArea(b), per = fpBuildingProvisionalPerimeter(b);
+    h += '<div class="fp-trace-prov">' +
+      '<span class="fp-trace-tag">Provisional (aerial)</span>' +
+      '<span class="fp-trace-figs">plan area ' + (area.value != null ? area.value.toLocaleString('en-GB') + ' m²' : '—') +
+        (per != null ? (' &middot; perimeter ' + per.toLocaleString('en-GB') + ' m') : '') + '</span>' +
+      '<span class="fp-trace-law">These figures do not seed an estimate or print until confirmed on site.</span>' +
+      '<button class="fp-trace-confirm" onclick="fpTraceConfirmClick()">Confirm on site</button></div>';
+  } else if (t && t.confirmed){
+    h += '<span class="fp-trace-confirmed">Trace confirmed on site &middot; lengths now captured</span>';
+  }
+  return h + '</div>';
+}
+// The canvas: a Leaflet map div that replaces the SVG while tracing. Vertices are
+// draggable; tapping the map adds a corner. Controls to use or cancel the trace.
+function fpRenderTraceCanvas(survey, b){
+  var h = '<div class="fp-trace-live">';
+  h += '<div class="fp-trace-livehead"><span>Trace the roof over the aerial</span>' +
+    '<span class="fp-trace-livesub">Tap to drop corners &middot; drag a corner to adjust &middot; lengths derive from the map</span></div>';
+  h += '<div id="fp-trace-map" class="fp-trace-map"></div>';
+  h += '<div class="fp-trace-livefoot">' +
+    '<button class="fp-trace-use" onclick="fpTraceUse()">Use this trace</button>' +
+    '<button class="fp-trace-undo" onclick="fpTraceUndo()">Undo last corner</button>' +
+    '<button class="fp-trace-cancel" onclick="fpTraceCancel()">Cancel</button>' +
+    '<span class="fp-trace-livelen" id="fp-trace-livelen"></span></div>';
+  return h + '</div>';
+}
+function fpTraceOpen(){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpBuilding(survey);
+  var t = fpTraceOf(b);
+  // seed the draft from an existing trace's coordinates, else empty (surveyor taps)
+  fpTraceDraft = (t && fpFootprintHasGeo(b.footprint)) ? b.footprint.corners.map(function(c){ return { lat: c.lat, lng: c.lng }; }) : [];
+  fpTraceActive = true; fpRender();
+}
+function fpTraceCancel(){ fpTraceTeardown(); fpTraceActive = false; fpTraceDraft = null; fpRender(); }
+function fpTraceUndo(){ if (fpTraceDraft && fpTraceDraft.length){ fpTraceDraft.pop(); fpTraceRedrawPoly(); } }
+function fpTraceUse(){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpEnsureBuilding(survey);
+  if (!fpTraceDraft || fpTraceDraft.length < 3){ try { alert('Drop at least three corners to trace the roof.'); } catch(e){} return; }
+  if (fpTraceFromLatLngs(b, fpTraceDraft)){ srPersist(survey); }
+  fpTraceTeardown(); fpTraceActive = false; fpTraceDraft = null; fpRender();
+}
+function fpTraceConfirmClick(){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpBuilding(survey);
+  if (fpTraceConfirm(b)){ srPersist(survey); fpRender(); }
+}
+function fpTraceTeardown(){
+  try { if (fpTraceMap){ fpTraceMap.remove(); } } catch(e){}
+  fpTraceMap = null; fpTracePoly = null; fpTraceVerts = [];
+}
+// Build/refresh the Leaflet map after the canvas div is in the DOM. Esri World
+// Imagery, the same tile source the Site Plan module uses. Guarded so a missing
+// Leaflet (or a headless environment with no tiles) fails soft, not hard.
+function fpTraceMapMount(survey, b){
+  if (!fpTraceActive) return;
+  var host = document.getElementById('fp-trace-map'); if (!host) return;
+  if (typeof L === 'undefined'){ host.innerHTML = '<div class="fp-trace-noleaflet">Map library unavailable.</div>'; return; }
+  fpTraceTeardown();
+  var loc = fpTraceJobLatLng(survey) || { lat: 54.5, lng: -3.0 };
+  try {
+    fpTraceMap = L.map('fp-trace-map', { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { maxZoom: 21, maxNativeZoom: 19 }).addTo(fpTraceMap);
+    fpTraceMap.setView([loc.lat, loc.lng], 20);
+    fpTraceMap.on('click', function(e){ fpTraceDraft = fpTraceDraft || []; fpTraceDraft.push({ lat: e.latlng.lat, lng: e.latlng.lng }); fpTraceRedrawPoly(); });
+    setTimeout(function(){ try { fpTraceMap.invalidateSize(); if (fpTraceDraft && fpTraceDraft.length && fpTraceDraft.every(fpCornerHasGeo)) fpTraceMap.fitBounds(fpTraceDraft.map(function(p){ return [p.lat, p.lng]; }), { padding: [30, 30], maxZoom: 21 }); } catch(e){} }, 60);
+    fpTraceRedrawPoly();
+  } catch (e){ host.innerHTML = '<div class="fp-trace-noleaflet">Aerial map could not load here.</div>'; }
+}
+function fpTraceRedrawPoly(){
+  if (!fpTraceMap || typeof L === 'undefined') { fpTraceUpdateLenReadout(); return; }
+  try {
+    if (fpTracePoly){ fpTraceMap.removeLayer(fpTracePoly); fpTracePoly = null; }
+    fpTraceVerts.forEach(function(m){ try { fpTraceMap.removeLayer(m); } catch(e){} });
+    fpTraceVerts = [];
+    var ll = (fpTraceDraft || []).map(function(p){ return [p.lat, p.lng]; });
+    if (ll.length >= 2) fpTracePoly = L.polygon(ll, { color: '#F7901E', weight: 2, fillColor: '#F7901E', fillOpacity: 0.12 }).addTo(fpTraceMap);
+    (fpTraceDraft || []).forEach(function(p, i){
+      var mk = L.circleMarker([p.lat, p.lng], { radius: 6, color: '#F7901E', fillColor: '#fff', fillOpacity: 1, weight: 2 });
+      mk.addTo(fpTraceMap);
+      fpTraceVerts.push(mk);
+    });
+  } catch(e){}
+  fpTraceUpdateLenReadout();
+}
+function fpTraceUpdateLenReadout(){
+  var el = document.getElementById('fp-trace-livelen'); if (!el) return;
+  var d = fpTraceDraft || [];
+  if (d.length < 3){ el.textContent = d.length + ' corner' + (d.length === 1 ? '' : 's') + ' · drop at least 3'; return; }
+  var fp = { corners: d.map(function(p){ return { lat: p.lat, lng: p.lng }; }) };
+  var per = 0; d.forEach(function(c, i){ var l = fpGeoEdgeLen(fp, i); if (l != null) per += l; });
+  var area = fpGeoRingAreaM2(fp.corners);
+  el.textContent = d.length + ' corners · perimeter ' + (Math.round(per * 10) / 10) + ' m · plan area ' + (area != null ? Math.round(area) : '—') + ' m²';
+}
 function fpBuildingCapturedArea(b){
   if (!b) return { value: null, source: null };
   if (b.roofForm === 'multi-bay'){
@@ -20953,6 +21219,14 @@ function estResolveRoofArea(survey){
     var value = (capt.value != null) ? capt.value : legacy;
     var source = (capt.value != null) ? 'captured' : (legacy != null ? 'legacy' : null);
     if (value != null){ sum += value; any = true; if (source === 'captured') anyCaptured = true; }
+    // PROVENANCE LAW: an unconfirmed aerial trace has neither captured nor legacy
+    // area, so it never touches sum/total (never seeds). It joins the breakdown as
+    // a display-only 'provisional' figure (plan area, amber) - the seed total and
+    // anyCaptured are byte-unchanged for every existing survey.
+    if (value == null){
+      var prov = fpBuildingProvisionalArea(b);
+      if (prov.value != null){ breakdown.push({ id: b.id, name: b.name, value: prov.value, source: 'provisional' }); return; }
+    }
     breakdown.push({ id: b.id, name: b.name, value: value, source: source });
   });
   var total = any ? (anyCaptured ? estRoundUp(sum, 0) : sum) : null;
@@ -21359,16 +21633,26 @@ function geoProvenanceLabel(breakdown){
   if (!list.length) return '';
   var anyCaptured = list.some(function(x){ return x.source === 'captured'; });
   var anyLegacy = list.some(function(x){ return x.source === 'legacy'; });
+  var anyProvisional = list.some(function(x){ return x.source === 'provisional'; });
+  var settled = anyCaptured || anyLegacy;
+  // Provisional (aerial) figures are amber and never seed; where a survey carries
+  // ONLY provisional figures the label says so, and a mixed survey flags it.
+  if (anyProvisional && !settled) return 'Provisional (aerial) — confirm on site';
+  if (anyProvisional) return (anyCaptured && anyLegacy ? 'Mixed — capture + Section B2 slopes' : anyCaptured ? 'From the capture' : 'From Section B2 slopes') + ' + provisional (aerial)';
   if (anyCaptured && anyLegacy) return 'Mixed — capture + Section B2 slopes';
   if (anyCaptured) return 'From the capture';
   return 'From Section B2 slopes';
 }
+// Whether any building's resolved figure is provisional (aerial) - drives the
+// amber styling on the roof-total surfaces.
+function geoBreakdownHasProvisional(breakdown){ return (breakdown || []).some(function(x){ return x.source === 'provisional'; }); }
 function updateSurveyRoofTotalDisplay() {
   const el = document.getElementById('survey-roof-total-value');
   const prov = document.getElementById('survey-roof-total-provenance');
   const res = (typeof estResolveRoofArea === 'function') ? estResolveRoofArea({ buildings: currentBuildings }) : { total: surveyTotalRoofArea(currentBuildings), breakdown: [] };
   if (el) el.textContent = res.total == null ? '— m²' : fmtAreaDisp(res.total);
-  if (prov) prov.textContent = geoProvenanceLabel(res.breakdown);
+  if (prov){ prov.textContent = geoProvenanceLabel(res.breakdown);
+    prov.style.color = geoBreakdownHasProvisional(res.breakdown) ? '#e8a13a' : ''; }
   updateDerivedRoofArea();   // keep Section B's roof area in step with B2
   if (typeof f5UpdateRoofSurfaces === 'function') f5UpdateRoofSurfaces();   // F5: composition + retire the redundant area ask
 }
