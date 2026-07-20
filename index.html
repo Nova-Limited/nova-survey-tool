@@ -4452,6 +4452,18 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .pwe-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
     #view-proposal .pwe-toggle{font-size:12.5px;font-weight:700;background:#434244;color:#fff;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-family:inherit;}
     #view-proposal .pwe-head-tot{font-size:13px;color:#434244;} #view-proposal .pwe-head-tot b{font-size:15px;}
+    #view-proposal .np-grp-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin:30px 0 4px;padding:10px 13px;background:#434244;color:#fff;border-radius:8px;}
+    #view-proposal .np-grp-name{font-size:16px;font-weight:800;}
+    #view-proposal .np-grp-rename{font-size:12px;padding:3px 7px;border:1px solid #6a696b;border-radius:5px;background:#3a393b;color:#fff;font-family:inherit;width:170px;}
+    #view-proposal .np-grp-meta{font-size:11px;color:#cfcfce;}
+    #view-proposal .np-grp-sub{margin-left:auto;font-size:13px;font-weight:700;}
+    #view-proposal .np-elem-head.in-group{margin-left:14px;border-left:3px solid #F7901E;padding-left:10px;border-bottom-color:#e2e2dd;}
+    #view-proposal .np-grp-ctl{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:#8a898b;}
+    #view-proposal .np-grp-ctl select{font-size:11px;padding:3px 6px;border:1px solid #d8d8d2;border-radius:5px;font-family:inherit;background:#fff;color:#434244;}
+    #view-proposal .np-jobtotal{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin:26px 0 4px;padding:12px 14px;background:#2f2f31;color:#fff;border-radius:9px;}
+    #view-proposal .np-jt-lbl{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#cfcfce;}
+    #view-proposal .np-jt-val{font-size:20px;font-weight:800;}
+    #view-proposal .np-jt-note{margin-left:auto;font-size:11px;color:#cfcfce;}
     #view-proposal .np-elem-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin:26px 0 10px;padding-bottom:7px;border-bottom:2px solid #434244;}
     #view-proposal .np-elem-name{font-size:16px;font-weight:800;color:#434244;}
     #view-proposal .np-elem-meta{font-size:11px;color:#8a898b;}
@@ -10492,7 +10504,12 @@ function costUnpricedAdvisory(survey){
       var E = survey.proposal.elements[o.id]; if (!E || !E.accepted) return;
       var view = pweElemView(survey, o.id); if (!view) return;
       var rd = pweRouteReadiness(view, E.accepted);
-      if (!rd.ready) unreadyEls.push(o.name + ' (' + rd.failures.join('; ') + ')');
+      if (!rd.ready){
+        // name the element and, where it presents inside a group, its group
+        var g = (typeof propGroupOf === 'function') ? propGroupOf(survey, o.id) : null;
+        var who = g ? (o.name + ' in ' + propGroupLabel(survey, g)) : o.name;
+        unreadyEls.push(who + ' (' + rd.failures.join('; ') + ')');
+      }
     });
   }
   if (unreadyEls.length){
@@ -11554,6 +11571,136 @@ function pweElemView(survey, obId){
   return v;
 }
 
+// ===== GROUPING (metadata only; capture flows do not change) =================
+// A BUILDING GROUP is one or more captured objects presented to the client as one
+// building. Every object belongs to exactly one group; the default is its own, so
+// a survey never touched by grouping is unchanged. The link is b.groupId on the
+// captured object; the group's name lives on survey.proposal.groups. Nothing here
+// touches geometry, and the Structure C auto-add reconcile still keys on capture
+// objects: groups change the PRESENTATION of sums, never the reconcile.
+function propGroupStore(survey){
+  if (!survey.proposal || typeof survey.proposal !== 'object') survey.proposal = {};
+  if (!survey.proposal.groups || typeof survey.proposal.groups !== 'object') survey.proposal.groups = {};
+  return survey.proposal.groups;
+}
+// Ordered groups in capture order. A solo group is an object with no groupId: it
+// presents under its own object label exactly as it did before grouping existed.
+function propGroups(survey){
+  var objs = propObjects(survey);
+  var G = ((survey && survey.proposal) || {}).groups || {};
+  var order = [], map = {};
+  objs.forEach(function(o){
+    var gid = (o.b && o.b.groupId) ? String(o.b.groupId) : ('solo:' + o.id);
+    if (!map[gid]){
+      map[gid] = { id: gid, solo: gid.indexOf('solo:') === 0,
+        name: (G[gid] && G[gid].name) ? String(G[gid].name) : '', members: [] };
+      order.push(gid);
+    }
+    map[gid].members.push(o);
+  });
+  return order.map(function(k){ return map[k]; });
+}
+// A group presents as one building only where it genuinely holds more than one
+// element. One member = today's presentation, untouched.
+function propGroupIsReal(g){ return !!g && !g.solo && g.members.length > 1; }
+function propGroupingInUse(survey){ return propGroups(survey).some(propGroupIsReal); }
+function propGroupLabel(survey, g){
+  if (!g) return '';
+  if (g.name) return g.name;
+  return g.members.length ? g.members[0].name : 'Building';
+}
+// The group a given object presents under, or null when it stands alone.
+function propGroupOf(survey, obId){
+  var gs = propGroups(survey);
+  for (var i = 0; i < gs.length; i++){
+    if (propGroupIsReal(gs[i]) && gs[i].members.some(function(o){ return o.id === obId; })) return gs[i];
+  }
+  return null;
+}
+// An element's ACCEPTED estimate total, or null where nothing is accepted/worked.
+function propElemAcceptedTotal(survey, obId){
+  var E = ((survey.proposal || {}).elements || {})[obId]; if (!E || !E.accepted) return null;
+  var est = (E.estimates || {})[E.accepted]; if (!est) return null;
+  var t = pweOptionTotals(est);
+  return (t.sell > 0) ? t.sell : null;
+}
+// Group subtotal = accepted estimates across its elements. Job total = groups.
+function propGroupSubtotal(survey, g){
+  var sum = 0, any = false;
+  (g.members || []).forEach(function(o){
+    var v = propElemAcceptedTotal(survey, o.id);
+    if (v != null){ sum += v; any = true; }
+  });
+  return any ? sum : null;
+}
+function propJobTotal(survey){
+  var sum = 0, any = false;
+  propGroups(survey).forEach(function(g){
+    var v = propGroupSubtotal(survey, g);
+    if (v != null){ sum += v; any = true; }
+  });
+  return any ? sum : null;
+}
+// ---- desk actions (metadata writes only) ----
+function propGroupNewId(survey){
+  var G = propGroupStore(survey), n = 1;
+  while (G['g' + n]) n++;
+  return 'g' + n;
+}
+function propGroupAssign(obId, groupId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var o = propObjById(survey, obId); if (!o) return;
+  var G = propGroupStore(survey);
+  if (groupId === '__new'){
+    var gid = propGroupNewId(survey);
+    G[gid] = { name: o.name };            // seeded with this object's name, editable
+    o.b.groupId = gid;
+  } else if (!groupId){
+    delete o.b.groupId;                   // back to standing alone
+  } else {
+    o.b.groupId = groupId;
+  }
+  // drop any group that no longer holds an object, so the picker stays honest
+  var live = {};
+  propObjects(survey).forEach(function(x){ if (x.b && x.b.groupId) live[x.b.groupId] = true; });
+  Object.keys(G).forEach(function(k){ if (!live[k]) delete G[k]; });
+  srPersist(survey); proposalRender();
+}
+// The desk picker: only where there is more than one captured object (grouping is
+// meaningless with one) and never in site mode. Desk chrome, not client-facing.
+function propGroupPickerHtml(survey, o){
+  if (propObjects(survey).length < 2) return '';
+  if (typeof appMode !== 'undefined' && appMode === 'site') return '';
+  var gs = propGroups(survey).filter(function(g){ return !g.solo; });
+  var cur = (o.b && o.b.groupId) ? String(o.b.groupId) : '';
+  var h = '<span class="np-grp-ctl"><label>Building group</label>' +
+    '<select onchange="propGroupAssign(\'' + o.id + '\',this.value)">' +
+    '<option value=""' + (!cur ? ' selected' : '') + '>Not grouped</option>';
+  gs.forEach(function(g){
+    h += '<option value="' + srEsc(g.id) + '"' + (cur === g.id ? ' selected' : '') + '>' + srEsc(g.name || 'Group') + '</option>';
+  });
+  h += '<option value="__new">New group</option></select></span>';
+  return h;
+}
+// A real group presents as the building the client recognises, its elements beneath.
+function propGroupHeadHtml(survey, g){
+  var sub = propGroupSubtotal(survey, g);
+  return '<div class="np-grp-head">' +
+    '<span class="np-grp-name">' + srEsc(propGroupLabel(survey, g)) + '</span>' +
+    ((typeof appMode !== 'undefined' && appMode === 'site') ? '' :
+      '<input class="np-grp-rename" type="text" value="' + srEsc(g.name) + '" placeholder="Group name" oninput="propGroupRename(\'' + g.id + '\',this.value)">') +
+    '<span class="np-grp-meta">' + g.members.length + ' elements</span>' +
+    '<span class="np-grp-sub">' + (sub != null ? ('Group subtotal ' + proposalMoney(sub) + ' plus VAT') : 'No accepted estimate yet') + '</span>' +
+    '</div>';
+}
+function propGroupRename(groupId, name){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var G = propGroupStore(survey);
+  if (!G[groupId]) G[groupId] = {};
+  G[groupId].name = String(name || '');
+  srPersist(survey);                       // no re-render: keep focus in the field
+}
+
 function proposalOpen(id){
   proposalCurrentId = id || currentSurveyId;
   var survey = srLoadSurvey(proposalCurrentId);
@@ -11578,9 +11725,15 @@ function proposalRender(){
   if (!objs.length){ host.innerHTML = '<p>No captured objects yet. Capture the roof in Section B2; each captured object is an element and carries its own routes.</p>'; return; }
   var rates = proposalRates();
   var multi = objs.length > 1;
+  var groups = propGroups(survey);
+  var grouped = propGroupingInUse(survey);
   var h = '';
 
-  objs.forEach(function(o){
+  groups.forEach(function(g){
+    // a group holding more than one element presents as one building, its
+    // elements beneath it; a solo object presents exactly as it did before.
+    if (propGroupIsReal(g)) h += propGroupHeadHtml(survey, g);
+    g.members.forEach(function(o){
     var obId = o.id;
     var E = propElemState(survey, obId);
     var view = pweElemView(survey, obId) || survey;
@@ -11591,9 +11744,10 @@ function proposalRender(){
     // element heading only where there is more than one element, so a
     // single-object survey reads exactly as it did.
     if (multi){
-      h += '<div class="np-elem-head"><span class="np-elem-name">' + srEsc(o.name) + '</span>' +
+      h += '<div class="np-elem-head' + (propGroupIsReal(g) ? ' in-group' : '') + '"><span class="np-elem-name">' + srEsc(o.name) + '</span>' +
         '<span class="np-elem-meta">' + srEsc(PROPOSAL_FAMILY_LABELS[E.family]) + ' &middot; ' + srEsc(famInfo.source) +
-        (area != null && area > 0 ? (' &middot; ' + Math.round(area).toLocaleString('en-GB') + ' m²') : '') + '</span></div>';
+        (area != null && area > 0 ? (' &middot; ' + Math.round(area).toLocaleString('en-GB') + ' m²') : '') + '</span>' +
+        propGroupPickerHtml(survey, o) + '</div>';
     }
 
     // --- rates panel + family selector + route picker (the on-tool controls) ---
@@ -11679,7 +11833,18 @@ function proposalRender(){
       '</div>' + (acc ? pweAcceptedGateNote(survey, obId, acc) : '') + '</div>';
 
     h += '</div>';   // .np-proposal
-  });
+    });   // members
+  });     // groups
+
+  // Job total = groups. Shown only where grouping is in use, so a survey never
+  // touched by grouping is unchanged. Structure C remains the costing summing
+  // surface; this is the estimate-side reconciliation of the same shape.
+  if (grouped){
+    var jt = propJobTotal(survey);
+    h += '<div class="np-jobtotal"><span class="np-jt-lbl">Job total</span>' +
+      '<span class="np-jt-val">' + (jt != null ? (proposalMoney(jt) + ' plus VAT') : 'pending') + '</span>' +
+      '<span class="np-jt-note">accepted estimates across every group</span></div>';
+  }
 
   host.innerHTML = h;
 }
@@ -11728,7 +11893,9 @@ function proposalSetAccepted(obId, id){
     var view = pweElemView(survey, obId);
     var rd = view ? pweRouteReadiness(view, id) : { ready: true };
     if (!rd.ready){
-      showToast(propObjLabel(survey, obId) + ' &middot; not ready to present &middot; ' + rd.failures.join(' &middot; '), 'err');
+      var gg = (typeof propGroupOf === 'function') ? propGroupOf(survey, obId) : null;
+      showToast(propObjLabel(survey, obId) + (gg ? (' in ' + propGroupLabel(survey, gg)) : '') +
+        ' &middot; not ready to present &middot; ' + rd.failures.join(' &middot; '), 'err');
       proposalRender();
       return;
     }
@@ -12239,7 +12406,9 @@ function pweAcceptedGateNote(survey, obId, acc){
   var view = pweElemView(survey, obId); if (!view) return '';
   var rd = pweRouteReadiness(view, acc.id);
   if (rd.ready) return '';
+  var g0 = (typeof propGroupOf === 'function') ? propGroupOf(survey, obId) : null;
   return '<div class="np-accept-gate">' + srEsc(propObjLabel(survey, obId)) +
+    (g0 ? (' in ' + srEsc(propGroupLabel(survey, g0))) : '') +
     ' &middot; this route is not ready to present &middot; ' + pweReadinessText(rd) +
     '. Settle it before the figure goes to the client.</div>';
 }
