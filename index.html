@@ -4464,6 +4464,49 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-jt-lbl{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#cfcfce;}
     #view-proposal .np-jt-val{font-size:20px;font-weight:800;}
     #view-proposal .np-jt-note{margin-left:auto;font-size:11px;color:#cfcfce;}
+    /* construction readout on the element */
+    #view-proposal .np-cons{font-size:13px;color:#2f2f31;font-weight:600;}
+    #view-proposal .np-cons-sep{font-weight:400;color:#8a898b;}
+    #view-proposal .np-cons-asb{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;background:#fdecec;color:#a3282b;font-size:11px;font-weight:800;letter-spacing:.02em;}
+    #view-proposal .np-cons-grp{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;background:#eef1f4;color:#5b6470;font-size:11px;font-weight:700;}
+    /* abutment and soaker runs (desk) */
+    #view-proposal .ab-wrap{margin:10px 0 0;padding:12px 14px;border:1px solid #e2e3e5;border-radius:10px;background:#fafaf8;}
+    #view-proposal .ab-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+    #view-proposal .ab-title{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a898b;}
+    #view-proposal .ab-note{font-size:11.5px;color:#8a898b;}
+    #view-proposal .ab-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+    #view-proposal .ab-row input,#view-proposal .ab-row select{padding:7px 8px;border:1px solid #d4d4d0;border-radius:7px;font-family:inherit;font-size:13px;box-sizing:border-box;background:#fff;}
+    #view-proposal .ab-name{flex:1 1 160px;min-width:110px;}
+    #view-proposal .ab-kind{flex:0 0 auto;}
+    #view-proposal .ab-len{display:inline-flex;align-items:center;gap:4px;}
+    #view-proposal .ab-len input{width:78px;}
+    #view-proposal .ab-u{font-size:11.5px;color:#8a898b;}
+    #view-proposal .ab-note-in{flex:1 1 150px;min-width:100px;}
+    #view-proposal .ab-x{border:none;background:none;cursor:pointer;color:#a3282b;font-size:17px;line-height:1;padding:2px 6px;}
+    #view-proposal .ab-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px;}
+    #view-proposal .ab-add,#view-proposal .ab-ai{border:1px dashed #c9c9c5;background:#fff;border-radius:7px;padding:6px 11px;font-family:inherit;font-size:12.5px;cursor:pointer;color:#434244;}
+    #view-proposal .ab-ai{border-style:solid;border-color:#d7c9ea;background:#f7f3fd;color:#5b3f86;font-weight:600;}
+    #view-proposal .ab-ai:disabled{opacity:.55;cursor:default;}
+    #view-proposal .ab-sum{margin-left:auto;font-size:11.5px;color:#8a898b;text-align:right;}
+    /* Ask AI advisory panel */
+    #view-proposal .ab-ai-box{margin-top:10px;border:1px solid #d7c9ea;border-left:3px solid #7b5aa6;border-radius:9px;background:#faf8fe;padding:10px 13px;}
+    #view-proposal .ab-ai-off{border-color:#e2e3e5;border-left-color:#b9b8bb;background:#fafaf8;}
+    #view-proposal .ab-ai-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:7px;}
+    #view-proposal .ab-ai-tag{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7b5aa6;}
+    #view-proposal .ab-ai-cap{font-size:11px;color:#8a898b;flex:1 1 220px;}
+    #view-proposal .ab-ai-x{border:none;background:none;cursor:pointer;font-size:11.5px;color:#8a898b;text-decoration:underline;padding:0;}
+    #view-proposal .ab-ai-body{font-size:13px;line-height:1.55;color:#2f2f31;}
+    #view-proposal .ab-ai-body p{margin:0 0 7px;}
+    #view-proposal .ab-ai-sub{color:#6b6a6d;font-size:12px;}
+    #view-proposal .ab-ai-list{margin:4px 0 0;padding-left:18px;font-size:12px;color:#6b6a6d;}
+    /* access constraints, read-only beside the Access lines */
+    #view-proposal .ac-panel{margin:0 0 8px;padding:9px 12px;border:1px solid #e2e3e5;border-radius:9px;background:#f6f7f8;}
+    #view-proposal .ac-head{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a898b;margin-bottom:6px;}
+    #view-proposal .ac-chips{display:flex;flex-wrap:wrap;gap:6px;}
+    #view-proposal .ac-chip{font-size:11.5px;color:#4a4a4c;background:#fff;border:1px solid #e2e3e5;border-radius:12px;padding:3px 9px;}
+    #view-proposal .ac-chip b{color:#8a898b;font-weight:700;}
+    #view-proposal .ac-note{margin-top:6px;font-size:12px;color:#4a4a4c;font-style:italic;}
+    #view-proposal .ac-foot{margin-top:6px;font-size:11px;color:#8a898b;}
     #view-proposal .np-elem-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin:26px 0 10px;padding-bottom:7px;border-bottom:2px solid #434244;}
     #view-proposal .np-elem-name{font-size:16px;font-weight:800;color:#434244;}
     #view-proposal .np-elem-meta{font-size:11px;color:#8a898b;}
@@ -5235,6 +5278,98 @@ function fpWeatherSheetLabel(bu){
 }
 function fpLinerLabel(bu){ return (bu && bu.liner) ? fpBuildupOptLabel(FP_LINERS, bu.liner) : ''; }
 function buildupHasAsbestos(bu){ return !!(bu && (BUILDUP_ASBESTOS_VALUES.indexOf(bu.weatherSheet) !== -1 || BUILDUP_ASBESTOS_VALUES.indexOf(bu.liner) !== -1)); }
+
+// ===== CONSTRUCTION AND COVERING, PER ELEMENT ===============================
+// NO NEW LIST. The element's covering selection IS the build-up weather sheet
+// already captured on the building: FP_WEATHER_SHEETS is the single covering
+// vocabulary, already shared by capture, the report context, the costing brief
+// and the works-breakout asbestos trigger, and it already carries the asbestos
+// determination and the liner companion (the galvanised asbestos liner lesson).
+// elemCoveringOptions returns THAT array by reference, never a copy.
+function elemCoveringOptions(){ return FP_WEATHER_SHEETS; }
+function elemLinerOptions(){ return FP_LINERS; }
+// The fault side groups its faults by substrate family. That grouping is READ
+// from FAULT_TYPE_GROUPS itself (by its own group index), so the covering
+// vocabulary and the fault library share one spine rather than two lists that
+// have to be kept in step by hand.
+const ELEM_COVERING_FAULT_GROUP_IDX = {
+  'fibre-cement': 1, 'asbestos-cement-suspected': 1, 'asbestos-cement-confirmed': 1,
+  'metal-single-skin': 0, 'metal-built-up': 0, 'flat-membrane': 2
+};
+function elemCoveringFaultGroup(v){
+  var i = ELEM_COVERING_FAULT_GROUP_IDX[v];
+  if (i == null || typeof FAULT_TYPE_GROUPS === 'undefined') return '';
+  var g = FAULT_TYPE_GROUPS[i];
+  return (g && g.label) ? g.label : '';
+}
+// The element's construction as declared on site. "declared" is the gate every
+// consumer below keys on: where nothing has been selected, everything behaves
+// exactly as it did before this existed.
+function elemConstruction(b){
+  var bu = (b && b.roofBuildup) || null;
+  var declared = !!(bu && (bu.weatherSheet || bu.liner));
+  return { declared: declared,
+    covering: (bu && bu.weatherSheet) || '',
+    coveringLabel: fpWeatherSheetLabel(bu),
+    faultGroup: elemCoveringFaultGroup(bu && bu.weatherSheet),
+    liner: (bu && bu.liner) || '',
+    linerLabel: fpLinerLabel(bu),
+    linerKnown: !!(bu && bu.liner && bu.liner !== 'not-visible'),
+    asbestos: declared ? buildupHasAsbestos(bu) : null };
+}
+// Covering drives the family where it has been selected: only a flat membrane
+// reads flat; every other covering in the vocabulary is a pitched build-up.
+function elemFamilyFromCovering(b){
+  var c = elemConstruction(b);
+  if (!c.declared || !c.covering || c.covering === 'other') return null;
+  return (c.covering === 'flat-membrane') ? 'flat' : 'pitched';
+}
+
+// ===== ABUTMENT AND SOAKER RUNS (desk entry, per job) =======================
+// Jamie's decision: these vary per project and are keyed by hand, not derived.
+// Each entry names a run, its kind and its length; the kinds map one-to-one onto
+// the template lines that used to sit on the whole building perimeter.
+const ABUTMENT_KINDS = [
+  { v:'upstand', l:'Abutment upstand' },
+  { v:'soaker',  l:'Soaker' },
+  { v:'cover',   l:'Cover flashing against wall' },
+  { v:'other',   l:'Other' }
+];
+function abutKindLabel(v){ for (var i = 0; i < ABUTMENT_KINDS.length; i++){ if (ABUTMENT_KINDS[i].v === v) return ABUTMENT_KINDS[i].l; } return 'Other'; }
+function elemAbutments(b){ return (b && Array.isArray(b.abutments)) ? b.abutments : []; }
+// Summed runs by kind. NULL where nothing has been keyed for that kind, never
+// zero: a missing measurement must read as missing, exactly as any other basis.
+function elemAbutmentRuns(b){
+  var out = { upstand: null, soaker: null, cover: null, other: null, total: null, count: 0 };
+  elemAbutments(b).forEach(function(a){
+    var m = srNum(a && a.lengthM);
+    out.count++;
+    if (m == null || !(m > 0)) return;
+    var k = (a && a.kind) || 'other';
+    if (out[k] == null) out[k] = 0;
+    out[k] = Math.round((out[k] + m) * 100) / 100;
+    out.total = Math.round(((out.total || 0) + m) * 100) / 100;
+  });
+  return out;
+}
+
+// ===== ACCESS CONSTRAINTS (site picks, per SURVEY) ==========================
+// Held on the SURVEY, not the element: ground, obstructions, occupancy and
+// working hours are facts about the site the crew turns up to, not about one
+// roof, and Jamie keys them once rather than repeating them per building.
+// Presented at the desk beside the access and scaffold lines as context for his
+// judged figures. NOTHING here feeds any rate; the attendance model comes later.
+const ACCESS_CONSTRAINT_FIELDS = [
+  { k:'ground',      l:'Ground conditions', opts:['Hard standing throughout','Mixed hard and soft','Soft or unmade ground','Restricted or sloping ground'] },
+  { k:'obstructions',l:'Obstructions',      opts:['None significant','Overhead services','Live plant or machinery','Stored materials or vehicles','Trees or landscaping'] },
+  { k:'occupancy',   l:'Occupancy',         opts:['Building empty','Occupied, normal hours','Occupied, continuous operation','Sensitive occupancy (school, healthcare, food)'] },
+  { k:'hours',       l:'Working hours',     opts:['Normal working hours','Out of hours','Weekends only','Night work'] }
+];
+function accessConstraints(survey){ return (survey && survey.accessConstraints && typeof survey.accessConstraints === 'object') ? survey.accessConstraints : {}; }
+function accessConstraintsAny(survey){
+  var a = accessConstraints(survey);
+  return ACCESS_CONSTRAINT_FIELDS.some(function(f){ return !!(a[f.k] && String(a[f.k]).trim()); }) || !!(a.note && String(a.note).trim());
+}
 function fpBuildingLabelSafe(survey, i){
   var b = (survey && Array.isArray(survey.buildings)) ? survey.buildings[i] : null;
   return (typeof fpBuildingLabel === 'function') ? fpBuildingLabel(b, i) : ((b && b.name) ? b.name : ('Building ' + (i + 1)));
@@ -10899,9 +11034,20 @@ function estCapturedValleyRun(survey){
 // Asbestos-flagged area on any bay side, converted to tonnes at the SAME
 // 1.5t/100m² rule already documented on the standing Waste: asbestos
 // checklist item - not a new/invented rate, the existing one applied here.
+// RECONCILED WITH THE ELEMENT'S CONSTRUCTION SELECTION, one source of truth:
+//   selection absent          -> the captured bay-side flags alone, exactly as before
+//   selection says NO asbestos-> that building contributes nothing, even if a stale
+//                                bay flag survives; what the surveyor declared wins
+//   selection says asbestos   -> the bay flags where they exist (they are the more
+//                                precise figure and they agree), otherwise the
+//                                building's own captured roof area at the SAME
+//                                documented 1.5t per 100m², so the flag yields a figure
 function estCapturedAsbestosTonnes(survey){
   var areaSum = 0, any = false;
   (survey.buildings || []).forEach(function(b){
+    var c = elemConstruction(b);
+    if (c.declared && c.asbestos === false) return;               // declared clean: outranks stale flags
+    var before = areaSum;
     (b.bays || []).forEach(function(bay){
       var count = Math.max(0, Math.round(srNum(bay.count) || 0));
       var run = srNum(bay.runM);
@@ -10913,6 +11059,13 @@ function estCapturedAsbestosTonnes(survey){
         if (sl.len != null){ areaSum += sl.len * run * count; any = true; }
       });
     });
+    // declared asbestos with nothing flagged bay-side: fall back to this
+    // building's own captured roof area so the declaration still yields tonnage
+    if (c.declared && c.asbestos === true && areaSum === before){
+      var ca = (typeof fpBuildingCapturedArea === 'function') ? fpBuildingCapturedArea(b) : null;
+      var cav = (ca && ca.value != null) ? Number(ca.value) : null;
+      if (cav != null && cav > 0){ areaSum += cav; any = true; }
+    }
   });
   return any ? estRoundUp(areaSum * 0.015, 1) : null;
 }
@@ -11514,6 +11667,12 @@ function propObjFamily(survey, obId){
   var E = ((survey.proposal || {}).elements || {})[obId] || {};
   if (E.familyOverride && PROPOSAL_SYSTEMS[E.familyOverride]) return { family: E.familyOverride, source: 'set at the desk' };
   var o = propObjById(survey, obId);
+  // The covering selected on site outranks slope-pitch inference: what the roof
+  // IS beats what its geometry implies. A desk override still wins over both.
+  var byCovering = elemFamilyFromCovering(o && o.b);
+  if (byCovering && PROPOSAL_SYSTEMS[byCovering]){
+    return { family: byCovering, source: 'from the covering recorded on site (' + elemConstruction(o && o.b).coveringLabel.toLowerCase() + ')' };
+  }
   return propObjDeriveFamily(o && o.b);
 }
 // MIGRATION, LOSSLESS, ON READ. A survey-level proposal moves onto the element the
@@ -11766,6 +11925,17 @@ function proposalRender(){
     h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof area</span><span class="np-area">' +
       (area != null && area > 0 ? (Math.round(area).toLocaleString('en-GB') + ' m² <span class="np-area-src">(Section B derived total)</span>') : '<span class="np-pending">pending measure - add slopes in Section B2</span>') +
       '</span></div>';
+    // what the site recorded the roof to be made of; only where it was recorded,
+    // so a survey without the construction capture reads exactly as before
+    var cons = elemConstruction(o.b);
+    if (cons.declared){
+      h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Construction</span><span class="np-cons">' +
+        srEsc(cons.coveringLabel || 'covering not recorded') +
+        (cons.linerLabel ? (' <span class="np-cons-sep">over</span> ' + srEsc(cons.linerLabel)) : '') +
+        (cons.asbestos === true ? ' <span class="np-cons-asb">asbestos-containing</span>' : '') +
+        (cons.faultGroup ? ' <span class="np-cons-grp">' + srEsc(cons.faultGroup) + '</span>' : '') +
+        '</span><span class="np-ctl-note">Recorded on site in the roof build-up; it sets the family and switches the strip, asbestos and air-testing lines.</span></div>';
+    }
     h += '<div class="np-rates"><div class="np-rates-h">Indicative rates (£/m²) - business-wide, editable here</div><div class="np-rates-grid">';
     fam.forEach(function(sy){
       h += '<label class="np-rate"><span class="np-rate-name">' + srEsc(sy.name) + '</span>' +
@@ -11773,6 +11943,9 @@ function proposalRender(){
     });
     h += '</div></div>';
     h += '</div>';
+
+    // abutment and soaker runs: desk entry on the element, with the Ask AI mount
+    h += pweRenderAbutmentBlock(survey, obId);
 
     // --- THE SETTLED PRESENTATION ---
     var opts = E.routes.map(function(id){ return proposalSysById(E.family, id); }).filter(Boolean);
@@ -11944,7 +12117,10 @@ function pweWaste(strips){ return [
   // asbestos arises only where the existing covering is stripped; an over-clad
   // route leaves it in place, so its tonnage must not seed a disposal line
   pweDef('Waste','Asbestos','Waste','t', strips ? 'asbestosTonnes' : 'manual') ]; }
-function pweHS(felt){ var a = [ pweDef('H&S','Air testing','H&S','nr','manual'), pweDef('H&S','PPE','H&S','item','manual') ];
+// Air testing arises with the asbestos it clears: it seeds a visit only where the
+// element is DECLARED asbestos-containing and the route actually strips. An
+// over-clad route, or a covering declared clean, leaves it manual and null.
+function pweHS(felt, strips){ var a = [ pweDef('H&S','Air testing','H&S','nr', strips ? 'asbestosAirTest' : 'manual'), pweDef('H&S','PPE','H&S','item','manual') ];
   if (felt) a.push(pweDef('H&S','Hot works and fire watch','H&S','day','manual')); return a; }
 function pweLabour(){ return [
   pweDef('Labour and prelims','Site Manager','Labour','wk','manual'),
@@ -11965,15 +12141,16 @@ function pweConsFlat(){ return [
   pweDef('Consumables','Membrane cleaner and activator','Cons','nr','manual'),
   pweDef('Consumables','Gas for torch-on / fuel for welders','Cons','nr','manual') ]; }
 function pweCommon(kind, felt, strips){
-  return [].concat(pweAccess(), pweHire(), pweWaste(strips !== false), pweHS(felt), pweLabour(), pweWelfare(),
+  return [].concat(pweAccess(), pweHire(), pweWaste(strips !== false), pweHS(felt, strips !== false), pweLabour(), pweWelfare(),
     (kind === 'flat' ? pweConsFlat() : pweConsMetal())); }
 
 // --- metal flashing / drainage / fix (pitched + wall) ---
 // REBASED onto the captured runs: each flashing now draws its own derivation
-// rather than the whole building perimeter. Cap, Soaker and Upstand have no
-// captured run behind them, so they stay on the perimeter basis as before.
+// rather than the whole building perimeter. Soaker and Upstand now draw on the
+// abutment runs keyed at the desk; Cap alone has no run behind it.
 function pweMetalFlashing(){
-  var runBasis = { 'Internal Ridge':'ridge', 'External Ridge':'ridge', 'Eave':'eave', 'Parapet':'parapet', 'Barge':'barge' };
+  var runBasis = { 'Internal Ridge':'ridge', 'External Ridge':'ridge', 'Eave':'eave', 'Parapet':'parapet', 'Barge':'barge',
+    'Soaker':'abutSoaker', 'Upstand':'abutUpstand' };
   return [ 'Internal Ridge','External Ridge','Cap','Eave','Parapet','Barge','Soaker','Upstand'
   ].map(function(n){ return pweDef('Flashing and detailing', n, 'Flashing', 'm', runBasis[n] || 'linear'); })
   .concat([ pweDef('Flashing and detailing','Fabrication','Flashing','item','manual') ]); }
@@ -11994,14 +12171,14 @@ function pweMetalFix(){ return [
 
 // --- flat shared detailing / drainage / fix-bond ---
 function pweFlatDetailing(){ return [
-  pweDef('Flashing and detailing','Upstands and kerbs','Flashing','m','linear'),
+  pweDef('Flashing and detailing','Upstands and kerbs','Flashing','m','abutUpstand'),
   pweDef('Flashing and detailing','Drip and eaves trim','Flashing','m','eave'),
   pweDef('Flashing and detailing','Parapet capping and coping','Flashing','m','parapet'),
   pweDef('Flashing and detailing','Termination and edge bar','Flashing','m','linear'),
   pweDef('Flashing and detailing','Pipe collars and penetration seals','Flashing','nr','manual'),
   pweDef('Flashing and detailing','Rooflight kerb detailing','Flashing','nr','rooflightCount'),
   pweDef('Flashing and detailing','Movement and expansion joint','Flashing','m','linear'),
-  pweDef('Flashing and detailing','Wall abutment and chase flashing','Flashing','m','linear') ]; }
+  pweDef('Flashing and detailing','Wall abutment and chase flashing','Flashing','m','abutCover') ]; }
 function pweFlatDrainage(){ return [
   pweDef('Drainage','Rainwater outlets and sumps','Drainage','nr','downpipeCount'),
   pweDef('Drainage','Overflow and emergency outlets','Drainage','nr','manual'),
@@ -12236,6 +12413,13 @@ function pweSeedUnits(basis, ctx){
   if (basis === 'rooflightArea')     return pos(m.rooflightM2);
   if (basis === 'rooflightCount')    return pos(ctx.rooflightCountN);
   if (basis === 'asbestosTonnes')    return pos(m.asbestosT);
+  // abutment runs keyed at the desk: null where none have been keyed, never the
+  // building perimeter these lines used to borrow and never zero
+  if (basis === 'abutUpstand')       return ctx.abut ? pos(ctx.abut.upstand) : null;
+  if (basis === 'abutSoaker')        return ctx.abut ? pos(ctx.abut.soaker) : null;
+  if (basis === 'abutCover')         return ctx.abut ? pos(ctx.abut.cover) : null;
+  // one air test visit where the covering is declared asbestos and the route strips
+  if (basis === 'asbestosAirTest')   return ctx.asbestosDeclared ? 1 : null;
   if (basis === 'downpipeCount')     return pos(m.outletCountNr);
   if (basis === 'downpipeDrop')      return pos(ctx.downpipeDropM);
   // purlin grid (desk input): roof grid for pitched built-up / over-clad, the
@@ -12274,6 +12458,10 @@ function pweSeedEstimate(survey, routeId){
     perimeter: pwePerimeter(survey),
     scaffoldArea: pweScaffoldArea(survey),
     m: m,
+    // the element's own abutment runs and its declared construction; on the
+    // element view survey.buildings holds exactly this element
+    abut: elemAbutmentRuns((survey.buildings || [])[0]),
+    asbestosDeclared: (function(){ var c = elemConstruction((survey.buildings || [])[0]); return c.declared && c.asbestos === true; })(),
     downpipeDropM: pweDownpipeDrop(survey, m),
     // estDeriveMeasurements sets rooflight AREA or COUNT, never both; a count-based
     // line still needs the count when the area resolved, so fall back to the raw
@@ -12463,6 +12651,19 @@ function pweBuildupHtml(idNs, f){
       '<div class="cl-bu-line tot"><span>Labour total</span><span id="' + idNs + '-lt">' + srMoney(f.labTot) + '</span></div></div>';
 }
 
+// Read-only presentation of the site's access constraints, rendered inside the
+// Access group. Silent where nothing was captured, so an untouched survey is
+// unchanged. NO ARITHMETIC READS THIS; the attendance model comes later.
+function accessConstraintsPanelHtml(survey){
+  if (!accessConstraintsAny(survey)) return '';
+  var a = accessConstraints(survey);
+  var bits = ACCESS_CONSTRAINT_FIELDS.filter(function(f){ return a[f.k] && String(a[f.k]).trim(); })
+    .map(function(f){ return '<span class="ac-chip"><b>' + srEsc(f.l) + '</b> ' + srEsc(a[f.k]) + '</span>'; });
+  var note = (a.note && String(a.note).trim()) ? '<div class="ac-note">' + srEsc(a.note) + '</div>' : '';
+  return '<div class="ac-panel"><div class="ac-head">Access constraints recorded on site</div>' +
+    '<div class="ac-chips">' + bits.join('') + '</div>' + note +
+    '<div class="ac-foot">Context for the access and scaffold figures below. These do not feed any rate.</div></div>';
+}
 function pweRenderEditor(survey, obId, routeId){
   var view = pweElemView(survey, obId) || survey;
   var K = pweKey(obId, routeId);
@@ -12499,6 +12700,9 @@ function pweRenderEditor(survey, obId, routeId){
       '<span class="cl-grp-name">' + srEsc(el.name) + ' <span class="cl-grp-meta">(' + e.live + ' line' + (e.live === 1 ? '' : 's') + ')</span></span>' +
       '<span class="cl-grp-sub" id="pwe-elt-' + K + '-' + el.id + '">' + srMoney(e.sell) + '</span></div>';
     h += '<div class="cl-grp-body">';
+    // the site's access constraints, read-only, beside the access and scaffold
+    // lines they inform. Context for a judged figure; consumed by no arithmetic.
+    if (el.name === 'Access') h += accessConstraintsPanelHtml(survey);
     (el.rows || []).forEach(function(r){
       var f = estRowFigures(r, est.rates);
       var d = 'data-obid="' + obId + '" data-rid="' + routeId + '" data-elid="' + el.id + '" data-rowid="' + r.id + '"';
@@ -12618,6 +12822,186 @@ function pweRenderPurlinBlock(survey, obId, routeId, est){
   }
   return h + '</div>';
 }
+// ===== ABUTMENT ENTRY, DESK SURFACE ========================================
+// Desk furniture: never rendered in site mode, never on a condition journey.
+// Entries live on the captured object, so every route of this element draws on
+// the same runs. Editing a run rewrites the abut-based seeded units in place,
+// exactly as the purlin grid already does for bar and bracket.
+function abutApply(survey, obId){
+  var runs = elemAbutmentRuns((propObjById(survey, obId) || {}).b);
+  var map = { abutUpstand: runs.upstand, abutSoaker: runs.soaker, abutCover: runs.cover };
+  var store = ((survey.proposal || {}).elements || {})[obId];
+  var ests = (store && store.estimates) || {};
+  Object.keys(ests).forEach(function(rid){
+    ((ests[rid] || {}).elements || []).forEach(function(el){
+      (el.rows || []).forEach(function(r){
+        if (Object.prototype.hasOwnProperty.call(map, r.basis)) r.units = map[r.basis];
+      });
+    });
+  });
+}
+function abutEnsure(survey, obId){
+  var o = propObjById(survey, obId); if (!o || !o.b) return null;
+  if (!Array.isArray(o.b.abutments)) o.b.abutments = [];
+  return o.b.abutments;
+}
+function abutAdd(obId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var list = abutEnsure(survey, obId); if (!list) return;
+  list.push({ id: estNewId('ab'), name: 'Abutment ' + (list.length + 1), kind: 'upstand', lengthM: null, note: '' });
+  abutApply(survey, obId); srPersist(survey); proposalRender();
+}
+function abutRemove(obId, abId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var list = abutEnsure(survey, obId); if (!list) return;
+  var i = list.findIndex(function(a){ return a.id === abId; });
+  if (i < 0) return;
+  list.splice(i, 1);
+  abutApply(survey, obId); srPersist(survey); proposalRender();
+}
+// rerender only for the kind select (which moves the run between bases); text and
+// number inputs keep focus and re-apply without a repaint
+function abutSet(obId, abId, field, value, rerender){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var list = abutEnsure(survey, obId); if (!list) return;
+  var a = list.filter(function(x){ return x.id === abId; })[0]; if (!a) return;
+  if (field === 'lengthM'){ var n = Number(value); a.lengthM = (value !== '' && isFinite(n) && n > 0) ? n : null; }
+  else a[field] = value;
+  abutApply(survey, obId); srPersist(survey);
+  if (rerender) proposalRender(); else abutRefreshSummary(obId);
+}
+function abutRefreshSummary(obId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var host = document.getElementById('abut-sum-' + obId); if (!host) return;
+  host.innerHTML = abutSummaryHtml(elemAbutmentRuns((propObjById(survey, obId) || {}).b));
+}
+function abutSummaryHtml(runs){
+  if (!runs.count) return 'No runs keyed. The upstand, soaker and cover-flashing lines seed nothing until they are.';
+  var bits = [];
+  ['upstand','soaker','cover','other'].forEach(function(k){
+    if (runs[k] != null) bits.push(abutKindLabel(k) + ' ' + runs[k] + ' m');
+  });
+  return bits.length ? bits.join(' &middot; ') : 'Runs keyed but no lengths yet.';
+}
+function pweRenderAbutmentBlock(survey, obId){
+  if (typeof appMode !== 'undefined' && appMode === 'site') return '';       // desk furniture only
+  if (typeof pweGateApplies === 'function' && !pweGateApplies(survey)) return '';
+  var o = propObjById(survey, obId); if (!o) return '';
+  var list = elemAbutments(o.b);
+  var runs = elemAbutmentRuns(o.b);
+  var h = '<div class="ab-wrap"><div class="ab-head"><span class="ab-title">Abutments and soakers</span>' +
+    '<span class="ab-note">Keyed per job. These runs seed the upstand, soaker and cover-flashing lines on every route of this element.</span></div>';
+  list.forEach(function(a){
+    h += '<div class="ab-row">' +
+      '<input type="text" class="ab-name" value="' + srEsc(a.name || '') + '" placeholder="Name this run" ' +
+        'oninput="abutSet(\'' + obId + '\',\'' + a.id + '\',\'name\',this.value,false)">' +
+      '<select class="ab-kind" onchange="abutSet(\'' + obId + '\',\'' + a.id + '\',\'kind\',this.value,true)">' +
+        ABUTMENT_KINDS.map(function(k){ return '<option value="' + k.v + '"' + (a.kind === k.v ? ' selected' : '') + '>' + srEsc(k.l) + '</option>'; }).join('') +
+      '</select>' +
+      '<span class="ab-len"><input type="number" step="0.01" min="0" value="' + (a.lengthM != null ? a.lengthM : '') + '" placeholder="0" ' +
+        'oninput="abutSet(\'' + obId + '\',\'' + a.id + '\',\'lengthM\',this.value,false)"><span class="ab-u">m</span></span>' +
+      '<input type="text" class="ab-note-in" value="' + srEsc(a.note || '') + '" placeholder="Note (optional)" ' +
+        'oninput="abutSet(\'' + obId + '\',\'' + a.id + '\',\'note\',this.value,false)">' +
+      '<button class="ab-x" title="Remove this run" onclick="abutRemove(\'' + obId + '\',\'' + a.id + '\')">&times;</button>' +
+    '</div>';
+  });
+  h += '<div class="ab-foot"><button class="ab-add" onclick="abutAdd(\'' + obId + '\')">+ Add abutment run</button>' +
+    '<button class="ab-ai" id="ab-ai-btn-' + obId + '" onclick="askAiAbutments(\'' + obId + '\')">Ask AI about this detail</button>' +
+    '<span class="ab-sum" id="abut-sum-' + obId + '">' + abutSummaryHtml(runs) + '</span></div>';
+  h += '<div class="ab-ai-panel" id="ab-ai-' + obId + '">' + askAiPanelHtml(obId) + '</div>';
+  return h + '</div>';
+}
+
+// ===== ASK AI, FIRST MOUNT (abutment detailing only) =======================
+// Button-press only, one call in flight at a time, held in a session variable and
+// never persisted, never written to any client-facing field or document. The
+// Worker's ask endpoint does not exist yet (nova-proxy exposes no free-text
+// route), so this ships behind a graceful unavailable state and will light up
+// the moment the endpoint lands at the contract documented below.
+var askAiInFlight = {};
+var askAiSession = {};      // session only: cleared by a reload, never persisted
+function askAiContext(survey, obId){
+  var o = propObjById(survey, obId);
+  var view = pweElemView(survey, obId) || survey;
+  var c = elemConstruction(o && o.b);
+  var fam = propObjFamily(survey, obId);
+  var m = (typeof estDeriveMeasurements === 'function') ? estDeriveMeasurements(view) : {};
+  var runs = elemAbutmentRuns(o && o.b);
+  return {
+    element: (o && o.name) || '',
+    covering: c.coveringLabel || null, coveringGroup: c.faultGroup || null,
+    asbestos: c.asbestos, liner: c.linerLabel || null,
+    family: fam.family, familySource: fam.source,
+    geometry: { roofAreaM2: proposalRoofArea(view), perimeterM: pwePerimeter(view),
+      ridgeM: m.ridgeLinM != null ? m.ridgeLinM : null, valleyM: m.valleyLinM != null ? m.valleyLinM : null,
+      bargeM: m.bargeLinM != null ? m.bargeLinM : null, eaveM: m.eaveFlashLinM != null ? m.eaveFlashLinM : null,
+      parapetM: m.parapetLinM != null ? m.parapetLinM : null, wallAreaM2: m.wallAreaM2 != null ? m.wallAreaM2 : null },
+    abutments: elemAbutments(o && o.b).map(function(a){
+      return { name: a.name || '', kind: abutKindLabel(a.kind), lengthM: srNum(a.lengthM), note: a.note || '' }; }),
+    runsByKind: { upstandM: runs.upstand, soakerM: runs.soaker, coverFlashingM: runs.cover, otherM: runs.other }
+  };
+}
+function askAiBoxHtml(obId, state, body){
+  if (state === 'idle') return '';
+  var head = '<div class="ab-ai-head"><span class="ab-ai-tag">AI aid</span>' +
+    '<span class="ab-ai-cap">A considered view, not a survey finding. Nothing here reaches the client report or any document, and it is not saved.</span>' +
+    '<button class="ab-ai-x" onclick="askAiDismiss(\'' + obId + '\')">Dismiss</button></div>';
+  return '<div class="ab-ai-box ab-ai-' + state + '">' + head + '<div class="ab-ai-body">' + body + '</div></div>';
+}
+// survives a re-render within the session; a reload clears it, as it must
+function askAiPanelHtml(obId){
+  var s = askAiSession[obId];
+  return s ? askAiBoxHtml(obId, s.state, s.body) : '';
+}
+function askAiRender(obId, state, body){
+  var host = document.getElementById('ab-ai-' + obId); if (!host) return;
+  host.innerHTML = askAiBoxHtml(obId, state, body);
+}
+function askAiDismiss(obId){ delete askAiSession[obId]; askAiRender(obId, 'idle', ''); }
+function askAiAbutments(obId){
+  if (askAiInFlight[obId]) return;                                  // one in flight at a time
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var btn = document.getElementById('ab-ai-btn-' + obId);
+  askAiInFlight[obId] = true; if (btn){ btn.disabled = true; btn.textContent = 'Asking...'; }
+  askAiRender(obId, 'wait', 'Gathering this element’s context and asking...');
+  var ctx = askAiContext(survey, obId);
+  var done = function(state, body){
+    askAiInFlight[obId] = false;
+    if (btn){ btn.disabled = false; btn.textContent = 'Ask AI about this detail'; }
+    askAiSession[obId] = { state: state, body: body };
+    askAiRender(obId, state, body);
+  };
+  var payload = { purpose: 'abutment-detail', context: ctx,
+    question: 'Given this roof element, its covering and its abutment runs, give a considered view on how the abutments should be detailed and what still needs measuring on site.' };
+  var req;
+  try {
+    req = fetch(WORKER_BASE + '/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload) });
+  } catch (e){ req = Promise.reject(e); }
+  req.then(function(resp){
+    if (!resp.ok) return resp.text().then(function(){ throw new Error('HTTP ' + resp.status); });
+    return resp.json();
+  }).then(function(j){
+    var text = (j && (j.answer || j.text || j.reply)) ? String(j.answer || j.text || j.reply) : '';
+    if (!text) throw new Error('empty response');
+    done('ok', '<p>' + srEsc(text).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>');
+  }).catch(function(err){
+    // GRACEFUL UNAVAILABLE: the endpoint is not built yet. Show what would have
+    // been asked so the surveyor still gets the checklist value, and say plainly
+    // why no view came back.
+    var lines = ctx.abutments.length
+      ? ctx.abutments.map(function(a){ return '<li>' + srEsc(a.name || 'Unnamed run') + ' &middot; ' + srEsc(a.kind) + (a.lengthM != null ? (' &middot; ' + a.lengthM + ' m') : ' &middot; length not keyed') + '</li>'; }).join('')
+      : '<li>No abutment runs keyed yet.</li>';
+    done('off',
+      '<p><b>The AI aid is not available yet.</b> The tool asked the Worker for a view and it has no ask endpoint to answer on (' + srEsc(String(err && err.message || 'unavailable')) + '). Nothing was sent to a client and nothing was saved.</p>' +
+      '<p class="ab-ai-sub">This is the context it would carry: ' + srEsc(ctx.element) + ', ' +
+      srEsc(ctx.covering || 'covering not recorded') + ', ' + srEsc(ctx.family) + ' family' +
+      (ctx.geometry.roofAreaM2 ? (', ' + Math.round(ctx.geometry.roofAreaM2) + ' m²') : '') +
+      (ctx.asbestos === true ? ', asbestos-containing' : (ctx.asbestos === false ? ', declared free of asbestos' : '')) + '.</p>' +
+      '<ul class="ab-ai-list">' + lines + '</ul>');
+  });
+}
+
 function pweReseed(obId, routeId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   if (!window.confirm('Rebuild this estimate from the system template? Your edits to this route are replaced.')) return;
@@ -13076,6 +13460,11 @@ function fpRender(){
   // building-level attributes (roof form above; datum/elevations via the plan).
   h += fpRenderBuildup(survey);
 
+  // Access constraints: site picks about the SITE the crew turns up to, held on
+  // the survey rather than the building. Context for Jamie's judged access and
+  // scaffold figures; nothing here feeds a rate.
+  h += fpRenderAccessConstraints(survey);
+
   // place / done
   h += '<div class="fp-actions">' +
     '<button class="fp-place-btn"' + (fp ? '' : ' disabled') + ' onclick="fpPlace()">Place footprint</button>' +
@@ -13110,6 +13499,33 @@ function fpRenderBuildup(survey){
   h += '</div>';
   return h;
 }
+// Access constraints capture: site-friendly picks plus a free note, persisted on
+// survey.accessConstraints. Estimate journeys only; a condition survey never
+// costs the access, so it never asks.
+function fpRenderAccessConstraints(survey){
+  if (typeof pweGateApplies === 'function' && !pweGateApplies(survey)) return '';
+  var a = accessConstraints(survey);
+  var h = '<div class="fp-buildup fp-access"><div class="fp-tools-lbl">Access constraints</div>';
+  ACCESS_CONSTRAINT_FIELDS.forEach(function(f){
+    h += '<div class="fp-bu-field"><label class="fp-bu-label">' + escapeHtml(f.l) + '</label>' +
+      '<select class="fp-bu-select" onchange="fpAccessSet(\'' + f.k + '\', this.value, false)">' +
+      '<option value="">Select...</option>' +
+      f.opts.map(function(o){ return '<option value="' + escapeHtml(o) + '"' + (a[f.k] === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') +
+      '</select></div>';
+  });
+  h += '<div class="fp-bu-field"><label class="fp-bu-label">Access note (optional)</label>' +
+    '<textarea class="fp-bu-input" rows="2" placeholder="Anything the crew needs to know about getting on and off" oninput="fpAccessSet(\'note\', this.value, false)">' + escapeHtml(a.note || '') + '</textarea></div>';
+  h += '<div class="fp-bu-label" style="margin:0;">Context for the access and scaffold figures at the desk. Nothing here changes a rate.</div>';
+  return h + '</div>';
+}
+function fpAccessSet(field, value, rerender){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  if (!survey.accessConstraints || typeof survey.accessConstraints !== 'object') survey.accessConstraints = {};
+  survey.accessConstraints[field] = value;
+  srPersist(survey);
+  if (rerender) fpRender();
+}
+
 function fpBuildupSet(field, value, rerender){
   var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
   var b = fpEnsureBuilding(survey);
