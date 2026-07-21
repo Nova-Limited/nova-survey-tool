@@ -4514,6 +4514,53 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .ab-title{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a898b;}
     #view-proposal .ab-note{font-size:11.5px;color:#8a898b;}
     #view-proposal .ab-await{margin:0 0 8px;padding:7px 11px;background:#fff8ec;border:1px solid #f0d9b0;border-left:3px solid #F7901E;border-radius:7px;font-size:12px;font-weight:700;color:#7a5a1e;}
+    #view-proposal .ab-owned{margin:0 0 8px;padding:7px 11px;background:#eef1f4;border:1px solid #dfe4e9;border-radius:7px;}
+    #view-proposal .ab-owned-h{font-size:11.5px;font-weight:700;color:#5b6470;margin-bottom:3px;}
+    #view-proposal .ab-owned-row{font-size:11.5px;color:#6b7480;}
+    /* junctions (part 3) */
+    #view-proposal .jct-wrap{margin:8px 0 14px;padding:12px 14px;border:1px solid #dfe4e9;border-left:3px solid #5b6470;border-radius:10px;background:#f8fafb;}
+    #view-proposal .jct-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+    #view-proposal .jct-title{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#5b6470;}
+    #view-proposal .jct-note{font-size:11.5px;color:#8a898b;}
+    #view-proposal .jct-prop{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 10px;margin-bottom:7px;background:#fff;border:1px dashed #b9c4cf;border-radius:7px;}
+    #view-proposal .jct-prop-txt{font-size:12px;color:#434244;flex:1 1 200px;}
+    #view-proposal .jct-accept{border:none;background:#5b6470;color:#fff;border-radius:6px;padding:5px 12px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;}
+    #view-proposal .jct-row{padding:10px 12px;margin-bottom:8px;background:#fff;border:1px solid #e2e3e5;border-radius:8px;}
+    #view-proposal .jct-row.confirmed{border-color:#cfe6d4;background:#f9fdfa;}
+    #view-proposal .jct-r-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:5px;}
+    #view-proposal .jct-r-els{font-weight:700;font-size:13px;color:#2f2f31;}
+    #view-proposal .jct-x{color:#8a898b;font-weight:400;}
+    #view-proposal .jct-tag-ok{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#2f7a3f;background:#e7f4ea;border-radius:10px;padding:2px 8px;}
+    #view-proposal .jct-tag-un{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#b26b00;background:#fdeecb;border-radius:10px;padding:2px 8px;}
+    #view-proposal .jct-del{margin-left:auto;border:none;background:none;color:#a3282b;font-size:17px;line-height:1;cursor:pointer;padding:0 4px;}
+    #view-proposal .jct-facts{font-size:11.5px;color:#6b6a6d;margin-bottom:7px;line-height:1.5;}
+    #view-proposal .jct-pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+    #view-proposal .jct-pick-lbl,#view-proposal .jct-len-lbl{font-size:11px;font-weight:700;color:#8a898b;text-transform:uppercase;letter-spacing:.05em;}
+    #view-proposal .jct-pick select,#view-proposal .jct-len input,#view-proposal .jct-other{padding:7px 8px;border:1px solid #d4d4d0;border-radius:7px;font-family:inherit;font-size:13px;background:#fff;}
+    #view-proposal .jct-other{width:100%;box-sizing:border-box;margin-bottom:6px;}
+    #view-proposal .jct-cands{font-size:11.5px;color:#5b6470;}
+    #view-proposal .jct-cands-none{color:#8a898b;font-style:italic;}
+    #view-proposal .jct-len{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+    #view-proposal .jct-len input{width:90px;}
+    #view-proposal .jct-u{font-size:11.5px;color:#8a898b;}
+    #view-proposal .jct-prov{font-size:11px;font-weight:700;color:#b26b00;background:#fff8ec;border-radius:10px;padding:2px 8px;}
+    #view-proposal .jct-cap{font-size:11px;font-weight:700;color:#2f7a3f;}
+    #view-proposal .jct-none{font-size:11px;color:#8a898b;}
+    #view-proposal .jct-seed{font-size:11.5px;color:#434244;background:#f2f4f6;border-radius:6px;padding:5px 9px;margin-bottom:6px;}
+    #view-proposal .jct-noteb{width:100%;box-sizing:border-box;padding:7px 8px;border:1px solid #d4d4d0;border-radius:7px;font-family:inherit;font-size:12.5px;margin-bottom:6px;}
+    #view-proposal .jct-foot{display:flex;gap:8px;flex-wrap:wrap;}
+    #view-proposal .jct-confirm{border:none;background:#F7901E;color:#fff;border-radius:7px;padding:6px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+    #view-proposal .jct-ai{border:1px solid #d7c9ea;background:#f7f3fd;color:#5b3f86;border-radius:7px;padding:6px 12px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+    #view-proposal .jct-ai:disabled{opacity:.55;cursor:default;}
+    /* junction site sheet */
+    .walk-jct-sheet{max-height:80vh;overflow-y:auto;}
+    .walk-jct-row{padding:9px 0;border-bottom:1px solid #f0efe9;display:flex;flex-direction:column;gap:6px;}
+    .walk-jct-row.confirmed{opacity:.7;}
+    .walk-jct-h{font-size:0.9rem;font-weight:600;color:var(--ink);}
+    .walk-jct-prov{font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#b26b00;background:#fff8ec;border-radius:9px;padding:1px 7px;}
+    .walk-jct-kind{padding:9px;border:1px solid var(--rule);border-radius:8px;font-family:inherit;font-size:0.95rem;}
+    .walk-jct-confirm{border:none;background:#F7901E;color:#fff;border-radius:8px;padding:9px 14px;font-family:inherit;font-size:0.9rem;font-weight:700;cursor:pointer;}
+    .walk-jct-ok{font-size:0.8rem;font-weight:700;color:#2f7a3f;}
     #view-proposal .ab-row-await{background:#fffdf6;border-radius:7px;padding:3px;margin:0 -3px 7px;}
     #view-proposal .ab-flagtag{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#b26b00;background:#fdeecb;border-radius:10px;padding:2px 7px;white-space:nowrap;}
     #view-proposal .ab-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
@@ -11941,7 +11988,9 @@ function propGroupHeadHtml(survey, g){
       '<input class="np-grp-rename" type="text" value="' + srEsc(g.name) + '" placeholder="Group name" oninput="propGroupRename(\'' + g.id + '\',this.value)">') +
     '<span class="np-grp-meta">' + g.members.length + ' elements</span>' +
     '<span class="np-grp-sub">' + (sub != null ? ('Group subtotal ' + proposalMoney(sub) + ' plus VAT') : 'No accepted estimate yet') + '</span>' +
-    '</div>';
+    '</div>' +
+    // junctions belong to the group: where two of its elements meet (part 3)
+    ((typeof jctRenderGroupBlock === 'function') ? jctRenderGroupBlock(survey, g) : '');
 }
 function propGroupRename(groupId, name){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
@@ -12899,6 +12948,9 @@ function pweBuild(obId, routeId){
   var store = pweEstimatesStore(survey, obId);
   // seeded through the ELEMENT view, so quantities come from this element's own derivations
   if (!store[routeId]) store[routeId] = pweSeedEstimate(pweElemView(survey, obId) || survey, routeId);
+  // junction lines are CONDITIONAL (a survey with no junctions gets none, so it
+  // stays byte-identical); reconcile them onto the fresh estimate.
+  if (typeof jctApply === 'function') jctApply(survey, obId);
   pweOpen[pweKey(obId, routeId)] = true;
   srPersist(survey); proposalRender();
 }
@@ -13074,6 +13126,372 @@ function abutSummaryHtml(runs){
   });
   return bits.length ? bits.join(' &middot; ') : 'Runs keyed but no lengths yet.';
 }
+// ===== JUNCTIONS (Step 2b part 3) ==========================================
+// Where two GROUPED objects meet, the shared edge is a junction. One record
+// beneath both doors: discovered from coordinate traces (part 1) at the desk, or
+// created by hand for objects captured without traces; confirmed on site through
+// the walk's reserved step. Lives at survey level (a junction spans two elements).
+// KINDS -> the priced line each seeds, the group it lands in, and WHICH ELEMENT
+// receives it ("the detail belongs to the element whose work it is"):
+//   secret gutter / box gutter -> LOWER element: the gutter sits in the lower
+//     roof plane and drains that slope, so it is the lower roof's work.
+//   stepped flashing / cover   -> LOWER element: dressed over the lower roof and
+//     up the higher face; it is the lower roof's weathering.
+//   parapet                    -> level-to-level, no higher side, so it is booked
+//     once, deterministically on the junction's FIRST element.
+//   gable cladding             -> HIGHER element: the exposed wall face between
+//     the two roof levels belongs to the taller structure.
+// Where heights are unknown there is no higher/lower, so assignment falls to the
+// first element, deterministically.
+var JUNCTION_KINDS = [
+  { v:'secret-gutter',    l:'Secret gutter',    group:'Drainage',                 cat:'Drainage', item:'Secret gutter (junction)',    uom:'m',  basis:'jctSecretGutter', assign:'lower'  },
+  { v:'box-gutter',       l:'Box gutter',       group:'Drainage',                 cat:'Drainage', item:'Box gutter (junction)',       uom:'m',  basis:'jctBoxGutter',    assign:'lower'  },
+  { v:'stepped-flashing', l:'Stepped flashing', group:'Flashing and detailing',   cat:'Flashing', item:'Stepped flashing (junction)', uom:'m',  basis:'jctStepped',      assign:'lower'  },
+  { v:'cover-flashing',   l:'Cover flashing',   group:'Flashing and detailing',   cat:'Flashing', item:'Junction cover flashing',     uom:'m',  basis:'jctCover',        assign:'lower'  },
+  { v:'parapet',          l:'Parapet',          group:'Flashing and detailing',   cat:'Flashing', item:'Parapet (junction)',          uom:'m',  basis:'jctParapet',      assign:'first'  },
+  { v:'gable-cladding',   l:'Gable cladding',   group:'Covering and build-up',    cat:'Sheeting', item:'Gable cladding (junction)',   uom:'m²', basis:'jctGable',        assign:'higher' },
+  { v:'other',            l:'Other',            group:'Flashing and detailing',   cat:'Flashing', item:'Junction detail',             uom:'m',  basis:'jctOther',        assign:'first'  }
+];
+function jctKindDef(v){ for (var i = 0; i < JUNCTION_KINDS.length; i++){ if (JUNCTION_KINDS[i].v === v) return JUNCTION_KINDS[i]; } return null; }
+function jctKindLabel(v){ var d = jctKindDef(v); return d ? d.l : ''; }
+function jctList(survey){ return (survey && Array.isArray(survey.junctions)) ? survey.junctions : []; }
+function jctEnsure(survey){ if (!Array.isArray(survey.junctions)) survey.junctions = []; return survey.junctions; }
+function jctById(survey, id){ return jctList(survey).filter(function(j){ return j.id === id; })[0] || null; }
+// A junction is SETTLED once a detail is picked; only a settled junction seeds.
+function jctIsSettled(j){ return !!(j && j.kind); }
+// Unconfirmed junctions - the day-sheet clause and the walk step read this.
+function flowSurveyJunctions(survey){ return jctList(survey).filter(function(j){ return !j.confirmed; }); }
+
+// --- shared coordinate space -----------------------------------------------
+// Both objects projected about ONE common latitude, so their edges live in the
+// same metric frame and coincidence is a straight geometric test.
+function jctProjector(survey){
+  var lats = [], any = false;
+  ((survey && survey.buildings) || []).forEach(function(b){
+    var fp = b && b.footprint;
+    if (fp && Array.isArray(fp.corners)) fp.corners.forEach(function(c){ if (c && c.lat != null){ lats.push(c.lat); any = true; } });
+  });
+  if (!any) return null;
+  var lat0 = (lats.reduce(function(a, c){ return a + c; }, 0) / lats.length) * Math.PI / 180;
+  var k = Math.PI / 180 * FP_EARTH_R;
+  return function(c){ return { x: c.lng * k * Math.cos(lat0), y: c.lat * k }; };
+}
+function jctEdgeSeg(proj, b, i){
+  var fp = b && b.footprint; if (!fp || !Array.isArray(fp.corners)) return null;
+  var n = fp.corners.length; if (n < 3) return null;
+  var c = fp.corners[i], d = fp.corners[(i + 1) % n];
+  if (!c || !d || c.lat == null || d.lat == null) return null;
+  return { a: proj(c), b: proj(d) };
+}
+// Coincidence tolerance. Aerial traces are hand-placed on imagery and typically
+// land within ~0.2-0.3 m of the true wall line, so 0.35 m is generous enough to
+// pair a genuinely shared wall through that jitter and tight enough not to pair
+// two separate walls (buildings that close are one structure in practice).
+// A pairing also needs a real run of overlap, not a clipped corner.
+var JCT_TOL_M = 0.35;
+var JCT_MIN_OVERLAP_M = 0.75;
+// Overlap of two near-collinear segments, in metres, or null.
+function jctSegOverlap(s1, s2){
+  var ux = s1.b.x - s1.a.x, uy = s1.b.y - s1.a.y;
+  var L = Math.sqrt(ux * ux + uy * uy); if (!(L > 0)) return null;
+  var ex = ux / L, ey = uy / L;
+  // perpendicular distance of s2's endpoints from s1's infinite line
+  var perp = function(p){ var dx = p.x - s1.a.x, dy = p.y - s1.a.y; return Math.abs(dx * ey - dy * ex); };
+  if (perp(s2.a) > JCT_TOL_M || perp(s2.b) > JCT_TOL_M) return null;
+  // project s2 onto s1's direction and intersect the intervals
+  var proj = function(p){ var dx = p.x - s1.a.x, dy = p.y - s1.a.y; return dx * ex + dy * ey; };
+  var t1 = proj(s2.a), t2 = proj(s2.b);
+  var lo = Math.max(0, Math.min(t1, t2)), hi = Math.min(L, Math.max(t1, t2));
+  var ov = hi - lo;
+  return (ov >= JCT_MIN_OVERLAP_M) ? Math.round(ov * 100) / 100 : null;
+}
+// DISCOVERY: coincident edges between objects that share a group. Returns
+// proposals only - nothing is written until accepted.
+function jctDiscover(survey){
+  var out = [];
+  if (typeof propGroups !== 'function') return out;
+  var proj = jctProjector(survey); if (!proj) return out;
+  var existing = {};
+  jctList(survey).forEach(function(j){ existing[j.aObId + '/' + j.aEdge + '|' + j.bObId + '/' + j.bEdge] = true;
+                                       existing[j.bObId + '/' + j.bEdge + '|' + j.aObId + '/' + j.aEdge] = true; });
+  propGroups(survey).forEach(function(g){
+    if (!propGroupIsReal(g)) return;                     // only objects presented as one building
+    for (var m = 0; m < g.members.length; m++){
+      for (var n = m + 1; n < g.members.length; n++){
+        var A = g.members[m], B = g.members[n];
+        var fa = A.b && A.b.footprint, fb = B.b && B.b.footprint;
+        if (!fa || !fb || !Array.isArray(fa.corners) || !Array.isArray(fb.corners)) continue;
+        for (var i = 0; i < fa.corners.length; i++){
+          var s1 = jctEdgeSeg(proj, A.b, i); if (!s1) continue;
+          for (var k = 0; k < fb.corners.length; k++){
+            var s2 = jctEdgeSeg(proj, B.b, k); if (!s2) continue;
+            var ov = jctSegOverlap(s1, s2);
+            if (ov == null) continue;
+            if (existing[A.id + '/' + i + '|' + B.id + '/' + k]) continue;
+            out.push({ aObId: A.id, aEdge: i, bObId: B.id, bEdge: k, lengthM: ov,
+              aName: A.name, bName: B.name });
+          }
+        }
+      }
+    }
+  });
+  return out;
+}
+// --- facts, read from capture, never re-asked -------------------------------
+function jctElemHeight(b){
+  var d = (b && b.datum) || {};
+  var r = srNum(d.ridgeHeightM), e = srNum(d.eavesHeightM);
+  return (r != null) ? r : (e != null ? e : null);
+}
+function jctFacts(survey, j){
+  var A = propObjById(survey, j.aObId), B = propObjById(survey, j.bObId);
+  var fa = A ? propObjFamily(survey, A.id) : { family: null };
+  var fb = B ? propObjFamily(survey, B.id) : { family: null };
+  var ca = A ? elemConstruction(A.b) : { coveringLabel: '' };
+  var cb = B ? elemConstruction(B.b) : { coveringLabel: '' };
+  var ha = A ? jctElemHeight(A.b) : null, hb = B ? jctElemHeight(B.b) : null;
+  var heightsKnown = (ha != null && hb != null);
+  var higher = null, lower = null, diff = null;
+  if (heightsKnown && Math.abs(ha - hb) > 0.001){
+    higher = (ha > hb) ? 'a' : 'b'; lower = (ha > hb) ? 'b' : 'a';
+    diff = Math.round(Math.abs(ha - hb) * 100) / 100;
+  } else if (heightsKnown){ diff = 0; }
+  return { A:A, B:B, aFamily:fa.family, bFamily:fb.family,
+    aCovering:ca.coveringLabel || '', bCovering:cb.coveringLabel || '',
+    aHeight:ha, bHeight:hb, heightsKnown:heightsKnown, higher:higher, lower:lower, heightDiff:diff };
+}
+// --- candidates: PROPOSAL ONLY, Jamie always picks --------------------------
+// A wall face only exists between roof levels once the drop is a real face; below
+// this a stepped/cover detail weathers it rather than cladding.
+var JCT_WALL_FACE_MIN_M = 1.0;
+var JCT_LEVEL_TOL_M = 0.5;
+function jctCandidates(survey, j){
+  var f = jctFacts(survey, j);
+  if (!f.heightsKnown) return [];                    // unknown heights propose nothing beyond the full list
+  var out = [];
+  if (f.heightDiff != null && f.heightDiff <= JCT_LEVEL_TOL_M){
+    // level structures meeting: a shared parapet, or a box gutter between them
+    if (f.aFamily === 'flat' && f.bFamily === 'flat'){ out.push('parapet'); out.push('box-gutter'); }
+    else { out.push('parapet'); out.push('box-gutter'); }
+    return out;
+  }
+  var lowerFam = (f.lower === 'a') ? f.aFamily : f.bFamily;
+  var higherFam = (f.higher === 'a') ? f.aFamily : f.bFamily;
+  if (lowerFam === 'pitched'){
+    // a pitched roof running into a higher structure
+    if (higherFam === 'flat') out.push('stepped-flashing');   // flat roof over the pitched eave
+    else out.push('secret-gutter');                            // pitched dying in below the higher level
+  } else {
+    out.push('stepped-flashing');                              // a lower flat under a higher structure
+  }
+  if (f.heightDiff != null && f.heightDiff >= JCT_WALL_FACE_MIN_M) out.push('gable-cladding');
+  return out;
+}
+// --- provenance on the length ----------------------------------------------
+// A length derived from a trace is PROVISIONAL while either object's trace is
+// unconfirmed; it becomes Captured on confirmation, or immediately when keyed by
+// hand (the laser always wins). Provisional lengths never seed - part 1's law.
+function jctLengthProvenance(survey, j){
+  if (!j) return { value: null, source: null };
+  var v = srNum(j.lengthM);
+  if (v == null) return { value: null, source: null };
+  if (j.lengthSource === 'keyed') return { value: v, source: 'captured' };
+  var A = propObjById(survey, j.aObId), B = propObjById(survey, j.bObId);
+  var aProv = A && typeof fpTraceIsProvisional === 'function' && fpTraceIsProvisional(A.b);
+  var bProv = B && typeof fpTraceIsProvisional === 'function' && fpTraceIsProvisional(B.b);
+  return { value: v, source: (aProv || bProv) ? 'provisional' : 'captured' };
+}
+function jctSeedableLength(survey, j){
+  var p = jctLengthProvenance(survey, j);
+  return (p.source === 'captured') ? p.value : null;    // provisional never seeds
+}
+// Which element carries this junction's priced line, and the quantity it seeds.
+function jctAssignedObId(survey, j){
+  var d = jctKindDef(j && j.kind); if (!d) return null;
+  var f = jctFacts(survey, j);
+  if (d.assign === 'first' || !f.heightsKnown || !f.higher) return j.aObId;
+  var which = (d.assign === 'higher') ? f.higher : f.lower;
+  return (which === 'a') ? j.aObId : j.bObId;
+}
+function jctSeedQty(survey, j){
+  var d = jctKindDef(j && j.kind); if (!d) return null;
+  var len = jctSeedableLength(survey, j);
+  if (len == null) return null;                           // null where facts are missing, never zero
+  if (d.basis === 'jctGable'){
+    var f = jctFacts(survey, j);
+    if (!f.heightsKnown || f.heightDiff == null || !(f.heightDiff > 0)) return null;
+    return Math.round(len * f.heightDiff * 100) / 100;    // length x height difference
+  }
+  return len;
+}
+// Every settled junction assigned to this element.
+function jctForElement(survey, obId){
+  return jctList(survey).filter(function(j){ return jctIsSettled(j) && jctAssignedObId(survey, j) === obId; });
+}
+// Junction-owned edges of an element, for the abutment surface's no-double-count.
+function jctOwnedEdges(survey, obId){
+  var out = [];
+  jctList(survey).forEach(function(j){
+    if (j.aObId === obId) out.push({ edge: j.aEdge, j: j });
+    if (j.bObId === obId) out.push({ edge: j.bEdge, j: j });
+  });
+  return out;
+}
+// RECONCILE the junction lines of every estimate on this element. Junction rows
+// are conditional (a survey with no junctions gets none, so it stays byte-
+// identical), so this both creates the row where a settled junction needs one and
+// removes it where the junction is gone. Rows carry jctId; nothing else is touched.
+function jctApply(survey, obId){
+  var store = ((survey.proposal || {}).elements || {})[obId];
+  var ests = (store && store.estimates) || {};
+  var mine = jctForElement(survey, obId);
+  var wanted = {};
+  mine.forEach(function(j){ wanted[j.id] = j; });
+  Object.keys(ests).forEach(function(rid){
+    var est = ests[rid]; if (!est || !Array.isArray(est.elements)) return;
+    // drop rows for junctions that no longer apply
+    est.elements.forEach(function(el){
+      el.rows = (el.rows || []).filter(function(r){ return !r.jctId || wanted[r.jctId]; });
+    });
+    mine.forEach(function(j){
+      var d = jctKindDef(j.kind); if (!d) return;
+      var qty = jctSeedQty(survey, j);
+      var found = null;
+      est.elements.forEach(function(el){ (el.rows || []).forEach(function(r){ if (r.jctId === j.id) found = r; }); });
+      if (found){
+        found.units = qty; found.item = jctRowItem(j, d); found.uom = d.uom; found.basis = d.basis;
+        return;
+      }
+      var grp = est.elements.filter(function(el){ return el.name === d.group; })[0];
+      if (!grp){ grp = { id: estNewId('el'), name: d.group, rows: [] }; est.elements.push(grp); }
+      grp.rows.push({ id: estNewId('r'), category: d.cat, item: jctRowItem(j, d), spec: '', uom: d.uom,
+        units: qty, matPerUnit: null, labPerUnit: null, matActual: null, labActual: null,
+        basis: d.basis, days: null, off: false, jctId: j.id });
+    });
+  });
+}
+function jctRowItem(j, d){
+  if (j.kind === 'other' && j.otherText && String(j.otherText).trim()) return String(j.otherText).trim() + ' (junction)';
+  return d.item;
+}
+// Re-apply across BOTH elements a junction touches (assignment can move with facts).
+function jctApplyBoth(survey, j){
+  if (!j) return;
+  jctApply(survey, j.aObId);
+  if (j.bObId !== j.aObId) jctApply(survey, j.bObId);
+}
+// --- CRUD, one record beneath both doors ------------------------------------
+function jctNew(aObId, aEdge, bObId, bEdge, lengthM, lengthSource){
+  return { id: estNewId('jct'), aObId:aObId, aEdge:aEdge, bObId:bObId, bEdge:bEdge,
+    kind:'', otherText:'', lengthM:(lengthM != null ? lengthM : null),
+    lengthSource:(lengthSource || 'trace'), confirmed:false, note:'', photos:[] };
+}
+// Accept a discovered proposal (desk door, drawn on the trace).
+function jctAccept(aObId, aEdge, bObId, bEdge, lengthM){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  jctEnsure(survey).push(jctNew(aObId, Number(aEdge), bObId, Number(bEdge), lengthM, 'trace'));
+  srPersist(survey); proposalRender();
+}
+// Manual creation (objects captured without traces): elements + edges + a length.
+function jctCreateManual(aObId, aEdge, bObId, bEdge, lengthM){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return null;
+  var j = jctNew(aObId, Number(aEdge), bObId, Number(bEdge), srNum(lengthM), 'keyed');
+  jctEnsure(survey).push(j);
+  jctApplyBoth(survey, j); srPersist(survey); proposalRender();
+  return j.id;
+}
+function jctSet(jId, field, value, rerender){
+  var survey = srLoadSurvey(proposalCurrentId) || srLoadSurvey(flowCurrentId); if (!survey) return;
+  var j = jctById(survey, jId); if (!j) return;
+  if (field === 'lengthM'){
+    var n = Number(value);
+    j.lengthM = (value !== '' && isFinite(n) && n > 0) ? n : null;
+    j.lengthSource = 'keyed';                    // a keyed length is Captured; the laser wins
+  } else if (field === 'confirmed'){ j.confirmed = !!value; }
+  else { j[field] = value; }
+  jctApplyBoth(survey, j);
+  srPersist(survey);
+  if (rerender !== false){ if (typeof proposalRender === 'function' && document.getElementById('proposal-body')) proposalRender(); }
+}
+function jctDelete(jId){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var j = jctById(survey, jId); if (!j) return;
+  var a = j.aObId, b = j.bObId;
+  survey.junctions = jctList(survey).filter(function(x){ return x.id !== jId; });
+  // the edge returns to ordinary abutment eligibility, and its priced line goes
+  jctApply(survey, a); if (b !== a) jctApply(survey, b);
+  srPersist(survey); proposalRender();
+}
+function jctConfirm(jId){ jctSet(jId, 'confirmed', true); }
+
+// --- desk surface: lives with the GROUP, because a junction is where two of a
+//     group's elements meet. Discovery proposals, the pick, and the Ask AI mount.
+function jctRenderGroupBlock(survey, g){
+  if (typeof appMode !== 'undefined' && appMode === 'site') return '';     // desk furniture
+  if (typeof pweGateApplies === 'function' && !pweGateApplies(survey)) return '';
+  if (!propGroupIsReal(g)) return '';
+  var ids = {}; g.members.forEach(function(o){ ids[o.id] = true; });
+  var mine = jctList(survey).filter(function(j){ return ids[j.aObId] && ids[j.bObId]; });
+  var props = jctDiscover(survey).filter(function(p){ return ids[p.aObId] && ids[p.bObId]; });
+  if (!mine.length && !props.length) return '';
+  var h = '<div class="jct-wrap"><div class="jct-head"><span class="jct-title">Junctions</span>' +
+    '<span class="jct-note">Where two of this building’s elements meet. The detail is yours to pick; the figures follow it.</span></div>';
+  props.forEach(function(p){
+    h += '<div class="jct-prop"><span class="jct-prop-txt">Shared edge found &middot; ' + srEsc(p.aName) + ' and ' + srEsc(p.bName) +
+      ' &middot; ' + p.lengthM + ' m</span>' +
+      '<button class="jct-accept" onclick="jctAccept(\'' + p.aObId + '\',' + p.aEdge + ',\'' + p.bObId + '\',' + p.bEdge + ',' + p.lengthM + ')">Add junction</button></div>';
+  });
+  mine.forEach(function(j){ h += jctRenderRow(survey, j); });
+  return h + '</div>';
+}
+function jctRenderRow(survey, j){
+  var f = jctFacts(survey, j);
+  var cands = jctCandidates(survey, j);
+  var prov = jctLengthProvenance(survey, j);
+  var aN = f.A ? f.A.name : j.aObId, bN = f.B ? f.B.name : j.bObId;
+  var h = '<div class="jct-row' + (j.confirmed ? ' confirmed' : '') + '">';
+  h += '<div class="jct-r-head"><span class="jct-r-els">' + srEsc(aN) + ' <span class="jct-x">×</span> ' + srEsc(bN) + '</span>' +
+    (j.confirmed ? '<span class="jct-tag-ok">Confirmed</span>' : '<span class="jct-tag-un">Awaiting confirmation</span>') +
+    '<button class="jct-del" title="Remove this junction" onclick="jctDelete(\'' + j.id + '\')">&times;</button></div>';
+  // facts, read from capture, never re-asked
+  h += '<div class="jct-facts">' +
+    srEsc(aN) + ': ' + srEsc(f.aFamily || 'family unknown') + (f.aCovering ? (' · ' + srEsc(f.aCovering)) : '') + (f.aHeight != null ? (' · ' + f.aHeight + ' m') : ' · height unknown') +
+    ' &nbsp;|&nbsp; ' + srEsc(bN) + ': ' + srEsc(f.bFamily || 'family unknown') + (f.bCovering ? (' · ' + srEsc(f.bCovering)) : '') + (f.bHeight != null ? (' · ' + f.bHeight + ' m') : ' · height unknown') +
+    (f.heightsKnown && f.higher ? (' &nbsp;|&nbsp; higher: ' + srEsc(f.higher === 'a' ? aN : bN) + ' by ' + f.heightDiff + ' m') : (f.heightsKnown ? ' &nbsp;|&nbsp; level' : ' &nbsp;|&nbsp; which is higher: unknown')) +
+    '</div>';
+  // the pick - candidates proposed, full list always available
+  h += '<div class="jct-pick"><span class="jct-pick-lbl">Detail</span><select onchange="jctSet(\'' + j.id + '\',\'kind\',this.value)">' +
+    '<option value="">Choose the detail...</option>' +
+    JUNCTION_KINDS.map(function(k){
+      var isCand = cands.indexOf(k.v) > -1;
+      return '<option value="' + k.v + '"' + (j.kind === k.v ? ' selected' : '') + '>' + srEsc(k.l) + (isCand ? ' — suggested' : '') + '</option>';
+    }).join('') + '</select>';
+  if (cands.length) h += '<span class="jct-cands">Suggested: ' + cands.map(function(c){ return srEsc(jctKindLabel(c)); }).join(', ') + '</span>';
+  else h += '<span class="jct-cands jct-cands-none">No suggestion without both heights — the full list is yours.</span>';
+  h += '</div>';
+  if (j.kind === 'other'){
+    h += '<input type="text" class="jct-other" value="' + srEsc(j.otherText || '') + '" placeholder="What is the detail?" oninput="jctSet(\'' + j.id + '\',\'otherText\',this.value,false)">';
+  }
+  // length + provenance
+  h += '<div class="jct-len"><span class="jct-len-lbl">Length</span>' +
+    '<input type="number" step="0.01" min="0" value="' + (j.lengthM != null ? j.lengthM : '') + '" placeholder="0" oninput="jctSet(\'' + j.id + '\',\'lengthM\',this.value,false)"><span class="jct-u">m</span>' +
+    (prov.source === 'provisional' ? '<span class="jct-prov">Provisional (aerial) · does not seed until confirmed</span>'
+      : prov.source === 'captured' ? '<span class="jct-cap">Captured</span>' : '<span class="jct-none">no length yet</span>') +
+    '</div>';
+  // what it seeds, and where
+  if (j.kind){
+    var d = jctKindDef(j.kind), qty = jctSeedQty(survey, j), owner = jctAssignedObId(survey, j);
+    var oo = propObjById(survey, owner);
+    h += '<div class="jct-seed">Seeds <b>' + srEsc(jctRowItem(j, d)) + '</b> on ' + srEsc(oo ? oo.name : owner) +
+      ' &middot; ' + (qty != null ? (qty + ' ' + d.uom) : 'null (facts missing)') + '</div>';
+  }
+  h += '<textarea class="jct-noteb" rows="2" placeholder="Note (optional)" oninput="jctSet(\'' + j.id + '\',\'note\',this.value,false)">' + srEsc(j.note || '') + '</textarea>';
+  h += '<div class="jct-foot">' +
+    (j.confirmed ? '' : '<button class="jct-confirm" onclick="jctConfirm(\'' + j.id + '\')">Confirm on site</button>') +
+    '<button class="jct-ai" id="jct-ai-btn-' + j.id + '" onclick="askAiJunction(\'' + j.id + '\')">Ask AI about this detail</button></div>';
+  h += '<div class="jct-ai-panel" id="jct-ai-' + j.id + '">' + (typeof askAiPanelHtml === 'function' ? askAiPanelHtml('jct:' + j.id) : '') + '</div>';
+  return h + '</div>';
+}
 function pweRenderAbutmentBlock(survey, obId){
   if (typeof appMode !== 'undefined' && appMode === 'site') return '';       // desk furniture only
   if (typeof pweGateApplies === 'function' && !pweGateApplies(survey)) return '';
@@ -13085,6 +13503,20 @@ function pweRenderAbutmentBlock(survey, obId){
   var awaiting = list.filter(function(a){ return srNum(a && a.lengthM) == null; }).length;
   var h = '<div class="ab-wrap"><div class="ab-head"><span class="ab-title">Abutments and soakers</span>' +
     '<span class="ab-note">Keyed per job. These runs seed the upstand, soaker and cover-flashing lines on every route of this element.</span></div>';
+  // NO DOUBLE COUNT: an edge owned by a junction is the junction's work. It is
+  // listed here as junction-owned so no second manual entry is invited for it;
+  // deleting the junction returns the edge to ordinary abutment eligibility.
+  var owned = (typeof jctOwnedEdges === 'function') ? jctOwnedEdges(survey, obId) : [];
+  if (owned.length){
+    h += '<div class="ab-owned"><div class="ab-owned-h">' + owned.length + ' edge' + (owned.length === 1 ? '' : 's') + ' owned by a junction &middot; already covered, do not key an abutment for these</div>';
+    owned.forEach(function(ow){
+      var other = (ow.j.aObId === obId) ? ow.j.bObId : ow.j.aObId;
+      var oo = propObjById(survey, other);
+      h += '<div class="ab-owned-row">Edge ' + (ow.edge + 1) + ' &middot; meets ' + srEsc(oo ? oo.name : other) +
+        ' &middot; ' + (ow.j.kind ? srEsc(jctKindLabel(ow.j.kind)) : 'detail not picked yet') + '</div>';
+    });
+    h += '</div>';
+  }
   if (awaiting){
     h += '<div class="ab-await">' + awaiting + ' flagged abutment' + (awaiting === 1 ? '' : 's') + ' awaiting a length &middot; key the length below to seed the run.</div>';
   }
@@ -13152,8 +13584,15 @@ function askAiPanelHtml(obId){
   var s = askAiSession[obId];
   return s ? askAiBoxHtml(obId, s.state, s.body) : '';
 }
+// One panel host resolver for both mounts: elements carry 'ab-ai-<obId>',
+// junctions carry 'jct-ai-<id>' behind the key 'jct:<id>'.
+function askAiHost(key){
+  var k = String(key || '');
+  if (k.indexOf('jct:') === 0) return document.getElementById('jct-ai-' + k.slice(4));
+  return document.getElementById('ab-ai-' + k);
+}
 function askAiRender(obId, state, body){
-  var host = document.getElementById('ab-ai-' + obId); if (!host) return;
+  var host = askAiHost(obId); if (!host) return;
   host.innerHTML = askAiBoxHtml(obId, state, body);
 }
 function askAiDismiss(obId){ delete askAiSession[obId]; askAiRender(obId, 'idle', ''); }
@@ -13201,11 +13640,74 @@ function askAiAbutments(obId){
   });
 }
 
+// ASK AI ON THE JUNCTION - the same button pattern, the same session-only,
+// never-client-facing, never-stored rules, one call in flight, no call without a
+// press. Context is the element context extended with the junction's own facts.
+function askAiJunctionContext(survey, j){
+  var f = jctFacts(survey, j);
+  var base = askAiContext(survey, j.aObId);
+  var prov = jctLengthProvenance(survey, j);
+  var d = jctKindDef(j.kind);
+  base.junction = {
+    elements: [ (f.A ? f.A.name : j.aObId), (f.B ? f.B.name : j.bObId) ],
+    edges: [ j.aEdge, j.bEdge ],
+    sides: [ { family: f.aFamily, covering: f.aCovering || null, heightM: f.aHeight },
+             { family: f.bFamily, covering: f.bCovering || null, heightM: f.bHeight } ],
+    higher: f.heightsKnown ? (f.higher ? (f.higher === 'a' ? (f.A ? f.A.name : j.aObId) : (f.B ? f.B.name : j.bObId)) : 'level') : 'unknown',
+    heightDifferenceM: f.heightDiff,
+    detailPicked: d ? d.l : null,
+    lengthM: prov.value, lengthProvenance: prov.source,
+    suggested: jctCandidates(survey, j).map(jctKindLabel),
+    note: j.note || ''
+  };
+  return base;
+}
+function askAiJunction(jId){
+  var key = 'jct:' + jId;
+  if (askAiInFlight[key]) return;                                   // one in flight
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var j = jctById(survey, jId); if (!j) return;
+  var btn = document.getElementById('jct-ai-btn-' + jId);
+  askAiInFlight[key] = true; if (btn){ btn.disabled = true; btn.textContent = 'Asking...'; }
+  askAiRender(key, 'wait', 'Gathering this junction’s context and asking...');
+  var ctx = askAiJunctionContext(survey, j);
+  var done = function(state, body){
+    askAiInFlight[key] = false;
+    if (btn){ btn.disabled = false; btn.textContent = 'Ask AI about this detail'; }
+    askAiSession[key] = { state: state, body: body };
+    askAiRender(key, state, body);
+  };
+  var payload = { purpose: 'junction-detail', context: ctx,
+    question: 'Given these two roof elements, how they meet, their coverings and levels, give a considered view on how this junction should be detailed and what still needs measuring on site.' };
+  var req;
+  try {
+    req = fetch(WORKER_BASE + '/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  } catch (e){ req = Promise.reject(e); }
+  req.then(function(resp){
+    if (!resp.ok) return resp.text().then(function(){ throw new Error('HTTP ' + resp.status); });
+    return resp.json();
+  }).then(function(r){
+    var text = (r && (r.answer || r.text || r.reply)) ? String(r.answer || r.text || r.reply) : '';
+    if (!text) throw new Error('empty response');
+    done('ok', '<p>' + srEsc(text).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>');
+  }).catch(function(err){
+    var jc = ctx.junction;
+    done('off',
+      '<p><b>The AI aid is not available yet.</b> The tool asked the Worker for a view and it has no ask endpoint to answer on (' + srEsc(String(err && err.message || 'unavailable')) + '). Nothing was sent to a client and nothing was saved.</p>' +
+      '<p class="ab-ai-sub">This is the context it would carry: ' + srEsc(jc.elements.join(' × ')) + ', ' +
+      srEsc(String(jc.sides[0].family)) + ' meeting ' + srEsc(String(jc.sides[1].family)) +
+      ', higher: ' + srEsc(String(jc.higher)) + (jc.heightDifferenceM != null ? (' by ' + jc.heightDifferenceM + ' m') : '') +
+      (jc.lengthM != null ? (', ' + jc.lengthM + ' m (' + srEsc(String(jc.lengthProvenance)) + ')') : ', no length yet') + '.</p>' +
+      '<ul class="ab-ai-list">' + (jc.suggested.length ? jc.suggested.map(function(s){ return '<li>Suggested: ' + srEsc(s) + '</li>'; }).join('') : '<li>No suggestion without both heights.</li>') + '</ul>');
+  });
+}
+
 function pweReseed(obId, routeId){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   if (!window.confirm('Rebuild this estimate from the system template? Your edits to this route are replaced.')) return;
   var store = pweEstimatesStore(survey, obId);
   store[routeId] = pweSeedEstimate(pweElemView(survey, obId) || survey, routeId);
+  if (typeof jctApply === 'function') jctApply(survey, obId);   // conditional junction lines
   pweOpen[pweKey(obId, routeId)] = true;
   srPersist(survey); proposalRender();
 }
@@ -15879,7 +16381,17 @@ function flowComputeSteps(survey){
   // JUNCTIONS CONFIRMED - reserved for part 3. Inert and invisible until then
   // (the walk renderer skips reserved steps), holding its position between faults
   // and abutments so part 3 slots in without restructuring.
-  steps.push({ key:'junctions', label:'Junctions confirmed', state: 'not-started', detail: 'part 3', walk: true, reserved: true });
+  // JUNCTIONS CONFIRMED (part 3). Scoped to junctions touching the ACTIVE element,
+  // in the position slice 1 reserved. Complete when none are outstanding.
+  var jAll = (typeof jctList === 'function') ? jctList(s) : [];
+  var jMine = jAll.filter(function(x){ return b && (x.aObId === b.id || x.bObId === b.id); });
+  var jUnconf = jMine.filter(function(x){ return !x.confirmed; });
+  var jUnpicked = jMine.filter(function(x){ return !x.kind; });
+  var jState = !jMine.length ? 'done' : (jUnconf.length ? (jUnconf.length < jMine.length ? 'partial' : 'not-started') : 'done');
+  var jDetail = !jMine.length ? 'none on this element'
+    : (jUnconf.length ? (jUnconf.length + ' of ' + jMine.length + ' awaiting confirmation' + (jUnpicked.length ? (' · ' + jUnpicked.length + ' without a detail') : ''))
+                      : (jMine.length + ' confirmed'));
+  steps.push({ key:'junctions', label:'Junctions confirmed', state: jState, detail: jDetail, walk: true });
   // ABUTMENTS FLAGGED on site. A site flag is the same abutment record the desk
   // edits (elemAbutments), arriving lengthless; a lengthless flag seeds nothing
   // yet and is what the desk lists prominently as awaiting its length.
@@ -15950,6 +16462,7 @@ function flowWalkRoute(key, survey){
     case 'trace': case 'datum': case 'elevations': case 'features':
       fpOpen(currentSurveyId); return;
     case 'purlin': flowWalkPurlin(); return;             // per-plane count capture (slice 2)
+    case 'junctions': flowWalkJunctions(); return;       // confirm junctions on site (part 3)
     case 'covering': fpOpen(currentSurveyId); return;   // build-up + construction live on the footprint surface
     case 'faults': fpOpen(currentSurveyId); return;
     case 'abutments': flowWalkAbutmentFlag(); return;
@@ -16094,6 +16607,64 @@ function flowRenderPurlinSheet(){
   document.body.appendChild(el);
 }
 function flowPurlinClose(){ var b = document.getElementById('walk-purlin-back'); if (b) b.parentNode.removeChild(b); }
+
+// ===== JUNCTIONS ON SITE (walk step, between faults and abutments) ==========
+// Presents the junctions touching this element for confirmation. The detail can
+// be picked here too - one record beneath both doors.
+function flowWalkJunctions(){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var objs = (typeof propObjects === 'function') ? propObjects(survey) : [];
+  var o = objs[flowActiveWalkIdx]; if (!o) return;
+  flowJctObId = o.id; flowRenderJctSheet();
+}
+var flowJctObId = null;
+function flowRenderJctSheet(){
+  var back = document.getElementById('walk-jct-back'); if (back) back.parentNode.removeChild(back);
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var mine = jctList(survey).filter(function(j){ return j.aObId === flowJctObId || j.bObId === flowJctObId; });
+  var el = document.createElement('div');
+  el.id = 'walk-jct-back'; el.className = 'walk-sheet-back';
+  var body = '<div class="walk-sheet walk-jct-sheet" role="dialog" aria-label="Junctions">' +
+    '<div class="walk-sheet-head"><span>Junctions</span><button class="walk-sheet-x" onclick="flowJctClose()">Done</button></div>' +
+    '<div class="walk-sheet-sub">Confirm what the desk found, or pick the detail while you are stood at it.</div>';
+  if (!mine.length){
+    body += '<div class="walk-pl-none">No junctions on this element. The desk finds them where two grouped elements share a traced edge.</div>';
+  } else {
+    mine.forEach(function(j){
+      var f = jctFacts(survey, j);
+      var other = (j.aObId === flowJctObId) ? f.B : f.A;
+      var prov = jctLengthProvenance(survey, j);
+      var cands = jctCandidates(survey, j);
+      body += '<div class="walk-jct-row' + (j.confirmed ? ' confirmed' : '') + '">' +
+        '<div class="walk-jct-h">Meets ' + escapeHtml(other ? other.name : '') +
+          ' · ' + (prov.value != null ? (prov.value + ' m') : 'no length') +
+          (prov.source === 'provisional' ? ' <span class="walk-jct-prov">provisional</span>' : '') + '</div>' +
+        '<select class="walk-jct-kind" onchange="flowJctPick(\'' + j.id + '\',this.value)">' +
+          '<option value="">Pick the detail...</option>' +
+          JUNCTION_KINDS.map(function(k){ return '<option value="' + k.v + '"' + (j.kind === k.v ? ' selected' : '') + '>' + escapeHtml(k.l) + (cands.indexOf(k.v) > -1 ? ' — suggested' : '') + '</option>'; }).join('') +
+        '</select>' +
+        (j.confirmed ? '<span class="walk-jct-ok">Confirmed</span>'
+                     : '<button class="walk-jct-confirm" onclick="flowJctConfirm(\'' + j.id + '\')">Confirm</button>') +
+      '</div>';
+    });
+  }
+  body += '</div>';
+  el.innerHTML = body;
+  document.body.appendChild(el);
+}
+function flowJctClose(){ var b = document.getElementById('walk-jct-back'); if (b) b.parentNode.removeChild(b); }
+function flowJctPick(jId, kind){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var j = jctById(survey, jId); if (!j) return;
+  j.kind = kind; jctApplyBoth(survey, j); srPersist(survey);
+  flowRenderJctSheet(); flowRenderWalk();
+}
+function flowJctConfirm(jId){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  var j = jctById(survey, jId); if (!j) return;
+  j.confirmed = true; jctApplyBoth(survey, j); srPersist(survey);
+  flowRenderJctSheet(); flowRenderWalk();
+}
 function flowPurlinRec(survey, o){
   if (!o.b.purlinGrid || typeof o.b.purlinGrid !== 'object') o.b.purlinGrid = {};
   if (!Array.isArray(o.b.purlinGrid.roofPlanes)) o.b.purlinGrid.roofPlanes = [];
@@ -16354,6 +16925,14 @@ function flowWalkGating(survey){
     var abuts = (typeof elemAbutments === 'function') ? elemAbutments(b) : [];
     var lengthless = abuts.filter(function(a){ return srNum(a && a.lengthM) == null; }).length;
     if (lengthless){ out.push({ label: 'Abutments flagged', detail: name + ': ' + lengthless + ' abutment flag' + (lengthless === 1 ? '' : 's') + ' awaiting a desk length' }); }
+  });
+  // UNRESOLVED JUNCTIONS (part 3): a junction with no detail picked, or one still
+  // awaiting confirmation on site. Named in plain English, once each.
+  ((typeof jctList === 'function') ? jctList(survey) : []).forEach(function(j){
+    var A = propObjById(survey, j.aObId), B = propObjById(survey, j.bObId);
+    var pair = (A ? A.name : j.aObId) + ' and ' + (B ? B.name : j.bObId);
+    if (!j.kind){ out.push({ label: 'Junctions confirmed', detail: 'the junction between ' + pair + ' has no detail picked' }); }
+    else if (!j.confirmed){ out.push({ label: 'Junctions confirmed', detail: 'the ' + jctKindLabel(j.kind).toLowerCase() + ' between ' + pair + ' is not confirmed on site' }); }
   });
   return out;
 }
