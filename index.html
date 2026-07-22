@@ -972,6 +972,7 @@ body.mode-site #ctx-strip.shown { display: flex; position: fixed; left: 0; right
 #view-walk .walk-step-label { display: block; font-weight: 700; color: var(--ink); font-size: 0.98rem; }
 #view-walk .walk-adv { font-weight: 500; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 #view-walk .walk-step-detail { display: block; font-size: 0.83rem; color: var(--muted); margin-top: 1px; }
+#view-walk .walk-none { align-self:flex-start; margin:-4px 0 4px 32px; border:1px dashed var(--rule); background:#fff; border-radius:7px; padding:5px 11px; font-size:0.78rem; color:var(--muted); cursor:pointer; }
 #view-walk .walk-foot { margin-top: 16px; }
 .walk-sheet-back { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
 .walk-sheet { background: #fff; width: 100%; max-width: 520px; border-radius: 16px 16px 0 0; padding: 16px 18px 22px; }
@@ -3732,91 +3733,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
 
             <!-- Section D (Asbestos) REMOVED: the covering selection IS the live declaration; register seen and sampling required joined the construction and covering sheet. -->
 
-      <details class="section" id="section-f">
-        <summary>Section E — Summary &amp; Conclusions</summary>
-        <div class="section-body">
-          <div class="field-row">
-            <div class="field">
-              <label for="f-overall-rating">Overall condition rating</label>
-              <select id="f-overall-rating">
-                <option value="">—</option>
-                <option>Excellent</option>
-                <option>Good</option>
-                <option>Fair</option>
-                <option>Poor</option>
-                <option>End of Life</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="f-remaining-life-asstands">Expected life of current system (years)</label>
-              <input type="number" id="f-remaining-life-asstands" min="0" inputmode="numeric">
-            </div>
-            <div class="field">
-              <label for="f-remaining-life-postworks">Expected life after all remedial works (years)</label>
-              <input type="number" id="f-remaining-life-postworks" min="0" inputmode="numeric">
-            </div>
-          </div>
-          <div class="field">
-            <label for="f-executive-summary">Executive summary</label>
-            <textarea id="f-executive-summary" class="large" placeholder="Two or three paragraphs capturing the headline findings the client should take away."></textarea>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="f-recommendation">Recommendation</label>
-              <select id="f-recommendation" onchange="updateReplacementBudget()">
-                <option value="">—</option>
-                <option>Continue maintenance</option>
-                <option>Targeted repairs</option>
-                <option>Recover</option>
-                <option>Replace</option>
-                <option>Further investigation</option>
-              </select>
-            </div>
-          </div>
-          <!-- Indicative replacement budget: shown only when the recommendation is
-               Recover or Replace. Feeds ONE planning-budget line on the report's
-               recommendation card (area x rate); neither costing surface. Hidden
-               otherwise; keyed values are retained in the record (display:none). -->
-          <div class="field-row" id="replacement-budget-row" style="display:none;">
-            <div class="field">
-              <label for="f-repl-area">Roof area (m2)</label>
-              <input type="number" id="f-repl-area" min="0" inputmode="numeric">
-            </div>
-            <div class="field">
-              <label for="f-repl-rate">Budget rate (per m2)</label>
-              <input type="number" id="f-repl-rate" min="0" inputmode="numeric" value="160">
-            </div>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="f-purlin-type">Purlin type</label>
-              <select id="f-purlin-type" onchange="onPurlinTypeChange()">
-                <option>Steel</option>
-                <option>Concrete</option>
-              </select>
-              <div style="font-size:11px;color:#888;margin-top:4px;">Concrete portal frames cannot be fixed direct. A steel carrier is banded to the purlins. Overcladding is not offered unless every purlin is accessible.</div>
-            </div>
-            <div class="field" id="concrete-purlin-fields" style="display:none;">
-              <label for="f-carrier-linm">Steel carrier length (linear m)</label>
-              <input type="number" id="f-carrier-linm" min="0" step="1" placeholder="e.g. 100" oninput="onPurlinTypeChange()" onchange="onPurlinTypeChange()">
-              <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:10px;">
-                <input type="checkbox" id="f-overclad-override" onchange="onPurlinTypeChange()">
-                Allow overcladding override (clear access to every purlin)
-              </label>
-              <div id="carrier-readout" style="font-size:12px;color:#555;margin-top:8px;"></div>
-            </div>
-          </div>
-          <div class="field">
-            <label for="f-next-steps">Next steps</label>
-            <textarea id="f-next-steps" rows="4" placeholder="What happens after this report — programmed works, further surveys, quotes to follow, decisions needed."></textarea>
-          </div>
-          <div class="field">
-            <label for="f-surveyor-notes">Surveyor notes (private)</label>
-            <p style="font-size:11px;color:#888;margin:0 0 0.35rem 0;">For your eyes only. Never appears in the client report.</p>
-            <textarea id="f-surveyor-notes" rows="4" placeholder="Vehicle access, roof access, ways to do the work, anything to remember back at the office."></textarea>
-          </div>
-        </div>
-      </details>
+            <!-- Section E MOVED to the Report desk panel (#view-reportdesk), purpose-aware, reached from the record before rendering. Purlin type also editable on the element purlin record; surveyor notes also reachable from capture. Every id and key unchanged. -->
 
       <div class="form-actions">
         <button class="btn btn-primary" id="save-btn" onclick="saveSurvey()">Save</button>
@@ -4131,6 +4048,106 @@ input.derived-field { background: #f6f8fa; color: #555; }
     </div>
   </section>
 
+  <!-- REPORT DESK PANEL - desk refine, the step before rendering. Same ids and
+       same keys as the retired Section E, so populateForm / collectFormData and
+       the renderer all read exactly what they read before. -->
+  <section id="view-reportdesk" class="view">
+    <div class="container">
+      <div class="view-header">
+        <button class="link-btn" onclick="reportDeskBack()" style="align-self:flex-start;">&larr; Back to the record</button>
+        <h1>Report desk</h1>
+        <div class="meta">The written judgement that goes into the report. Filled here, just before it renders.</div>
+      </div>
+      <div class="section-body" id="reportdesk-body" oninput="reportDeskSync()" onchange="reportDeskSync()">
+        <div id="reportdesk-condition">
+          <div class="field-row">
+            <div class="field">
+              <label for="f-overall-rating">Overall condition rating</label>
+              <select id="f-overall-rating">
+                <option value="">—</option>
+                <option>Excellent</option>
+                <option>Good</option>
+                <option>Fair</option>
+                <option>Poor</option>
+                <option>End of Life</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-remaining-life-asstands">Expected life of current system (years)</label>
+              <input type="number" id="f-remaining-life-asstands" min="0" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label for="f-remaining-life-postworks">Expected life after all remedial works (years)</label>
+              <input type="number" id="f-remaining-life-postworks" min="0" inputmode="numeric">
+            </div>
+          </div>
+          <div class="field">
+            <label for="f-executive-summary">Executive summary</label>
+            <textarea id="f-executive-summary" class="large" placeholder="Two or three paragraphs capturing the headline findings the client should take away."></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-recommendation">Recommendation</label>
+              <select id="f-recommendation" onchange="updateReplacementBudget()">
+                <option value="">—</option>
+                <option>Continue maintenance</option>
+                <option>Targeted repairs</option>
+                <option>Recover</option>
+                <option>Replace</option>
+                <option>Further investigation</option>
+              </select>
+            </div>
+          </div>
+          <!-- Indicative replacement budget: shown only when the recommendation is
+               Recover or Replace. Feeds ONE planning-budget line on the report's
+               recommendation card (area x rate); neither costing surface. Hidden
+               otherwise; keyed values are retained in the record (display:none). -->
+          <div class="field-row" id="replacement-budget-row" style="display:none;">
+            <div class="field">
+              <label for="f-repl-area">Roof area (m2)</label>
+              <input type="number" id="f-repl-area" min="0" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label for="f-repl-rate">Budget rate (per m2)</label>
+              <input type="number" id="f-repl-rate" min="0" inputmode="numeric" value="160">
+            </div>
+          </div>
+          </div>
+        <div id="reportdesk-always"><div class="field-row">
+            <div class="field">
+              <label for="f-purlin-type">Purlin type</label>
+              <select id="f-purlin-type" onchange="onPurlinTypeChange()">
+                <option>Steel</option>
+                <option>Concrete</option>
+              </select>
+              <div style="font-size:11px;color:#888;margin-top:4px;">Concrete portal frames cannot be fixed direct. A steel carrier is banded to the purlins. Overcladding is not offered unless every purlin is accessible.</div>
+            </div>
+            <div class="field" id="concrete-purlin-fields" style="display:none;">
+              <label for="f-carrier-linm">Steel carrier length (linear m)</label>
+              <input type="number" id="f-carrier-linm" min="0" step="1" placeholder="e.g. 100" oninput="onPurlinTypeChange()" onchange="onPurlinTypeChange()">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:10px;">
+                <input type="checkbox" id="f-overclad-override" onchange="onPurlinTypeChange()">
+                Allow overcladding override (clear access to every purlin)
+              </label>
+              <div id="carrier-readout" style="font-size:12px;color:#555;margin-top:8px;"></div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="f-next-steps">Next steps</label>
+            <textarea id="f-next-steps" rows="4" placeholder="What happens after this report — programmed works, further surveys, quotes to follow, decisions needed."></textarea>
+          </div>
+          <div class="field">
+            <label for="f-surveyor-notes">Surveyor notes (private)</label>
+            <p style="font-size:11px;color:#888;margin:0 0 0.35rem 0;">For your eyes only. Never appears in the client report.</p>
+            <textarea id="f-surveyor-notes" rows="4" placeholder="Vehicle access, roof access, ways to do the work, anything to remember back at the office."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" onclick="reportDeskBack()">Done</button></div>
+    </div>
+  </section>
+
+
   <!-- DETAIL -->
   <section id="view-detail" class="view">
     <div class="container">
@@ -4407,6 +4424,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-jt-val{font-size:20px;font-weight:800;}
     #view-proposal .np-jt-note{margin-left:auto;font-size:11px;color:#cfcfce;}
     /* construction readout on the element */
+    #view-proposal .np-waitheights{margin:6px 0;padding:8px 12px;background:#fff8ec;border:1px solid #f0d9b0;border-left:3px solid #F7901E;border-radius:8px;font-size:12.5px;font-weight:600;color:#7a5a1e;}
     #view-proposal .np-cons{font-size:13px;color:#2f2f31;font-weight:600;}
     #view-proposal .np-cons-sep{font-weight:400;color:#8a898b;}
     #view-proposal .np-cons-asb{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;background:#fdecec;color:#a3282b;font-size:11px;font-weight:800;letter-spacing:.02em;}
@@ -8465,6 +8483,61 @@ function editCurrent() {
   startAutoSave();
   showView('form');
 }
+// ===== THE REPORT DESK PANEL (item 10) =====================================
+// Desk refine, the step before the report renders. Same ids and keys as the
+// retired Section E, so the renderer reads exactly what it read. Purpose-aware:
+// the condition judgement (rating, expected life, executive summary,
+// recommendation, next steps) shows on condition journeys; the purlin block and
+// the private notes are always there, because the carrier rule and Jamie's own
+// notes are not condition-only.
+var reportDeskReturn = 'detail';
+function reportDeskOpen(id, backTo){
+  var sid = id || currentSurveyId; if (!sid) return;
+  var s = srLoadSurvey(sid); if (!s){ showToast('Survey not found', 'err'); return; }
+  currentSurveyId = sid;
+  reportDeskReturn = backTo || 'detail';
+  populateForm(s);                       // fills these ids from THIS record (one code path)
+  var cond = document.getElementById('reportdesk-condition');
+  if (cond) cond.style.display = (s.visitPurpose === 'priced') ? 'none' : '';
+  try { onPurlinTypeChange(); } catch (e){}
+  try { updateReplacementBudget(); } catch (e){}
+  showView('reportdesk');
+}
+function reportDeskBack(){
+  reportDeskSync();
+  if (reportDeskReturn === 'footprint' && typeof fpOpen === 'function'){ fpOpen(currentSurveyId); return; }
+  goDetail();
+}
+// Writes the panel's own fields STRAIGHT onto the record. Never goes through
+// collectFormData, so the panel can be open while the enquiry form holds another
+// record without one writing over the other (the same law the site plan follows).
+var REPORT_DESK_KEYS = [
+  { id:'f-overall-rating',            key:'f-overall-rating',            t:'text' },
+  { id:'f-remaining-life-asstands',   key:'f-remaining-life-asstands',   t:'num'  },
+  { id:'f-remaining-life-postworks',  key:'f-remaining-life-postworks',  t:'num'  },
+  { id:'f-executive-summary',         key:'f-executive-summary',         t:'text' },
+  { id:'f-recommendation',            key:'f-recommendation',            t:'text' },
+  { id:'f-repl-area',                 key:'f-repl-area',                 t:'num'  },
+  { id:'f-repl-rate',                 key:'f-repl-rate',                 t:'num'  },
+  { id:'f-purlin-type',               key:'purlinType',                  t:'text' },
+  { id:'f-carrier-linm',              key:'carrierLinM',                 t:'num'  },
+  { id:'f-overclad-override',         key:'overcladOverride',            t:'bool' },
+  { id:'f-next-steps',                key:'f-next-steps',                t:'text' },
+  { id:'f-surveyor-notes',            key:'surveyorNotes',               t:'text' }
+];
+function reportDeskSync(){
+  if (currentSurveyId === null) return false;
+  var s = srLoadSurvey(currentSurveyId); if (!s) return false;
+  REPORT_DESK_KEYS.forEach(function(f){
+    var el = document.getElementById(f.id); if (!el) return;
+    if (f.t === 'bool'){ s[f.key] = !!el.checked; return; }
+    if (f.t === 'num'){ var raw = el.value; s[f.key] = (raw === '' || raw == null) ? '' : Number(raw); return; }
+    s[f.key] = el.value || '';
+  });
+  srPersist(s);
+  return true;
+}
+
 // ===== THE REHOMED SITE PLAN SURFACE =======================================
 // The aerial/uploaded imagery, the pins and fault markers and the fault detail
 // editor now live on their own surface rather than inside the enquiry form.
@@ -9555,6 +9628,7 @@ function renderSurveyDetail(s) {
       '<div class="act-group">' +
         '<div class="act-group-label">Client documents</div>' +
         '<div class="act-group-btns">' +
+          '<button class="btn btn-secondary" onclick="reportDeskOpen(currentSurveyId, \'detail\')">Report desk</button>' +
           '<button class="btn btn-secondary" onclick="goToReportCurrent()">Generate Report</button>' +
           '<button class="btn btn-secondary" onclick="proposalOpen(currentSurveyId)">Works proposal</button>' +
         '</div>' +
@@ -12076,6 +12150,23 @@ function proposalOpen(id){
 }
 var proposalCurrentId = null;
 
+
+// POLISH 11. An element whose trace is CONFIRMED but whose heights are not keyed
+// has settled geometry and still cannot price: the slope run, and therefore the
+// roof area and every rate that hangs off it, needs the heights.
+function propElemWaitingHeights(survey, obId){
+  if (typeof pweGateApplies === 'function' && !pweGateApplies(survey)) return false;
+  var o = propObjById(survey, obId); if (!o || !o.b) return false;
+  var t = (typeof fpTraceOf === 'function') ? fpTraceOf(o.b) : null;
+  if (!t || !t.confirmed) return false;                 // only once the trace is settled
+  var d = o.b.datum || {};
+  var hasHeights = (srNum(d.eavesHeightM) != null) && (o.b.roofForm === 'flat' || o.b.roofForm === 'multi-bay' || srNum(d.ridgeHeightM) != null);
+  return !hasHeights;
+}
+function propWaitingHeightsLine(survey, obId){
+  if (!propElemWaitingHeights(survey, obId)) return '';
+  return '<div class="np-waitheights">Waiting for heights before this element can price.</div>';
+}
 function proposalRender(){
   var host = document.getElementById('proposal-body'); if (!host) return;
   var survey = srLoadSurvey(proposalCurrentId);
@@ -12123,8 +12214,11 @@ function proposalRender(){
       h += '<button class="np-pill' + (on ? ' on' : '') + '" onclick="proposalToggleRoute(\'' + obId + '\',\'' + sy.id + '\')">' + srEsc(sy.name) + (sy.recommended ? ' ★' : '') + '</button>';
     });
     h += '</span><span class="np-ctl-note">Pick 2 to 4. The comparison renders one column per route.</span></div>';
+    // POLISH 11: a confirmed trace with no heights cannot price yet. Amber, plain,
+    // wherever this element's area or estimate would present; clears when heights land.
+    h += propWaitingHeightsLine(survey, obId);
     h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof area</span><span class="np-area">' +
-      (area != null && area > 0 ? (Math.round(area).toLocaleString('en-GB') + ' m² <span class="np-area-src">(Section B derived total)</span>') : '<span class="np-pending">pending measure - add slopes in Section B2</span>') +
+      (area != null && area > 0 ? (Math.round(area).toLocaleString('en-GB') + ' m² <span class="np-area-src">(captured)</span>') : '<span class="np-pending">pending measure &middot; capture the geometry</span>') +
       '</span></div>';
     // what the site recorded the roof to be made of; only where it was recorded,
     // so a survey without the construction capture reads exactly as before
@@ -14238,6 +14332,10 @@ function fpRender(){
   // building-level attributes (roof form above; datum/elevations via the plan).
   h += fpRenderBuildup(survey);
 
+  // ITEM 10: surveyor notes are a RECORD-level fact, reachable from capture as
+  // well as the report desk. Never client-facing; the key surveyorNotes is unchanged.
+  h += fpRenderSurveyorNotes(survey);
+
   // Access constraints: site picks about the SITE the crew turns up to, held on
   // the survey rather than the building. Context for Jamie's judged access and
   // scaffold figures; nothing here feeds a rate.
@@ -14362,6 +14460,19 @@ function fpAccessSetNetting(which, on){
   if (typeof currentPackAccess !== 'undefined' && currentSurveyId === survey.id){
     if (which === 'safety') currentPackAccess.safetyNetting = !!on; else currentPackAccess.debrisNetting = !!on;
   }
+}
+// Record-level private notes, reachable from capture. Never rendered client-facing.
+function fpRenderSurveyorNotes(survey){
+  var v = (survey && survey.surveyorNotes) || '';
+  return '<div class="fp-buildup fp-notes"><div class="fp-tools-lbl">Surveyor notes (private)</div>' +
+    '<div class="fp-bu-label">For your eyes only. Never appears in the client report.</div>' +
+    '<textarea class="fp-bu-input" rows="3" placeholder="Vehicle access, roof access, ways to do the work, anything to remember back at the office." ' +
+    'oninput="fpSetSurveyorNotes(this.value)">' + escapeHtml(v) + '</textarea></div>';
+}
+function fpSetSurveyorNotes(v){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  survey.surveyorNotes = v || '';
+  srPersist(survey);
 }
 function fpAccessSet(field, value, rerender){
   var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
@@ -16529,13 +16640,19 @@ function flowComputeSteps(survey){
   // yet and is what the desk lists prominently as awaiting its length.
   var abuts = (typeof elemAbutments === 'function') ? elemAbutments(b) : [];
   var lengthless = abuts.filter(function(a){ return srNum(a && a.lengthM) == null; }).length;
-  var abutState = !abuts.length ? 'not-started' : (lengthless ? 'partial' : 'done');
+  // POLISH 12: a declared "none to record" completes the step, exactly as the
+  // condition no-faults declaration does. An actual flag still gates.
+  var abutNone = !!(b && b.abutmentsNone);
+  var abutState = !abuts.length ? (abutNone ? 'done' : 'not-started') : (lengthless ? 'partial' : 'done');
   steps.push({ key:'abutments', label:'Abutments flagged', state: abutState,
-    detail: !abuts.length ? 'none flagged' : (lengthless ? (lengthless + ' flag' + (lengthless === 1 ? '' : 's') + ' awaiting a desk length') : (abuts.length + ' with lengths')), walk: true });
+    detail: !abuts.length ? (abutNone ? 'none to record' : 'none flagged') : (lengthless ? (lengthless + ' flag' + (lengthless === 1 ? '' : 's') + ' awaiting a desk length') : (abuts.length + ' with lengths')),
+    walk: true, canDeclareNone: (!abuts.length && !abutNone) });
   // ACCESS PICKS - survey-level (2a), positioned last in the walk.
   var accessSet = (typeof accessConstraintsAny === 'function') && accessConstraintsAny(s);
-  steps.push({ key:'access', label:'Access picks', state: accessSet ? 'done' : 'not-started',
-    detail: accessSet ? 'site constraints recorded' : 'not recorded yet', walk: true, advisory: true });
+  var accessNone = !!(accessConstraints(s).noneToRecord);
+  steps.push({ key:'access', label:'Access picks', state: (accessSet || accessNone) ? 'done' : 'not-started',
+    detail: accessSet ? 'site constraints recorded' : (accessNone ? 'none to record' : 'not recorded yet'),
+    walk: true, advisory: true, canDeclareNone: (!accessSet && !accessNone) });
 
   steps.forEach(function(st){ st.purposes = FLOW_STEP_PURPOSES[st.key] || ['condition','priced']; });
   return steps;
@@ -16642,11 +16759,27 @@ function flowRenderWalk(){
       '<span class="walk-dot">' + dot + '</span>' +
       '<span class="walk-step-body"><span class="walk-step-label">' + escapeHtml(label) + (s.advisory ? ' <span class="walk-adv">where visible</span>' : '') + '</span>' +
       '<span class="walk-step-detail">' + escapeHtml(detail) + '</span></span></button>';
+    if (s.canDeclareNone){
+      h += '<button class="walk-none" onclick="flowDeclareNone(\'' + key + '\')">Nothing to record here</button>';
+    }
   });
   h += '</div>';
   h += '<div class="walk-foot"><button class="btn btn-secondary" onclick="flowOpenHandoff(flowCurrentId)">Finish &middot; go to handoff</button></div>';
   h += '</div>';
   host.innerHTML = h;
+}
+// POLISH 12: the none-to-record declaration, the same pattern as the condition
+// no-faults declaration. Abutments are per element; access is survey level.
+function flowDeclareNone(key){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  if (key === 'abutments'){
+    var objs = propObjects(survey); var o = objs[flowActiveWalkIdx]; if (!o || !o.b) return;
+    o.b.abutmentsNone = true;
+  } else if (key === 'access'){
+    if (!survey.accessConstraints || typeof survey.accessConstraints !== 'object') survey.accessConstraints = {};
+    survey.accessConstraints.noneToRecord = true;
+  } else return;
+  srPersist(survey); flowRenderWalk();
 }
 function flowWalkSelectElem(idx){ flowActiveWalkIdx = idx; flowRenderWalk(); }
 // Abutment flag raised on site: the SAME abutment record the desk edits, arriving
@@ -16723,6 +16856,16 @@ function flowRenderPurlinSheet(){
     body += '<div class="walk-pl-none">No purlin planes on this element yet — capture the geometry (heights and footprint) first.</div>';
   } else {
     body += planeRows(roof, 'roof', rec.roofPlanes) + planeRows(wall, 'wall', rec.wallPlanes);
+    // ITEM 10: purlin TYPE sits with the counted runs and the centres - it is a
+    // fact about the same grid. The key purlinType is unchanged, so the concrete
+    // carrier rule reads it exactly as before.
+    var ptype = String((srLoadSurvey(flowCurrentId) || {}).purlinType || 'Steel');
+    body += '<div class="walk-pl-centres"><label class="walk-pl-label">Purlin type</label>' +
+      '<select class="walk-jct-kind" onchange="flowPurlinSetType(this.value)">' +
+      ['Steel','Concrete'].map(function(o){ return '<option' + (ptype === o ? ' selected' : '') + '>' + o + '</option>'; }).join('') +
+      '</select>' +
+      (ptype.toLowerCase() === 'concrete' ? '<div class="walk-pl-note">Concrete portal frames cannot be fixed direct. A steel carrier is banded to the purlins.</div>' : '') +
+      '</div>';
     body += '<div class="walk-pl-centres"><label class="walk-pl-known"><input type="checkbox"' + (rec.known ? ' checked' : '') +
       ' onchange="flowPurlinSetKnown(this.checked)"> Centres known (fallback where a plane is not counted)</label>';
     if (rec.known){
@@ -16739,6 +16882,13 @@ function flowRenderPurlinSheet(){
   document.body.appendChild(el);
 }
 function flowPurlinClose(){ var b = document.getElementById('walk-purlin-back'); if (b) b.parentNode.removeChild(b); }
+// purlinType is a RECORD key (unchanged), edited here beside the grid it belongs to
+function flowPurlinSetType(v){
+  var survey = srLoadSurvey(flowCurrentId); if (!survey) return;
+  survey.purlinType = v || 'Steel';
+  srPersist(survey);
+  flowRenderPurlinSheet(); flowRenderWalk();
+}
 
 // ===== JUNCTIONS ON SITE (walk step, between faults and abutments) ==========
 // Presents the junctions touching this element for confirmation. The detail can
@@ -16862,6 +17012,7 @@ function flowAbutFlagPick(kind){
   var o = (typeof propObjById === 'function') ? propObjById(survey, flowAbutFlagObId) : null;
   if (!o || !o.b){ flowAbutFlagClose(); return; }
   if (!Array.isArray(o.b.abutments)) o.b.abutments = [];
+  o.b.abutmentsNone = false;                 // a real flag supersedes a declared none
   o.b.abutments.push({ id: (typeof estNewId === 'function' ? estNewId('ab') : ('ab' + o.b.abutments.length)),
     name: 'Abutment ' + (o.b.abutments.length + 1), kind: kind, lengthM: null, note: note, siteFlag: true });
   srPersist(survey);
