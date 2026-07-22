@@ -3663,297 +3663,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
         </div>
       </details>
 
-      <details class="section" id="section-site-plan">
-        <summary>Site Plan</summary>
-        <div class="section-body">
-
-          <!-- Amendment 2 (flow F1): an affirmative "no faults found" finding,
-               only relevant while the fault list is empty. spRenderNoFaultsControl()
-               fills this in and hides it once any fault exists. -->
-          <!-- "No faults found" removed from the form: the checklist declaration
-               is the one door. Both always wrote the same currentSiteImage.noFaultsFound. -->
-
-          <!-- Find on map + secondary coordinate readouts.
-               Inputs are intentionally OUTSIDE a .field wrapper so the global
-               .field input rule (width:100%; min-height:48px) doesn't blow them
-               up — they're a small confirm/override surface, not a primary entry. -->
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
-            <button type="button" id="sp-find-btn" onclick="spFindFromAddress()"
-              style="background:#F7901E;color:#fff;border:none;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
-              Find on map
-            </button>
-            <span style="font-size:11px;color:#888;">uses the site address from Section A</span>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <label for="sp-lat" style="font-size:12px;color:#888;margin:0;font-weight:600;">Lat</label>
-              <input type="number" id="sp-lat" data-survey-field="siteLat" step="any" placeholder="51.1079"
-                style="width:110px;font-size:12px;padding:5px 8px;border:1px solid #d4d4d0;border-radius:5px;font-family:inherit;color:#666;min-height:0;">
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <label for="sp-lng" style="font-size:12px;color:#888;margin:0;font-weight:600;">Lng</label>
-              <input type="number" id="sp-lng" data-survey-field="siteLng" step="any" placeholder="-3.0840"
-                style="width:110px;font-size:12px;padding:5px 8px;border:1px solid #d4d4d0;border-radius:5px;font-family:inherit;color:#666;min-height:0;">
-            </div>
-          </div>
-
-          <!-- Image controls. Leaflet supplies its own zoom +/- on the map
-               itself, so the old API-zoom row is gone; the load + upload
-               buttons remain as the two ways into the map. -->
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
-            <button type="button" id="sp-load-btn" onclick="spLoadSatellite()"
-              style="background:#F7901E;color:#fff;border:none;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
-              Show satellite map
-            </button>
-            <button type="button" id="sp-fetch-sat-btn" onclick="spFetchSatelliteView()"
-              style="background:transparent;color:#434244;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
-              Fetch satellite view
-            </button>
-            <label style="background:transparent;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;color:#434244;">
-              Upload image
-              <input type="file" id="sp-upload-input" accept="image/*" style="display:none;" onchange="spUploadImage(this)">
-            </label>
-          </div>
-
-          <p id="sp-compress-info" class="sp-compress-info"></p>
-
-          <!-- Shown only after an Airtable import when the original drone image
-               was stripped from the snapshot. The upload control remains
-               available beneath, so the surveyor can re-upload if needed. -->
-          <div id="sp-missing-image-notice" style="display:none;margin:8px 0;padding:10px 12px;border-radius:8px;background:#fff8e6;border:1px solid #f7c948;color:#7a4f00;font-size:12px;line-height:1.5;">
-            Site image not transferred. Photos stay on the device that captured them. Re-upload if needed.
-          </div>
-
-          <!-- Map area (hidden until the user loads a tile layer or uploads). -->
-          <div id="sp-image-area" style="display:none;">
-            <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-              <button type="button" id="sp-mode-id" class="sp-mode-btn active" onclick="spSetMode('identify')">Identify buildings</button>
-              <button type="button" id="sp-mode-fault" class="sp-mode-btn" onclick="spSetMode('fault')">Mark faults</button>
-              <button type="button" id="sp-add-offplan" class="sp-mode-btn" onclick="spAddFaultOffPlan()">Add fault off plan</button>
-              <button type="button" id="sp-reanchor-btn" class="sp-mode-btn" onclick="spReanchorStart()" title="Move an orphaned marker set back onto the current site image, keeping their relative layout">Re-anchor markers to plan</button>
-              <button type="button" id="sp-rotate-ccw" class="sp-mode-btn" onclick="spRotateImage(-90)" title="Rotate the image 90 degrees anticlockwise">Rotate left</button>
-              <button type="button" id="sp-rotate-cw" class="sp-mode-btn" onclick="spRotateImage(90)" title="Rotate the image 90 degrees clockwise">Rotate right</button>
-            </div>
-            <div id="sp-reanchor-bar" class="sp-reanchor-bar" style="display:none;"></div>
-            <div id="sp-map" style="width:100%;height:440px;border-radius:8px;border:1px solid #d4d4d0;"></div>
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:6px;">
-              <p id="sp-instruction" style="font-size:12px;color:#888;margin:0;"></p>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <span style="font-size:11px;color:#aaa;">Severity:</span>
-                <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block;"></span>Critical</span>
-                <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#F7901E;display:inline-block;"></span>Poor</span>
-                <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#eab308;display:inline-block;"></span>Fair</span>
-                <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;"></span>Monitor</span>
-              </div>
-            </div>
-            <div id="sp-fault-chips" style="display:none;margin-top:10px;flex-wrap:wrap;gap:6px;"></div>
-          </div>
-
-          <!-- Fault detail panel (hidden until a fault is active) -->
-          <div id="sp-fault-panel" style="display:none;margin-top:12px;padding:16px;border:1px solid #e0e0dc;border-radius:10px;background:#fafaf8;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-              <span id="sp-fault-title" style="font-weight:600;font-size:14px;color:#434244;"></span>
-              <button type="button" onclick="spCloseFaultPanel()"
-                style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 12px;height:28px;font-size:12px;cursor:pointer;font-family:inherit;">Done</button>
-            </div>
-
-            <div class="field" style="margin-bottom:12px;">
-              <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Severity</label>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <button type="button" class="sp-sev-btn" id="sp-sev-critical" onclick="spSetSeverity('critical')">Critical</button>
-                <button type="button" class="sp-sev-btn" id="sp-sev-poor"     onclick="spSetSeverity('poor')">Poor</button>
-                <button type="button" class="sp-sev-btn" id="sp-sev-fair"     onclick="spSetSeverity('fair')">Fair</button>
-                <button type="button" class="sp-sev-btn" id="sp-sev-monitor"  onclick="spSetSeverity('monitor')">Monitor</button>
-              </div>
-            </div>
-
-            <div class="field" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
-              <input type="checkbox" id="sp-fault-unlocatable" onchange="spFaultUnlocatableChange(this.checked)" style="margin:0;width:auto;min-height:0;">
-              <label for="sp-fault-unlocatable" style="font-size:12px;color:#666;margin:0;cursor:pointer;">Cannot be located on overview (internal / not visible from above)</label>
-            </div>
-
-            <div class="field" style="margin-bottom:12px;">
-              <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Fault type</label>
-              <button type="button" id="sp-fault-type-btn" class="sp-ft-trigger" onclick="spOpenFaultTypeSheet()">Select fault type...</button>
-              <select id="sp-fault-type" onchange="spSelectFaultType(this.value)" style="display:none;">
-                <option value="">Select...</option>
-                <optgroup label="Metal roofing">
-                  <option value="cut-edge-corrosion">Cut edge corrosion</option>
-                  <option value="failed-lap-seal">Failed lap seal</option>
-                  <option value="fastener-failure">Fastener failure</option>
-                  <option value="sheet-damage">Sheet damage</option>
-                  <option value="failed-flashing">Failed flashing</option>
-                  <option value="failed-rooflight">Failed or degraded rooflight</option>
-                </optgroup>
-                <optgroup label="Fibre cement roofing">
-                  <option value="cement-cracked-sheet">Cracked or broken cement sheet</option>
-                  <option value="cement-holed-sheet">Holed or impact-damaged cement sheet</option>
-                  <option value="cement-erosion">Cement sheet surface erosion or delamination</option>
-                  <option value="cement-fixings">Failed or corroded sheet fixings (cement roof)</option>
-                  <option value="cement-laps">Failed laps or water tracking (cement roof)</option>
-                  <option value="cement-ridge">Cracked or displaced cement ridge</option>
-                  <option value="cement-moss">Moss and organic growth (cement roof)</option>
-                  <option value="cement-asbestos">Suspected asbestos cement sheeting</option>
-                </optgroup>
-                <optgroup label="Flat roofing">
-                  <option value="membrane-split">Membrane split or tear</option>
-                  <option value="failed-seam">Failed seam weld</option>
-                  <option value="upstand-failure">Upstand non-compliant or failed</option>
-                  <option value="ponding-water">Ponding water</option>
-                  <option value="blocked-outlet">Blocked outlet or drain</option>
-                </optgroup>
-                <optgroup label="Gutters and drainage">
-                  <option value="blocked-gutter">Blocked gutter</option>
-                  <option value="gutter-failure">Gutter failure or corrosion</option>
-                  <option value="parapet-gutter-lining">Parapet or box gutter lining failure</option>
-                </optgroup>
-                <optgroup label="General">
-                  <option value="failed-patch-repair">Failed patch repair</option>
-                  <option value="other">Other</option>
-                </optgroup>
-              </select>
-              <div id="sp-fault-ref" style="display:none;"></div>
-            </div>
-
-            <div class="field" id="sp-fault-other-wrap" style="margin-bottom:12px;display:none;">
-              <label for="sp-fault-other-label" style="font-size:12px;color:#666;display:block;margin-bottom:4px;">What is the fault? <span style="color:#c0392b;">*</span></label>
-              <input type="text" id="sp-fault-other-label" maxlength="80" placeholder="Short label, e.g. Slipped verge tile" oninput="spOtherLabelChange(this.value)" style="width:100%;">
-              <div id="sp-fault-other-hint" style="font-size:11px;color:#c0392b;margin-top:4px;display:none;">A short description is required to save an Other fault.</div>
-            </div>
-
-            <div class="field" style="margin-bottom:12px;">
-              <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Area / zone (optional)</label>
-              <input type="text" id="sp-fault-area" list="sp-area-options" placeholder="Area / zone" oninput="spAreaChange(this.value)" style="width:100%;">
-              <datalist id="sp-area-options"></datalist>
-              <div style="font-size:11px;color:#888;margin-top:4px;">e.g. Roof A, Valley gutters, North elevation</div>
-            </div>
-
-            <div class="field" style="margin-bottom:12px;">
-              <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Location</label>
-              <input type="text" id="sp-fault-loc" placeholder="e.g. North elevation, bays 3-7" oninput="spLocationChange(this.value)" style="width:100%;">
-            </div>
-
-            <div class="field" style="margin-bottom:12px;">
-              <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Extent</label>
-              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;">
-                <div style="flex:0 0 auto;">
-                  <label for="sp-fault-qty-count" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">How many</label>
-                  <input type="number" id="sp-fault-qty-count" min="0" step="any" oninput="spFaultExtentChange('qtyCount', this.value)" style="width:90px;">
-                </div>
-                <div style="flex:1 1 140px;">
-                  <label for="sp-fault-qty-what" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Of what</label>
-                  <select id="sp-fault-qty-what" onchange="spFaultExtentChange('qtyWhat', this.value)" style="width:100%;">
-                    <option value="">Select...</option>
-                    <option>Laps</option>
-                    <option>Sheets</option>
-                    <option>Tiles / slates</option>
-                    <option>Fixings</option>
-                    <option>Panels</option>
-                    <option>Rooflights</option>
-                    <option>Area</option>
-                    <option>Each</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div id="sp-fault-qty-what-other-wrap" style="flex:1 1 140px;display:none;">
-                  <label for="sp-fault-qty-what-other" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Specify</label>
-                  <input type="text" id="sp-fault-qty-what-other" oninput="spFaultExtentChange('qtyWhatOther', this.value)" style="width:100%;">
-                </div>
-              </div>
-              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;">
-                <div style="flex:0 0 auto;">
-                  <label for="sp-fault-size-each" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Size each</label>
-                  <input type="number" id="sp-fault-size-each" min="0" step="any" oninput="spFaultExtentChange('sizeEach', this.value)" style="width:90px;">
-                </div>
-                <div style="flex:1 1 140px;">
-                  <label for="sp-fault-size-unit" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Unit</label>
-                  <select id="sp-fault-size-unit" onchange="spFaultExtentChange('sizeUnit', this.value)" style="width:100%;">
-                    <option value="">Select...</option>
-                    <option>Lin m</option>
-                    <option>Sq m</option>
-                    <option>m</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div id="sp-fault-size-unit-other-wrap" style="flex:1 1 140px;display:none;">
-                  <label for="sp-fault-size-unit-other" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Specify</label>
-                  <input type="text" id="sp-fault-size-unit-other" oninput="spFaultExtentChange('sizeUnitOther', this.value)" style="width:100%;">
-                </div>
-              </div>
-              <div id="sp-fault-total" style="display:none;font-size:12px;color:#434244;font-weight:600;"></div>
-            </div>
-
-            <div class="field" style="margin-bottom:12px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                <label style="font-size:12px;color:#666;margin:0;">Condition description</label>
-                <span id="sp-desc-autotag" class="sp-auto-tag" style="display:none;">auto-populated — edit as needed</span>
-              </div>
-              <textarea id="sp-fault-desc" placeholder="Describe the fault and extent" oninput="spFaultFieldChange('description', this.value)"
-                style="width:100%;height:88px;resize:vertical;"></textarea>
-              <button type="button" class="sp-refresh-link" id="sp-desc-refresh" onclick="spRefreshDesc()">Reset to standard wording</button>
-            </div>
-
-            <div class="field" style="margin-bottom:14px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                <label style="font-size:12px;color:#666;margin:0;">Recommended remedy</label>
-                <span id="sp-rec-autotag" class="sp-auto-tag" style="display:none;">auto-populated — edit as needed</span>
-              </div>
-              <textarea id="sp-fault-rec" placeholder="Proposed remedial action" oninput="spFaultFieldChange('recommendation', this.value)"
-                style="width:100%;height:88px;resize:vertical;"></textarea>
-              <button type="button" class="sp-refresh-link" id="sp-rec-refresh" onclick="spRefreshRec()">Reset to standard wording</button>
-            </div>
-
-            <div class="field" style="margin-bottom:14px;">
-              <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Photos</label>
-              <div id="sp-fault-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
-              <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;">
-                Add photo
-                <input type="file" id="sp-fault-photo-input" accept="image/*" style="display:none;" onchange="spAddFaultPhoto(this)">
-              </label>
-            </div>
-
-            <div class="field" id="sp-fault-image-block" style="margin-bottom:14px;display:none;">
-              <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Fault image</label>
-              <div id="sp-fault-image-empty">
-                <label style="position:relative;display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;overflow:hidden;">
-                  Upload image
-                  <input type="file" id="sp-fault-image-input" accept="image/*" style="position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="spAddFaultImage(this)">
-                </label>
-                <p style="font-size:11px;color:#888;margin:6px 0 0 0;">Used when the fault is out of shot of the main site image.</p>
-              </div>
-              <div id="sp-fault-image-loaded" style="display:none;">
-                <p style="font-size:11px;color:#888;margin:0 0 6px 0;">Tap the image to mark the fault location.</p>
-                <div id="sp-fault-image-wrap" style="position:relative;width:100%;cursor:crosshair;" onclick="spOnFaultImageClick(event)">
-                  <img id="sp-fault-image-img" src="" alt="Fault image" style="display:block;width:100%;height:auto;border-radius:8px;border:1px solid #d4d4d0;">
-                </div>
-                <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                  <label style="position:relative;display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;overflow:hidden;">
-                    Replace image
-                    <input type="file" id="sp-fault-image-replace" accept="image/*" style="position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="spAddFaultImage(this)">
-                  </label>
-                  <button type="button" onclick="spClearFaultImage()" style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;">Clear image</button>
-                </div>
-              </div>
-            </div>
-
-            <button type="button" onclick="spDeleteFault()"
-              style="font-size:12px;color:#dc2626;background:transparent;border:none;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:4px;">
-              Remove this fault
-            </button>
-          </div>
-
-          <!-- Fault schedule (hidden until faults exist) -->
-          <div id="sp-schedule" style="display:none;margin-top:16px;">
-            <div style="border-bottom:1px solid #e0e0dc;padding-bottom:8px;margin-bottom:10px;">
-              <span id="sp-schedule-title" style="font-size:13px;font-weight:600;color:#434244;"></span>
-            </div>
-            <div id="sp-schedule-rows"></div>
-            <!-- Derived costed schedule: auto-pulled rate-card line items per fault + running total -->
-            <div id="sp-costed-schedule" style="display:none;margin-top:16px;"></div>
-            <!-- Job-level Labour section (your judged time at the cost-side rates) -->
-            <div id="sp-labour-section"></div>
-          </div>
-
-        </div>
-      </details>
+      <!-- Site Plan REHOMED out of the form to its own surface (#view-siteplan),
+           reachable from capture and the record. The form carries nothing map-shaped.
+           Every sp-* id is unchanged, so the aerial, markers, imagery and the fault
+           editor keep working exactly as before and no sp-* read can miss its node. -->
 
       <div class="form-section-toggle" id="form-section-toggle" style="display:none;">
         <label class="show-all-toggle">
@@ -4199,6 +3912,310 @@ input.derived-field { background: #f6f8fa; color: #555; }
         <button class="link-btn" onclick="cancelEdit()">Cancel</button>
       </div>
       <div class="draft-indicator" id="draft-indicator"></div>
+    </div>
+  </section>
+
+  <!-- SITE PLAN — its own surface. Holds the aerial/upload imagery, the pins and
+       fault markers, and the fault detail editor. Reached from the capture surface
+       and the record; never part of the enquiry form. -->
+  <section id="view-siteplan" class="view">
+    <div class="container wide">
+      <div class="view-header">
+        <button class="link-btn" onclick="spBackFromSitePlan()" style="align-self:flex-start;">&larr; Back</button>
+        <h1>Site plan</h1>
+        <div class="meta">The aerial or uploaded image for this site, its pins and fault markers, and the fault detail.</div>
+      </div>
+        <details class="section" id="section-site-plan" open>
+          <summary>Site Plan</summary>
+          <div class="section-body">
+
+            <!-- Amendment 2 (flow F1): an affirmative "no faults found" finding,
+                 only relevant while the fault list is empty. spRenderNoFaultsControl()
+                 fills this in and hides it once any fault exists. -->
+            <!-- "No faults found" removed from the form: the checklist declaration
+                 is the one door. Both always wrote the same currentSiteImage.noFaultsFound. -->
+
+            <!-- Find on map + secondary coordinate readouts.
+                 Inputs are intentionally OUTSIDE a .field wrapper so the global
+                 .field input rule (width:100%; min-height:48px) doesn't blow them
+                 up — they're a small confirm/override surface, not a primary entry. -->
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+              <button type="button" id="sp-find-btn" onclick="spFindFromAddress()"
+                style="background:#F7901E;color:#fff;border:none;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
+                Find on map
+              </button>
+              <span style="font-size:11px;color:#888;">uses the site address from Section A</span>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <label for="sp-lat" style="font-size:12px;color:#888;margin:0;font-weight:600;">Lat</label>
+                <input type="number" id="sp-lat" data-survey-field="siteLat" step="any" placeholder="51.1079"
+                  style="width:110px;font-size:12px;padding:5px 8px;border:1px solid #d4d4d0;border-radius:5px;font-family:inherit;color:#666;min-height:0;">
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <label for="sp-lng" style="font-size:12px;color:#888;margin:0;font-weight:600;">Lng</label>
+                <input type="number" id="sp-lng" data-survey-field="siteLng" step="any" placeholder="-3.0840"
+                  style="width:110px;font-size:12px;padding:5px 8px;border:1px solid #d4d4d0;border-radius:5px;font-family:inherit;color:#666;min-height:0;">
+              </div>
+            </div>
+
+            <!-- Image controls. Leaflet supplies its own zoom +/- on the map
+                 itself, so the old API-zoom row is gone; the load + upload
+                 buttons remain as the two ways into the map. -->
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+              <button type="button" id="sp-load-btn" onclick="spLoadSatellite()"
+                style="background:#F7901E;color:#fff;border:none;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
+                Show satellite map
+              </button>
+              <button type="button" id="sp-fetch-sat-btn" onclick="spFetchSatelliteView()"
+                style="background:transparent;color:#434244;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;">
+                Fetch satellite view
+              </button>
+              <label style="background:transparent;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;color:#434244;">
+                Upload image
+                <input type="file" id="sp-upload-input" accept="image/*" style="display:none;" onchange="spUploadImage(this)">
+              </label>
+            </div>
+
+            <p id="sp-compress-info" class="sp-compress-info"></p>
+
+            <!-- Shown only after an Airtable import when the original drone image
+                 was stripped from the snapshot. The upload control remains
+                 available beneath, so the surveyor can re-upload if needed. -->
+            <div id="sp-missing-image-notice" style="display:none;margin:8px 0;padding:10px 12px;border-radius:8px;background:#fff8e6;border:1px solid #f7c948;color:#7a4f00;font-size:12px;line-height:1.5;">
+              Site image not transferred. Photos stay on the device that captured them. Re-upload if needed.
+            </div>
+
+            <!-- Map area (hidden until the user loads a tile layer or uploads). -->
+            <div id="sp-image-area" style="display:none;">
+              <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+                <button type="button" id="sp-mode-id" class="sp-mode-btn active" onclick="spSetMode('identify')">Identify buildings</button>
+                <button type="button" id="sp-mode-fault" class="sp-mode-btn" onclick="spSetMode('fault')">Mark faults</button>
+                <button type="button" id="sp-add-offplan" class="sp-mode-btn" onclick="spAddFaultOffPlan()">Add fault off plan</button>
+                <button type="button" id="sp-reanchor-btn" class="sp-mode-btn" onclick="spReanchorStart()" title="Move an orphaned marker set back onto the current site image, keeping their relative layout">Re-anchor markers to plan</button>
+                <button type="button" id="sp-rotate-ccw" class="sp-mode-btn" onclick="spRotateImage(-90)" title="Rotate the image 90 degrees anticlockwise">Rotate left</button>
+                <button type="button" id="sp-rotate-cw" class="sp-mode-btn" onclick="spRotateImage(90)" title="Rotate the image 90 degrees clockwise">Rotate right</button>
+              </div>
+              <div id="sp-reanchor-bar" class="sp-reanchor-bar" style="display:none;"></div>
+              <div id="sp-map" style="width:100%;height:440px;border-radius:8px;border:1px solid #d4d4d0;"></div>
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;flex-wrap:wrap;gap:6px;">
+                <p id="sp-instruction" style="font-size:12px;color:#888;margin:0;"></p>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <span style="font-size:11px;color:#aaa;">Severity:</span>
+                  <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block;"></span>Critical</span>
+                  <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#F7901E;display:inline-block;"></span>Poor</span>
+                  <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#eab308;display:inline-block;"></span>Fair</span>
+                  <span style="font-size:11px;display:flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;"></span>Monitor</span>
+                </div>
+              </div>
+              <div id="sp-fault-chips" style="display:none;margin-top:10px;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+
+            <!-- Fault detail panel (hidden until a fault is active) -->
+            <div id="sp-fault-panel" style="display:none;margin-top:12px;padding:16px;border:1px solid #e0e0dc;border-radius:10px;background:#fafaf8;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <span id="sp-fault-title" style="font-weight:600;font-size:14px;color:#434244;"></span>
+                <button type="button" onclick="spCloseFaultPanel()"
+                  style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 12px;height:28px;font-size:12px;cursor:pointer;font-family:inherit;">Done</button>
+              </div>
+
+              <div class="field" style="margin-bottom:12px;">
+                <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Severity</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button type="button" class="sp-sev-btn" id="sp-sev-critical" onclick="spSetSeverity('critical')">Critical</button>
+                  <button type="button" class="sp-sev-btn" id="sp-sev-poor"     onclick="spSetSeverity('poor')">Poor</button>
+                  <button type="button" class="sp-sev-btn" id="sp-sev-fair"     onclick="spSetSeverity('fair')">Fair</button>
+                  <button type="button" class="sp-sev-btn" id="sp-sev-monitor"  onclick="spSetSeverity('monitor')">Monitor</button>
+                </div>
+              </div>
+
+              <div class="field" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="sp-fault-unlocatable" onchange="spFaultUnlocatableChange(this.checked)" style="margin:0;width:auto;min-height:0;">
+                <label for="sp-fault-unlocatable" style="font-size:12px;color:#666;margin:0;cursor:pointer;">Cannot be located on overview (internal / not visible from above)</label>
+              </div>
+
+              <div class="field" style="margin-bottom:12px;">
+                <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Fault type</label>
+                <button type="button" id="sp-fault-type-btn" class="sp-ft-trigger" onclick="spOpenFaultTypeSheet()">Select fault type...</button>
+                <select id="sp-fault-type" onchange="spSelectFaultType(this.value)" style="display:none;">
+                  <option value="">Select...</option>
+                  <optgroup label="Metal roofing">
+                    <option value="cut-edge-corrosion">Cut edge corrosion</option>
+                    <option value="failed-lap-seal">Failed lap seal</option>
+                    <option value="fastener-failure">Fastener failure</option>
+                    <option value="sheet-damage">Sheet damage</option>
+                    <option value="failed-flashing">Failed flashing</option>
+                    <option value="failed-rooflight">Failed or degraded rooflight</option>
+                  </optgroup>
+                  <optgroup label="Fibre cement roofing">
+                    <option value="cement-cracked-sheet">Cracked or broken cement sheet</option>
+                    <option value="cement-holed-sheet">Holed or impact-damaged cement sheet</option>
+                    <option value="cement-erosion">Cement sheet surface erosion or delamination</option>
+                    <option value="cement-fixings">Failed or corroded sheet fixings (cement roof)</option>
+                    <option value="cement-laps">Failed laps or water tracking (cement roof)</option>
+                    <option value="cement-ridge">Cracked or displaced cement ridge</option>
+                    <option value="cement-moss">Moss and organic growth (cement roof)</option>
+                    <option value="cement-asbestos">Suspected asbestos cement sheeting</option>
+                  </optgroup>
+                  <optgroup label="Flat roofing">
+                    <option value="membrane-split">Membrane split or tear</option>
+                    <option value="failed-seam">Failed seam weld</option>
+                    <option value="upstand-failure">Upstand non-compliant or failed</option>
+                    <option value="ponding-water">Ponding water</option>
+                    <option value="blocked-outlet">Blocked outlet or drain</option>
+                  </optgroup>
+                  <optgroup label="Gutters and drainage">
+                    <option value="blocked-gutter">Blocked gutter</option>
+                    <option value="gutter-failure">Gutter failure or corrosion</option>
+                    <option value="parapet-gutter-lining">Parapet or box gutter lining failure</option>
+                  </optgroup>
+                  <optgroup label="General">
+                    <option value="failed-patch-repair">Failed patch repair</option>
+                    <option value="other">Other</option>
+                  </optgroup>
+                </select>
+                <div id="sp-fault-ref" style="display:none;"></div>
+              </div>
+
+              <div class="field" id="sp-fault-other-wrap" style="margin-bottom:12px;display:none;">
+                <label for="sp-fault-other-label" style="font-size:12px;color:#666;display:block;margin-bottom:4px;">What is the fault? <span style="color:#c0392b;">*</span></label>
+                <input type="text" id="sp-fault-other-label" maxlength="80" placeholder="Short label, e.g. Slipped verge tile" oninput="spOtherLabelChange(this.value)" style="width:100%;">
+                <div id="sp-fault-other-hint" style="font-size:11px;color:#c0392b;margin-top:4px;display:none;">A short description is required to save an Other fault.</div>
+              </div>
+
+              <div class="field" style="margin-bottom:12px;">
+                <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Area / zone (optional)</label>
+                <input type="text" id="sp-fault-area" list="sp-area-options" placeholder="Area / zone" oninput="spAreaChange(this.value)" style="width:100%;">
+                <datalist id="sp-area-options"></datalist>
+                <div style="font-size:11px;color:#888;margin-top:4px;">e.g. Roof A, Valley gutters, North elevation</div>
+              </div>
+
+              <div class="field" style="margin-bottom:12px;">
+                <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Location</label>
+                <input type="text" id="sp-fault-loc" placeholder="e.g. North elevation, bays 3-7" oninput="spLocationChange(this.value)" style="width:100%;">
+              </div>
+
+              <div class="field" style="margin-bottom:12px;">
+                <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Extent</label>
+                <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;">
+                  <div style="flex:0 0 auto;">
+                    <label for="sp-fault-qty-count" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">How many</label>
+                    <input type="number" id="sp-fault-qty-count" min="0" step="any" oninput="spFaultExtentChange('qtyCount', this.value)" style="width:90px;">
+                  </div>
+                  <div style="flex:1 1 140px;">
+                    <label for="sp-fault-qty-what" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Of what</label>
+                    <select id="sp-fault-qty-what" onchange="spFaultExtentChange('qtyWhat', this.value)" style="width:100%;">
+                      <option value="">Select...</option>
+                      <option>Laps</option>
+                      <option>Sheets</option>
+                      <option>Tiles / slates</option>
+                      <option>Fixings</option>
+                      <option>Panels</option>
+                      <option>Rooflights</option>
+                      <option>Area</option>
+                      <option>Each</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div id="sp-fault-qty-what-other-wrap" style="flex:1 1 140px;display:none;">
+                    <label for="sp-fault-qty-what-other" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Specify</label>
+                    <input type="text" id="sp-fault-qty-what-other" oninput="spFaultExtentChange('qtyWhatOther', this.value)" style="width:100%;">
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;">
+                  <div style="flex:0 0 auto;">
+                    <label for="sp-fault-size-each" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Size each</label>
+                    <input type="number" id="sp-fault-size-each" min="0" step="any" oninput="spFaultExtentChange('sizeEach', this.value)" style="width:90px;">
+                  </div>
+                  <div style="flex:1 1 140px;">
+                    <label for="sp-fault-size-unit" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Unit</label>
+                    <select id="sp-fault-size-unit" onchange="spFaultExtentChange('sizeUnit', this.value)" style="width:100%;">
+                      <option value="">Select...</option>
+                      <option>Lin m</option>
+                      <option>Sq m</option>
+                      <option>m</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div id="sp-fault-size-unit-other-wrap" style="flex:1 1 140px;display:none;">
+                    <label for="sp-fault-size-unit-other" style="font-size:11px;color:#888;display:block;margin-bottom:2px;">Specify</label>
+                    <input type="text" id="sp-fault-size-unit-other" oninput="spFaultExtentChange('sizeUnitOther', this.value)" style="width:100%;">
+                  </div>
+                </div>
+                <div id="sp-fault-total" style="display:none;font-size:12px;color:#434244;font-weight:600;"></div>
+              </div>
+
+              <div class="field" style="margin-bottom:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <label style="font-size:12px;color:#666;margin:0;">Condition description</label>
+                  <span id="sp-desc-autotag" class="sp-auto-tag" style="display:none;">auto-populated — edit as needed</span>
+                </div>
+                <textarea id="sp-fault-desc" placeholder="Describe the fault and extent" oninput="spFaultFieldChange('description', this.value)"
+                  style="width:100%;height:88px;resize:vertical;"></textarea>
+                <button type="button" class="sp-refresh-link" id="sp-desc-refresh" onclick="spRefreshDesc()">Reset to standard wording</button>
+              </div>
+
+              <div class="field" style="margin-bottom:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <label style="font-size:12px;color:#666;margin:0;">Recommended remedy</label>
+                  <span id="sp-rec-autotag" class="sp-auto-tag" style="display:none;">auto-populated — edit as needed</span>
+                </div>
+                <textarea id="sp-fault-rec" placeholder="Proposed remedial action" oninput="spFaultFieldChange('recommendation', this.value)"
+                  style="width:100%;height:88px;resize:vertical;"></textarea>
+                <button type="button" class="sp-refresh-link" id="sp-rec-refresh" onclick="spRefreshRec()">Reset to standard wording</button>
+              </div>
+
+              <div class="field" style="margin-bottom:14px;">
+                <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Photos</label>
+                <div id="sp-fault-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
+                <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;">
+                  Add photo
+                  <input type="file" id="sp-fault-photo-input" accept="image/*" style="display:none;" onchange="spAddFaultPhoto(this)">
+                </label>
+              </div>
+
+              <div class="field" id="sp-fault-image-block" style="margin-bottom:14px;display:none;">
+                <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Fault image</label>
+                <div id="sp-fault-image-empty">
+                  <label style="position:relative;display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;overflow:hidden;">
+                    Upload image
+                    <input type="file" id="sp-fault-image-input" accept="image/*" style="position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="spAddFaultImage(this)">
+                  </label>
+                  <p style="font-size:11px;color:#888;margin:6px 0 0 0;">Used when the fault is out of shot of the main site image.</p>
+                </div>
+                <div id="sp-fault-image-loaded" style="display:none;">
+                  <p style="font-size:11px;color:#888;margin:0 0 6px 0;">Tap the image to mark the fault location.</p>
+                  <div id="sp-fault-image-wrap" style="position:relative;width:100%;cursor:crosshair;" onclick="spOnFaultImageClick(event)">
+                    <img id="sp-fault-image-img" src="" alt="Fault image" style="display:block;width:100%;height:auto;border-radius:8px;border:1px solid #d4d4d0;">
+                  </div>
+                  <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <label style="position:relative;display:inline-flex;align-items:center;gap:6px;border:1px solid #d4d4d0;border-radius:7px;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;overflow:hidden;">
+                      Replace image
+                      <input type="file" id="sp-fault-image-replace" accept="image/*" style="position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="spAddFaultImage(this)">
+                    </label>
+                    <button type="button" onclick="spClearFaultImage()" style="border:1px solid #d4d4d0;border-radius:7px;background:transparent;padding:0 14px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;color:#434244;">Clear image</button>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" onclick="spDeleteFault()"
+                style="font-size:12px;color:#dc2626;background:transparent;border:none;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:4px;">
+                Remove this fault
+              </button>
+            </div>
+
+            <!-- Fault schedule (hidden until faults exist) -->
+            <div id="sp-schedule" style="display:none;margin-top:16px;">
+              <div style="border-bottom:1px solid #e0e0dc;padding-bottom:8px;margin-bottom:10px;">
+                <span id="sp-schedule-title" style="font-size:13px;font-weight:600;color:#434244;"></span>
+              </div>
+              <div id="sp-schedule-rows"></div>
+              <!-- Derived costed schedule: auto-pulled rate-card line items per fault + running total -->
+              <div id="sp-costed-schedule" style="display:none;margin-top:16px;"></div>
+              <!-- Job-level Labour section (your judged time at the cost-side rates) -->
+              <div id="sp-labour-section"></div>
+            </div>
+
+          </div>
+        </details>
     </div>
   </section>
 
@@ -8434,21 +8451,7 @@ function editCurrent() {
     ? s.buildings.map(b => ({ ...b, slopes: (b.slopes || []).map(sl => ({ ...sl })) }))
     : [];
   currentPackAccess = ppInitAccess(s);
-  currentSiteImage = {
-    siteImageSource:  s.siteImageSource || '',
-    siteImageData:    s.siteImageData   || '',
-    siteImageW:       Number.isFinite(Number(s.siteImageW)) ? Number(s.siteImageW) : null,
-    siteImageH:       Number.isFinite(Number(s.siteImageH)) ? Number(s.siteImageH) : null,
-    siteMapCentreLat: Number.isFinite(Number(s.siteMapCentreLat)) ? Number(s.siteMapCentreLat) : null,
-    siteMapCentreLng: Number.isFinite(Number(s.siteMapCentreLng)) ? Number(s.siteMapCentreLng) : null,
-    siteMapZoom:      Number.isFinite(Number(s.siteMapZoom))      ? Number(s.siteMapZoom)      : 18,
-    siteImageRotation: Number(s.siteImageRotation) || 0,
-    siteImagePins:    Array.isArray(s.siteImagePins)    ? s.siteImagePins.map(p => ({ ...p })) : [],
-    siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : [],
-    noFaultsFound:    !!s.noFaultsFound,
-    costOverrides:    (s.costOverrides && typeof s.costOverrides === 'object') ? s.costOverrides : {},
-    labourInputs:     (s.labourInputs && typeof s.labourInputs === 'object') ? s.labourInputs : {}
-  };
+  currentSiteImage = srHydrateSiteImage(s);
   document.getElementById('form-title').textContent = 'Edit survey';
   document.getElementById('form-meta').textContent = s.id + ' · created ' + fmtDate(s.createdAt);
   document.getElementById('f-ref-readout').textContent = s.id;
@@ -8463,6 +8466,49 @@ function editCurrent() {
   applyConditionFormLayout();
   startAutoSave();
   showView('form');
+}
+// ===== THE REHOMED SITE PLAN SURFACE =======================================
+// The aerial/uploaded imagery, the pins and fault markers and the fault detail
+// editor now live on their own surface rather than inside the enquiry form.
+// Every sp-* id is unchanged, so all ~100 existing sp-* reads still resolve and
+// nothing needed guarding; only the DOM's home moved.
+var spReturnView = 'detail';
+function spOpenSitePlan(id, backTo){
+  var sid = id || currentSurveyId; if (!sid) return;
+  var s = srLoadSurvey(sid); if (!s){ showToast('Survey not found', 'err'); return; }
+  currentSurveyId = sid;
+  spReturnView = backTo || 'detail';
+  // hydrate exactly what the form used to hydrate, so the module sees the same state
+  currentSiteImage = srHydrateSiteImage(s);
+  showView('siteplan');
+  try { spRestoreImageState(); } catch (e){}
+  // Leaflet measures on construction; the surface has only just become visible
+  setTimeout(function(){ try { if (spMap) spMap.invalidateSize(); } catch(e){} }, 120);
+}
+function spBackFromSitePlan(){
+  // persist via the site-image-only writer: the form may hold another record
+  try { if (currentSurveyId !== null && !spFormHoldsRecord()) spPersistSiteImage(); } catch (e){}
+  if (spReturnView === 'footprint' && typeof fpOpen === 'function'){ fpOpen(currentSurveyId); return; }
+  goDetail();
+}
+// The site-image hydration, lifted out of editCurrent so the rehomed Site Plan
+// surface can load the same state without going through the form.
+function srHydrateSiteImage(s){
+  return {
+    siteImageSource:  s.siteImageSource || '',
+    siteImageData:    s.siteImageData   || '',
+    siteImageW:       Number.isFinite(Number(s.siteImageW)) ? Number(s.siteImageW) : null,
+    siteImageH:       Number.isFinite(Number(s.siteImageH)) ? Number(s.siteImageH) : null,
+    siteMapCentreLat: Number.isFinite(Number(s.siteMapCentreLat)) ? Number(s.siteMapCentreLat) : null,
+    siteMapCentreLng: Number.isFinite(Number(s.siteMapCentreLng)) ? Number(s.siteMapCentreLng) : null,
+    siteMapZoom:      Number.isFinite(Number(s.siteMapZoom))      ? Number(s.siteMapZoom)      : 18,
+    siteImageRotation: Number(s.siteImageRotation) || 0,
+    siteImagePins:    Array.isArray(s.siteImagePins)    ? s.siteImagePins.map(p => ({ ...p })) : [],
+    siteFaultMarkers: Array.isArray(s.siteFaultMarkers) ? s.siteFaultMarkers.map(f => ({ ...f })) : [],
+    noFaultsFound:    !!s.noFaultsFound,
+    costOverrides:    (s.costOverrides && typeof s.costOverrides === 'object') ? s.costOverrides : {},
+    labourInputs:     (s.labourInputs && typeof s.labourInputs === 'object') ? s.labourInputs : {}
+  };
 }
 
 function deleteCurrent() {
@@ -9491,6 +9537,7 @@ function renderSurveyDetail(s) {
         '<div class="act-group-btns">' +
           '<button class="btn btn-primary" onclick="editCurrent()">Edit</button>' +
           '<button class="btn btn-secondary" onclick="fpOpen(currentSurveyId)">Footprint plan (beta)</button>' +
+          '<button class="btn btn-secondary" onclick="spOpenSitePlan(currentSurveyId, \'detail\')">Site plan</button>' +
           '<button type="button" class="btn btn-secondary" id="sync-at-btn" onclick="syncSurveyToAirtable()">Save to Airtable</button>' +
           '<button class="btn btn-secondary" onclick="exportSurvey(currentSurveyId)">Export survey</button>' +
           sampleBtn +
@@ -14027,6 +14074,10 @@ function fpRender(){
 
   // Stage 4: tap-to-place toolbar (features + fault pins), only once a footprint exists
   if (fp && !drawing) h += fpRenderPlaceToolbar();
+
+  // The rehomed site plan is reachable from the capture surface: one home for the
+  // aerial, the imagery and the markers, alongside the trace.
+  h += '<div class="fp-siteplan-link"><button class="fp-trace-btn" onclick="spOpenSitePlan(fpCurrentId, \'footprint\')">Site plan &middot; aerial, imagery and markers</button></div>';
 
   // Part 1: aerial underlay trace (estimate journeys only). Toolbar + provisional
   // banner sit above the canvas; the Leaflet map, when open, replaces the SVG.
@@ -23252,10 +23303,42 @@ function spSaveSurveyField(key, value) {
   try {
     if (currentSurveyId === null) {
       saveDraft(collectFormData());
+    } else if (spFormHoldsRecord()) {
+      persistCurrentEdit();          // the form IS this record: unchanged behaviour
     } else {
-      persistCurrentEdit();
+      spPersistSiteImage();          // rehomed surface: never read the form's DOM
     }
   } catch (_) { /* non-fatal */ }
+}
+// TRUE only when the enquiry form is on screen AND populated with THIS record -
+// the one case in which collectFormData()'s DOM read describes this survey.
+// Since the site plan was rehomed out of the form it can be open while the form
+// holds a different record (or nothing), and persistCurrentEdit would then write
+// that record's form values over this one.
+function spFormHoldsRecord(){
+  var v = document.getElementById('view-form');
+  var ref = document.getElementById('f-ref-readout');
+  return !!(v && v.classList.contains('active') && ref && ref.textContent === String(currentSurveyId));
+}
+// Persist ONLY the site-image payload straight onto the record - the same key set
+// collectFormData writes - with no form involvement at all.
+function spPersistSiteImage(){
+  if (currentSurveyId === null) return false;
+  var s = srLoadSurvey(currentSurveyId); if (!s) return false;
+  var latEl = document.getElementById('sp-lat'), lngEl = document.getElementById('sp-lng');
+  if (latEl) s.siteLat = (latEl.value || '').trim();
+  if (lngEl) s.siteLng = (lngEl.value || '').trim();
+  ['siteImageSource','siteImageData','siteImageW','siteImageH','siteMapCentreLat',
+   'siteMapCentreLng','siteMapZoom','siteImageRotation','noFaultsFound',
+   'costOverrides','labourInputs'].forEach(function(k){
+    if (k in currentSiteImage) s[k] = currentSiteImage[k];
+  });
+  s.siteImageRotation = Number(currentSiteImage.siteImageRotation) || 0;
+  s.siteImagePins = (currentSiteImage.siteImagePins || []).map(function(p){ return Object.assign({}, p); });
+  s.siteFaultMarkers = (currentSiteImage.siteFaultMarkers || []).map(function(f){
+    return Object.assign({}, f, { photos: Array.isArray(f.photos) ? f.photos.slice() : [] }); });
+  srPersist(s);
+  return true;
 }
 
 // ── Helpers ──
