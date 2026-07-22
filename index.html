@@ -1131,6 +1131,29 @@ main { padding-bottom: env(safe-area-inset-bottom); }
 
 /* FIELDS */
 .field { margin-top: 1rem; }
+/* ===== ENQUIRY FORM, RELAID (red pen section 3) =====
+   Two columns on desktop (left engagement then end client, right site then
+   visit), one column on phone, fields sized to their content, the told-to-us
+   fields two lines at rest and opening on focus, and a sticky save bar. */
+.form-grid { display: grid; grid-template-columns: 1fr; gap: 0 2.25rem; }
+@media (min-width: 768px) { .form-grid { grid-template-columns: 1fr 1fr; } }
+.form-col { min-width: 0; }
+/* fields sized to content rather than every input filling the column */
+.field.compact input, .field.compact select { max-width: 15rem; }
+#view-form .field input[type="date"], #view-form .field input[type="time"] { max-width: 11rem; }
+#view-form #f-site-postcode { max-width: 9rem; text-transform: uppercase; }
+#view-form #f-visit-duration { width: 5.5rem; }
+.appt-row { display: flex; gap: 8px; align-items: center; }
+.appt-row input[type="time"] { flex: 0 1 8.5rem; min-width: 0; }
+.appt-unit { font-size: 12px; color: #888; white-space: nowrap; }
+/* the three told-to-us fields: two lines at rest, opening as soon as they are used */
+#view-form .told-us textarea { min-height: 0; height: 3.4em; overflow: hidden; transition: height .16s ease; }
+#view-form .told-us textarea:focus { min-height: 0; height: 9.5em; overflow: auto; }
+/* sticky save bar */
+#view-form .form-actions { position: sticky; bottom: 0; z-index: 5; background: var(--bg, #fff);
+  padding: 0.85rem 0; margin-top: 1rem; border-top: 1px solid var(--rule);
+  box-shadow: 0 -6px 14px -10px rgba(0,0,0,0.35); }
+@media print { #view-form .form-actions { position: static; box-shadow: none; } }
 .field-row { display: grid; grid-template-columns: 1fr; gap: 1rem; }
 @media (min-width: 768px) {
   .field-row { grid-template-columns: 1fr 1fr; }
@@ -3516,149 +3539,139 @@ input.derived-field { background: #f6f8fa; color: #555; }
       </div>
 
       <details class="section" id="section-a" open>
-        <summary>Section A — Site Info</summary>
+        <summary>Enquiry</summary>
         <div class="section-body">
-          <div class="subsection">
-            <div class="subsection-title">Engagement</div>
-            <div class="field">
-              <label for="f-engagement-type">Engagement type <span class="req">*</span></label>
-              <select id="f-engagement-type">
-                <option value="direct">Direct (engaged by client)</option>
-                <option value="subcontracted">Sub-contracted (engaged by main contractor)</option>
-              </select>
+          <div class="form-grid">
+
+            <div class="form-col">
+              <div class="subsection">
+                <div class="subsection-title">Engagement</div>
+                <div class="field compact">
+                  <label for="f-engagement-type">Engagement type <span class="req">*</span></label>
+                  <select id="f-engagement-type">
+                    <option value="direct">Direct (engaged by client)</option>
+                    <option value="subcontracted">Sub-contracted (engaged by main contractor)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="subsection">
+                <div class="subsection-title">End client</div>
+                <div class="subsection-hint">The building owner or occupier.</div>
+                <div class="field">
+                  <label for="f-ec-company">Company name</label>
+                  <input type="text" id="f-ec-company" autocomplete="organization">
+                </div>
+                <div class="field">
+                  <label for="f-ec-contact-name">Contact name <span class="req">*</span></label>
+                  <input type="text" id="f-ec-contact-name" autocomplete="name">
+                </div>
+                <div class="field">
+                  <label for="f-ec-contact-title">Contact title / role</label>
+                  <input type="text" id="f-ec-contact-title" placeholder="e.g. Estates Manager, Director">
+                </div>
+                <div class="field">
+                  <label for="f-ec-email">Email <span class="req">*</span></label>
+                  <input type="email" id="f-ec-email" autocomplete="email">
+                </div>
+                <div class="field compact">
+                  <label for="f-ec-telephone">Telephone</label>
+                  <input type="tel" id="f-ec-telephone" autocomplete="tel">
+                </div>
+              </div>
+
+              <div class="subsection" id="main-contractor-subsection" hidden>
+                <div class="subsection-title">Main contractor</div>
+                <div class="subsection-hint">The entity engaging Nova.</div>
+                <div class="field">
+                  <label for="f-mc-company">Company name <span class="req">*</span></label>
+                  <input type="text" id="f-mc-company">
+                </div>
+                <div class="field">
+                  <label for="f-mc-contact-name">Contact name <span class="req">*</span></label>
+                  <input type="text" id="f-mc-contact-name">
+                </div>
+                <div class="field">
+                  <label for="f-mc-contact-title">Contact title / role</label>
+                  <input type="text" id="f-mc-contact-title">
+                </div>
+                <div class="field">
+                  <label for="f-mc-email">Email <span class="req">*</span></label>
+                  <input type="email" id="f-mc-email">
+                </div>
+                <div class="field compact">
+                  <label for="f-mc-telephone">Telephone</label>
+                  <input type="tel" id="f-mc-telephone">
+                </div>
+                <div class="field">
+                  <label for="f-mc-reference">Reference / PO number</label>
+                  <input type="text" id="f-mc-reference" placeholder="Their internal job reference if applicable">
+                </div>
+              </div>
             </div>
+
+            <div class="form-col">
+              <div class="subsection">
+                <div class="subsection-title">Site</div>
+                <div class="field">
+                  <label for="f-site-address">Site address <span class="req">*</span></label>
+                  <textarea id="f-site-address" rows="3" autocomplete="street-address"></textarea>
+                </div>
+                <div class="field compact">
+                  <label for="f-site-postcode">Postcode <span class="req">*</span></label>
+                  <input type="text" id="f-site-postcode" data-uppercase autocomplete="postal-code">
+                </div>
+                <div class="field">
+                  <label for="f-site-contact-name">Site contact name</label>
+                  <input type="text" id="f-site-contact-name" placeholder="If different from above">
+                </div>
+                <div class="field compact">
+                  <label for="f-site-contact-telephone">Site contact telephone</label>
+                  <input type="tel" id="f-site-contact-telephone">
+                </div>
+              </div>
+
+              <div class="subsection">
+                <div class="subsection-title">Visit</div>
+                <div class="field compact">
+                  <label for="f-visit-date">Date of visit <span class="req">*</span></label>
+                  <input type="date" id="f-visit-date">
+                </div>
+                <div class="field">
+                  <label for="f-visit-surveyor">Surveyor name</label>
+                  <input type="text" id="f-visit-surveyor" value="Jamie Gibbs">
+                </div>
+                <div class="field compact">
+                  <label for="f-visit-appointment-start">Appointment time</label>
+                  <div class="appt-row">
+                    <input type="time" id="f-visit-appointment-start" title="Appointment start time">
+                    <input type="number" id="f-visit-duration" min="15" step="15" value="90" title="Visit duration (minutes)" aria-label="Visit duration in minutes">
+                    <span class="appt-unit">min</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Survey reference</label>
+                  <div class="readout" id="f-ref-readout">&mdash; assigned on save &mdash;</div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          <div class="subsection">
-            <div class="subsection-title">End Client</div>
-            <div class="subsection-hint">The building owner or occupier.</div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-ec-company">Company name</label>
-                <input type="text" id="f-ec-company" autocomplete="organization">
-              </div>
-              <div class="field">
-                <label for="f-ec-contact-name">Contact name <span class="req">*</span></label>
-                <input type="text" id="f-ec-contact-name" autocomplete="name">
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-ec-contact-title">Contact title / role</label>
-                <input type="text" id="f-ec-contact-title" placeholder="e.g. Estates Manager, Director">
-              </div>
-              <div class="field">
-                <label for="f-ec-email">Email <span class="req">*</span></label>
-                <input type="email" id="f-ec-email" autocomplete="email">
-              </div>
-            </div>
-            <div class="field">
-              <label for="f-ec-telephone">Telephone</label>
-              <input type="tel" id="f-ec-telephone" autocomplete="tel">
-            </div>
-          </div>
-
-          <div class="subsection" id="main-contractor-subsection" hidden>
-            <div class="subsection-title">Main Contractor</div>
-            <div class="subsection-hint">The entity engaging Nova.</div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-mc-company">Company name <span class="req">*</span></label>
-                <input type="text" id="f-mc-company">
-              </div>
-              <div class="field">
-                <label for="f-mc-contact-name">Contact name <span class="req">*</span></label>
-                <input type="text" id="f-mc-contact-name">
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-mc-contact-title">Contact title / role</label>
-                <input type="text" id="f-mc-contact-title">
-              </div>
-              <div class="field">
-                <label for="f-mc-email">Email <span class="req">*</span></label>
-                <input type="email" id="f-mc-email">
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-mc-telephone">Telephone</label>
-                <input type="tel" id="f-mc-telephone">
-              </div>
-              <div class="field">
-                <label for="f-mc-reference">Reference / PO number</label>
-                <input type="text" id="f-mc-reference" placeholder="Their internal job reference if applicable">
-              </div>
-            </div>
-          </div>
-
-          <div class="subsection">
-            <div class="subsection-title">Site</div>
-            <div class="field">
-              <label for="f-site-address">Site address <span class="req">*</span></label>
-              <textarea id="f-site-address" rows="3" autocomplete="street-address"></textarea>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-site-postcode">Postcode <span class="req">*</span></label>
-                <input type="text" id="f-site-postcode" data-uppercase autocomplete="postal-code">
-              </div>
-              <div class="field"></div>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-site-contact-name">Site contact name</label>
-                <input type="text" id="f-site-contact-name" placeholder="If different from above">
-              </div>
-              <div class="field">
-                <label for="f-site-contact-telephone">Site contact telephone</label>
-                <input type="tel" id="f-site-contact-telephone">
-              </div>
-            </div>
-          </div>
-
-          <div class="subsection">
-            <div class="subsection-title">Visit</div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-visit-date">Date of visit <span class="req">*</span></label>
-                <input type="date" id="f-visit-date">
-              </div>
-              <div class="field">
-                <label for="f-visit-surveyor">Surveyor name</label>
-                <input type="text" id="f-visit-surveyor" value="Jamie Gibbs">
-              </div>
-            </div>
-            <div class="field">
-              <label>Survey reference</label>
-              <div class="readout" id="f-ref-readout">— assigned on save —</div>
-            </div>
+          <!-- The three told-to-us fields: two lines at rest, opening on focus. -->
+          <div class="subsection told-us">
+            <div class="subsection-title">Told to us</div>
             <div class="field">
               <label for="f-visit-brief">Works description / brief</label>
-              <textarea id="f-visit-brief" rows="3" placeholder="What we were asked to survey and report on."></textarea>
+              <textarea id="f-visit-brief" rows="2" placeholder="What we were asked to survey and report on."></textarea>
             </div>
             <div class="field">
               <label for="f-client-issues">What the client reports</label>
-              <textarea id="f-client-issues" rows="3" placeholder="What the client says is wrong, from the desktop discussion before the visit, e.g. the gutter is overflowing during heavy rain."></textarea>
+              <textarea id="f-client-issues" rows="2" placeholder="What the client says is wrong, from the desktop discussion before the visit, e.g. the gutter is overflowing during heavy rain."></textarea>
             </div>
             <div class="field">
               <label for="f-site-context">Site context</label>
-              <textarea id="f-site-context" rows="3" placeholder="The arrangement on site, e.g. the building is occupied, the faults have developed over time, one leak shows scarring internally through a light fitting."></textarea>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="f-visit-appointment-start">Appointment time</label>
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <input type="time" id="f-visit-appointment-start" style="flex:1;min-width:0;" title="Appointment start time">
-                  <input type="number" id="f-visit-duration" min="15" step="15" value="90" style="width:74px;" title="Visit duration (minutes)" aria-label="Visit duration in minutes">
-                  <span style="font-size:12px;color:#888;white-space:nowrap;">min</span>
-                </div>
-              </div>
-              <!-- Weather conditions moved to the condition site-day surface
-                   (the visit page). Key visit.weather is unchanged and preserved
-                   through srMergeRecord; the report reads it exactly as before. -->
-              <div class="field"></div>
+              <textarea id="f-site-context" rows="2" placeholder="The arrangement on site, e.g. the building is occupied, the faults have developed over time, one leak shows scarring internally through a light fitting."></textarea>
             </div>
           </div>
         </div>
@@ -3669,53 +3682,9 @@ input.derived-field { background: #f6f8fa; color: #555; }
            Every sp-* id is unchanged, so the aerial, markers, imagery and the fault
            editor keep working exactly as before and no sp-* read can miss its node. -->
 
-      <div class="form-section-toggle" id="form-section-toggle" style="display:none;">
-        <label class="show-all-toggle">
-          <input type="checkbox" id="form-show-all" onchange="toggleFormShowAll(this.checked)">
-          <span>Show all sections</span><span id="form-show-all-count" class="show-all-count"></span>
-        </label>
-      </div>
+      <!-- purpose show-all toggle retired: the form is now the keeps only -->
 
-      <details class="section" id="section-b">
-        <summary>Section B — Building Overview</summary>
-        <div class="section-body">
-          <!-- F5: the survey-level roof type is retired to a derived composition.
-               The single-select is kept HIDDEN purely so an existing survey's
-               stored value round-trips unchanged through FIELD_MAP and stays the
-               per-building fallback; it drives nothing on the surface. -->
-          <div class="field" id="roof-composition-wrap" style="margin-bottom:0.9rem;">
-            <label>Roof composition</label>
-            <div id="roof-composition-readout"></div>
-            <select id="f-roof-type" hidden aria-hidden="true" tabindex="-1">
-              <option value="">—</option>
-              <option>Asbestos Cement</option>
-              <option>Metal Profile</option>
-              <option>Composite</option>
-              <option>Flat Membrane</option>
-              <option>Mastic Asphalt</option>
-              <option>Slate or Tile</option>
-              <option>Mixed</option>
-              <option>GRP / Fibreglass</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="field-row" id="roof-area-row">
-            <div class="field" id="roof-area-field-wrap">
-              <label for="f-roof-area">Approx. roof area (m²)</label>
-              <input type="number" id="f-roof-area" min="0" inputmode="numeric">
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:6px;">
-                <input type="checkbox" id="f-roof-area-override" onchange="updateDerivedRoofArea()">
-                Override (enter manually)
-              </label>
-              <span class="hint" id="f-roof-area-hint"></span>
-            </div>
-            <div class="field"></div>
-          </div>
-          <!-- "Number of buildings" removed entirely: it was informational only,
-               and each captured object now IS a building on the capture surface. -->
-          <!-- Approximate age and construction type MOVED to the element construction and covering sheet, per element. -->
-        </div>
-      </details>
+            <!-- Section B residue REMOVED: roof composition and the derived roof area display on the capture surface only. f-roof-type / f-roof-area / roofAreaOverride keys stay on the record and every reader of them is null-guarded. -->
 
       <!-- Section B2 (Buildings & Slopes) REMOVED: geometry has one door, the
            footprint and trace surface, desk and site. Legacy records with keyed
@@ -7591,7 +7560,7 @@ function updateEngagementVisibility() {
 // the DOM so collectFormData still round-trips them on save; if any hidden
 // section holds content the toggle says so. Other visit purposes (priced /
 // both / legacy-unset) render every section exactly as today.
-var CONDITION_HIDE_SECTIONS = ['section-b'];   // b2/b3/d/e removed from the form
+var CONDITION_HIDE_SECTIONS = [];   // the form is the keeps only; nothing to hide by purpose
 var formShowAll = false;   // per-session; default hidden
 
 function sectionHasContent(sec) {
@@ -8446,9 +8415,18 @@ async function goToNewSurvey() {
   // Flow stage F1: ask once, on genuine creation. A resumed draft that
   // already answered keeps its answer; skipping here just leaves the
   // survey with no purpose, exactly like any legacy survey.
+  formSyncPrintButton(null);
   if (!flowVisitPurpose) flowShowPurposeSheet({});
 }
 
+// SAVE AND PRINT shows only where a report can exist. saveSurveyAndPrint already
+// refuses to render without captured faults, so the button follows the same rule
+// rather than offering an action that cannot complete.
+function formSyncPrintButton(survey){
+  var btn = document.getElementById('save-print-btn'); if (!btn) return;
+  var faults = (survey && Array.isArray(survey.siteFaultMarkers)) ? survey.siteFaultMarkers.length : 0;
+  btn.style.display = faults > 0 ? '' : 'none';
+}
 function goToSurvey(id) {
   const s = loadSurveys().find(x => x.id === id);
   if (!s) { showToast('Survey not found', 'err'); return; }
@@ -8460,6 +8438,11 @@ function editCurrent() {
   if (!currentSurveyId) return;
   const s = loadSurveys().find(x => x.id === currentSurveyId);
   if (!s) { showToast('Survey not found', 'err'); goHome(); return; }
+  // SITE MODE never opens the enquiry form as a capture surface: on site the
+  // capture entry is the fault ledger (condition) or the element walk (estimate).
+  if (typeof appMode !== 'undefined' && appMode === 'site' && typeof startSurvey === 'function'){
+    startSurvey(currentSurveyId); return;
+  }
   resetForm();
   populateForm(s);
   flowVisitPurpose = s.visitPurpose || null;
@@ -8480,6 +8463,7 @@ function editCurrent() {
   updateConditionals();
   updateEngagementVisibility();
   applyConditionFormLayout();
+  formSyncPrintButton(srLoadSurvey(currentSurveyId));
   startAutoSave();
   showView('form');
 }
