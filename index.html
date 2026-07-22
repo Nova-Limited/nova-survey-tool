@@ -3712,32 +3712,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
           </div>
           <!-- "Number of buildings" removed entirely: it was informational only,
                and each captured object now IS a building on the capture surface. -->
-          <div class="field-row">
-            <div class="field">
-              <label for="f-age">Approximate age</label>
-              <select id="f-age">
-                <option value="">—</option>
-                <option>Pre-1980</option>
-                <option>1980s</option>
-                <option>1990s</option>
-                <option>2000s</option>
-                <option>2010s</option>
-                <option>Post-2020</option>
-                <option>Unknown</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="f-construction-type">Construction type</label>
-              <select id="f-construction-type">
-                <option value="">—</option>
-                <option>Steel portal frame</option>
-                <option>Concrete portal</option>
-                <option>Traditional</option>
-                <option>Mixed</option>
-                <option>Unknown</option>
-              </select>
-            </div>
-          </div>
+          <!-- Approximate age and construction type MOVED to the element construction and covering sheet, per element. -->
         </div>
       </details>
 
@@ -3753,72 +3728,9 @@ input.derived-field { background: #f6f8fa; color: #555; }
            collectFormData; the netting defaults travel to the access
            constraints surface. -->
 
-      <details class="section" id="section-d">
-        <summary>Section C — Access &amp; Safety</summary>
-        <div class="section-body">
-          <div class="field">
-            <label for="f-eaves-access">Eaves access</label>
-            <select id="f-eaves-access">
-              <option value="">—</option>
-              <option>Ground</option>
-              <option>Internal ladder</option>
-              <option>External scaffold</option>
-              <option>MEWP</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="field">
-            <label class="checkbox">
-              <input type="checkbox" id="f-edge-protection">
-              <span>Existing edge protection</span>
-            </label>
-          </div>
-          <div class="field">
-            <label class="checkbox">
-              <input type="checkbox" id="f-live-services">
-              <span>Live overhead services within 9 m</span>
-            </label>
-          </div>
-          <div class="field">
-            <label class="checkbox">
-              <input type="checkbox" id="f-adjacent-public">
-              <span>Adjacent to public area</span>
-            </label>
-          </div>
-        </div>
-      </details>
+            <!-- Section C (Access & Safety) REMOVED: the four picks joined the one access constraint store on the capture surface (eaves access, edge protection, live overhead services, adjacent to public), presented with the existing picks and the netting toggles. -->
 
-      <details class="section" id="section-e">
-        <summary>Section D — Asbestos</summary>
-        <div class="section-body">
-          <div class="field">
-            <label for="f-asb-contains">Roof contains asbestos</label>
-            <select id="f-asb-contains">
-              <option value="">—</option>
-              <option>Yes confirmed</option>
-              <option>Suspected</option>
-              <option>No</option>
-              <option>Unknown</option>
-            </select>
-          </div>
-          <div class="field">
-            <label class="checkbox">
-              <input type="checkbox" id="f-asb-register-seen">
-              <span>Asbestos register seen</span>
-            </label>
-          </div>
-          <div class="field" data-cond="asb-seen" hidden>
-            <label for="f-asb-register-date">Asbestos register date</label>
-            <input type="date" id="f-asb-register-date">
-          </div>
-          <div class="field">
-            <label class="checkbox">
-              <input type="checkbox" id="f-asb-sampling">
-              <span>Sampling required</span>
-            </label>
-          </div>
-        </div>
-      </details>
+            <!-- Section D (Asbestos) REMOVED: the covering selection IS the live declaration; register seen and sampling required joined the construction and covering sheet. -->
 
       <details class="section" id="section-f">
         <summary>Section E — Summary &amp; Conclusions</summary>
@@ -4732,6 +4644,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-trace-undo, #view-footprint .fp-trace-cancel { border: 1px solid #d4d4d0; background: #fff; color: #434244; border-radius: 7px; padding: 7px 12px; font-family: inherit; font-size: 12.5px; cursor: pointer; }
     #view-footprint .fp-trace-livelen { margin-left: auto; font-size: 11.5px; color: #8a898b; }
     #view-footprint .fp-bu-field { margin-bottom: 10px; }
+    #view-footprint .fp-bu-legacy { margin: 6px 0 10px; padding: 7px 11px; background: #eef1f4; border: 1px solid #dfe4e9; border-radius: 7px; font-size: 11.5px; color: #5b6470; }
     #view-footprint .fp-bu-field:last-child { margin-bottom: 0; }
     #view-footprint .fp-bu-label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
     #view-footprint .fp-bu-req { color: #c0392b; }
@@ -5440,6 +5353,24 @@ function elemConstruction(b){
     linerKnown: !!(bu && bu.liner && bu.liner !== 'not-visible'),
     asbestos: declared ? buildupHasAsbestos(bu) : null };
 }
+// ITEM 9, THE CONVERGENCE. The covering selection is the ONE LIVE source of the
+// asbestos declaration - there is no second asbestos question anywhere. A legacy
+// survey-level f-asb-contains reconciles ON READ for an element that has not
+// declared a covering yet: it is shown as the starting position and is superseded
+// the moment a covering is picked. estCapturedAsbestosTonnes is deliberately NOT
+// changed - its 2a rules (declared clean beats stale flags; declared asbestos with
+// no bay flags takes the documented tonnage basis) already key on the covering
+// selection, so every existing record's tonnage is byte-identical.
+function elemAsbestosDeclared(survey, b){
+  var c = elemConstruction(b);
+  if (c.declared) return { value: c.asbestos, source: 'covering' };
+  var legacy = survey ? survey['f-asb-contains'] : null;
+  if (legacy == null || String(legacy).trim() === '') return { value: null, source: null };
+  var r = srSelectResolve('f-asb-contains', legacy);
+  var v = (r.value === 'Yes confirmed' || r.value === 'Suspected') ? true
+        : (r.value === 'No') ? false : null;
+  return { value: v, source: 'legacy', label: r.value, original: r.original, preserved: r.preserved };
+}
 // Covering drives the family where it has been selected: only a flat membrane
 // reads flat; every other covering in the vocabulary is a pitched build-up.
 function elemFamilyFromCovering(b){
@@ -5482,12 +5413,79 @@ function elemAbutmentRuns(b){
 // roof, and Jamie keys them once rather than repeating them per building.
 // Presented at the desk beside the access and scaffold lines as context for his
 // judged figures. NOTHING here feeds any rate; the attendance model comes later.
+// ===== LEGACY SELECT PRESERVATION (class rule) =============================
+// A <select> cannot hold a value absent from its option list, so a legacy record
+// carrying an out-of-vocabulary value was silently BLANKED by a form round-trip.
+// This is a class of bug, not one instance, so every select whose store this
+// surgery moves is covered: a recognised legacy value REMAPS onto the valid
+// vocabulary; an unrecognised one is PRESERVED in the record and surfaced as
+// Unknown, never dropped. srSelectResolve is the one reader.
+var SR_SELECT_VOCAB = {
+  'f-asb-contains':      { opts:['Yes confirmed','Suspected','No','Unknown'], unknown:'Unknown',
+                           remap:{ 'yes':'Yes confirmed', 'y':'Yes confirmed', 'true':'Yes confirmed',
+                                   'yes - confirmed':'Yes confirmed', 'confirmed':'Yes confirmed',
+                                   'no':'No', 'n':'No', 'false':'No', 'none':'No',
+                                   'suspect':'Suspected', 'possible':'Suspected', 'presumed':'Suspected' } },
+  'f-age':               { opts:['Pre-1980','1980s','1990s','2000s','2010s','Post-2020','Unknown'], unknown:'Unknown',
+                           remap:{ 'pre 1980':'Pre-1980', 'pre-1980s':'Pre-1980', '1970s':'Pre-1980',
+                                   '1960s':'Pre-1980', '2020s':'Post-2020', 'post 2020':'Post-2020' } },
+  'f-construction-type': { opts:['Steel portal frame','Concrete portal','Traditional','Mixed','Unknown'], unknown:'Unknown',
+                           remap:{ 'steel portal':'Steel portal frame', 'steel frame':'Steel portal frame',
+                                   'concrete frame':'Concrete portal', 'brick':'Traditional', 'masonry':'Traditional' } },
+  'f-eaves-access':      { opts:['Ground','Internal ladder','External scaffold','MEWP','Other'], unknown:'Other',
+                           remap:{ 'ladder':'Internal ladder', 'scaffold':'External scaffold',
+                                   'cherry picker':'MEWP', 'scissor lift':'MEWP', 'ground level':'Ground' } },
+  'f-overall-rating':    { opts:['Excellent','Good','Fair','Poor','End of Life'], unknown:'Fair',
+                           remap:{ 'end of life':'End of Life', 'eol':'End of Life', 'very poor':'End of Life',
+                                   'average':'Fair', 'satisfactory':'Fair' } },
+  'f-recommendation':    { opts:['Continue maintenance','Targeted repairs','Recover','Replace','Further investigation'], unknown:'Further investigation',
+                           remap:{ 'maintenance':'Continue maintenance', 'repairs':'Targeted repairs',
+                                   'repair':'Targeted repairs', 'overclad':'Recover', 'renew':'Replace',
+                                   'investigate':'Further investigation' } }
+};
+// { value: what the select should show, original: what the record holds,
+//   remapped: a recognised legacy value was translated,
+//   preserved: an unrecognised value is being surfaced as Unknown but kept }
+function srSelectResolve(key, stored){
+  var v = SR_SELECT_VOCAB[key];
+  var raw = (stored == null) ? '' : String(stored).trim();
+  if (!v) return { value: raw, original: raw, remapped: false, preserved: false };
+  if (raw === '') return { value: '', original: '', remapped: false, preserved: false };
+  if (v.opts.indexOf(raw) > -1) return { value: raw, original: raw, remapped: false, preserved: false };
+  var hit = v.remap[raw.toLowerCase()];
+  if (hit) return { value: hit, original: raw, remapped: true, preserved: false };
+  return { value: v.unknown, original: raw, remapped: false, preserved: true };
+}
+// The value a select should DISPLAY for a record, and the value that must go
+// back if the surveyor never touches it (the original, so nothing is lost).
+function srSelectDisplay(key, stored){ return srSelectResolve(key, stored).value; }
+
 const ACCESS_CONSTRAINT_FIELDS = [
   { k:'ground',      l:'Ground conditions', opts:['Hard standing throughout','Mixed hard and soft','Soft or unmade ground','Restricted or sloping ground'] },
   { k:'obstructions',l:'Obstructions',      opts:['None significant','Overhead services','Live plant or machinery','Stored materials or vehicles','Trees or landscaping'] },
   { k:'occupancy',   l:'Occupancy',         opts:['Building empty','Occupied, normal hours','Occupied, continuous operation','Sensitive occupancy (school, healthcare, food)'] },
-  { k:'hours',       l:'Working hours',     opts:['Normal working hours','Out of hours','Weekends only','Night work'] }
+  { k:'hours',       l:'Working hours',     opts:['Normal working hours','Out of hours','Weekends only','Night work'] },
+  // Item 8: the form's Access & Safety picks join THIS store. One store, site-
+  // capturable, desk-editable, presented with the picks above and the netting
+  // toggles. `legacy` names the survey-level key each one came from: it presents
+  // as the starting value while the access store has nothing of its own.
+  { k:'eavesAccess',    l:'Eaves access',   opts:['Ground','Internal ladder','External scaffold','MEWP','Other'],
+    legacy:'f-eaves-access', vocab:'f-eaves-access' },
+  { k:'edgeProtection', l:'Existing edge protection',        type:'bool', legacy:'f-edge-protection' },
+  { k:'liveServices',   l:'Live overhead services within 9 m', type:'bool', legacy:'f-live-services' },
+  { k:'adjacentPublic', l:'Adjacent to public area',         type:'bool', legacy:'f-adjacent-public' }
 ];
+// The value an access pick shows: its own value once set, else the legacy
+// survey-level value it replaced (remapped through the select class rule).
+function accessPickValue(survey, f){
+  var a = accessConstraints(survey);
+  if (Object.prototype.hasOwnProperty.call(a, f.k) && a[f.k] !== '' && a[f.k] != null) return a[f.k];
+  if (!f.legacy || !survey) return (f.type === 'bool') ? false : '';
+  var legacy = survey[f.legacy];
+  if (legacy == null || legacy === '') return (f.type === 'bool') ? false : '';
+  if (f.type === 'bool') return !!legacy;
+  return f.vocab ? srSelectDisplay(f.vocab, legacy) : legacy;
+}
 function accessConstraints(survey){ return (survey && survey.accessConstraints && typeof survey.accessConstraints === 'object') ? survey.accessConstraints : {}; }
 function accessConstraintsAny(survey){
   var a = accessConstraints(survey);
@@ -7575,7 +7573,7 @@ function updateEngagementVisibility() {
 // the DOM so collectFormData still round-trips them on save; if any hidden
 // section holds content the toggle says so. Other visit purposes (priced /
 // both / legacy-unset) render every section exactly as today.
-var CONDITION_HIDE_SECTIONS = ['section-b', 'section-d', 'section-e'];   // b2/b3 removed from the form
+var CONDITION_HIDE_SECTIONS = ['section-b'];   // b2/b3/d/e removed from the form
 var formShowAll = false;   // per-session; default hidden
 
 function sectionHasContent(sec) {
@@ -14274,10 +14272,49 @@ function fpRenderBuildup(survey){
   }
   h += '<div class="fp-bu-field"><label class="fp-bu-label">Liner <span class="fp-bu-req">*</span></label>' +
     '<select class="fp-bu-select" onchange="fpBuildupSet(\'liner\', this.value, true)">' + optsFor(FP_LINERS, bu.liner) + '</select></div>';
+  // ITEM 5: approximate age and construction type, PER ELEMENT. A legacy
+  // site-level value presents as the starting value while this element has none
+  // of its own; the element's own value wins the moment it is set.
+  var ageOpts = SR_SELECT_VOCAB['f-age'].opts, conOpts = SR_SELECT_VOCAB['f-construction-type'].opts;
+  var ageCur = elemBuildupValue(survey, bu, 'age', 'f-age', 'f-age', false);
+  var conCur = elemBuildupValue(survey, bu, 'constructionType', 'f-construction-type', 'f-construction-type', false);
+  h += '<div class="fp-bu-field"><label class="fp-bu-label">Approximate age</label>' +
+    '<select class="fp-bu-select" onchange="fpBuildupSet(\'age\', this.value, false)"><option value="">Select...</option>' +
+    ageOpts.map(function(o){ return '<option' + (ageCur === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') +
+    '</select></div>';
+  h += '<div class="fp-bu-field"><label class="fp-bu-label">Construction type</label>' +
+    '<select class="fp-bu-select" onchange="fpBuildupSet(\'constructionType\', this.value, false)"><option value="">Select...</option>' +
+    conOpts.map(function(o){ return '<option' + (conCur === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') +
+    '</select></div>';
+  // ITEM 9: the supporting asbestos flags sit with the covering selection, which
+  // IS the live declaration. There is no second asbestos question anywhere.
+  // where this element has not declared a covering, show the legacy site-level
+  // declaration as the starting position (superseded the moment a covering is picked)
+  var asb = elemAsbestosDeclared(survey, b);
+  if (asb.source === 'legacy'){
+    h += '<div class="fp-bu-legacy">Recorded for the site: <b>' + escapeHtml(asb.label || '') + '</b>' +
+      (asb.preserved ? (' (from "' + escapeHtml(asb.original || '') + '", kept on the record)') : '') +
+      '. Pick the covering above and this element carries its own declaration.</div>';
+  }
+  var regCur = elemBuildupValue(survey, bu, 'registerSeen', 'f-asb-register-seen', null, true);
+  var sampCur = elemBuildupValue(survey, bu, 'samplingRequired', 'f-asb-sampling', null, true);
+  h += '<div class="fp-bu-field"><label class="fp-net-row"><input type="checkbox"' + (regCur ? ' checked' : '') +
+    ' onchange="fpBuildupSet(\'registerSeen\', this.checked, false)"> Asbestos register seen</label>' +
+    '<label class="fp-net-row"><input type="checkbox"' + (sampCur ? ' checked' : '') +
+    ' onchange="fpBuildupSet(\'samplingRequired\', this.checked, false)"> Sampling required</label></div>';
   h += '<div class="fp-bu-field"><label class="fp-bu-label">Build-up note (optional)</label>' +
     '<textarea class="fp-bu-input" rows="2" placeholder="Anything relevant to the build-up" oninput="fpBuildupSet(\'note\', this.value, false)">' + escapeHtml(bu.note || '') + '</textarea></div>';
   h += '</div>';
   return h;
+}
+// An element's own value once set, else the legacy site-level value it replaced,
+// remapped through the select class rule so nothing legacy is ever blanked.
+function elemBuildupValue(survey, bu, field, legacyKey, vocab, isBool){
+  if (bu && Object.prototype.hasOwnProperty.call(bu, field) && bu[field] !== '' && bu[field] != null) return bu[field];
+  var legacy = survey ? survey[legacyKey] : null;
+  if (legacy == null || legacy === '') return isBool ? false : '';
+  if (isBool) return !!legacy;
+  return vocab ? srSelectDisplay(vocab, legacy) : legacy;
 }
 // Access constraints capture: site-friendly picks plus a free note, persisted on
 // survey.accessConstraints. Estimate journeys only; a condition survey never
@@ -14287,10 +14324,16 @@ function fpRenderAccessConstraints(survey){
   var a = accessConstraints(survey);
   var h = '<div class="fp-buildup fp-access"><div class="fp-tools-lbl">Access constraints</div>';
   ACCESS_CONSTRAINT_FIELDS.forEach(function(f){
+    var cur = accessPickValue(survey, f);
+    if (f.type === 'bool'){
+      h += '<div class="fp-bu-field"><label class="fp-net-row"><input type="checkbox"' + (cur ? ' checked' : '') +
+        ' onchange="fpAccessSet(\'' + f.k + '\', this.checked, false)"> ' + escapeHtml(f.l) + '</label></div>';
+      return;
+    }
     h += '<div class="fp-bu-field"><label class="fp-bu-label">' + escapeHtml(f.l) + '</label>' +
       '<select class="fp-bu-select" onchange="fpAccessSet(\'' + f.k + '\', this.value, false)">' +
       '<option value="">Select...</option>' +
-      f.opts.map(function(o){ return '<option value="' + escapeHtml(o) + '"' + (a[f.k] === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') +
+      f.opts.map(function(o){ return '<option value="' + escapeHtml(o) + '"' + (cur === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') +
       '</select></div>';
   });
   h += '<div class="fp-bu-field"><label class="fp-bu-label">Access note (optional)</label>' +
