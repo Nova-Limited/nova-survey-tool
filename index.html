@@ -946,6 +946,12 @@ body.mode-site #ctx-strip.shown { display: flex; position: fixed; left: 0; right
 .ds-row-time { font-size: 0.8rem; font-weight: 700; color: var(--orange); }
 .ds-row-client { font-size: 1.02rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
 .ds-row-site { font-size: 0.86rem; color: var(--muted); margin-top: 2px; }
+/* weather on the condition site-day surface (visit page) */
+.visit-weather { margin: 0 0 1rem; }
+.visit-weather-lbl { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+.visit-weather-sel { width: 100%; padding: 0.7rem; border: 1px solid var(--rule); border-radius: 8px; font-family: inherit; font-size: 1rem; background: #fff; }
+/* netting toggles, travelling with per-elevation access to capture */
+#view-footprint .fp-net-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #434244; margin-top: 6px; }
 /* day-sheet "what the desk knows" line (part 2) - amber provisional per part 1 */
 .ds-row-desk { font-size: 0.8rem; color: #b26b00; margin-top: 4px; font-weight: 600; }
 /* the estimate element walk (part 2) */
@@ -3648,17 +3654,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
                   <span style="font-size:12px;color:#888;white-space:nowrap;">min</span>
                 </div>
               </div>
-              <div class="field">
-                <label for="f-visit-weather">Weather conditions</label>
-                <select id="f-visit-weather">
-                  <option value="">Select…</option>
-                  <option>Dry / clear</option>
-                  <option>Overcast</option>
-                  <option>Light rain / showers</option>
-                  <option>Heavy rain</option>
-                  <option>High wind</option>
-                </select>
-              </div>
+              <!-- Weather conditions moved to the condition site-day surface
+                   (the visit page). Key visit.weather is unchanged and preserved
+                   through srMergeRecord; the report reads it exactly as before. -->
+              <div class="field"></div>
             </div>
           </div>
         </div>
@@ -3671,7 +3670,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
           <!-- Amendment 2 (flow F1): an affirmative "no faults found" finding,
                only relevant while the fault list is empty. spRenderNoFaultsControl()
                fills this in and hides it once any fault exists. -->
-          <div id="sp-nofaults-row" style="margin-bottom:12px;"></div>
+          <!-- "No faults found" removed from the form: the checklist declaration
+               is the one door. Both always wrote the same currentSiteImage.noFaultsFound. -->
 
           <!-- Find on map + secondary coordinate readouts.
                Inputs are intentionally OUTSIDE a .field wrapper so the global
@@ -3997,14 +3997,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
             </div>
             <div class="field"></div>
           </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="f-num-buildings">Number of buildings</label>
-              <input type="number" id="f-num-buildings" min="1" value="1" inputmode="numeric">
-              <span class="hint">Informational; detailed per-building geometry is captured in Section B2.</span>
-            </div>
-            <div class="field"></div>
-          </div>
+          <!-- "Number of buildings" removed entirely: it was informational only,
+               and each captured object now IS a building on the capture surface. -->
           <div class="field-row">
             <div class="field">
               <label for="f-age">Approximate age</label>
@@ -4034,37 +4028,17 @@ input.derived-field { background: #f6f8fa; color: #555; }
         </div>
       </details>
 
-      <details class="section" id="section-b2">
-        <summary>Section B2 — Buildings &amp; Slopes</summary>
-        <div class="section-body">
-          <p class="section-hint">Add a building for each separately measurable structure. For each, set the slope count — if symmetrical, keep "All slopes equal" ticked to enter one set of dimensions multiplied across the roof.</p>
-          <div id="buildings-list"></div>
-          <div class="add-building-row">
-            <button type="button" class="btn btn-ghost" onclick="addBuilding()">+ Add Building</button>
-          </div>
-          <div class="survey-roof-total">
-            <span class="survey-roof-total-label">Total roof area across all buildings
-              <span class="roof-total-provenance" id="survey-roof-total-provenance"></span></span>
-            <span class="survey-roof-total-value" id="survey-roof-total-value">— m²</span>
-          </div>
-        </div>
-      </details>
+      <!-- Section B2 (Buildings & Slopes) REMOVED: geometry has one door, the
+           footprint and trace surface, desk and site. Legacy records with keyed
+           slopes keep rendering and pricing through buildingTotalArea /
+           estResolveRoofArea exactly as before - collectFormData still writes
+           out.buildings from currentBuildings, which the record populates. -->
 
-      <details class="section" id="section-b3">
-        <summary>Section B3 — Access for pricing pack</summary>
-        <div class="section-body">
-          <p class="section-hint" id="pack-access-hint">Per elevation needing scaffold or a working platform. Suggestions are pulled from the roof slopes (length and eave height) and are fully editable — slopes are not equated with elevations. This drives Section B of the subcontractor pricing pack; it does not change the roof measurements.</p>
-          <div id="pack-access-list"></div>
-          <div class="add-building-row" id="pack-access-handentry">
-            <button type="button" class="btn btn-ghost" onclick="ppAddElevation()">+ Add elevation</button>
-            <button type="button" class="btn btn-ghost" onclick="ppSuggestFromSlopes()">Suggest from roof slopes</button>
-          </div>
-          <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
-            <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" id="pack-safety-netting" onchange="ppSetNetting('safety', this.checked)"> Safety netting (man-safe) — on by default where there is height access</label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" id="pack-debris-netting" onchange="ppSetNetting('debris', this.checked)"> Debris netting (fine mesh inside the safety netting) — off by default</label>
-          </div>
-        </div>
-      </details>
+      <!-- Section B3 (Access for pricing pack) REMOVED: per-elevation access
+           lives with capture and drives the pricing pack from there via
+           ppDeriveAccess. currentPackAccess still round-trips through
+           collectFormData; the netting defaults travel to the access
+           constraints surface. -->
 
       <details class="section" id="section-d">
         <summary>Section C — Access &amp; Safety</summary>
@@ -7520,12 +7494,32 @@ function saveSurveysSafe(arr) {
 // Persist in-progress edits of an already-saved survey back into its
 // record, so edits survive battery loss or leaving the screen, not just
 // an explicit Save Survey.
+// THE LAW OF THE FORM SURGERY: storage keys do not move when a field changes
+// screens. collectFormData already SKIPS a field whose DOM is absent (if (!el)
+// continue), so a top-level key is preserved by the spread. A NESTED key is not:
+// setPath rebuilds the whole parent (visit, site, endClient, mainContractor) from
+// whatever the form still holds, and a shallow spread would then replace the
+// stored parent and drop the sibling that moved off the form (visit.weather is
+// exactly this case). This merges those parents ONE LEVEL DEEP, so a sub-key the
+// form no longer edits survives, while every field still on the form overwrites
+// as before. Any future move of a nested field is safe by construction.
+var SR_NESTED_PARENTS = ['endClient', 'mainContractor', 'site', 'visit'];
+function srMergeRecord(existing, incoming){
+  var out = Object.assign({}, existing, incoming);
+  SR_NESTED_PARENTS.forEach(function(k){
+    var a = existing && existing[k], b = incoming && incoming[k];
+    if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b)){
+      out[k] = Object.assign({}, a, b);
+    }
+  });
+  return out;
+}
 function persistCurrentEdit() {
   if (currentSurveyId === null) return false;
   const surveys = loadSurveys();
   const idx = surveys.findIndex(x => x.id === currentSurveyId);
   if (idx === -1) return false;
-  surveys[idx] = { ...surveys[idx], ...collectFormData(), updatedAt: new Date().toISOString() };
+  surveys[idx] = { ...srMergeRecord(surveys[idx], collectFormData()), updatedAt: new Date().toISOString() };
   return saveSurveysSafe(surveys);
 }
 function loadDraft() {
@@ -7564,7 +7558,7 @@ function updateEngagementVisibility() {
 // the DOM so collectFormData still round-trips them on save; if any hidden
 // section holds content the toggle says so. Other visit purposes (priced /
 // both / legacy-unset) render every section exactly as today.
-var CONDITION_HIDE_SECTIONS = ['section-b', 'section-b2', 'section-b3', 'section-d', 'section-e'];
+var CONDITION_HIDE_SECTIONS = ['section-b', 'section-d', 'section-e'];   // b2/b3 removed from the form
 var formShowAll = false;   // per-session; default hidden
 
 function sectionHasContent(sec) {
@@ -8035,7 +8029,28 @@ function renderVisit(s) {
       '<div class="visit-k">Meeting</div><div class="visit-v">' + escapeHtml(visitContactOf(s)) + '</div>' +
       '<div class="visit-k">Appointment</div><div class="visit-v">' + when + '</div>' +
     '</div>' +
+    visitRenderWeather(s) +
     '<button class="btn btn-primary btn-big visit-start" onclick="startSurvey(\'' + s.id + '\')">Start survey</button>';
+}
+// WEATHER, the condition site-day surface. It is a fact about the day the
+// surveyor stood on the roof, so it belongs where the visit begins - and it is
+// CONDITION ONLY, never rendered on an estimate journey. The key visit.weather
+// is unchanged, so the report reads it exactly as it always has.
+var VISIT_WEATHER_OPTIONS = ['Dry / clear','Overcast','Light rain / showers','Heavy rain','High wind'];
+function visitRenderWeather(s){
+  if (!s || s.visitPurpose !== 'condition') return '';       // never on an estimate journey
+  var cur = ((s.visit || {}).weather) || '';
+  return '<div class="visit-weather"><label class="visit-weather-lbl" for="visit-weather">Weather conditions</label>' +
+    '<select id="visit-weather" class="visit-weather-sel" onchange="visitSetWeather(\'' + s.id + '\', this.value)">' +
+    '<option value="">Select&hellip;</option>' +
+    VISIT_WEATHER_OPTIONS.map(function(o){ return '<option' + (cur === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') +
+    '</select></div>';
+}
+function visitSetWeather(id, val){
+  var s = srLoadSurvey(id); if (!s) return;
+  if (!s.visit || typeof s.visit !== 'object') s.visit = {};
+  s.visit.weather = val || '';
+  srPersist(s);
 }
 // Start survey -> the existing capture surface (footprint / fault capture).
 // JUDGEMENT CALL: view-footprint (fpOpen) is the tool's full-screen capture
@@ -9201,7 +9216,9 @@ function resetForm() {
 
 // ---- Conditional field visibility ----
 function updateConditionals() {
-  const asbSeen = document.getElementById('f-asb-register-seen').checked;
+  // null-guarded: form surgery moves these fields off the form, and this runs
+  // from goToNewSurvey / editCurrent, where a throw would stop the form opening.
+  const asbSeen = !!(document.getElementById('f-asb-register-seen') || {}).checked;
   document.querySelectorAll('[data-cond="asb-seen"]').forEach(el => el.hidden = !asbSeen);
   updateReplacementBudget();
 }
@@ -9298,7 +9315,7 @@ function saveSurveyCore(flashBtnId) {
       saved = { id: nextSurveyId(), jobNumber: mintProvisionalJobNumber(), jobNumberProvisional: true, createdAt: now, updatedAt: now, ...data };
       surveys.push(saved);
     } else {
-      saved = { ...surveys[idx], ...data, updatedAt: now };
+      saved = { ...srMergeRecord(surveys[idx], data), updatedAt: now };
       surveys[idx] = saved;
     }
   } else {
@@ -9552,7 +9569,6 @@ function renderDetailBlocks(s) {
     ['Building', [
       ['Roof type', s['f-roof-type']],
       ['Roof area (m²)', s['f-roof-area']],
-      ['Number of buildings', s['f-num-buildings']],
       ['Approximate age', s['f-age']],
       ['Construction type', s['f-construction-type']]
     ]],
@@ -14228,8 +14244,30 @@ function fpRenderAccessConstraints(survey){
   });
   h += '<div class="fp-bu-field"><label class="fp-bu-label">Access note (optional)</label>' +
     '<textarea class="fp-bu-input" rows="2" placeholder="Anything the crew needs to know about getting on and off" oninput="fpAccessSet(\'note\', this.value, false)">' + escapeHtml(a.note || '') + '</textarea></div>';
+  // NETTING DEFAULTS travel with the per-elevation access to capture (the form's
+  // Section B3 door is gone). Same currentPackAccess store, same ppSetNetting
+  // writer, so the pricing pack reads exactly what it read before.
+  var pa = (survey && survey.packAccess) || (typeof currentPackAccess !== 'undefined' ? currentPackAccess : {});
+  h += '<div class="fp-bu-field"><label class="fp-bu-label">Netting</label>' +
+    '<label class="fp-net-row"><input type="checkbox"' + ((pa.safetyNetting !== false) ? ' checked' : '') +
+      ' onchange="fpAccessSetNetting(\'safety\', this.checked)"> Safety netting (man-safe)</label>' +
+    '<label class="fp-net-row"><input type="checkbox"' + (pa.debrisNetting ? ' checked' : '') +
+      ' onchange="fpAccessSetNetting(\'debris\', this.checked)"> Debris netting (fine mesh inside the safety netting)</label></div>';
   h += '<div class="fp-bu-label" style="margin:0;">Context for the access and scaffold figures at the desk. Nothing here changes a rate.</div>';
   return h + '</div>';
+}
+// Writes through the SAME store the pricing pack reads (currentPackAccess when
+// this record is the one open in the form, and the record's own packAccess).
+function fpAccessSetNetting(which, on){
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  if (!survey.packAccess || typeof survey.packAccess !== 'object') survey.packAccess = { elevations: [], safetyNetting: true, debrisNetting: false };
+  if (which === 'safety') survey.packAccess.safetyNetting = !!on; else survey.packAccess.debrisNetting = !!on;
+  srPersist(survey);
+  // keep the in-memory form state in step when this record is the open one, so a
+  // later collectFormData does not write the stale default back over it
+  if (typeof currentPackAccess !== 'undefined' && currentSurveyId === survey.id){
+    if (which === 'safety') currentPackAccess.safetyNetting = !!on; else currentPackAccess.debrisNetting = !!on;
+  }
 }
 function fpAccessSet(field, value, rerender){
   var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
