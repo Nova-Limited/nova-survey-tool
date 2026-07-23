@@ -1135,9 +1135,13 @@ main { padding-bottom: env(safe-area-inset-bottom); }
    Two columns on desktop (left engagement then end client, right site then
    visit), one column on phone, fields sized to their content, the told-to-us
    fields two lines at rest and opening on focus, and a sticky save bar. */
-.form-grid { display: grid; grid-template-columns: 1fr; gap: 0 2.25rem; }
+/* ITEM 1: a RIGID grid. Two equal columns top-aligned to one baseline on
+   desktop, each column a self-contained flow so a block can never spill into
+   the other; one column on phone. */
+.form-grid { display: grid; grid-template-columns: 1fr; gap: 0 2.25rem; align-items: start; }
 @media (min-width: 768px) { .form-grid { grid-template-columns: 1fr 1fr; } }
-.form-col { min-width: 0; }
+.form-col { min-width: 0; display: flex; flex-direction: column; align-self: start; }
+.form-col > .subsection:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 /* fields sized to content rather than every input filling the column */
 .field.compact input, .field.compact select { max-width: 15rem; }
 #view-form .field input[type="date"], #view-form .field input[type="time"] { max-width: 11rem; }
@@ -3634,6 +3638,15 @@ input.derived-field { background: #f6f8fa; color: #555; }
               <div class="subsection">
                 <div class="subsection-title">Visit</div>
                 <div class="field compact">
+                  <label for="f-visit-purpose">Visit purpose <span class="req">*</span></label>
+                  <select id="f-visit-purpose" onchange="formPurposeChange(this.value)">
+                    <option value="">Select…</option>
+                    <option value="condition">Condition survey</option>
+                    <option value="priced">Estimate</option>
+                    <option value="both">Both</option>
+                  </select>
+                </div>
+                <div class="field compact">
                   <label for="f-visit-date">Date of visit <span class="req">*</span></label>
                   <input type="date" id="f-visit-date">
                 </div>
@@ -3644,7 +3657,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
                 <div class="field compact">
                   <label for="f-visit-appointment-start">Appointment time</label>
                   <div class="appt-row">
-                    <input type="time" id="f-visit-appointment-start" title="Appointment start time">
+                    <input type="time" id="f-visit-appointment-start" step="900" title="Appointment start time (15-minute steps)">
                     <input type="number" id="f-visit-duration" min="15" step="15" value="90" title="Visit duration (minutes)" aria-label="Visit duration in minutes">
                     <span class="appt-unit">min</span>
                   </div>
@@ -8067,6 +8080,18 @@ function startSurvey(id) {
   // existing footprint capture surface exactly as before. Desk mode is unchanged
   // (goDetail/editCurrent still enter the footprint surface directly).
   var s = srLoadSurvey(id);
+  // ITEM 5: no dead ends. A purposeless record is prompted BEFORE routing, never
+  // silently treated as an estimate; once picked, it routes down the same paths.
+  if (s && !s.visitPurpose){
+    flowShowPurposeSheet({ surveyId: id, onDone: function(){
+      // route only once a purpose exists; "decide later" falls through to the
+      // walk rather than re-prompting (no loop, no dead end)
+      var s2 = srLoadSurvey(id);
+      if (s2 && s2.visitPurpose){ startSurvey(id); return; }
+      flowCurrentId = id; flowOpenWalk(id);
+    } });
+    return;
+  }
   if (s && s.visitPurpose === 'condition') { openFaultLedger(id); return; }
   // ESTIMATE journeys in site mode open the element walk (part 2): navigation +
   // completeness over the existing capture surfaces. Every step routes to the
@@ -8396,7 +8421,12 @@ async function goToNewSurvey() {
     // Fresh-form defaults beyond what resetForm/FIELD_MAP dflts handle (the date).
     const d = document.getElementById('f-visit-date');
     if (d) d.value = todayIso();
+    // ITEM 2: a new enquiry defaults the appointment to the next quarter hour.
+    const t = document.getElementById('f-visit-appointment-start');
+    if (t && !t.value) t.value = formNextQuarterHour();
   }
+  formSyncPurpose();
+  formSyncPrintButton(useDraft ? (srLoadSurvey(currentSurveyId) || null) : null);
 
   document.getElementById('form-title').textContent = 'New condition survey';
   document.getElementById('form-meta').textContent = '';
@@ -8463,9 +8493,13 @@ function editCurrent() {
   updateConditionals();
   updateEngagementVisibility();
   applyConditionFormLayout();
+  formSyncPurpose();
   formSyncPrintButton(srLoadSurvey(currentSurveyId));
   startAutoSave();
   showView('form');
+  // ITEM 4: a legacy record without a purpose is prompted on edit, never
+  // silently defaulted. Picking here writes the one store and re-syncs the select.
+  if (!flowVisitPurpose) flowShowPurposeSheet({ surveyId: currentSurveyId, onDone: formSyncPurpose });
 }
 // ===== THE REPORT DESK PANEL (item 10) =====================================
 // Desk refine, the step before the report renders. Same ids and keys as the
@@ -9356,7 +9390,8 @@ function validateForm() {
     { id: 'f-ec-email',         label: 'End client email', email: true },
     { id: 'f-site-address',     label: 'Site address' },
     { id: 'f-site-postcode',    label: 'Postcode' },
-    { id: 'f-visit-date',       label: 'Date of visit' }
+    { id: 'f-visit-date',       label: 'Date of visit' },
+    { id: 'f-visit-purpose',    label: 'Visit purpose' }
   ];
   const et = (document.getElementById('f-engagement-type') || {}).value || 'direct';
   if (et === 'subcontracted') {
@@ -9455,11 +9490,39 @@ function saveSurveyCore(flashBtnId) {
 
 // On-site exit: save and land on THAT record's detail hub, so the next action
 // is one tap away (previously this returned to the home list).
+// ITEM 3: saving the enquiry lands on the home list (the just-saved record sits
+// at the top, one tap away), with a brief confirmation naming the reference.
 function saveSurvey() {
   const saved = saveSurveyCore('save-btn');
   if (!saved) return;
-  setTimeout(() => goToSurvey(saved.id), 750);
-  setTimeout(() => showToast('Survey saved · ' + saved.id, 'ok'), 100);
+  setTimeout(() => { renderSurveyList(); showView('home'); }, 400);
+  setTimeout(() => showToast('Saved · ' + saved.id + ' · at the top of the list', 'ok'), 120);
+}
+// ITEM 4: the form's purpose select writes the ONE visitPurpose store through
+// flowSetPurpose. collectFormData already carries out.visitPurpose = flowVisitPurpose,
+// so there is no second store and no FIELD_MAP entry to add.
+function formPurposeChange(v){
+  flowSetPurpose(currentSurveyId, v || null);
+  var btn = document.getElementById('save-print-btn');
+  // Save and print only where a report can exist (unchanged rule); a purely
+  // priced job has no condition report, so re-sync when the purpose changes.
+  if (btn) formSyncPrintButton(currentSurveyId ? srLoadSurvey(currentSurveyId) : null);
+}
+// Show the current purpose in the select whenever the form opens (the select is
+// not in FIELD_MAP because visitPurpose is its own store).
+function formSyncPurpose(){
+  var el = document.getElementById('f-visit-purpose'); if (!el) return;
+  el.value = flowVisitPurpose || '';
+}
+// The next quarter hour from now, "HH:MM". Never the current exact minute.
+function formNextQuarterHour(){
+  var d = new Date();
+  d.setSeconds(0, 0);
+  var add = 15 - (d.getMinutes() % 15);
+  if (add === 0) add = 15;                 // exactly on a quarter: step to the next
+  d.setMinutes(d.getMinutes() + add);
+  var hh = ('0' + d.getHours()).slice(-2), mm = ('0' + d.getMinutes()).slice(-2);
+  return hh + ':' + mm;
 }
 
 // Desk exit: save, regenerate the condition report FRESH from the just-saved
@@ -16377,6 +16440,7 @@ function flowSetPurpose(surveyId, purpose){
   }
   // Reshape the form immediately if it is on screen (purpose picked from the form).
   if (typeof applyConditionFormLayout === 'function') applyConditionFormLayout();
+  if (typeof formSyncPurpose === 'function') formSyncPurpose();   // keep the select in step
 }
 
 // --- Amendment 2: "no faults found" is a finding, not an absence of one ---
