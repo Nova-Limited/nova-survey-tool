@@ -942,6 +942,14 @@ body.mode-site #progress-strip.ps-strip.ps-shown { position: fixed; left: 0; rig
 #progress-strip .ps-progress { font-weight: 700; color: var(--gold, #F7901E); }
 #progress-strip .ps-next { color: #d7d7d5; overflow: hidden; text-overflow: ellipsis; }
 #progress-strip .ps-caret { margin-left: auto; color: #cfcfce; }
+    #progress-strip .ps-head { display: flex; align-items: stretch; }
+    #progress-strip .ps-head .ps-line { flex: 1 1 auto; }
+    #progress-strip .ps-continue { flex: 0 0 auto; border: none; background: var(--gold, #F7901E); color: #fff;
+      font-family: inherit; font-size: 12.5px; font-weight: 800; padding: 8px 14px; cursor: pointer;
+      white-space: nowrap; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
+    #progress-strip.ps-strip .ps-continue { border-radius: 0; }
+    #progress-strip .ps-empty .ps-continue { border-radius: 7px; margin-left: auto; }
+    body:not(.mode-site) #progress-strip.ps-rail .ps-continue { width: 100%; border-radius: 0; }
 #progress-strip .ps-empty { justify-content: flex-start; gap: 12px; }
 #progress-strip .ps-empty-txt { color: #e7e7e5; }
 #progress-strip .ps-capture { background: var(--gold, #F7901E); color: #fff; border: none; border-radius: 7px;
@@ -7975,7 +7983,7 @@ function showView(name) {
   window.scrollTo(0, 0);
   // the progress strip belongs only to the walk and capture surfaces; drop it
   // elsewhere, and let those surfaces' own renderers put it back.
-  if (name !== 'walk' && name !== 'footprint'){
+  if (name !== 'walk' && name !== 'footprint' && name !== 'siteplan'){
     var ps = document.getElementById('progress-strip');
     if (ps){ ps.className = 'no-print'; ps.innerHTML = ''; }
     if (typeof progressExpanded !== 'undefined') progressExpanded = false;
@@ -8645,6 +8653,7 @@ function spOpenSitePlan(id, backTo){
   if (latEl) latEl.value = (s.siteLat != null ? String(s.siteLat) : '');
   if (lngEl) lngEl.value = (s.siteLng != null ? String(s.siteLng) : '');
   try { spRestoreImageState(); } catch (e){}
+  if (typeof progressStripRender === 'function') progressStripRender();   // item 2: strip on the site plan
   // Leaflet measures on construction; the surface has only just become visible
   setTimeout(function(){ try { if (spMap) spMap.invalidateSize(); } catch(e){} }, 120);
 }
@@ -16882,11 +16891,120 @@ function progressActiveIdx(){
   return (v === 'walk') ? (flowActiveWalkIdx || 0) : (fpActiveBuildingIdx || 0);
 }
 function progressCurrentView(){
-  var w = document.getElementById('view-walk'), f = document.getElementById('view-footprint');
+  var w = document.getElementById('view-walk'), f = document.getElementById('view-footprint'),
+      s = document.getElementById('view-siteplan');
   if (w && w.classList.contains('active')) return 'walk';
   if (f && f.classList.contains('active')) return 'footprint';
+  // the site plan is a capture surface reached from the walk/hub (item 2)
+  if (s && s.classList.contains('active')) return 'siteplan';
   return null;
 }
+// The record the strip describes, resolved per the active surface: the walk uses
+// flowCurrentId, the footprint fpCurrentId, the site plan currentSurveyId. Each
+// surface sets its OWN id var, so preferring one globally would go stale when the
+// footprint/site plan is reached without the walk.
+function progressSurveyId(){
+  var v = progressCurrentView();
+  if (v === 'walk') return flowCurrentId || currentSurveyId;
+  if (v === 'footprint') return (typeof fpCurrentId !== 'undefined' && fpCurrentId) ? fpCurrentId : currentSurveyId;
+  return currentSurveyId;
+}
+// ===== THE NAVIGATION SPINE (one derivation for all onward navigation) ======
+// flowNext(survey) answers the ONE question: what is next for this record. The
+// strip, the hub and the walk all consume it; nothing computes its own next.
+// While capture is incomplete, next is the next incomplete walk step on the
+// current element, then the next element; when capture is complete it advances
+// the stage - on an estimate the route readiness/acceptance work then the works
+// proposal; on a condition the Report desk then the report.
+//
+// Returns { stage, label, action, elementIdx?, stepKey? }:
+//   'capture-first'  no elements yet          -> the footprint/trace surface
+//   'capture'        an incomplete walk step  -> that step's capture surface
+//   'routes'         an element not route-ready-> the works proposal
+//   'reportdesk'     condition desk refine    -> the Report desk
+//   'document'       the document action      -> proposal / condition report
+//   'done'           nothing left
+// Advisory walk steps (purlin, access, "where visible") never block capture-
+// complete; they remain in the walk and the strip, just not on the spine.
+function flowStepIsAdvisoryKey(byKey, key){ var s = byKey[key]; return !!(s && s.advisory); }
+function flowElementNextStep(survey, idx){
+  var prev = fpActiveBuildingIdx; fpActiveBuildingIdx = idx;
+  var steps = (typeof flowComputeSteps === 'function') ? flowComputeSteps(survey) : [];
+  fpActiveBuildingIdx = prev;
+  var byKey = {}; steps.forEach(function(s){ byKey[s.key] = s; });
+  var b = (survey.buildings || [])[idx] || null;
+  var hasFootprint = !!(b && b.footprint && Array.isArray(b.footprint.corners) && b.footprint.corners.length >= 3);
+  for (var i = 0; i < WALK_ORDER.length; i++){
+    var key = WALK_ORDER[i]; var s = byKey[key];
+    if (!s || s.reserved || s.advisory) continue;          // skip advisory/reserved on the spine
+    // once the roof is drawn, the geometry/trace step no longer blocks the spine:
+    // Continue moves to heights immediately (the on-site confirm stays in the walk).
+    if (key === 'trace' && hasFootprint) continue;
+    if ((s.state || 'not-started') !== 'done'){
+      var label = (key === 'datum') ? 'Heights' : (key === 'trace') ? 'Trace the roof' : s.label;
+      return { key: key, label: label };
+    }
+  }
+  return null;   // this element's required capture is complete
+}
+// Is every element's ACCEPTED route ready? Reuses pweRouteReadiness exactly as the
+// summing point does - never a parallel readiness.
+function flowFirstUnreadyElement(survey, objs){
+  if (!(survey.proposal && survey.proposal.elements) || typeof pweRouteReadiness !== 'function') return objs[0] || null;
+  for (var i = 0; i < objs.length; i++){
+    var o = objs[i];
+    var E = survey.proposal.elements[o.id];
+    if (!E || !E.accepted) return o;                       // no accepted route yet
+    var view = pweElemView(survey, o.id); if (!view) continue;
+    if (!pweRouteReadiness(view, E.accepted).ready) return o;
+  }
+  return null;
+}
+function flowReportDeskComplete(survey){
+  // desk refine is "done" once a condition judgement exists (a rating chosen).
+  return !!(survey && survey['f-overall-rating'] && String(survey['f-overall-rating']).trim());
+}
+function flowNext(survey){
+  if (!survey) return { stage:'done', label:'', action:null };
+  var objs = (typeof propObjects === 'function') ? propObjects(survey) : [];
+  var condition = (survey.visitPurpose === 'condition');
+  // STAGE: capture-first
+  if (!objs.length) return { stage:'capture-first', label:'Capture the first building', action:'capture-first' };
+  // STAGE: capture (next incomplete step on the current element, then next element)
+  for (var i = 0; i < objs.length; i++){
+    var st = flowElementNextStep(survey, objs[i].idx);
+    if (st) return { stage:'capture', elementIdx: objs[i].idx, stepKey: st.key,
+      label: st.label + (objs.length > 1 ? (' · ' + objs[i].name) : ''), action:'walk-step' };
+  }
+  // capture complete -> advance the stage
+  if (condition){
+    if (!flowReportDeskComplete(survey)) return { stage:'reportdesk', label:'Fill the report desk', action:'reportdesk' };
+    return { stage:'document', label:'Generate the report', action:'report' };
+  }
+  var unready = flowFirstUnreadyElement(survey, objs);
+  if (unready) return { stage:'routes', elementIdx: unready.idx,
+    label:'Ready the routes' + (objs.length > 1 ? (' · ' + unready.name) : ''), action:'proposal' };
+  return { stage:'document', label:'Open the works proposal', action:'proposal' };
+}
+// The spine's router: acts on flowNext for a record. The ONE Continue behaviour.
+function flowNextGo(survey){
+  survey = survey || srLoadSurvey(flowCurrentId || currentSurveyId); if (!survey) return;
+  var id = survey.id; var n = flowNext(survey); if (!n) return;
+  flowCurrentId = id; currentSurveyId = id;
+  switch (n.action){
+    case 'capture-first': if (typeof fpOpen === 'function') fpOpen(id); return;
+    case 'walk-step':
+      if (n.elementIdx != null){ flowActiveWalkIdx = n.elementIdx; fpActiveBuildingIdx = n.elementIdx; }
+      if (typeof flowWalkRoute === 'function') flowWalkRoute(n.stepKey, srLoadSurvey(id));
+      return;
+    case 'proposal': if (typeof proposalOpen === 'function') proposalOpen(id); return;
+    case 'reportdesk': if (typeof reportDeskOpen === 'function') reportDeskOpen(id, 'detail'); return;
+    case 'report': if (typeof goToReportCurrent === 'function') goToReportCurrent(); return;
+    default: return;
+  }
+}
+function flowNextLabel(survey){ var n = flowNext(survey); return n ? n.label : ''; }
+
 // The ordered visible walk steps for one element, with the walk's own labels and
 // states, plus done/total and the next incomplete step. Read-only.
 function progressStripSteps(survey, idx){
@@ -16915,25 +17033,29 @@ function progressStripApplies(survey){
 }
 function progressStripRender(){
   var host = document.getElementById('progress-strip'); if (!host) return;
-  var survey = srLoadSurvey(flowCurrentId || currentSurveyId);
+  var survey = srLoadSurvey(progressSurveyId());
   if (!survey || !progressStripApplies(survey)){ host.className = 'no-print'; host.innerHTML = ''; return; }
   var side = (typeof appMode !== 'undefined' && appMode !== 'site');   // desk => side rail
   var data = progressStripSteps(survey, progressActiveIdx());
   host.className = 'no-print ps-shown' + (side ? ' ps-rail' : ' ps-strip');
   // EMPTY STATE: no captured objects yet - the walk's own empty state, offering
   // to capture the first building. No separate marooned button.
+  // the spine's one Continue, shared by the empty state and the strip
+  var nextLabel = (typeof flowNextLabel === 'function') ? flowNextLabel(survey) : '';
   if (!data){
     host.innerHTML = '<div class="ps-line ps-empty"><span class="ps-empty-txt">No elements captured yet.</span>' +
-      '<button class="ps-capture" onclick="progressCaptureFirst()">Capture the first building</button></div>';
+      '<button class="ps-continue" onclick="flowNextGo(srLoadSurvey(progressSurveyId()))">Continue &middot; ' + escapeHtml(nextLabel || 'Capture the first building') + '</button></div>';
     if (typeof updateSiteChromeOffset === 'function' && !side) updateSiteChromeOffset();
     return;
   }
-  var head = '<button class="ps-line" onclick="progressToggle()" aria-expanded="' + (progressExpanded ? 'true' : 'false') + '">' +
+  var head = '<div class="ps-head"><button class="ps-line" onclick="progressToggle()" aria-expanded="' + (progressExpanded ? 'true' : 'false') + '">' +
     '<span class="ps-name">' + escapeHtml(data.name) + '</span>' +
     (data.count > 1 ? '<span class="ps-count">element ' + (data.idx + 1) + ' of ' + data.count + '</span>' : '') +
     '<span class="ps-progress">' + data.done + ' of ' + data.total + '</span>' +
     '<span class="ps-next">' + (data.next ? ('next: ' + escapeHtml(data.next)) : 'all steps done') + '</span>' +
-    '<span class="ps-caret">' + (progressExpanded || side ? '▾' : '▸') + '</span></button>';
+    '<span class="ps-caret">' + (progressExpanded || side ? '▾' : '▸') + '</span></button>' +
+    // Continue routes per the SPINE (may point past this element to routes/document)
+    '<button class="ps-continue" onclick="flowNextGo(srLoadSurvey(progressSurveyId()))">Continue' + (nextLabel ? (' &middot; ' + escapeHtml(nextLabel)) : '') + '</button></div>';
   var body = '';
   if (progressExpanded || side){
     body = '<div class="ps-checklist">';
@@ -16962,14 +17084,14 @@ function progressSelectElem(idx){
   progressStripRender();
 }
 function progressJump(key){
-  var survey = srLoadSurvey(flowCurrentId || currentSurveyId); if (!survey) return;
+  var survey = srLoadSurvey(progressSurveyId()); if (!survey) return;
   progressExpanded = false;
   flowActiveWalkIdx = progressActiveIdx();
   flowCurrentId = survey.id;
   if (typeof flowWalkRoute === 'function') flowWalkRoute(key, survey);   // the walk's own jump behaviour
 }
 function progressCaptureFirst(){
-  var id = flowCurrentId || currentSurveyId; if (!id) return;
+  var id = progressSurveyId(); if (!id) return;
   if (typeof fpOpen === 'function') fpOpen(id);
 }
 // collapse on tap-away
