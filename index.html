@@ -928,6 +928,50 @@ input, button, select, textarea { font-family: inherit; font-size: inherit; colo
    they never scroll away; #app is padded by JS to clear them. */
 body.mode-site .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 101; }
 #ctx-strip { display: none; }
+/* ===== progress strip / running checklist (item 6) ===== */
+#progress-strip { display: none; }
+#progress-strip.ps-shown { display: block; }
+/* SITE MODE: a one-line strip. Fixed under the context strip in site chrome. */
+#progress-strip.ps-strip { background: #434244; color: #fff; }
+body.mode-site #progress-strip.ps-strip.ps-shown { position: fixed; left: 0; right: 0; z-index: 99; }
+#progress-strip .ps-line { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: none; border: none; color: inherit; font-family: inherit; padding: 8px 14px; cursor: pointer;
+  font-size: 12.5px; white-space: nowrap; overflow: hidden; }
+#progress-strip .ps-name { font-weight: 800; }
+#progress-strip .ps-count { color: #cfcfce; font-size: 11px; }
+#progress-strip .ps-progress { font-weight: 700; color: var(--gold, #F7901E); }
+#progress-strip .ps-next { color: #d7d7d5; overflow: hidden; text-overflow: ellipsis; }
+#progress-strip .ps-caret { margin-left: auto; color: #cfcfce; }
+#progress-strip .ps-empty { justify-content: flex-start; gap: 12px; }
+#progress-strip .ps-empty-txt { color: #e7e7e5; }
+#progress-strip .ps-capture { background: var(--gold, #F7901E); color: #fff; border: none; border-radius: 7px;
+  padding: 6px 12px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+#progress-strip .ps-checklist { background: #fff; color: #2f2f31; border-top: 1px solid rgba(0,0,0,0.1);
+  padding: 6px; max-height: 60vh; overflow-y: auto; }
+#progress-strip.ps-strip .ps-checklist { box-shadow: 0 12px 24px -12px rgba(0,0,0,0.5); }
+#progress-strip .ps-elems { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; }
+#progress-strip .ps-elem { border: 1px solid var(--rule, #e2e3e5); background: #fff; border-radius: 999px;
+  padding: 4px 11px; font-size: 12px; cursor: pointer; }
+#progress-strip .ps-elem.on { background: #434244; color: #fff; border-color: #434244; }
+#progress-strip .ps-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: none; border: none; border-radius: 7px; padding: 9px 11px; cursor: pointer; font-family: inherit;
+  font-size: 13px; color: #2f2f31; }
+#progress-strip .ps-row:hover { background: #f5f4f0; }
+#progress-strip .ps-row-dot { width: 18px; text-align: center; color: #8a898b; }
+#progress-strip .ps-done .ps-row-dot { color: #2f7a3f; }
+#progress-strip .ps-partial .ps-row-dot { color: #b26b00; }
+#progress-strip .ps-done .ps-row-label { color: #6b6a6d; }
+/* DESK MODE: a persistent side rail on the walk and capture surfaces. */
+@media (min-width: 900px) {
+  body:not(.mode-site) #progress-strip.ps-rail.ps-shown { position: fixed; top: 96px; right: 18px; width: 250px;
+    z-index: 40; background: #fff; border: 1px solid var(--rule, #e2e3e5); border-radius: 12px; overflow: hidden;
+    box-shadow: 0 10px 28px -14px rgba(0,0,0,0.35); }
+  body:not(.mode-site) #progress-strip.ps-rail .ps-line { background: #434244; color: #fff; }
+  body:not(.mode-site) #progress-strip.ps-rail .ps-checklist { max-height: 70vh; }
+}
+@media (max-width: 899px) {
+  body:not(.mode-site) #progress-strip.ps-rail.ps-shown { display: block; background: #434244; color: #fff; }
+}
 body.mode-site #ctx-strip.shown { display: flex; position: fixed; left: 0; right: 0; z-index: 100;
   align-items: baseline; flex-wrap: wrap; gap: 6px 14px;
   background: var(--ink); color: #fff; padding: 8px 16px calc(8px);
@@ -3485,6 +3529,10 @@ input.derived-field { background: #f6f8fa; color: #555; }
      (including throughout the capture surface), never scrolls away. Hidden in
      desk mode and on the site-mode day sheet. -->
 <div id="ctx-strip" class="no-print" aria-live="polite"></div>
+<!-- Item 6: the estimate progress strip / running checklist. Site mode: a one-line
+     strip beneath the context strip. Desk mode: a side rail. Both read the one
+     flowComputeSteps derivation; estimate journeys only. -->
+<div id="progress-strip" class="no-print"></div>
 
 <main id="app">
   <!-- HOME -->
@@ -7913,6 +7961,13 @@ function showView(name) {
   const v = document.getElementById('view-' + name);
   if (v) v.classList.add('active');
   window.scrollTo(0, 0);
+  // the progress strip belongs only to the walk and capture surfaces; drop it
+  // elsewhere, and let those surfaces' own renderers put it back.
+  if (name !== 'walk' && name !== 'footprint'){
+    var ps = document.getElementById('progress-strip');
+    if (ps){ ps.className = 'no-print'; ps.innerHTML = ''; }
+    if (typeof progressExpanded !== 'undefined') progressExpanded = false;
+  }
 }
 
 // ---- Site / Desk mode journey shell (additive; desk mode is today's tool) ---
@@ -14395,6 +14450,7 @@ function fpRender(){
 
   h += '</div>';
   host.innerHTML = h;
+  if (typeof progressStripRender === 'function') progressStripRender();
 }
 
 // Roof build-up capture: two required selects (weather sheet, liner) plus an
@@ -16767,13 +16823,128 @@ function flowWalkRoute(key, survey){
     default: fpOpen(currentSurveyId); return;
   }
 }
+// ===== THE PROGRESS STRIP / RUNNING CHECKLIST (item 6) =====================
+// One derivation (flowComputeSteps), two presentations: a one-line strip in site
+// mode, a persistent side rail in desk mode. Estimate journeys only; condition
+// journeys never see it. Nothing here is a second list - it reads the SAME walk
+// steps the walk renders, scoped to the active element exactly as the walk does.
+var progressExpanded = false;
+function progressActiveIdx(){
+  // on the walk the active element is flowActiveWalkIdx; on the capture surface
+  // it is fpActiveBuildingIdx. Either way it is a valid index into propObjects.
+  var v = progressCurrentView();
+  return (v === 'walk') ? (flowActiveWalkIdx || 0) : (fpActiveBuildingIdx || 0);
+}
+function progressCurrentView(){
+  var w = document.getElementById('view-walk'), f = document.getElementById('view-footprint');
+  if (w && w.classList.contains('active')) return 'walk';
+  if (f && f.classList.contains('active')) return 'footprint';
+  return null;
+}
+// The ordered visible walk steps for one element, with the walk's own labels and
+// states, plus done/total and the next incomplete step. Read-only.
+function progressStripSteps(survey, idx){
+  var objs = (typeof propObjects === 'function') ? propObjects(survey) : [];
+  if (!objs.length) return null;
+  if (idx >= objs.length) idx = 0;
+  var active = objs[idx];
+  var prev = fpActiveBuildingIdx; fpActiveBuildingIdx = active.idx;
+  var steps = flowComputeSteps(survey);
+  fpActiveBuildingIdx = prev;
+  var byKey = {}; steps.forEach(function(s){ byKey[s.key] = s; });
+  var rows = [];
+  WALK_ORDER.forEach(function(key){
+    var s = byKey[key]; if (!s || s.reserved) return;
+    var label = (key === 'datum') ? 'Heights' : s.label;
+    rows.push({ key: key, label: label, state: s.state || 'not-started' });
+  });
+  var done = rows.filter(function(r){ return r.state === 'done'; }).length;
+  var next = rows.filter(function(r){ return r.state !== 'done'; })[0] || null;
+  return { name: active.name, idx: active.idx, count: objs.length, rows: rows,
+    done: done, total: rows.length, next: next ? next.label : null };
+}
+function progressStripApplies(survey){
+  if (!survey || survey.visitPurpose === 'condition') return false;   // estimate journeys only
+  return progressCurrentView() !== null;                              // a walk or capture surface
+}
+function progressStripRender(){
+  var host = document.getElementById('progress-strip'); if (!host) return;
+  var survey = srLoadSurvey(flowCurrentId || currentSurveyId);
+  if (!survey || !progressStripApplies(survey)){ host.className = 'no-print'; host.innerHTML = ''; return; }
+  var side = (typeof appMode !== 'undefined' && appMode !== 'site');   // desk => side rail
+  var data = progressStripSteps(survey, progressActiveIdx());
+  host.className = 'no-print ps-shown' + (side ? ' ps-rail' : ' ps-strip');
+  // EMPTY STATE: no captured objects yet - the walk's own empty state, offering
+  // to capture the first building. No separate marooned button.
+  if (!data){
+    host.innerHTML = '<div class="ps-line ps-empty"><span class="ps-empty-txt">No elements captured yet.</span>' +
+      '<button class="ps-capture" onclick="progressCaptureFirst()">Capture the first building</button></div>';
+    if (typeof updateSiteChromeOffset === 'function' && !side) updateSiteChromeOffset();
+    return;
+  }
+  var head = '<button class="ps-line" onclick="progressToggle()" aria-expanded="' + (progressExpanded ? 'true' : 'false') + '">' +
+    '<span class="ps-name">' + escapeHtml(data.name) + '</span>' +
+    (data.count > 1 ? '<span class="ps-count">element ' + (data.idx + 1) + ' of ' + data.count + '</span>' : '') +
+    '<span class="ps-progress">' + data.done + ' of ' + data.total + '</span>' +
+    '<span class="ps-next">' + (data.next ? ('next: ' + escapeHtml(data.next)) : 'all steps done') + '</span>' +
+    '<span class="ps-caret">' + (progressExpanded || side ? '▾' : '▸') + '</span></button>';
+  var body = '';
+  if (progressExpanded || side){
+    body = '<div class="ps-checklist">';
+    if (data.count > 1){
+      body += '<div class="ps-elems">';
+      (propObjects(survey) || []).forEach(function(o){
+        body += '<button class="ps-elem' + (o.idx === data.idx ? ' on' : '') + '" onclick="progressSelectElem(' + o.idx + ')">' + escapeHtml(o.name) + '</button>';
+      });
+      body += '</div>';
+    }
+    data.rows.forEach(function(r){
+      var dot = r.state === 'done' ? '✓' : r.state === 'partial' ? '◐' : '○';
+      body += '<button class="ps-row ps-' + r.state + '" onclick="progressJump(\'' + r.key + '\')">' +
+        '<span class="ps-row-dot">' + dot + '</span><span class="ps-row-label">' + escapeHtml(r.label) + '</span></button>';
+    });
+    body += '</div>';
+  }
+  host.innerHTML = head + body;
+  if (typeof updateSiteChromeOffset === 'function' && !side) updateSiteChromeOffset();
+}
+function progressToggle(){ progressExpanded = !progressExpanded; progressStripRender(); }
+function progressSelectElem(idx){
+  flowActiveWalkIdx = idx;
+  if (progressCurrentView() === 'footprint'){ fpActiveBuildingIdx = idx; if (typeof fpRender === 'function') fpRender(); }
+  else if (typeof flowRenderWalk === 'function') flowRenderWalk();
+  progressStripRender();
+}
+function progressJump(key){
+  var survey = srLoadSurvey(flowCurrentId || currentSurveyId); if (!survey) return;
+  progressExpanded = false;
+  flowActiveWalkIdx = progressActiveIdx();
+  flowCurrentId = survey.id;
+  if (typeof flowWalkRoute === 'function') flowWalkRoute(key, survey);   // the walk's own jump behaviour
+}
+function progressCaptureFirst(){
+  var id = flowCurrentId || currentSurveyId; if (!id) return;
+  if (typeof fpOpen === 'function') fpOpen(id);
+}
+// collapse on tap-away
+document.addEventListener('click', function(e){
+  if (!progressExpanded) return;
+  var host = document.getElementById('progress-strip');
+  if (host && !host.contains(e.target)){ progressExpanded = false; progressStripRender(); }
+}, true);
+
 function flowRenderWalk(){
   var host = document.getElementById('walk-body'); if (!host) return;
   var survey = srLoadSurvey(flowCurrentId || currentSurveyId);
   if (!survey){ host.innerHTML = '<p>Survey not found.</p>'; return; }
   flowCurrentId = survey.id;
   var objs = (typeof propObjects === 'function') ? propObjects(survey) : [{ id: (survey.buildings && survey.buildings[0] && survey.buildings[0].id) || 'B1', name: 'Element', idx: 0 }];
-  if (!objs.length){ host.innerHTML = '<p>No elements captured yet.</p>'; return; }
+  if (!objs.length){
+    host.innerHTML = '<div class="walk-wrap"><div class="walk-head"><span class="walk-title">Element walk</span>' +
+      '<span class="walk-sub">No elements captured yet.</span></div></div>';
+    if (typeof progressStripRender === 'function') progressStripRender();   // the strip's empty state IS the walk's
+    return;
+  }
   if (flowActiveWalkIdx >= objs.length) flowActiveWalkIdx = 0;
   var active = objs[flowActiveWalkIdx];
   // scope the checklist to the active element (walk is per element)
@@ -16815,6 +16986,7 @@ function flowRenderWalk(){
   h += '<div class="walk-foot"><button class="btn btn-secondary" onclick="flowOpenHandoff(flowCurrentId)">Finish &middot; go to handoff</button></div>';
   h += '</div>';
   host.innerHTML = h;
+  if (typeof progressStripRender === 'function') progressStripRender();
 }
 // POLISH 12: the none-to-record declaration, the same pattern as the condition
 // no-faults declaration. Abutments are per element; access is survey level.
