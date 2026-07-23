@@ -4358,6 +4358,19 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #detail-actions.act-grouped { flex-wrap: wrap; align-items: flex-start; gap: 14px; }
     .act-group { display: flex; flex-direction: column; gap: 8px; padding: 10px 13px 12px; border: 1px solid var(--rule); border-radius: 9px; background: #faf9f6; }
     .act-group-label { font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; color: #F7901E; }
+    /* stage-aware hub (red pen items 2, 4) */
+    #view-detail .hub-continue { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      margin: 0 0 1rem; padding: 12px 16px; background: #fff8ec; border: 1px solid #f0d9b0;
+      border-left: 4px solid #F7901E; border-radius: 10px; }
+    #view-detail .hub-continue-done { background: #f5faf6; border-color: #cfe6d4; border-left-color: #2f7a3f; }
+    #view-detail .hub-continue-lead { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+    #view-detail .hub-continue-stage { font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; color: #b26b00; }
+    #view-detail .hub-continue-text { font-size: 14px; color: #5a4a22; }
+    #view-detail .hub-continue-done .hub-continue-text { color: #2f5a3a; }
+    #view-detail .hub-continue-btn { flex: 0 0 auto; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #view-detail .hub-panel-action { margin-top: 8px; }
+    #view-detail .hub-ready { color: #2f7a3f; font-weight: 700; }
+    #view-detail .hub-unready { color: #b26b00; font-weight: 700; }
     .act-group-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     #detail-actions.act-grouped .act-group .btn { width: auto; min-height: 42px; padding: 0.5rem 0.95rem; font-size: 0.88rem; }
     .act-delete { align-self: center; }
@@ -9777,6 +9790,121 @@ function renderSurveyDetail(s) {
       '<div class="act-delete"><button class="btn btn-danger" onclick="deleteCurrent()">Delete</button></div>';
   }
 }
+// ===== THE STAGE-AWARE HUB (red pen items 2, 4) ============================
+// The Continue bar: the ONE primary action, consuming the spine (flowNext /
+// flowNextGo). No independent journey logic - it only presents and routes what
+// the spine decides.
+function hubContinueBar(s){
+  var n = (typeof flowNext === 'function') ? flowNext(s) : null;
+  if (!n) return '';
+  var done = (n.stage === 'done');
+  var lead = done ? 'Everything is done for this record.'
+    : (n.stage === 'capture-first') ? 'Start the survey.'
+    : (n.stage === 'capture') ? 'Continue the survey.'
+    : (n.stage === 'routes') ? 'Ready the routes to price the job.'
+    : (n.stage === 'reportdesk') ? 'Fill in the report judgement.'
+    : 'Produce the document.';
+  return '<div class="hub-continue' + (done ? ' hub-continue-done' : '') + '">' +
+    '<div class="hub-continue-lead"><span class="hub-continue-stage">Next</span>' +
+    '<span class="hub-continue-text">' + escapeHtml(lead) + '</span></div>' +
+    (done ? '' : '<button class="btn btn-primary hub-continue-btn" onclick="flowNextGo(srLoadSurvey(currentSurveyId))">Continue &middot; ' + escapeHtml(n.label || '') + '</button>') +
+    '</div>';
+}
+// A panel only renders when it carries content: no panel of dashes anywhere.
+function hubPanel(title, rows){
+  var live = rows.filter(function(r){ return r[1] != null && String(r[1]).trim() !== ''; });
+  if (!live.length) return '';
+  var h = '<div class="detail-block"><h3>' + escapeHtml(title) + '</h3>';
+  live.forEach(function(r){ h += '<div class="detail-row"><span class="k">' + escapeHtml(r[0]) + '</span><span class="v">' + escapeHtml(String(r[1])) + '</span></div>'; });
+  return h + '</div>';
+}
+// ELEMENTS panel (was Building): reads the element stores per captured object.
+function hubElementsPanel(s){
+  var objs = (typeof propObjects === 'function') ? propObjects(s) : [];
+  if (!objs.length){
+    return '<div class="detail-block"><h3>Elements</h3>' +
+      '<div class="detail-row"><span class="v empty">No elements captured yet.</span></div>' +
+      '<div class="hub-panel-action"><button class="btn btn-secondary" onclick="fpOpen(currentSurveyId)">Capture the first building</button></div></div>';
+  }
+  var h = '<div class="detail-block"><h3>Elements (' + objs.length + ')</h3>';
+  objs.forEach(function(o){
+    var fam = (typeof propObjFamily === 'function') ? propObjFamily(s, o.id).family : null;
+    var c = (typeof elemConstruction === 'function') ? elemConstruction(o.b) : { coveringLabel:'' };
+    var view = (typeof pweElemView === 'function') ? pweElemView(s, o.id) : s;
+    var area = (typeof proposalRoofArea === 'function') ? proposalRoofArea(view) : null;
+    var bu = (o.b && o.b.roofBuildup) || {};
+    var bits = [];
+    if (fam) bits.push((typeof PROPOSAL_FAMILY_LABELS !== 'undefined' && PROPOSAL_FAMILY_LABELS[fam]) ? PROPOSAL_FAMILY_LABELS[fam] : fam);
+    if (c.coveringLabel) bits.push(c.coveringLabel);
+    if (area != null && area > 0) bits.push(Math.round(area).toLocaleString('en-GB') + ' m²');
+    if (bu.age) bits.push(bu.age);
+    if (bu.constructionType) bits.push(bu.constructionType);
+    h += '<div class="detail-row"><span class="k">' + escapeHtml(o.name) + '</span>' +
+      '<span class="v">' + (bits.length ? escapeHtml(bits.join(' · ')) : '<span class="empty">captured</span>') + '</span></div>';
+  });
+  return h + '</div>';
+}
+// ACCESS panel: re-pointed at the one access store, hidden when empty.
+function hubAccessPanel(s){
+  if (!(typeof accessConstraintsAny === 'function' && accessConstraintsAny(s))) return '';
+  var rows = [];
+  (typeof ACCESS_CONSTRAINT_FIELDS !== 'undefined' ? ACCESS_CONSTRAINT_FIELDS : []).forEach(function(f){
+    var v = (typeof accessPickValue === 'function') ? accessPickValue(s, f) : null;
+    if (f.type === 'bool'){ if (v) rows.push([f.l, 'Yes']); }
+    else if (v != null && String(v).trim() !== '') rows.push([f.l, v]);
+  });
+  var a = (typeof accessConstraints === 'function') ? accessConstraints(s) : {};
+  if (a.note) rows.push(['Access note', a.note]);
+  return hubPanel('Access', rows);
+}
+// ASBESTOS panel: re-pointed at the element covering declarations + itemised
+// tonnage, hidden until a declaration exists.
+function hubAsbestosPanel(s){
+  var objs = (typeof propObjects === 'function') ? propObjects(s) : [];
+  var declared = [];
+  objs.forEach(function(o){
+    var c = (typeof elemConstruction === 'function') ? elemConstruction(o.b) : { declared:false };
+    if (c.declared) declared.push({ name:o.name, c:c, liner:(o.b.roofBuildup||{}).liner });
+  });
+  var legacy = s['f-asb-contains'];
+  if (!declared.length && !(legacy && String(legacy).trim())) return '';   // hidden until a declaration exists
+  var rows = [];
+  declared.forEach(function(d){
+    rows.push([d.name, d.c.coveringLabel + (d.c.asbestos === true ? ' · asbestos-containing' : d.c.asbestos === false ? ' · declared free' : '')]);
+  });
+  if (!declared.length && legacy) rows.push(['Recorded for the site', String(legacy)]);
+  var brk = (typeof estAsbestosTonnage === 'function') ? estAsbestosTonnage(s) : null;
+  if (brk && brk.total != null){
+    rows.push(['Asbestos waste', (brk.linerT > 0 ? ('cement ' + brk.cementT + ' t + plasterboard liner ' + brk.linerT + ' t = ') : '') + brk.total + ' t']);
+  }
+  return hubPanel('Asbestos', rows);
+}
+// ROUTES panel (estimate): per element the presented routes, readiness, accepted
+// route and figure, group + job totals. Reuses the existing readiness/summing/
+// advisory machinery to the figure - never a parallel one.
+function hubRoutesPanel(s){
+  var objs = (typeof propObjects === 'function') ? propObjects(s) : [];
+  if (!objs.length || !s.proposal || !s.proposal.elements) return '';
+  var any = false, h = '<div class="detail-block"><h3>Routes</h3>';
+  objs.forEach(function(o){
+    var E = s.proposal.elements[o.id]; if (!E) return;
+    any = true;
+    var view = pweElemView(s, o.id);
+    var acc = E.accepted ? (typeof proposalSysById === 'function' ? proposalSysById(E.family, E.accepted) : null) : null;
+    var rd = (E.accepted && typeof pweRouteReadiness === 'function') ? pweRouteReadiness(view, E.accepted) : { ready:false, failures:['No route accepted'] };
+    var fig = null;
+    if (E.accepted && E.estimates && E.estimates[E.accepted] && typeof pweOptionTotals === 'function'){ fig = pweOptionTotals(E.estimates[E.accepted]).sell; }
+    h += '<div class="detail-row"><span class="k">' + escapeHtml(o.name) + '</span>' +
+      '<span class="v">' + (acc ? escapeHtml(acc.name) : 'no route accepted') +
+      (fig != null && fig > 0 ? (' · ' + (typeof proposalMoney === 'function' ? proposalMoney(fig) : fig)) : '') +
+      ' · <span class="' + (rd.ready ? 'hub-ready' : 'hub-unready') + '">' + (rd.ready ? 'ready' : 'not ready') + '</span></span></div>';
+  });
+  if (!any) return '';
+  var jt = (typeof propJobTotal === 'function') ? propJobTotal(s) : null;
+  if (jt != null) h += '<div class="detail-row" style="border-top:2px solid var(--rule);padding-top:0.6rem;margin-top:0.3rem;">' +
+    '<span class="k"><strong>Job total</strong></span><span class="v" style="color:var(--gold);font-weight:800;">' + (typeof proposalMoney === 'function' ? proposalMoney(jt) : jt) + ' plus VAT</span></div>';
+  return h + '</div>';
+}
 function renderDetailBlocks(s) {
   const ec = s.endClient || {};
   const mc = s.mainContractor || {};
@@ -9807,51 +9935,34 @@ function renderDetailBlocks(s) {
   if (st.contactTelephone) siteInfoRows.push(['Site contact phone', st.contactTelephone]);
   siteInfoRows.push(['Date of visit', vi.date ? fmtDate(vi.date) : '']);
   siteInfoRows.push(['Surveyor', vi.surveyorName]);
-  siteInfoRows.push(['Works description', vi.worksDescription]);
-  if (s.clientReportedIssues) siteInfoRows.push(['Client reports', s.clientReportedIssues]);
-  if (s.siteContext) siteInfoRows.push(['Site context', s.siteContext]);
+  // told-us fields first-line-collapsed on the hub (the full text lives on the form)
+  siteInfoRows.push(['Works description', firstLine(vi.worksDescription)]);
+  if (s.clientReportedIssues) siteInfoRows.push(['Client reports', firstLine(s.clientReportedIssues)]);
+  if (s.siteContext) siteInfoRows.push(['Site context', firstLine(s.siteContext)]);
   siteInfoRows.push(['Appointment time', apptTimeDisplay(vi, true)]);
   siteInfoRows.push(['Weather conditions', vi.weather]);
 
-  const blocks = [
-    ['Site Info', siteInfoRows],
-    ['Building', [
-      ['Roof type', s['f-roof-type']],
-      ['Roof area (m²)', s['f-roof-area']],
-      ['Approximate age', s['f-age']],
-      ['Construction type', s['f-construction-type']]
-    ]],
-    ['Access & Safety', [
-      ['Eaves access', s['f-eaves-access']],
-      ['Edge protection', boolDisplay(s['f-edge-protection'])],
-      ['Live overhead services <9m', boolDisplay(s['f-live-services'])],
-      ['Adjacent to public area', boolDisplay(s['f-adjacent-public'])]
-    ]],
-    ['Asbestos', [
-      ['Roof contains asbestos', s['f-asb-contains']],
-      ['Register seen', boolDisplay(s['f-asb-register-seen'])],
-      ['Register date', s['f-asb-register-seen'] && s['f-asb-register-date'] ? fmtDate(s['f-asb-register-date']) : ''],
-      ['Register current', s['f-asb-register-seen'] ? registerCurrencyLabel(s['f-asb-register-date']) : ''],
-      ['Sampling required', boolDisplay(s['f-asb-sampling'])]
-    ]],
-    ['Summary', [
+  // The Continue bar sits at the very top, beneath the job strip.
+  let html = hubContinueBar(s);
+  html += '<div class="detail-grid">';
+  // Site info is always kept.
+  html += hubPanel('Site info', siteInfoRows) || ('<div class="detail-block"><h3>Site info</h3></div>');
+  // Elements panel (was Building), reading the element stores.
+  html += hubElementsPanel(s);
+  // Access + Asbestos, re-pointed and hidden when empty.
+  html += hubAccessPanel(s);
+  html += hubAsbestosPanel(s);
+  // Summary is condition-gated (Report desk stores); estimate shows the routes panel.
+  const condition = (s.visitPurpose === 'condition');
+  if (condition){
+    html += hubPanel('Summary', [
       ['Overall condition rating', s['f-overall-rating']],
       ['Expected life of current system (years)', s['f-remaining-life-asstands']],
       ['Expected life after all remedial works (years)', s['f-remaining-life-postworks']],
-      ['Total indicative cost band', s['f-total-cost-band']],
       ['Recommendation', s['f-recommendation']]
-    ]]
-  ];
-
-  let html = '<div class="detail-grid">';
-  for (const [title, rows] of blocks) {
-    html += '<div class="detail-block"><h3>' + escapeHtml(title) + '</h3>';
-    for (const [k, v] of rows) {
-      const display = (v === '' || v == null) ? '<span class="v empty">—</span>' :
-                      '<span class="v">' + escapeHtml(String(v)) + '</span>';
-      html += '<div class="detail-row"><span class="k">' + escapeHtml(k) + '</span>' + display + '</div>';
-    }
-    html += '</div>';
+    ]);
+  } else {
+    html += hubRoutesPanel(s);
   }
   html += '</div>';
   if (s['f-executive-summary']) {
@@ -16717,11 +16828,18 @@ function flowComputeSteps(survey){
   steps.push({ key:'scaffold', label:'Scaffold', state: pa.length > 0 ? 'done' : 'not-started',
     detail: pa.length > 0 ? (pa.length + ' elevation' + (pa.length === 1 ? '' : 's') + ' reviewed') : 'not reviewed yet' });
 
-  // COVERING AND ASBESTOS - asbestos answered, or a covering known (bay/slope).
+  // COVERING AND ASBESTOS - the covering is KNOWN through any of one source
+  // hierarchy: (1) the 2a element build-up sheet (roofBuildup.weatherSheet), the
+  // modern door; (2) the legacy slope/bay roofType; (3) an answered f-asb-contains.
+  // Adding (1) means an element covered only through the build-up sheet never
+  // stalls the spine on covering. Where roofBuildup is absent every read is the
+  // legacy one, so a condition record with no build-up is byte-identical.
   var asb = s['f-asb-contains'];
   var asbAns = !!(asb && String(asb).trim());
   var bayAsb = (typeof f5BuildingHasAsbestos === 'function') && b && f5BuildingHasAsbestos(b);
-  var coveringKnown = (b && Array.isArray(b.slopes) && b.slopes.some(function(sl){ return sl && sl.roofType; }))
+  var buildupCovering = !!(b && b.roofBuildup && b.roofBuildup.weatherSheet && String(b.roofBuildup.weatherSheet).trim());
+  var coveringKnown = buildupCovering
+    || (b && Array.isArray(b.slopes) && b.slopes.some(function(sl){ return sl && sl.roofType; }))
     || bays.some(function(bay){ return (bay.sides || []).some(function(sd){ return sd && sd.covering; }); });
   steps.push({ key:'covering', label:'Covering and asbestos', state: (asbAns || bayAsb || coveringKnown) ? 'done' : 'not-started',
     detail: asbAns ? ('asbestos: ' + asb) : (coveringKnown ? 'covering recorded' : 'not recorded yet') });
