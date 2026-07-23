@@ -4386,6 +4386,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-pills{display:flex;flex-wrap:wrap;gap:6px;}
     #view-proposal .np-pill{font-size:12.5px;border:1px solid #d8d8d2;border-radius:16px;padding:5px 12px;cursor:pointer;background:#fff;color:#434244;font-family:inherit;}
     #view-proposal .np-pill.on{background:#F7901E;border-color:#F7901E;color:#1f1f1f;font-weight:700;}
+    #view-proposal .np-pill.np-pill-out{opacity:0.55;border-style:dashed;}
+    #view-proposal .np-pill-out-tag{font-size:10.5px;color:#9a9a95;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-left:5px;}
     #view-proposal .np-area{font-size:14px;font-weight:700;color:#434244;}
     #view-proposal .np-area-src{font-size:11px;font-weight:400;color:#8a898b;}
     #view-proposal .np-pending{font-size:13px;font-weight:400;color:#b06a1f;}
@@ -4716,6 +4718,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-bu-legacy { margin: 6px 0 10px; padding: 7px 11px; background: #eef1f4; border: 1px solid #dfe4e9; border-radius: 7px; font-size: 11.5px; color: #5b6470; }
     #view-footprint .fp-bu-field:last-child { margin-bottom: 0; }
     #view-footprint .fp-bu-label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+    #view-footprint .fp-bu-advisory { margin: -4px 0 10px; padding: 7px 10px; border-left: 3px solid #F7901E; background: #fdf6ec; border-radius: 5px; font-size: 12px; color: #6b5a3e; }
     #view-footprint .fp-bu-req { color: #c0392b; }
     #view-footprint .fp-bu-select, #view-footprint .fp-bu-input { width: 100%; padding: 8px; border: 1px solid #d4d4d0; border-radius: 7px; font-family: inherit; font-size: 13px; box-sizing: border-box; }
     #view-footprint .fp-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
@@ -5503,6 +5506,40 @@ function elemFormSheets(b){
   return filtered;
 }
 
+// WALLS AS DECLARED SCOPE (findings 3, item 3). Each element declares whether wall
+// cladding is in scope: 'yes' and 'no' are explicit declarations, unset is
+// unanswered. The declaration governs TWO things only - whether cladding is
+// captured (the elevations step) and whether wall systems are offered (the wall
+// route pill). Heights, edge conditions and everything scaffold and access derive
+// from are captured regardless and are never touched by a declaration.
+var WALL_SYSTEM_IDS = ['wallcomposite','wallbuiltup','wallsingle'];
+function elemHasCladding(b){
+  var fp = b && b.footprint; if (!fp || !Array.isArray(fp.edges)) return false;
+  return fp.edges.some(function(e){ return e && e.elevation && e.elevation.cladding && String(e.elevation.cladding).trim(); });
+}
+// An existing wall ESTIMATE on the element (a desk-added wall family/route). Read
+// from the raw proposal record without triggering any migration or re-derivation.
+function propHasWallEstimate(survey, obId){
+  var P = survey && survey.proposal; if (!P || !P.elements) return false;
+  var E = P.elements[obId]; if (!E) return false;
+  if (E.familyOverride === 'wall') return true;
+  if (E.accepted && WALL_SYSTEM_IDS.indexOf(E.accepted) > -1) return true;
+  if (Array.isArray(E.routes) && E.routes.some(function(r){ return WALL_SYSTEM_IDS.indexOf(r) > -1; })) return true;
+  return false;
+}
+// The resolved scope. An explicit declaration always wins. Otherwise MIGRATION,
+// on read, no write: captured wall cladding OR an existing wall estimate reads as
+// 'yes'; a bare element reads 'unset' and nothing prompts retroactively.
+function propWallScope(survey, obId){
+  var o = (typeof propObjById === 'function') ? propObjById(survey, obId) : null;
+  var b = o && o.b;
+  var v = b && b.wallsInScope;
+  if (v === 'yes' || v === 'no') return v;
+  if (elemHasCladding(b)) return 'yes';
+  if (propHasWallEstimate(survey, obId)) return 'yes';
+  return 'unset';
+}
+
 // ===== ABUTMENT AND SOAKER RUNS (desk entry, per job) =======================
 // Jamie's decision: these vary per project and are keyed by hand, not derived.
 // Each entry names a run, its kind and its length; the kinds map one-to-one onto
@@ -5556,6 +5593,11 @@ var SR_SELECT_VOCAB = {
   'f-construction-type': { opts:['Steel portal frame','Concrete portal','Traditional','Mixed','Unknown'], unknown:'Unknown',
                            remap:{ 'steel portal':'Steel portal frame', 'steel frame':'Steel portal frame',
                                    'concrete frame':'Concrete portal', 'brick':'Traditional', 'masonry':'Traditional' } },
+  'f-deck':              { opts:['Steel deck','Concrete','Timber ply','Woodwool slab','Unknown until inspected'], unknown:'Unknown until inspected',
+                           remap:{ 'steel':'Steel deck', 'metal deck':'Steel deck', 'metal':'Steel deck',
+                                   'concrete deck':'Concrete', 'timber':'Timber ply', 'ply':'Timber ply',
+                                   'plywood':'Timber ply', 'woodwool':'Woodwool slab', 'wood wool':'Woodwool slab',
+                                   'unknown':'Unknown until inspected', 'not known':'Unknown until inspected' } },
   'f-eaves-access':      { opts:['Ground','Internal ladder','External scaffold','MEWP','Other'], unknown:'Other',
                            remap:{ 'ladder':'Internal ladder', 'scaffold':'External scaffold',
                                    'cherry picker':'MEWP', 'scissor lift':'MEWP', 'ground level':'Ground' } },
@@ -9837,6 +9879,7 @@ function hubElementsPanel(s){
     if (area != null && area > 0) bits.push(Math.round(area).toLocaleString('en-GB') + ' m²');
     if (bu.age) bits.push(bu.age);
     if (bu.constructionType) bits.push(bu.constructionType);
+    if (fam === 'flat' && bu.deck) bits.push('deck: ' + bu.deck);   // FLAT DECK (item 2): flat-only, presented, never priced
     h += '<div class="detail-row"><span class="k">' + escapeHtml(o.name) + '</span>' +
       '<span class="v">' + (bits.length ? escapeHtml(bits.join(' · ')) : '<span class="empty">captured</span>') + '</span></div>';
   });
@@ -12558,8 +12601,15 @@ function proposalRender(){
     // --- rates panel + family selector + route picker (the on-tool controls) ---
     h += '<div class="np-controls">';
     h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof type</span><span class="np-pills">';
+    // WALLS AS DECLARED SCOPE (item 3): on an element declared out of wall scope
+    // the wall family is not offered as a live choice - its pill is muted and a
+    // click asks once to bring walls into scope (handled in proposalSetFamily),
+    // deleting nothing. An element already carrying a wall estimate is never muted
+    // and its estimate is never hidden or deleted by the declaration.
+    var wallDeclaredOut = (typeof propWallScope === 'function') && propWallScope(survey, obId) === 'no' && !propHasWallEstimate(survey, obId);
     PROPOSAL_FAMILY_ORDER.forEach(function(f){
-      h += '<button class="np-pill' + (f === E.family ? ' on' : '') + '" onclick="proposalSetFamily(\'' + obId + '\',\'' + f + '\')">' + srEsc(PROPOSAL_FAMILY_LABELS[f]) + '</button>';
+      var muted = (f === 'wall' && wallDeclaredOut);
+      h += '<button class="np-pill' + (f === E.family ? ' on' : '') + (muted ? ' np-pill-out' : '') + '" onclick="proposalSetFamily(\'' + obId + '\',\'' + f + '\')">' + srEsc(PROPOSAL_FAMILY_LABELS[f]) + (muted ? ' <span class="np-pill-out-tag">out of scope</span>' : '') + '</button>';
     });
     h += '</span><span class="np-ctl-note">' + srEsc(famInfo.source.charAt(0).toUpperCase() + famInfo.source.slice(1)) + '; switch if presenting a different family.</span></div>';
     h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Routes to present</span><span class="np-pills">';
@@ -12679,6 +12729,13 @@ function proposalRateEdit(input){
 function proposalSetFamily(obId, family){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   if (!PROPOSAL_SYSTEMS[family]) return;
+  // WALLS AS DECLARED SCOPE (item 3): bringing walls onto an element declared out
+  // of wall scope asks once. Declining changes nothing (both the declaration and
+  // the family stay as they were); accepting brings walls into scope, then adds.
+  if (family === 'wall' && typeof propWallScope === 'function' && propWallScope(survey, obId) === 'no' && !propHasWallEstimate(survey, obId)){
+    if (!confirm('This element is declared out of wall scope. Bring walls into scope and present wall systems?')) return;
+    var ob = propObjById(survey, obId); if (ob && ob.b) ob.b.wallsInScope = 'yes';
+  }
   var E = propElemState(survey, obId);
   if (E.family === family) return;
   E.family = family;
@@ -14319,8 +14376,18 @@ var FP_PRESET_LABELS = { rectangle:'Rectangle', L:'L-shape', T:'T-shape', U:'U-s
 var FP_FORMS = [
   { id:'duo-pitch', label:'Duo-pitch' }, { id:'mono', label:'Mono' }, { id:'hipped', label:'Hipped' },
   { id:'half-hipped', label:'Half-hipped' }, { id:'lean-to', label:'Lean-to' },
-  { id:'flat', label:'Flat', later:true }, { id:'multi-bay', label:'Multi-bay' }
+  { id:'flat', label:'Flat' }, { id:'multi-bay', label:'Multi-bay' }
 ];
+// FLAT DECK (findings 3, item 2). The deck a flat element sits on, captured right
+// after the form. Recorded per element and presented, but NOT wired into rates or
+// route arithmetic - a later flat-estimating pass consumes it. Pitched elements
+// never see it. Class-select values (see SR_SELECT_VOCAB['f-deck']) so any legacy
+// value is preserved. Woodwool and unknown carry a plain advisory.
+function fpDeckAdvisory(v){
+  return (v === 'Woodwool slab' || v === 'Unknown until inspected')
+    ? 'Fragile or unverified decks affect access and fixing method. Confirm the deck on site before specifying fixings.'
+    : '';
+}
 
 function fpMakeEdges(n){ var e = []; for (var i = 0; i < n; i++) e.push({ type:'straight', curvature:null }); return e; }
 function fpFromCorners(arr){ return { corners: arr.map(function(p){ return { x:p[0], y:p[1] }; }), edges: fpMakeEdges(arr.length) }; }
@@ -14725,6 +14792,20 @@ function fpRenderBuildup(survey){
   }
   h += '<div class="fp-bu-field"><label class="fp-bu-label">Liner <span class="fp-bu-req">*</span></label>' +
     '<select class="fp-bu-select" onchange="fpBuildupSet(\'liner\', this.value, true)">' + optsFor(FP_LINERS, bu.liner) + '</select></div>';
+  // FLAT DECK (item 2): a flat element declares the deck it sits on, right here in
+  // the flat build-up (immediately after the form). Pitched elements never see it.
+  // Class-select preserves any legacy value; woodwool/unknown surface an advisory.
+  var deckFam = (b && b.id && typeof propObjFamily === 'function') ? propObjFamily(survey, b.id).family : null;
+  if (deckFam === 'flat'){
+    var deckOpts = SR_SELECT_VOCAB['f-deck'].opts;
+    var deckCur = elemBuildupValue(survey, bu, 'deck', 'f-deck', 'f-deck', false);
+    h += '<div class="fp-bu-field"><label class="fp-bu-label">Deck</label>' +
+      '<select class="fp-bu-select" onchange="fpBuildupSet(\'deck\', this.value, false)"><option value="">Select...</option>' +
+      deckOpts.map(function(o){ return '<option' + (deckCur === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') +
+      '</select></div>';
+    var deckAdv = fpDeckAdvisory(deckCur);
+    if (deckAdv){ h += '<div class="fp-bu-advisory">' + escapeHtml(deckAdv) + '</div>'; }
+  }
   // ITEM 5: approximate age and construction type, PER ELEMENT. A legacy
   // site-level value presents as the starting value while this element has none
   // of its own; the element's own value wins the moment it is set.
@@ -16878,10 +16959,21 @@ function flowComputeSteps(survey){
     state: !hasFp ? 'not-started' : (datumKeyed === datumNeeded ? 'done' : (datumKeyed > 0 ? 'partial' : 'not-started')),
     detail: !hasFp ? 'draw the footprint first' : (datumKeyed + ' of ' + datumNeeded + ' runs keyed') });
 
-  // WALL ELEVATIONS - cladding defined per non-curved edge (same denominator).
-  steps.push({ key:'elevations', label:'Wall elevations',
-    state: !hasFp ? 'not-started' : (elevDefined === totalEdges && totalEdges > 0 ? 'done' : (elevDefined > 0 ? 'partial' : 'not-started')),
-    detail: !hasFp ? 'draw the footprint first' : (elevDefined + ' of ' + totalEdges + ' elevations defined') });
+  // WALL CLADDING AS DECLARED SCOPE (item 3). The elevations step is the walls
+  // declaration: 'no' completes it as a declaration; 'yes' and unset behave EXACTLY
+  // as before (so every untouched record is byte-identical), with unset offering
+  // the one-tap 'no'. Only the declaration governs cladding capture - heights and
+  // edge conditions below are untouched by it.
+  var wallScope = (typeof propWallScope === 'function' && b && b.id) ? propWallScope(s, b.id) : 'unset';
+  if (wallScope === 'no'){
+    steps.push({ key:'elevations', label:'Wall cladding',
+      state:'done', detail:'declared: no wall cladding in scope' });
+  } else {
+    steps.push({ key:'elevations', label:'Wall elevations',
+      state: !hasFp ? 'not-started' : (elevDefined === totalEdges && totalEdges > 0 ? 'done' : (elevDefined > 0 ? 'partial' : 'not-started')),
+      detail: !hasFp ? 'draw the footprint first' : (elevDefined + ' of ' + totalEdges + ' elevations defined'),
+      canDeclareNone: (hasFp && wallScope === 'unset') });
+  }
 
   // ROOF BUILD-UP - weather sheet + liner per building (required for complete).
   // "Not visible from survey" is a first-class liner answer that reads DONE.
@@ -17364,7 +17456,8 @@ function flowRenderWalk(){
       '<span class="walk-step-body"><span class="walk-step-label">' + escapeHtml(label) + (s.advisory ? ' <span class="walk-adv">where visible</span>' : '') + '</span>' +
       '<span class="walk-step-detail">' + escapeHtml(detail) + '</span></span></button>';
     if (s.canDeclareNone){
-      h += '<button class="walk-none" onclick="flowDeclareNone(\'' + key + '\')">Nothing to record here</button>';
+      var noneTxt = (key === 'elevations') ? 'No wall cladding in scope' : 'Nothing to record here';
+      h += '<button class="walk-none" onclick="flowDeclareNone(\'' + key + '\')">' + noneTxt + '</button>';
     }
   });
   h += '</div>';
@@ -17383,6 +17476,11 @@ function flowDeclareNone(key){
   } else if (key === 'access'){
     if (!survey.accessConstraints || typeof survey.accessConstraints !== 'object') survey.accessConstraints = {};
     survey.accessConstraints.noneToRecord = true;
+  } else if (key === 'elevations'){
+    // WALLS (item 3): the one-tap 'no' declaration. Records the declaration only -
+    // deletes no captured elevation, height or edge-condition data.
+    var owe = propObjects(survey); var oe = owe[flowActiveWalkIdx]; if (!oe || !oe.b) return;
+    oe.b.wallsInScope = 'no';
   } else return;
   srPersist(survey); flowRenderWalk();
 }
