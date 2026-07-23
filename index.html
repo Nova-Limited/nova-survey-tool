@@ -5349,10 +5349,21 @@ const FP_LINERS = [
   { v:'metal-liner',               l:'Metal liner' },
   { v:'asbestos-liner-suspected',  l:'Asbestos-containing liner (suspected)' },
   { v:'asbestos-liner-confirmed',  l:'Asbestos-containing liner (confirmed)' },
+  { v:'plasterboard',              l:'Plasterboard liner' },
   { v:'timber-boarding',           l:'Timber boarding' },
   { v:'no-liner',                  l:'No liner / single skin' },
   { v:'not-visible',               l:'Not visible from survey' }
 ];
+// Documented, editable mass constants for the asbestos waste line (never
+// hard-coded in the arithmetic). cementTPerM2 is the standing 1.5 t per 100 m²
+// rule; plasterboardKgPerM2 is the plasterboard liner mass, default 8 kg/m2, and
+// a per-record override (survey.asbestosPlasterboardKgPerM2) lets Jamie adjust
+// for 12.5 mm board without touching code.
+var ASBESTOS_MASS = { cementTPerM2: 0.015, plasterboardKgPerM2: 8 };
+function asbPlasterboardKgPerM2(survey){
+  var v = srNum(survey && survey.asbestosPlasterboardKgPerM2);
+  return (v != null && v > 0) ? v : ASBESTOS_MASS.plasterboardKgPerM2;
+}
 const BUILDUP_ASBESTOS_VALUES = ['asbestos-cement-suspected','asbestos-cement-confirmed','asbestos-liner-suspected','asbestos-liner-confirmed'];
 function fpBuildupOptLabel(list, v){ for (var i = 0; i < list.length; i++){ if (list[i].v === v) return list[i].l; } return ''; }
 function fpWeatherSheetLabel(bu){
@@ -5560,6 +5571,7 @@ function slLinerClause(v){
     case 'metal-liner':              return 'a metal liner';
     case 'asbestos-liner-suspected': return 'an asbestos-containing liner (suspected)';
     case 'asbestos-liner-confirmed': return 'an asbestos-containing liner (confirmed)';
+    case 'plasterboard':             return 'a plasterboard liner';
     case 'timber-boarding':          return 'timber boarding';
     case 'no-liner':                 return 'no liner (single skin)';
     case 'not-visible':              return 'a liner not visible from the survey';
@@ -8625,6 +8637,13 @@ function spOpenSitePlan(id, backTo){
   // hydrate exactly what the form used to hydrate, so the module sees the same state
   currentSiteImage = srHydrateSiteImage(s);
   showView('siteplan');
+  // FINDING 1: seed the site-plan's OWN lat/lng inputs from the RECORD. On the
+  // form these were filled by populateForm (FIELD_MAP sp-lat/sp-lng); rehomed,
+  // nothing populated them, so spRestoreImageState's spCurrentSurvey().siteLat
+  // read an empty input and never restored the saved coordinates.
+  var latEl = document.getElementById('sp-lat'), lngEl = document.getElementById('sp-lng');
+  if (latEl) latEl.value = (s.siteLat != null ? String(s.siteLat) : '');
+  if (lngEl) lngEl.value = (s.siteLng != null ? String(s.siteLng) : '');
   try { spRestoreImageState(); } catch (e){}
   // Leaflet measures on construction; the surface has only just become visible
   setTimeout(function(){ try { if (spMap) spMap.invalidateSize(); } catch(e){} }, 120);
@@ -11213,7 +11232,12 @@ function estRenderCapturedPanel(survey){
   if (s.parapetLinM.captured) h += chip('Parapet flashing run', fLin(s.parapetLinM.value), 'm', true);
   if (s.valleyRunTotal.captured) h += chip('Valley gutter run', fLin(s.valleyRunTotal.value), 'm', true);
   if (s.placedGutter && s.placedGutter.captured) h += chip('Placed internal gutter run', fLin(s.placedGutter.value), 'm', true);
-  if (s.asbestosT.captured) h += chip('Asbestos waste', fLin(s.asbestosT.value), 't', true);
+  if (s.asbestosT.captured){
+    var asbLabel = (s.asbestosT.linerT > 0)
+      ? ('Asbestos waste (cement ' + s.asbestosT.cementT + ' t + plasterboard liner ' + s.asbestosT.linerT + ' t)')
+      : 'Asbestos waste';
+    h += chip(asbLabel, fLin(s.asbestosT.value), 't', true);
+  }
   if (s.vergeRake.captured) h += chip('Verge (rake) length', fLin(s.vergeRake.value), 'm', false);
   if (s.perimeter.captured) h += chip('Roof perimeter', fLin(s.perimeter.value), 'm', false);
   Object.keys(s.featureCounts).forEach(function(type){
@@ -11417,12 +11441,19 @@ function estCapturedValleyRun(survey){
 //                                precise figure and they agree), otherwise the
 //                                building's own captured roof area at the SAME
 //                                documented 1.5t per 100m², so the flag yields a figure
-function estCapturedAsbestosTonnes(survey){
-  var areaSum = 0, any = false;
+// Itemised asbestos tonnage: CEMENT mass (the unchanged 2a basis) and, separately,
+// PLASTERBOARD LINER mass. Where a building's weather sheet is asbestos cement
+// (confirmed or suspected) AND its liner is plasterboard, the liner comes down
+// with the roof as contaminated waste: liner tonnage = that building's captured
+// roof area x the plasterboard mass constant. The two masses stay visible
+// separately. A building with no plasterboard liner adds nothing to linerT, so
+// the total is byte-identical to before wherever the feature is not used.
+function estAsbestosTonnage(survey){
+  var cementArea = 0, linerT = 0, any = false;
   (survey.buildings || []).forEach(function(b){
     var c = elemConstruction(b);
     if (c.declared && c.asbestos === false) return;               // declared clean: outranks stale flags
-    var before = areaSum;
+    var before = cementArea;
     (b.bays || []).forEach(function(bay){
       var count = Math.max(0, Math.round(srNum(bay.count) || 0));
       var run = srNum(bay.runM);
@@ -11431,19 +11462,31 @@ function estCapturedAsbestosTonnes(survey){
         var side = bay.sides && bay.sides[j];
         if (!side || !side.asbestos) return;
         var sl = fpBaySideSlope(bay, j);
-        if (sl.len != null){ areaSum += sl.len * run * count; any = true; }
+        if (sl.len != null){ cementArea += sl.len * run * count; any = true; }
       });
     });
     // declared asbestos with nothing flagged bay-side: fall back to this
     // building's own captured roof area so the declaration still yields tonnage
-    if (c.declared && c.asbestos === true && areaSum === before){
+    if (c.declared && c.asbestos === true && cementArea === before){
       var ca = (typeof fpBuildingCapturedArea === 'function') ? fpBuildingCapturedArea(b) : null;
       var cav = (ca && ca.value != null) ? Number(ca.value) : null;
-      if (cav != null && cav > 0){ areaSum += cav; any = true; }
+      if (cav != null && cav > 0){ cementArea += cav; any = true; }
+    }
+    // PLASTERBOARD LINER under an asbestos-CEMENT weather sheet: its own mass,
+    // itemised separately. Non-asbestos sheets contribute nothing here.
+    var bu = (b && b.roofBuildup) || {};
+    var sheetIsCement = (bu.weatherSheet === 'asbestos-cement-confirmed' || bu.weatherSheet === 'asbestos-cement-suspected');
+    if (sheetIsCement && bu.liner === 'plasterboard'){
+      var la = (typeof fpBuildingCapturedArea === 'function') ? fpBuildingCapturedArea(b) : null;
+      var lav = (la && la.value != null) ? Number(la.value) : null;
+      if (lav != null && lav > 0){ linerT += lav * (asbPlasterboardKgPerM2(survey) / 1000); any = true; }
     }
   });
-  return any ? estRoundUp(areaSum * 0.015, 1) : null;
+  var cementT = cementArea * ASBESTOS_MASS.cementTPerM2;
+  return { cementArea: cementArea, cementT: cementT, linerT: linerT,
+    total: any ? estRoundUp(cementT + linerT, 1) : null };
 }
+function estCapturedAsbestosTonnes(survey){ return estAsbestosTonnage(survey).total; }
 // Every captured quantity, whether or not it currently has a matching works-
 // engine line - the full picture for review, independent of what got seeded.
 function estCapturedSummary(survey){
@@ -11467,7 +11510,8 @@ function estCapturedSummary(survey){
   var barge = estCapturedBargeRun(survey);
   var eaveSplit = estCapturedEaveSplit(survey);
   var valleyTotal = estCapturedValleyRun(survey);
-  var asbestosT = estCapturedAsbestosTonnes(survey);
+  var asbBreak = estAsbestosTonnage(survey);
+  var asbestosT = asbBreak.total;
   // verge rake / perimeter: no matching line exists for these (unlike ridge,
   // widened above) - still single-building (fpRuns, buildings[0]), unchanged.
   // Rounded for panel display per the round-up rule (explicitly named as a
@@ -11491,7 +11535,9 @@ function estCapturedSummary(survey){
     parapetLinM: { value: eaveSplit.parapet, seeded: eaveSplit.parapet != null, captured: eaveSplit.parapet != null },
     valleyRunTotal: { value: valleyTotal, seeded: valleyTotal != null, captured: valleyTotal != null },
     placedGutter: (function(){ var pg = (typeof fpPlacedGutterTotals === 'function') ? fpPlacedGutterTotals(survey) : null; var v = pg && pg.anyResolved ? estRoundUp(pg.all, 1) : null; return { value: v, seeded: v != null, captured: v != null }; })(),
-    asbestosT: { value: asbestosT, seeded: asbestosT != null, captured: asbestosT != null },
+    asbestosT: { value: asbestosT, seeded: asbestosT != null, captured: asbestosT != null,
+      cementT: (asbBreak.cementT > 0 ? Math.round(asbBreak.cementT * 100) / 100 : 0),
+      linerT:  (asbBreak.linerT  > 0 ? Math.round(asbBreak.linerT  * 100) / 100 : 0) },
     vergeRake: { value: rakeRounded, seeded: false, captured: !!(runs && runs.rake != null) },
     perimeter: { value: perimeterRounded, seeded: false, captured: !!(runs && runs.perimeter != null) },
     featureCounts: featureCounts
@@ -24381,11 +24427,29 @@ function spResolveToLatLng(lat, lng) {
 // Geocode the site address (Section A textarea) via the Worker's /geocode
 // endpoint, or - when the field holds a single coordinate line - resolve to
 // those coordinates directly, exactly as a successful find would.
+// FINDING 1: the site address, RECORD-FIRST. The rehomed site plan is usually
+// open with the form closed (or holding a different record), so reading the
+// form's #f-site-address gave an empty string and fired the "enter the address
+// first" alert on records that DO have one. Resolve from the record (current
+// schema site.address, then the legacy f-site-address key), and fall back to the
+// form DOM only when spFormHoldsRecord confirms the form is genuinely on screen
+// holding this record - the same pattern spSaveSurveyField uses.
+function spSiteAddress() {
+  var s = (currentSurveyId != null) ? srLoadSurvey(currentSurveyId) : null;
+  if (s) {
+    var rec = ((s.site && s.site.address) || s['f-site-address'] || '');
+    if (String(rec).trim()) return String(rec).trim();
+  }
+  if (spFormHoldsRecord()) {
+    var el = document.querySelector('#f-site-address, [name="site-address"], #sp-site-addr');
+    if (el && String(el.value).trim()) return String(el.value).trim();
+  }
+  return '';
+}
 function spFindFromAddress() {
-  const addressField = document.querySelector('#f-site-address, [name="site-address"], #sp-site-addr');
-  const address = addressField ? addressField.value.trim() : '';
+  const address = spSiteAddress();
   if (!address) {
-    alert('Enter the site address in the survey form first.');
+    alert('This survey has no site address yet. Add it in the enquiry form, or paste coordinates into the lat/lng boxes.');
     return;
   }
   const coord = spParseLatLng(address);
