@@ -5458,6 +5458,50 @@ function elemFamilyFromCovering(b){
   if (!c.declared || !c.covering || c.covering === 'other') return null;
   return (c.covering === 'flat-membrane') ? 'flat' : 'pitched';
 }
+// FORM FIRST (live findings 3, item 1). The roof form DECLARED on site is the
+// first fact captured on an element and drives its family: an explicit flat form
+// reads flat, any pitched sub-form reads pitched. It outranks both the covering
+// and slope-pitch inference. Returns null until the form is a declaration - the
+// bare 'duo-pitch' default a blank building carries is NOT one - so every legacy
+// record falls through to the covering/inference chain byte-for-byte unchanged.
+function elemFamilyFromForm(b){
+  if (!b) return null;
+  if (b.roofForm === 'flat') return 'flat';         // nobody defaults to flat: an explicit pick
+  if (b.formDeclared){
+    for (var i = 0; i < FP_FORMS.length; i++){ if (FP_FORMS[i].id === b.roofForm) return 'pitched'; }
+  }
+  return null;
+}
+// The form walk step is DONE when the surveyor has declared a form, and - by
+// MIGRATION (item 4) - for any element already past geometry: a covering
+// declared, or slopes/datum captured, predates this step and is never
+// re-prompted. Its form is implied by that captured data.
+function elemFormDone(b){
+  if (!b) return false;
+  if (b.formDeclared) return true;
+  if (b.roofForm === 'flat') return true;
+  if (elemConstruction(b).declared) return true;
+  if (Array.isArray(b.slopes) && b.slopes.length) return true;
+  var dt = b.datum || {};
+  if (srNum(dt.eavesHeightM) != null || srNum(dt.ridgeHeightM) != null) return true;
+  return false;
+}
+function fpFormLabel(id){ for (var i = 0; i < FP_FORMS.length; i++){ if (FP_FORMS[i].id === id) return FP_FORMS[i].label; } return id || ''; }
+// The covering vocabulary offered on an element, FILTERED by its declared form:
+// a flat element is offered only flat coverings, a pitched element only pitched
+// ones (item 1 - "neither is ever asked the other's questions"). An unset form
+// offers the full list unchanged. A value already captured off-form is never
+// dropped from view: the full list returns so existing data is preserved.
+function elemFormSheets(b){
+  var fam = elemFamilyFromForm(b);
+  if (!fam) return FP_WEATHER_SHEETS;
+  var bu = (b && b.roofBuildup) || {};
+  var filtered = FP_WEATHER_SHEETS.filter(function(it){
+    return (fam === 'flat') ? (it.v === 'flat-membrane' || it.v === 'other') : (it.v !== 'flat-membrane');
+  });
+  if (bu.weatherSheet && !filtered.some(function(it){ return it.v === bu.weatherSheet; })) return FP_WEATHER_SHEETS;
+  return filtered;
+}
 
 // ===== ABUTMENT AND SOAKER RUNS (desk entry, per job) =======================
 // Jamie's decision: these vary per project and are keyed by hand, not derived.
@@ -12243,6 +12287,13 @@ function propObjFamily(survey, obId){
   var E = ((survey.proposal || {}).elements || {})[obId] || {};
   if (E.familyOverride && PROPOSAL_SYSTEMS[E.familyOverride]) return { family: E.familyOverride, source: 'set at the desk' };
   var o = propObjById(survey, obId);
+  // FORM FIRST (item 1): the roof form declared on site is the first fact and
+  // drives the family, outranking both the covering and slope-pitch inference. A
+  // desk override still wins over it; an unset form falls through unchanged.
+  var byForm = elemFamilyFromForm(o && o.b);
+  if (byForm && PROPOSAL_SYSTEMS[byForm]){
+    return { family: byForm, source: 'from the roof form declared on site' };
+  }
   // The covering selected on site outranks slope-pitch inference: what the roof
   // IS beats what its geometry implies. A desk override still wins over both.
   var byCovering = elemFamilyFromCovering(o && o.b);
@@ -14667,7 +14718,7 @@ function fpRenderBuildup(survey){
   };
   var h = '<div class="fp-buildup"><div class="fp-tools-lbl">Roof build-up</div>';
   h += '<div class="fp-bu-field"><label class="fp-bu-label">Weather sheet <span class="fp-bu-req">*</span></label>' +
-    '<select class="fp-bu-select" onchange="fpBuildupSet(\'weatherSheet\', this.value, true)">' + optsFor(FP_WEATHER_SHEETS, bu.weatherSheet) + '</select></div>';
+    '<select class="fp-bu-select" onchange="fpBuildupSet(\'weatherSheet\', this.value, true)">' + optsFor(elemFormSheets(b), bu.weatherSheet) + '</select></div>';
   if (bu.weatherSheet === 'other'){
     h += '<div class="fp-bu-field"><label class="fp-bu-label">What is the weather sheet? <span class="fp-bu-req">*</span></label>' +
       '<input type="text" class="fp-bu-input" maxlength="80" placeholder="Short label" value="' + escapeHtml(bu.weatherSheetOther || '') + '" oninput="fpBuildupSet(\'weatherSheetOther\', this.value, false)"></div>';
@@ -14941,6 +14992,7 @@ function fpSetForm(form){
   var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
   var b = fpEnsureBuilding(survey);
   b.roofForm = form;
+  b.formDeclared = true;   // FORM FIRST (item 1): an explicit pick is a declaration
   srPersist(survey); fpRender();
 }
 function fpPlace(){
@@ -16910,6 +16962,13 @@ function flowComputeSteps(survey){
     traceDetail = wTrace.confirmed ? 'trace confirmed on site' : 'provisional (aerial) — confirm on site'; }
   else { traceState = geometryStep.state; traceDetail = 'no trace · ' + geometryStep.detail; }
   steps.push({ key:'trace', label:'Confirm the trace', state: traceState, detail: traceDetail, walk: true });
+  // ROOF FORM (item 1). The first question after the trace, ahead of covering:
+  // pitched or flat. It drives the family and filters everything downstream. Done
+  // once declared, or - by migration - once the element is past geometry.
+  var formDone = elemFormDone(b);
+  steps.push({ key:'form', label:'Roof form', walk: true,
+    state: !hasFp ? 'not-started' : (formDone ? 'done' : 'not-started'),
+    detail: !hasFp ? 'draw the footprint first' : (formDone ? ('form: ' + fpFormLabel(b.roofForm).toLowerCase()) : 'pick pitched or flat') });
   // PURLIN spacing where visible (slice 2). Complete when every plane carries a
   // count, centres, or an explicit not-visible mark; not-visible falls to the
   // next precedence. Advisory: never blocks the handoff.
@@ -16932,7 +16991,12 @@ function flowComputeSteps(survey){
   var purlinState = (purlinPlanes === 0) ? 'done' : (purlinResolved === purlinPlanes ? 'done' : (purlinResolved > 0 ? 'partial' : 'not-started'));
   var purlinDetail = (purlinPlanes === 0) ? 'no purlin planes on this element'
     : (purlinResolved + ' of ' + purlinPlanes + ' plane' + (purlinPlanes === 1 ? '' : 's') + ' resolved' + (purlinCounted ? (' · ' + purlinCounted + ' counted') : ''));
-  steps.push({ key:'purlin', label:'Purlin spacing', state: purlinState, detail: purlinDetail, walk: true, advisory: true });
+  // Purlin spacing is a pitched-roof question. A flat element (item 1) is never
+  // offered it: the step is simply not present for flat.
+  var purlinFam = (b && b.id && typeof propObjFamily === 'function') ? propObjFamily(s, b.id).family : null;
+  if (purlinFam !== 'flat'){
+    steps.push({ key:'purlin', label:'Purlin spacing', state: purlinState, detail: purlinDetail, walk: true, advisory: true });
+  }
   // JUNCTIONS CONFIRMED - reserved for part 3. Inert and invisible until then
   // (the walk renderer skips reserved steps), holding its position between faults
   // and abutments so part 3 slots in without restructuring.
@@ -16972,7 +17036,7 @@ function flowComputeSteps(survey){
 // The walk order (design section 3): the estimate element walk, in sequence.
 // Reuses the existing step keys where the capture already exists and threads in
 // the walk-tagged steps. Junctions sits between faults and abutments (reserved).
-var WALK_ORDER = ['trace','datum','covering','elevations','purlin','features','faults','junctions','abutments','access'];
+var WALK_ORDER = ['trace','form','datum','covering','elevations','purlin','features','faults','junctions','abutments','access'];
 // Walk-tagged keys, for excluding them from the desk checklist / percentage.
 function flowStepIsWalk(st){ return !!(st && st.walk); }
 
@@ -17020,8 +17084,8 @@ var flowActiveWalkIdx = 0;
 function flowWalkRoute(key, survey){
   currentSurveyId = flowCurrentId || currentSurveyId;
   switch (key){
-    case 'trace': case 'datum': case 'elevations': case 'features':
-      fpOpen(currentSurveyId); return;
+    case 'trace': case 'form': case 'datum': case 'elevations': case 'features':
+      fpOpen(currentSurveyId); return;   // form pills live on the footprint surface
     case 'purlin': flowWalkPurlin(); return;             // per-plane count capture (slice 2)
     case 'junctions': flowWalkJunctions(); return;       // confirm junctions on site (part 3)
     case 'covering': fpOpen(currentSurveyId); return;   // build-up + construction live on the footprint surface
