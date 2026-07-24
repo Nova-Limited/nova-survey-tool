@@ -4373,6 +4373,12 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-detail .hub-unready { color: #b26b00; font-weight: 700; }
     .act-group-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     #detail-actions.act-grouped .act-group .btn { width: auto; min-height: 42px; padding: 0.5rem 0.95rem; font-size: 0.88rem; }
+    /* Findings 4: a stacked workspace button - plain label with a muted one-line
+       subtitle beneath saying what is inside. Layout only; destinations unchanged. */
+    #detail-actions.act-grouped .act-group .btn.act-btn-stack { flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; min-height: 42px; padding: 0.42rem 0.95rem; line-height: 1.25; }
+    .act-btn-label { display: block; font-size: 0.88rem; }
+    .act-btn-sub { display: block; font-size: 0.72rem; font-weight: 400; opacity: 0.72; }
+    .btn-primary .act-btn-sub { opacity: 0.85; }
     .act-delete { align-self: center; }
     @media (min-width: 768px) { .act-delete { margin-left: auto; } }
     #detail-actions.act-grouped .act-delete .btn { width: auto; min-height: 42px; padding: 0.5rem 0.95rem; font-size: 0.88rem; }
@@ -9964,10 +9970,17 @@ function hubActionBar(s){
   var siteMode = (typeof appMode !== 'undefined' && appMode === 'site');
   var n = (typeof flowNext === 'function') ? flowNext(s) : { stage:'capture' };
   var captureComplete = (['routes','reportdesk','document','done'].indexOf(n.stage) > -1);
+  // A workspace button carries a plain-English label and, where given, a one-line
+  // muted subtitle beneath it saying what is inside (findings 4). Buttons without a
+  // subtitle render exactly as before. Labels and subtitles are display text only -
+  // every onclick, id and destination is unchanged.
   var btn = function(label, onclick, opts){ opts = opts || {};
-    return '<button class="btn ' + (opts.primary ? 'btn-primary' : 'btn-secondary') + '"' +
+    var inner = opts.sub
+      ? ('<span class="act-btn-label">' + label + '</span><span class="act-btn-sub">' + opts.sub + '</span>')
+      : label;
+    return '<button class="btn ' + (opts.primary ? 'btn-primary' : 'btn-secondary') + (opts.sub ? ' act-btn-stack' : '') + '"' +
       (opts.id ? (' id="' + opts.id + '"') : '') + (opts.disabled ? ' disabled' : '') +
-      (opts.title ? (' title="' + opts.title + '"') : '') + ' onclick="' + onclick + '">' + label + '</button>'; };
+      (opts.title ? (' title="' + opts.title + '"') : '') + ' onclick="' + onclick + '">' + inner + '</button>'; };
   var group = function(label, buttons){ var live = buttons.filter(Boolean); if (!live.length) return '';
     return '<div class="act-group">' + (label ? ('<div class="act-group-label">' + label + '</div>') : '') +
       '<div class="act-group-btns">' + live.join('') + '</div></div>'; };
@@ -9975,26 +9988,26 @@ function hubActionBar(s){
 
   // WORKING ACTIONS: Enquiry details, Capture, Site plan.
   html += group('', [
-    btn('Enquiry details', 'editCurrent()', { primary: true }),
-    btn('Capture', 'fpOpen(currentSurveyId)'),
-    btn('Site plan', "spOpenSitePlan(currentSurveyId, 'detail')")
+    btn('Enquiry details', 'editCurrent()', { primary: true, sub: 'Client, site and visit.' }),
+    btn('Capture', 'fpOpen(currentSurveyId)', { sub: 'Draw the roof and record the building.' }),
+    btn('Site plan', "spOpenSitePlan(currentSurveyId, 'detail')", { sub: 'Aerial, markers and photographs.' })
   ]);
 
   // VISIT: guided checklist (condition only); Finish the visit standing button in
   // SITE MODE only (Continue bar carries finishing at the desk).
   html += group('Visit', [
-    showsCondition ? btn('Guided checklist', 'flowOpenGuide(currentSurveyId)') : '',
-    siteMode ? btn('Finish the visit', 'flowOpenHandoff(currentSurveyId)') : ''
+    showsCondition ? btn('Guided checklist', 'flowOpenGuide(currentSurveyId)', { sub: 'Walk the survey step by step.' }) : '',
+    siteMode ? btn('Finish the visit', 'flowOpenHandoff(currentSurveyId)', { sub: 'Close the visit and hand it to the desk.' }) : ''
   ]);
 
   // DOCUMENTS: condition report doors are condition-only; the estimate document
   // (Works proposal) is estimate-only. Report desk shows on condition; on estimate
   // it returns via the spine (Continue) once capture is complete.
   html += group('Documents', [
-    showsCondition ? btn('Report desk', "reportDeskOpen(currentSurveyId, 'detail')") : '',
-    showsCondition ? btn('Generate Report', 'goToReportCurrent()', { disabled: !canRenderReport,
+    showsCondition ? btn('Report writing', "reportDeskOpen(currentSurveyId, 'detail')", { sub: 'Summary, rating and recommendation before the report.' }) : '',
+    showsCondition ? btn('Client report', 'goToReportCurrent()', { disabled: !canRenderReport, sub: 'The condition report, print ready.',
       title: canRenderReport ? '' : 'Capture at least one fault before the report can render' }) : '',
-    showsEstimate ? btn('Works proposal', 'proposalOpen(currentSurveyId)') : ''
+    showsEstimate ? btn('Price the options', 'proposalOpen(currentSurveyId)', { sub: 'The routes to present, with indicative figures.' }) : ''
   ]);
 
   // COSTS: the six pricing doors, gated by purpose and stage. Repair costing on
@@ -10003,12 +10016,12 @@ function hubActionBar(s){
   // faults exist. Nothing offered that its stage cannot use.
   var estStage = showsEstimate && (hasProposal || hasElements);
   html += group('Costs', [
-    showsCondition ? btn('Repair costing', 'costPanelOpen(currentSurveyId)') : '',
-    estStage ? btn('Job costing', 'costOpen(currentSurveyId)') : '',
-    estStage ? btn('Estimate cost ledger', 'estOpenLedger(currentSurveyId)') : '',
-    estStage ? btn('Job cost ledger', 'srOpenLedger(currentSurveyId)') : '',
-    hasFaults ? btn('Generate pricing pack', 'generatePricingPack(currentSurveyId)') : '',
-    hasFaults ? btn('Subcontractor returns', 'srOpenReturns(currentSurveyId)') : ''
+    showsCondition ? btn('Repair pricing', 'costPanelOpen(currentSurveyId)', { sub: 'A price against each fault, plus site costs. Internal only.' }) : '',
+    estStage ? btn('Job summary', 'costOpen(currentSurveyId)', { sub: 'Buildings, scopes and the job total. Internal only.' }) : '',
+    estStage ? btn('Take-off pricing', 'estOpenLedger(currentSurveyId)', { sub: 'The measured schedule, priced line by line. Internal only.' }) : '',
+    estStage ? btn('Profit tracking', 'srOpenLedger(currentSurveyId)', { sub: 'Your quoted price against the actual cost. Internal only.' }) : '',
+    hasFaults ? btn('Contractor pricing pack', 'generatePricingPack(currentSurveyId)', { sub: 'The schedule for trade partners to price.' }) : '',
+    hasFaults ? btn('Contractor prices back in', 'srOpenReturns(currentSurveyId)', { sub: 'Key returned prices against the schedule.' }) : ''
   ]);
 
   // RECORD, quiet, last: Save to Airtable, Export, Import, Add to calendar; the
