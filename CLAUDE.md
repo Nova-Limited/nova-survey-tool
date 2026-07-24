@@ -14,7 +14,7 @@ Purpose: maximum safe autonomy, minimum meaningful gates. The failure this file 
    f) Personal data: client or prospect information moving anywhere new.
    g) Scope exit or surprise: the brief doesn't cover it, or something unexpected happened.
 
-4. GATE PROTOCOL. Never a bare y/n. Every stop states in plain English: what is about to happen, why, what it costs if wrong, and the alternative. One decision per stop. If Jamie could not tell what he's agreeing to from the message alone, the message has failed; rewrite it, don't re-ask it.
+4. GATE PROTOCOL. Never a bare y/n. Every stop states in plain English: what is about to happen, why, what it costs if wrong, and the alternative. One decision per stop. If Jamie could not tell what he's agreeing to from the message alone, the message has failed; rewrite it, don't re-ask it. Where a brief's wording conflicts with an estate's reality, generalise to preserve the brief's intent, proceed, and note the deviation in the report. Reserve a stop for cases where the intent itself is unclear.
 
 5. BATCHING. Briefs may pre-authorise a phase: scope, duration, and which gate categories are open inside it. Within an authorised phase, matching actions run without questions. At phase end, or on any surprise, stop and report plainly.
 
@@ -22,7 +22,7 @@ Purpose: maximum safe autonomy, minimum meaningful gates. The failure this file 
 
 7. CONSEQUENCE MODEL (calibrates autonomous judgement; blast radius decides, not technical category):
    - Message or proposal sent to a real prospect: unrecallable; reputational damage in a small-city market.
-   - Claim published on a live Nova surface: regulatory exposure; all public health-adjacent or compliance-sensitive copy is gated.
+   - Claim published on a live Nova surface: savings, payback, or performance claims carry advertising and consumer-protection exposure; all such copy is gated.
    - Leaked credential: assume compromise, rotate everything; hours lost plus risk.
    - Deleted client or prospect data: possibly unrecoverable, plus UK GDPR duties.
    - Broken build on an unannounced URL: costs nothing; fix it and move on.
