@@ -4093,8 +4093,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     <div class="container">
       <div class="view-header">
         <button class="link-btn" onclick="reportDeskBack()" style="align-self:flex-start;">&larr; Back to the record</button>
-        <h1>Report desk</h1>
-        <div class="meta">The written judgement that goes into the report. Filled here, just before it renders.</div>
+        <h1>Report writing</h1>
+        <div class="meta">The written judgement that goes into the report: summary, rating and recommendation. Filled here, just before it renders.</div>
       </div>
       <div class="section-body" id="reportdesk-body" oninput="reportDeskSync()" onchange="reportDeskSync()">
         <div id="reportdesk-condition">
@@ -4223,8 +4223,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     <div class="container wide">
       <div class="view-header">
         <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
-        <h1>Costing</h1>
-        <div class="meta">Internal working material. Key the priced figure against each fault and the job-level standing items; these are exactly what the Tier 1 report prints for its cost column, area subtotals and total. Never shown in any client document.</div>
+        <h1>Repair pricing</h1>
+        <div class="meta">Internal working material. Key the priced figure against each fault and the job level standing items; these are exactly what the report prints for its cost column, area subtotals and total. Never shown in any client document.</div>
       </div>
       <div id="costpanel-body"></div>
     </div>
@@ -4249,8 +4249,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     <div class="container wide">
       <div class="view-header">
         <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">← Back to survey</button>
-        <h1>Subcontractor returns</h1>
-        <div class="meta">Hold each priced return against the pack and compare line by line against your allocated cost. The subby price is a cost-side check; it does not drive the client estimate.</div>
+        <h1>Contractor prices back in</h1>
+        <div class="meta">Hold each priced return against the pack and compare line by line against your allocated cost. The contractor price is a cost side check; it does not drive the client estimate.</div>
       </div>
       <div id="returns-body"></div>
     </div>
@@ -4260,8 +4260,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     <div class="container wide">
       <div class="view-header">
         <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">← Back to survey</button>
-        <h1>Job cost ledger</h1>
-        <div class="meta">Real profit per task: the sell price you quoted against what the work actually cost. Margin is sell minus actual, not estimated. The post-win actuals record for repairs.</div>
+        <h1>Profit tracking</h1>
+        <div class="meta">Real profit per task: the sell price you quoted against what the work actually cost. Margin is sell minus actual, not estimated. The post win actuals record for repairs. Internal only.</div>
       </div>
       <div id="ledger-body"></div>
     </div>
@@ -4271,8 +4271,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     <div class="container wide">
       <div class="view-header">
         <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
-        <h1>Estimate cost ledger</h1>
-        <div class="meta">Build the estimate item by item, grouped under elements, exactly like the MASTER Cost Breakdown tab: a materials and a labour build-up per item gives the Total to Client, then actuals as the job runs reveal the real margin. Seed from the works engine or build by hand.</div>
+        <h1>Take-off pricing</h1>
+        <div class="meta">Build the estimate item by item, grouped under elements: a materials and a labour build-up per item gives the Total to Client, then actuals as the job runs reveal the real margin. Seed from the works engine or build by hand. Internal only.</div>
       </div>
       <div id="estledger-body"></div>
     </div>
@@ -4625,8 +4625,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     <div class="container wide">
       <div class="view-header">
         <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
-        <h1>Works proposal</h1>
-        <div class="meta">Four routes compared for this roof, with indicative figures from the roof area and your per-system rates, then each route in detail (what you get / what to consider). Pick the routes to present and record the accepted one. Indicative, plus VAT, pending final measure.</div>
+        <h1>Price the options</h1>
+        <div class="meta">Internal working view. The routes for this roof compared, with indicative figures from the roof area and your per-system rates and margin, each route in detail, and the accepted one recorded. Never printed for a client; the client options document is a separate render.</div>
       </div>
       <div id="proposal-body"></div>
     </div>
@@ -4636,8 +4636,8 @@ input.derived-field { background: #f6f8fa; color: #555; }
     <div class="container wide">
       <div class="view-header">
         <button class="link-btn" onclick="goDetail()" style="align-self:flex-start;">&larr; Back to survey</button>
-        <h1>Job costing &middot; buildings and scopes</h1>
-        <div class="meta">Internal working view. The job is a set of buildings; each building holds either one fixed scope or a choice of two to three. Build each scope exactly like the estimate ledger - rates and margin are visible because this is the internal view, not the client document. Mark the recommended scope where a building offers a choice; the job total sums the accepted scope of every building.</div>
+        <h1>Job summary</h1>
+        <div class="meta">Internal working view. The job is a set of buildings; each building holds either one fixed scope or a choice of two to three. Build each scope exactly like Take-off pricing, with rates and margin visible because this is the internal view, not the client document. Mark the recommended scope where a building offers a choice; the job total sums the accepted scope of every building.</div>
       </div>
       <div id="costing-body"></div>
     </div>
@@ -10007,7 +10007,7 @@ function hubActionBar(s){
     showsCondition ? btn('Report writing', "reportDeskOpen(currentSurveyId, 'detail')", { sub: 'Summary, rating and recommendation before the report.' }) : '',
     showsCondition ? btn('Client report', 'goToReportCurrent()', { disabled: !canRenderReport, sub: 'The condition report, print ready.',
       title: canRenderReport ? '' : 'Capture at least one fault before the report can render' }) : '',
-    showsEstimate ? btn('Price the options', 'proposalOpen(currentSurveyId)', { sub: 'The routes to present, with indicative figures.' }) : ''
+    showsEstimate ? btn('Price the options', 'proposalOpen(currentSurveyId)', { sub: 'Routes, rates and margin for this roof. Internal only.' }) : ''
   ]);
 
   // COSTS: the six pricing doors, gated by purpose and stage. Repair costing on
