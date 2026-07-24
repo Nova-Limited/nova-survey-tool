@@ -30,6 +30,13 @@ Purpose: maximum safe autonomy, minimum meaningful gates. The failure this file 
 8. DOUBT. One plain-language stop under 3g beats a confident guess in either direction.
 --- end ---
 
+# CONTEXT WALL
+No Resurgam asset, colour, key, or copy in this repo, ever, and the reverse.
+Cross-estate forks are stripped BEFORE their first commit to the receiving
+repo — pristine copies of another estate's source never enter a receiving
+repo's history. Do the fork-strip transformation locally or in a private
+scratch area, not inside the destination repo's working tree pre-commit.
+
 # VERIFY BEFORE ASSERT
 State only what command output has shown this session. Prove claims that matter
 before making them.
