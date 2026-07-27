@@ -41,6 +41,15 @@ scratch area, not inside the destination repo's working tree pre-commit.
 State only what command output has shown this session. Prove claims that matter
 before making them.
 
+VERIFICATION DOCTRINE UPGRADE (2026-07-27): HTTP status alone is never
+verification. A live check passes only when the served content contains an
+expected sentinel unique to the artefact. Standard sentinel: a build stamp
+(short commit hash + build date) embedded in the page, in a meta tag and in
+the visible footer. A live check fetches the served page and matches the
+stamp against current HEAD. (Originated from a resurgam-tool build where
+every prior "200 OK" check was unknowingly hitting an auto-generated Pages
+placeholder, not the deployed artefact.)
+
 # MONOLITH RULE
 Never read or regenerate a monolithic HTML file whole. Locate with grep -n, view
 line ranges, edit via anchored replacements.
