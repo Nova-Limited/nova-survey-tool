@@ -49,6 +49,14 @@ the visible footer. A live check fetches the served page and matches the
 stamp against current HEAD. (Originated from a resurgam-tool build where
 every prior "200 OK" check was unknowingly hitting an auto-generated Pages
 placeholder, not the deployed artefact.)
+SELF-REFERENCE NOTE, corrected (Change Order 03 review): the served build
+stamp MUST equal HEAD's parent — not "HEAD or HEAD's parent". A commit
+cannot embed its own hash, so a stamp-bump commit's stamp always names its
+parent; the stamp-bump commit is therefore always current HEAD itself, by
+construction, every time. Any stamp older than HEAD's parent fails the check
+outright — that means a stale or partial deploy, not an acceptable variant.
+Never loosen this to "HEAD or an ancestor" — that would let a stale deploy
+pass a sentinel check meant to catch exactly that.
 
 # MONOLITH RULE
 Never read or regenerate a monolithic HTML file whole. Locate with grep -n, view
