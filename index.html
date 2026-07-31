@@ -4397,6 +4397,14 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-area{font-size:14px;font-weight:700;color:#434244;}
     #view-proposal .np-area-src{font-size:11px;font-weight:400;color:#8a898b;}
     #view-proposal .np-pending{font-size:13px;font-weight:400;color:#b06a1f;}
+    #view-proposal .np-rl-input{width:64px;font-size:14px;font-weight:700;color:#434244;font-family:inherit;padding:3px 6px;border:1px solid #d8d8d2;border-radius:6px;text-align:right;}
+    #view-proposal .np-dspec{font-size:12.5px;color:#6b6a6c;margin:2px 0 8px;}
+    #view-proposal .np-dspec .np-k{font-weight:700;color:#434244;}
+    #view-proposal .np-dspec .np-v{margin-left:6px;}
+    #view-proposal .pwe-uvalue{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 11px;background:#faf9f6;border:1px solid #ece9e2;border-radius:8px;}
+    #view-proposal .pwe-uvalue label{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8a898b;}
+    #view-proposal .pwe-uvalue input{width:78px;font-size:14px;font-family:inherit;padding:4px 7px;border:1px solid #d8d8d2;border-radius:6px;text-align:right;}
+    #view-proposal .pwe-uvalue-uom{font-size:12.5px;color:#6b6a6c;}
     #view-proposal .np-rates{border-top:1px solid #ece9e2;padding-top:11px;}
     #view-proposal .np-rates-h{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a898b;margin-bottom:8px;}
     #view-proposal .np-rates-grid{display:flex;flex-wrap:wrap;gap:10px;}
@@ -12200,8 +12208,8 @@ var PROPOSAL_SYSTEMS = {
       consider:['Performance depends on seam and weld quality','Vulnerable to puncture without protection','Detailing at upstands is where most issues arise'] },
     { id:'liquid', name:'Liquid system', best:'complex detailing and awkward geometry',
       life:'20-25 yr', time:'varies',
-      what:'A cold-applied liquid system, seamless across the roof. On a roof with valley gutters the liquid can be carried into the gutters to create one continuous surface across field and gutter, removing the field-to-gutter junction as a point of failure.',
-      get:['Fully seamless, no joints or welds to fail','Excellent for complex detailing and penetrations','Can often overlay an existing substrate','On valley-gutter roofs, one homogeneous surface across field and gutter'],
+      what:'A cold-applied liquid system over an insulated overlay board, seamless across the roof and renewing the waterproofing without stripping the existing covering out. On a roof with valley gutters the liquid can be carried into the gutters to create one continuous surface across field and gutter, removing the field-to-gutter junction as a point of failure.',
+      get:['Adds insulation over the existing roof, so the build-up is a thermal upgrade','Fully seamless, no joints or welds to fail','Excellent for complex detailing and penetrations','Overlays the existing substrate, so no strip-out and no disposal','On valley-gutter roofs, one homogeneous surface across field and gutter'],
       consider:['Predominantly cold-applied, with controlled hot works limited to the VCL/AVCL bonding stage','Weather-sensitive during application and cure','Correct film thickness and surface prep are critical'] },
     { id:'felt', name:'Felt built-up', best:'a traditional, robust multi-layer roof',
       life:'20-30 yr', time:'varies',
@@ -12637,6 +12645,21 @@ function proposalRender(){
     h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Roof area</span><span class="np-area">' +
       (area != null && area > 0 ? (Math.round(area).toLocaleString('en-GB') + ' m² <span class="np-area-src">(captured)</span>') : '<span class="np-pending">pending measure &middot; capture the geometry</span>') +
       '</span></div>';
+    // NEW ROOFLIGHTS, per cent of roof area (item 2). Seeded for display from the
+    // captured rooflight area over the roof area where both exist, marked "(from
+    // survey)" until Jamie overwrites it; blank where no rooflight area was captured.
+    var rlSeed = null;
+    if (area != null && area > 0 && typeof estCapturedSummary === 'function'){
+      var rlm = estCapturedSummary(view);
+      var rlM2 = (rlm && rlm.rooflightM2 && rlm.rooflightM2.captured) ? srNum(rlm.rooflightM2.value) : null;
+      if (rlM2 != null && rlM2 >= 0) rlSeed = Math.round((rlM2 / area * 100) * 10) / 10;
+    }
+    var rlUserSet = (E.newRooflightPct != null);
+    var rlVal = rlUserSet ? E.newRooflightPct : (rlSeed != null ? rlSeed : '');
+    var rlMark = (!rlUserSet && rlSeed != null) ? ' <span class="np-area-src">(from survey)</span>' : '';
+    h += '<div class="np-ctl-row"><span class="np-ctl-lbl">New rooflights, per cent of roof area</span><span class="np-area">' +
+      '<input type="number" class="np-rl-input" step="0.1" min="0" max="40" value="' + rlVal + '"' +
+      ' onchange="proposalSetRooflightPct(\'' + obId + '\', this)" placeholder="0.0"> %' + rlMark + '</span></div>';
     // what the site recorded the roof to be made of; only where it was recorded,
     // so a survey without the construction capture reads exactly as before
     var cons = elemConstruction(o.b);
@@ -12681,6 +12704,7 @@ function proposalRender(){
         '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '" id="np-bdg-' + K + '">' + (hd.worked ? 'Worked estimate' : 'Indicative') + '</span>' +
         pweReadinessMark(survey, obId, sy.id) + '</div>' +
         '<div class="np-specs"><div class="np-r"><span class="np-k">Lifespan</span><span class="np-v">' + srEsc(sy.life) + '</span></div>' +
+        '<div class="np-r"><span class="np-k">Design U-value</span><span class="np-v">' + (hd.uValueKeyed ? (hd.uValue.toFixed(2) + ' W/m²K') : '<span class="np-pending">not set</span>') + '</span></div>' +
         '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + timeTxt + '</span></div></div></div>';
     });
     h += '</div>';
@@ -12695,6 +12719,7 @@ function proposalRender(){
         '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '">' + (hd.worked ? 'Worked' : 'Indicative') + '</span>' +
         '<span class="np-damt" id="np-damt-' + K + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span>' +
         pweReadinessMark(survey, obId, sy.id) + '</div>' +
+        '<div class="np-dspec"><span class="np-k">Design U-value</span> <span class="np-v">' + (hd.uValueKeyed ? (hd.uValue.toFixed(2) + ' W/m²K') : '<span class="np-pending">not set</span>') + '</span></div>' +
         '<p class="np-what">' + srEsc(sy.what) + '</p>' +
         '<div class="np-getconsider">' +
         '<div class="np-gc np-get"><h4>What you get</h4><ul>' + sy.get.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
@@ -12756,6 +12781,25 @@ function proposalSetFamily(obId, family){
   E.routes = PROPOSAL_SYSTEMS[family].map(function(s){ return s.id; }).slice(0, 4);
   E.accepted = null;
   propElemState(survey, obId);          // re-derive routes/accepted defaults
+  srPersist(survey); proposalRender();
+}
+// New rooflights, per cent of roof area (item 2). Held on the element's proposal
+// record so it applies to every route. Seeded for display from the captured
+// rooflight area but only persisted once Jamie sets it (the seed marker then
+// clears). A blank clears it back to the seed/blank. Accepts 0 to 40, one decimal.
+// Not part of the readiness gate.
+function proposalSetRooflightPct(obId, input){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var E = propElemState(survey, obId); if (!E) return;
+  var raw = String(input.value == null ? '' : input.value).trim();
+  if (raw === ''){ delete E.newRooflightPct; srPersist(survey); proposalRender(); return; }
+  var v = srNum(raw);
+  if (v == null || v < 0 || v > 40){
+    if (typeof showToast === 'function') showToast('New rooflights must be a percentage between 0 and 40.', 'err');
+    input.value = (E.newRooflightPct != null ? E.newRooflightPct : '');
+    return;
+  }
+  E.newRooflightPct = Math.round(v * 10) / 10;
   srPersist(survey); proposalRender();
 }
 function proposalToggleRoute(obId, id){
@@ -13301,12 +13345,17 @@ function pweHeadline(survey, routeId){
     // and `programmeKeyed` let a caller tell the two apart. The readiness gate
     // that acts on this is a later brief.
     var programmeKeyed = (t.days > 0);
-    return { worked: true, programmeKeyed: programmeKeyed,
+    // A single keyed Design U-value per route lives on the estimate record, keyed
+    // by hand exactly like the programme - nothing seeds it. `uValueKeyed` lets the
+    // readiness gate name an unkeyed one, following the `programmeKeyed` pattern.
+    var uv = srNum(est.uValue);
+    var uValueKeyed = (uv != null);
+    return { worked: true, programmeKeyed: programmeKeyed, uValueKeyed: uValueKeyed, uValue: uv,
       state: programmeKeyed ? 'worked' : 'worked-programme-unkeyed',
       total: t.sell, perM2: (area > 0 ? t.sell / area : null), days: t.days };
   }
   var rate = rates[routeId];
-  return { worked: false, programmeKeyed: false, state: 'indicative',
+  return { worked: false, programmeKeyed: false, uValueKeyed: false, uValue: null, state: 'indicative',
     total: proposalFigure(area, rate), perM2: rate, indicativeRate: rate };
 }
 
@@ -13342,6 +13391,7 @@ function pweRouteReadiness(survey, routeId){
   if (!hd.worked) return { ready: false, failures: ['No worked estimate yet'], headline: hd };
   var fails = [];
   if (!hd.programmeKeyed) fails.push('Programme not set');
+  if (!hd.uValueKeyed) fails.push('Design U-value not set');
   var est = ((survey.proposal || {}).estimates || {})[routeId];
   var f = estLineFaults(est);
   if (f.noRate > 0){
@@ -13516,6 +13566,11 @@ function pweRenderEditor(survey, obId, routeId){
     '<span style="font-weight:800;letter-spacing:.04em;">TOTAL TO CLIENT</span>' +
     '<span style="font-size:11px;color:#cfcfcf;">(' + t.live + ' live, ' + (t.lines - t.live) + ' struck' + (t.days > 0 ? '; ' + (Math.round(t.days * 4) / 4) + ' days' : '') + ')</span>' +
     '<span id="pwe-tot-' + K + '" style="margin-left:auto;font-weight:800;font-size:16px;background:var(--green);padding:4px 12px;border-radius:6px;">' + proposalMoney(t.sell) + '</span></div>';
+  // Design U-value, keyed by hand per route (item 1). Nothing seeds it; the
+  // readiness gate names it until it is set.
+  h += '<div class="pwe-uvalue"><label>Design U-value</label>' +
+    '<input type="number" step="0.01" min="0.05" max="2.00" value="' + (est.uValue != null ? est.uValue : '') + '"' +
+    ' onchange="pweSetUValue(\'' + obId + '\',\'' + routeId + '\', this)" placeholder="e.g. 0.15"><span class="pwe-uvalue-uom">W/m²K</span></div>';
   h += '</div>';   // cl-wrap
   h += '<div class="pwe-foot">Each line shows quantity, the quiet material rate (carried from the rate card), and the by-hand labour and time; the line total is on the right. Open a line (&hellip;) for its cost, contingency and margin build-up. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + K + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
   return h + '</div>';
@@ -14322,6 +14377,25 @@ function pweNum(input){
   hit.row[input.getAttribute('data-field')] = (v == null ? null : v);
   srPersist(survey);
   pweRecompute(survey, obId, routeId, elId, rowId);   // in place, keep focus
+}
+// Design U-value, keyed by hand per route on the estimate record. A blank clears
+// it (the route reverts to "not set"); a value must sit in 0.05 to 2.00 W/m2K or
+// it is rejected in plain English and the field reverts to what was stored. A
+// change re-renders so the readiness gate and the comparison reflect it at once.
+function pweSetUValue(obId, routeId, input){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var est = pweEstOf(survey, obId, routeId); if (!est) return;
+  var raw = String(input.value == null ? '' : input.value).trim();
+  if (raw === ''){ delete est.uValue; srPersist(survey); if (typeof proposalRender === 'function') proposalRender(); return; }
+  var v = srNum(raw);
+  if (v == null || v < 0.05 || v > 2.00){
+    if (typeof showToast === 'function') showToast('Design U-value must be a number between 0.05 and 2.00 W/m²K.', 'err');
+    input.value = (est.uValue != null ? est.uValue : '');
+    return;
+  }
+  est.uValue = Math.round(v * 100) / 100;
+  srPersist(survey);
+  if (typeof proposalRender === 'function') proposalRender();
 }
 function pweSet(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; }
 function pweRecompute(survey, obId, routeId, elId, rowId){
