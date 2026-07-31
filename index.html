@@ -12658,7 +12658,7 @@ function proposalRender(){
     var rlVal = rlUserSet ? E.newRooflightPct : (rlSeed != null ? rlSeed : '');
     var rlMark = (!rlUserSet && rlSeed != null) ? ' <span class="np-area-src">(from survey)</span>' : '';
     h += '<div class="np-ctl-row"><span class="np-ctl-lbl">New rooflights, per cent of roof area</span><span class="np-area">' +
-      '<input type="number" class="np-rl-input" step="0.1" min="0" max="40" value="' + rlVal + '"' +
+      '<input type="text" inputmode="decimal" class="np-rl-input" value="' + rlVal + '"' +
       ' onchange="proposalSetRooflightPct(\'' + obId + '\', this)" placeholder="0.0"> %' + rlMark + '</span></div>';
     // what the site recorded the roof to be made of; only where it was recorded,
     // so a survey without the construction capture reads exactly as before
@@ -13569,7 +13569,7 @@ function pweRenderEditor(survey, obId, routeId){
   // Design U-value, keyed by hand per route (item 1). Nothing seeds it; the
   // readiness gate names it until it is set.
   h += '<div class="pwe-uvalue"><label>Design U-value</label>' +
-    '<input type="number" step="0.01" min="0.05" max="2.00" value="' + (est.uValue != null ? est.uValue : '') + '"' +
+    '<input type="text" inputmode="decimal" value="' + (est.uValue != null ? est.uValue : '') + '"' +
     ' onchange="pweSetUValue(\'' + obId + '\',\'' + routeId + '\', this)" placeholder="e.g. 0.15"><span class="pwe-uvalue-uom">W/m²K</span></div>';
   h += '</div>';   // cl-wrap
   h += '<div class="pwe-foot">Each line shows quantity, the quiet material rate (carried from the rate card), and the by-hand labour and time; the line total is on the right. Open a line (&hellip;) for its cost, contingency and margin build-up. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + K + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
