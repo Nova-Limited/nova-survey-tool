@@ -4401,10 +4401,11 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-dspec{font-size:12.5px;color:#6b6a6c;margin:2px 0 8px;}
     #view-proposal .np-dspec .np-k{font-weight:700;color:#434244;}
     #view-proposal .np-dspec .np-v{margin-left:6px;}
-    #view-proposal .pwe-uvalue{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 11px;background:#faf9f6;border:1px solid #ece9e2;border-radius:8px;}
-    #view-proposal .pwe-uvalue label{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8a898b;}
-    #view-proposal .pwe-uvalue input{width:78px;font-size:14px;font-family:inherit;padding:4px 7px;border:1px solid #d8d8d2;border-radius:6px;text-align:right;}
-    #view-proposal .pwe-uvalue-uom{font-size:12.5px;color:#6b6a6c;}
+    #view-proposal .np-uv-note{color:#6b6a6c;}
+    #view-proposal .np-uv-line{font-size:11px;color:#8a898b;margin:-2px 0 2px;text-align:right;}
+    #view-proposal .np-uv-depth{font-size:12px;font-family:inherit;margin-left:8px;padding:2px 6px;border:1px solid #d8d8d2;border-radius:6px;background:#fff;}
+    #view-proposal .np-thermal-std{font-size:14px;font-family:inherit;padding:3px 8px;border:1px solid #d8d8d2;border-radius:6px;background:#fff;}
+    #view-proposal .np-nbt-input{width:70px;font-size:14px;font-family:inherit;padding:3px 6px;border:1px solid #d8d8d2;border-radius:6px;text-align:right;}
     #view-proposal .np-rates{border-top:1px solid #ece9e2;padding-top:11px;}
     #view-proposal .np-rates-h{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a898b;margin-bottom:8px;}
     #view-proposal .np-rates-grid{display:flex;flex-wrap:wrap;gap:10px;}
@@ -12243,6 +12244,115 @@ var PROPOSAL_SYSTEMS = {
 var PROPOSAL_FAMILY_LABELS = { pitched:'Pitched roof', flat:'Flat roof', wall:'Wall cladding' };
 var PROPOSAL_FAMILY_ORDER = ['pitched','flat','wall'];
 
+// ===== THERMAL DERIVATION SETTINGS — ONE TABLE, A STARTING POINT FOR TRADE REVIEW
+// The surveyor states the job's thermal purpose; everything else follows from this
+// one table. Correct any figure here without hunting through code. Every value is
+// a seed for trade review, not a fixed constant.
+//
+// refurbishmentTarget 0.18 W/m2K — source: Approved Document L Volume 2, 2026
+//   edition, Table 3.1 (new and replacement thermal elements) and Table 3.2 improved
+//   column (renovated thermal elements): both 0.18 for a roof. NOTE the 2026 edition
+//   takes effect 24 March 2027, so the figure in force before that date should be
+//   confirmed.
+// surfaceResistance 0.14 m2K/W — internal plus external surface resistance, roof.
+// conductivity — lambda, W/mK, per insulant. The depth grid below is priced against
+//   `insulant` (PIR); mineral wool is carried for when the trade review switches it.
+// depths — the standard insulation depths (mm) actually stocked per route. Single
+//   skin carries no insulation, so it has none.
+var THERMAL = {
+  refurbishmentTarget: 0.18,
+  surfaceResistance: 0.14,
+  conductivity: { 'PIR': 0.022, 'mineral wool': 0.038 },
+  insulant: 'PIR',
+  depths: {
+    composite:  [40, 60, 80, 100, 120, 140, 150, 160, 175, 200],
+    builtup:    [80, 100, 120, 140, 160, 180, 200],
+    singleply:  [100, 120, 140, 150, 160, 180],
+    liquid:     [25, 30, 40, 50, 60],
+    overclad:   [60, 80, 100, 120, 140],
+    singleskin: null
+  },
+  // COST HOOK, INTENTIONALLY EMPTY. When a rate per depth is entered here for a
+  // route (depthRates[routeId][depthMm] = pounds per m2), the priced insulation
+  // panel line consumes it through thermalDepthRate() below. WHILE THIS IS EMPTY
+  // the price behaves exactly as today: thermalDepthRate() returns null and no
+  // total, rate or figure changes anywhere.
+  depthRates: {}
+};
+function thermalConductivity(){ return THERMAL.conductivity[THERMAL.insulant]; }
+// achieved U-value (W/m2K) for a bare insulation depth (mm) at the roof resistance.
+function thermalUForDepth(depthMm){ return 1 / (THERMAL.surfaceResistance + (depthMm / 1000) / thermalConductivity()); }
+// The empty cost hook's resolver: a per-depth panel rate once the table is filled,
+// else null so pricing is byte-identical. No caller changes money while it is empty.
+function thermalDepthRate(routeId, depthMm){
+  var r = THERMAL.depthRates[routeId];
+  return (r && r[depthMm] != null) ? r[depthMm] : null;
+}
+// The element's proposal record, resolved whether `survey` is the full survey
+// (record under proposal.elements[obId]) or a per-element view (proposal IS the
+// record). Thermal purpose lives on that record.
+function thermalElemRec(survey, obId){
+  var P = (survey && survey.proposal) || {};
+  if (obId && P.elements && P.elements[obId]) return P.elements[obId];
+  if (!P.elements) return P;   // element view: proposal is the record itself
+  return {};
+}
+function thermalStandardOf(survey, obId){
+  var E = thermalElemRec(survey, obId);
+  return (E.thermalStandard === 'newbuild' || E.thermalStandard === 'na') ? E.thermalStandard : 'refurb';
+}
+function thermalTargetOf(survey, obId){
+  var std = thermalStandardOf(survey, obId);
+  if (std === 'na') return null;
+  if (std === 'newbuild') return srNum(thermalElemRec(survey, obId).newBuildTarget);
+  return THERMAL.refurbishmentTarget;
+}
+function thermalDepthOverrideOf(survey, obId, routeId){
+  var E = thermalElemRec(survey, obId);
+  return (E.thermalDepth && E.thermalDepth[routeId] != null) ? srNum(E.thermalDepth[routeId]) : null;
+}
+// The whole derivation for one route on one element. The surveyor picked the
+// standard; the standard picked the target; the target picks the shallowest depth
+// whose ACHIEVED U-value is at least as good as the target; the depth shows the
+// U-value achieved. Jamie may overrule the depth from the same list.
+function thermalDerive(survey, obId, routeId){
+  var std = thermalStandardOf(survey, obId);
+  if (std === 'na') return { applicable: false, reason: 'building unheated or exempt' };
+  var depths = THERMAL.depths[routeId];
+  if (!depths || !depths.length){
+    return { applicable: false, reason: (routeId === 'singleskin') ? 'this route carries no insulation' : 'no standard insulation depth for this route' };
+  }
+  var target = thermalTargetOf(survey, obId);
+  if (std === 'newbuild' && target == null) return { applicable: true, incomplete: true, reason: 'new build target not entered' };
+  var override = thermalDepthOverrideOf(survey, obId, routeId);
+  var chosen = null, byOverride = false, deepestUsed = false;
+  if (override != null && depths.indexOf(override) > -1){ chosen = override; byOverride = true; }
+  else {
+    for (var i = 0; i < depths.length; i++){ if (thermalUForDepth(depths[i]) <= target){ chosen = depths[i]; break; } }
+    if (chosen == null){ chosen = depths[depths.length - 1]; deepestUsed = true; }
+  }
+  var u = thermalUForDepth(chosen);
+  return { applicable: true, target: target, depthMm: chosen, uValue: u, meetsTarget: (u <= target),
+    deepestUsed: deepestUsed, overridden: byOverride, insulant: THERMAL.insulant };
+}
+// The single readiness line, ONLY for a New build element with no target entered.
+function thermalReadinessFail(survey, routeId){
+  var oid = (typeof propObjects === 'function' && propObjects(survey)[0]) ? propObjects(survey)[0].id : null;
+  var td = thermalDerive(survey, oid, routeId);
+  return (td && td.incomplete) ? 'New build target U-value not entered' : null;
+}
+// Two plain strings for the surfaces: the U-value cell, and the one-line note.
+function thermalDisplay(td){
+  if (!td.applicable) return { u: 'not applicable', line: td.reason, muted: true };
+  if (td.incomplete)  return { u: 'pending', line: td.reason, muted: true };
+  var uTxt = td.uValue.toFixed(2) + ' W/m²K';
+  var line;
+  if (td.deepestUsed && !td.meetsTarget) line = td.depthMm + ' mm ' + td.insulant + ', deepest available, does not meet ' + td.target.toFixed(2);
+  else if (!td.meetsTarget)              line = td.depthMm + ' mm ' + td.insulant + ', does not meet ' + td.target.toFixed(2);
+  else                                    line = td.depthMm + ' mm ' + td.insulant + ', achieves ' + td.uValue.toFixed(2);
+  return { u: uTxt, line: line, muted: false };
+}
+
 // --- per-system indicative cost-per-m2 rates (business-wide, localStorage; the
 //     scaffold-rates pattern). Indicative PROSPECTING rates, not the firm cost.
 //     Defaults preserve the Firecracker ordering within each family (recommended /
@@ -12660,6 +12770,22 @@ function proposalRender(){
     h += '<div class="np-ctl-row"><span class="np-ctl-lbl">New rooflights, per cent of roof area</span><span class="np-area">' +
       '<input type="text" inputmode="decimal" class="np-rl-input" value="' + rlVal + '"' +
       ' onchange="proposalSetRooflightPct(\'' + obId + '\', this)" placeholder="0.0"> %' + rlMark + '</span></div>';
+    // THERMAL STANDARD (item 2): one control, defaulting to Refurbishment. New build
+    // reveals a target field (Jamie's, from the energy calculation); Not applicable
+    // means unheated or exempt, no target.
+    var tstd = thermalStandardOf(survey, obId);
+    var nbt = (E.newBuildTarget != null) ? E.newBuildTarget : '';
+    h += '<div class="np-ctl-row"><span class="np-ctl-lbl">Thermal standard</span><span class="np-area">' +
+      '<select class="np-thermal-std" onchange="proposalSetThermalStandard(\'' + obId + '\', this.value)">' +
+      '<option value="refurb"' + (tstd === 'refurb' ? ' selected' : '') + '>Refurbishment</option>' +
+      '<option value="newbuild"' + (tstd === 'newbuild' ? ' selected' : '') + '>New build</option>' +
+      '<option value="na"' + (tstd === 'na' ? ' selected' : '') + '>Not applicable</option>' +
+      '</select>' +
+      (tstd === 'newbuild'
+        ? (' <input type="text" inputmode="decimal" class="np-nbt-input" value="' + nbt + '"' +
+           ' onchange="proposalSetNewBuildTarget(\'' + obId + '\', this)" placeholder="target"> W/m²K target')
+        : '') +
+      '</span></div>';
     // what the site recorded the roof to be made of; only where it was recorded,
     // so a survey without the construction capture reads exactly as before
     var cons = elemConstruction(o.b);
@@ -12704,7 +12830,10 @@ function proposalRender(){
         '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '" id="np-bdg-' + K + '">' + (hd.worked ? 'Worked estimate' : 'Indicative') + '</span>' +
         pweReadinessMark(survey, obId, sy.id) + '</div>' +
         '<div class="np-specs"><div class="np-r"><span class="np-k">Lifespan</span><span class="np-v">' + srEsc(sy.life) + '</span></div>' +
-        '<div class="np-r"><span class="np-k">Design U-value</span><span class="np-v">' + (hd.uValueKeyed ? (hd.uValue.toFixed(2) + ' W/m²K') : '<span class="np-pending">not set</span>') + '</span></div>' +
+        (function(){ var td = thermalDerive(survey, obId, sy.id); var disp = thermalDisplay(td);
+          return '<div class="np-r"><span class="np-k">Design U-value</span><span class="np-v">' +
+            (disp.muted ? ('<span class="np-pending">' + srEsc(disp.u) + '</span>') : srEsc(disp.u)) + '</span></div>' +
+            '<div class="np-uv-line">' + srEsc(disp.line) + '</div>'; })() +
         '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + timeTxt + '</span></div></div></div>';
     });
     h += '</div>';
@@ -12719,7 +12848,18 @@ function proposalRender(){
         '<span class="np-badge ' + (hd.worked ? 'np-badge-worked' : 'np-badge-ind') + '">' + (hd.worked ? 'Worked' : 'Indicative') + '</span>' +
         '<span class="np-damt" id="np-damt-' + K + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span>' +
         pweReadinessMark(survey, obId, sy.id) + '</div>' +
-        '<div class="np-dspec"><span class="np-k">Design U-value</span> <span class="np-v">' + (hd.uValueKeyed ? (hd.uValue.toFixed(2) + ' W/m²K') : '<span class="np-pending">not set</span>') + '</span></div>' +
+        (function(){ var td = thermalDerive(survey, obId, sy.id); var disp = thermalDisplay(td);
+          var picker = '';
+          if (td.applicable && !td.incomplete){
+            var depths = THERMAL.depths[sy.id] || [];
+            picker = ' <select class="np-uv-depth" onchange="proposalSetThermalDepth(\'' + obId + '\',\'' + sy.id + '\', this.value)">' +
+              '<option value="auto"' + (td.overridden ? '' : ' selected') + '>Auto</option>' +
+              depths.map(function(d){ return '<option value="' + d + '"' + (td.overridden && td.depthMm === d ? ' selected' : '') + '>' + d + ' mm</option>'; }).join('') +
+              '</select>';
+          }
+          return '<div class="np-dspec"><span class="np-k">Design U-value</span> <span class="np-v">' +
+            (disp.muted ? ('<span class="np-pending">' + srEsc(disp.u) + '</span>') : srEsc(disp.u)) + '</span>' +
+            '<span class="np-uv-note"> · ' + srEsc(disp.line) + '</span>' + picker + '</div>'; })() +
         '<p class="np-what">' + srEsc(sy.what) + '</p>' +
         '<div class="np-getconsider">' +
         '<div class="np-gc np-get"><h4>What you get</h4><ul>' + sy.get.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
@@ -12800,6 +12940,43 @@ function proposalSetRooflightPct(obId, input){
     return;
   }
   E.newRooflightPct = Math.round(v * 10) / 10;
+  srPersist(survey); proposalRender();
+}
+// THERMAL STANDARD (item 2): the one control that sets the target. Refurbishment is
+// the default and is stored as nothing, so every existing element reads Refurbishment
+// and derives a depth without reporting anything missing.
+function proposalSetThermalStandard(obId, val){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var E = propElemState(survey, obId); if (!E) return;
+  if (val === 'newbuild' || val === 'na') E.thermalStandard = val; else delete E.thermalStandard;
+  srPersist(survey); proposalRender();
+}
+// New build target, entered by Jamie because it comes from the project's energy
+// calculation, not from Nova. Blank clears it; out of range is refused in plain
+// English and the field returns to what was stored.
+function proposalSetNewBuildTarget(obId, input){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var E = propElemState(survey, obId); if (!E) return;
+  var raw = String(input.value == null ? '' : input.value).trim();
+  if (raw === ''){ delete E.newBuildTarget; srPersist(survey); proposalRender(); return; }
+  var v = srNum(raw);
+  if (v == null || v < 0.05 || v > 2.00){
+    if (typeof showToast === 'function') showToast('New build target U-value must be a number between 0.05 and 2.00 W/m²K.', 'err');
+    input.value = (E.newBuildTarget != null ? E.newBuildTarget : '');
+    return;
+  }
+  E.newBuildTarget = Math.round(v * 100) / 100;
+  srPersist(survey); proposalRender();
+}
+// Depth override per route (item 4): Jamie picks a different standard depth because
+// an existing upstand or clearance may not take the derived one. 'auto' clears back
+// to the derived depth. Never blocks; never raises readiness.
+function proposalSetThermalDepth(obId, routeId, val){
+  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
+  var E = propElemState(survey, obId); if (!E) return;
+  if (!E.thermalDepth || typeof E.thermalDepth !== 'object') E.thermalDepth = {};
+  if (val === 'auto' || val === '' || val == null){ delete E.thermalDepth[routeId]; }
+  else { var d = srNum(val); if (d != null) E.thermalDepth[routeId] = d; }
   srPersist(survey); proposalRender();
 }
 function proposalToggleRoute(obId, id){
@@ -13345,17 +13522,12 @@ function pweHeadline(survey, routeId){
     // and `programmeKeyed` let a caller tell the two apart. The readiness gate
     // that acts on this is a later brief.
     var programmeKeyed = (t.days > 0);
-    // A single keyed Design U-value per route lives on the estimate record, keyed
-    // by hand exactly like the programme - nothing seeds it. `uValueKeyed` lets the
-    // readiness gate name an unkeyed one, following the `programmeKeyed` pattern.
-    var uv = srNum(est.uValue);
-    var uValueKeyed = (uv != null);
-    return { worked: true, programmeKeyed: programmeKeyed, uValueKeyed: uValueKeyed, uValue: uv,
+    return { worked: true, programmeKeyed: programmeKeyed,
       state: programmeKeyed ? 'worked' : 'worked-programme-unkeyed',
       total: t.sell, perM2: (area > 0 ? t.sell / area : null), days: t.days };
   }
   var rate = rates[routeId];
-  return { worked: false, programmeKeyed: false, uValueKeyed: false, uValue: null, state: 'indicative',
+  return { worked: false, programmeKeyed: false, state: 'indicative',
     total: proposalFigure(area, rate), perM2: rate, indicativeRate: rate };
 }
 
@@ -13391,7 +13563,13 @@ function pweRouteReadiness(survey, routeId){
   if (!hd.worked) return { ready: false, failures: ['No worked estimate yet'], headline: hd };
   var fails = [];
   if (!hd.programmeKeyed) fails.push('Programme not set');
-  if (!hd.uValueKeyed) fails.push('Design U-value not set');
+  // THERMAL (item 5): the ONLY thing that can be incomplete is a New build element
+  // whose target U-value has not been entered - it cannot then derive a depth.
+  // Refurbishment and Not applicable never raise anything.
+  if (typeof thermalReadinessFail === 'function'){
+    var tf = thermalReadinessFail(survey, routeId);
+    if (tf) fails.push(tf);
+  }
   var est = ((survey.proposal || {}).estimates || {})[routeId];
   var f = estLineFaults(est);
   if (f.noRate > 0){
@@ -13566,11 +13744,6 @@ function pweRenderEditor(survey, obId, routeId){
     '<span style="font-weight:800;letter-spacing:.04em;">TOTAL TO CLIENT</span>' +
     '<span style="font-size:11px;color:#cfcfcf;">(' + t.live + ' live, ' + (t.lines - t.live) + ' struck' + (t.days > 0 ? '; ' + (Math.round(t.days * 4) / 4) + ' days' : '') + ')</span>' +
     '<span id="pwe-tot-' + K + '" style="margin-left:auto;font-weight:800;font-size:16px;background:var(--green);padding:4px 12px;border-radius:6px;">' + proposalMoney(t.sell) + '</span></div>';
-  // Design U-value, keyed by hand per route (item 1). Nothing seeds it; the
-  // readiness gate names it until it is set.
-  h += '<div class="pwe-uvalue"><label>Design U-value</label>' +
-    '<input type="text" inputmode="decimal" value="' + (est.uValue != null ? est.uValue : '') + '"' +
-    ' onchange="pweSetUValue(\'' + obId + '\',\'' + routeId + '\', this)" placeholder="e.g. 0.15"><span class="pwe-uvalue-uom">W/m²K</span></div>';
   h += '</div>';   // cl-wrap
   h += '<div class="pwe-foot">Each line shows quantity, the quiet material rate (carried from the rate card), and the by-hand labour and time; the line total is on the right. Open a line (&hellip;) for its cost, contingency and margin build-up. Contingency 4% and margin 35%. Derived rate <b id="pwe-pm-' + K + '">' + (area > 0 && t.sell > 0 ? proposalMoney(t.sell / area) + '/m²' : 'pending') + '</b>. Worked figures replace the indicative rate in the comparison above.</div>';
   return h + '</div>';
@@ -14382,21 +14555,6 @@ function pweNum(input){
 // it (the route reverts to "not set"); a value must sit in 0.05 to 2.00 W/m2K or
 // it is rejected in plain English and the field reverts to what was stored. A
 // change re-renders so the readiness gate and the comparison reflect it at once.
-function pweSetUValue(obId, routeId, input){
-  var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
-  var est = pweEstOf(survey, obId, routeId); if (!est) return;
-  var raw = String(input.value == null ? '' : input.value).trim();
-  if (raw === ''){ delete est.uValue; srPersist(survey); if (typeof proposalRender === 'function') proposalRender(); return; }
-  var v = srNum(raw);
-  if (v == null || v < 0.05 || v > 2.00){
-    if (typeof showToast === 'function') showToast('Design U-value must be a number between 0.05 and 2.00 W/m²K.', 'err');
-    input.value = (est.uValue != null ? est.uValue : '');
-    return;
-  }
-  est.uValue = Math.round(v * 100) / 100;
-  srPersist(survey);
-  if (typeof proposalRender === 'function') proposalRender();
-}
 function pweSet(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; }
 function pweRecompute(survey, obId, routeId, elId, rowId){
   var K = pweKey(obId, routeId);

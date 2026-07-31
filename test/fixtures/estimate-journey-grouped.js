@@ -56,6 +56,11 @@ window.NOVA_FIXTURE_ESTIMATE = function () {
   var gid = srLoadSurvey(sid).buildings[0].groupId;
   propGroupAssign(bId, gid);
   // ---- worked estimates on TWO routes with keyed programme days ----
+  // Both routes carry a standard insulation depth grid, and the element keeps the
+  // default Refurbishment thermal standard (0.18 target), so each worked route
+  // exercises the derived depth and U-value: composite and built-up both derive
+  // 120 mm PIR achieving 0.18 at the default target. Nothing thermal is stored on
+  // the record; the derivation follows from the default.
   propElemState(srLoadSurvey(sid), aId);
   pweBuild(aId, 'composite'); pweBuild(aId, 'builtup');
   var s3 = srLoadSurvey(sid);
