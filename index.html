@@ -4403,7 +4403,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-proposal .np-dspec .np-v{margin-left:6px;}
     #view-proposal .np-uv-note{color:#6b6a6c;}
     #view-proposal .np-uv-line{font-size:11px;color:#8a898b;margin:-2px 0 2px;text-align:right;}
-    #view-proposal .np-uv-depth{font-size:12px;font-family:inherit;margin-left:8px;padding:2px 6px;border:1px solid #d8d8d2;border-radius:6px;background:#fff;}
+    #view-proposal .np-uv-depth{font-size:12px;font-family:inherit;margin-left:8px;padding:2px 6px;border:1px solid #d8d8d2;border-radius:6px;background:#fff;width:150px;}
     #view-proposal .np-thermal-std{font-size:14px;font-family:inherit;padding:3px 8px;border:1px solid #d8d8d2;border-radius:6px;background:#fff;}
     #view-proposal .np-nbt-input{width:70px;font-size:14px;font-family:inherit;padding:3px 6px;border:1px solid #d8d8d2;border-radius:6px;text-align:right;}
     #view-proposal .np-rates{border-top:1px solid #ece9e2;padding-top:11px;}
@@ -12244,50 +12244,43 @@ var PROPOSAL_SYSTEMS = {
 var PROPOSAL_FAMILY_LABELS = { pitched:'Pitched roof', flat:'Flat roof', wall:'Wall cladding' };
 var PROPOSAL_FAMILY_ORDER = ['pitched','flat','wall'];
 
-// ===== THERMAL DERIVATION SETTINGS — ONE TABLE, A STARTING POINT FOR TRADE REVIEW
-// The surveyor states the job's thermal purpose; everything else follows from this
-// one table. Correct any figure here without hunting through code. Every value is
-// a seed for trade review, not a fixed constant.
+// ===== THERMAL STANDARD SETTINGS — SMALL AND TRADE-OWNED =====================
+// On a roof refurbishment the U-value is the STANDARD being worked to: it is stated
+// on the proposal and never measured after the works. The tool STATES it - it does
+// not calculate, derive or look it up against a depth. Correct any figure here
+// without touching code.
 //
 // refurbishmentTarget 0.18 W/m2K — source: Approved Document L Volume 2, 2026
-//   edition, Table 3.1 (new and replacement thermal elements) and Table 3.2 improved
-//   column (renovated thermal elements): both 0.18 for a roof. NOTE the 2026 edition
-//   takes effect 24 March 2027, so the figure in force before that date should be
-//   confirmed.
-// surfaceResistance 0.14 m2K/W — internal plus external surface resistance, roof.
-// conductivity — lambda, W/mK, per insulant. The depth grid below is priced against
-//   `insulant` (PIR); mineral wool is carried for when the trade review switches it.
-// depths — the standard insulation depths (mm) actually stocked per route. Single
-//   skin carries no insulation, so it has none.
+//   edition: 0.18 for a roof as both a replacement element and a renovated element.
+//   NOTE the 2026 edition takes effect 24 March 2027, so the figure in force before
+//   that date should be confirmed.
+// depth — the insulation held AT that standard, per route, as plain text seeded for
+//   Jamie to correct per job. Display only: it never changes a U-value or a price.
+// behaviour — SETS states the element's target and the depth; RETAINS keeps the
+//   existing build-up and is never held to a target; NONE carries no insulation.
 var THERMAL = {
   refurbishmentTarget: 0.18,
-  surfaceResistance: 0.14,
-  conductivity: { 'PIR': 0.022, 'mineral wool': 0.038 },
-  insulant: 'PIR',
-  depths: {
-    composite:  [40, 60, 80, 100, 120, 140, 150, 160, 175, 200],
-    builtup:    [80, 100, 120, 140, 160, 180, 200],
-    singleply:  [100, 120, 140, 150, 160, 180],
-    liquid:     [25, 30, 40, 50, 60],
-    overclad:   [60, 80, 100, 120, 140],
+  depth: {
+    composite:  '120 mm PIR',
+    singleply:  '120 mm PIR',
+    builtup:    '120 mm PIR',
+    // over-clad 280 mm is Jamie's figure from installed practice; competitors
+    // commonly fit around 100 mm, which acts as a thermal break rather than
+    // insulation, so this figure is likely to be adjusted.
+    overclad:   '280 mm mineral wool quilt',
+    liquid:     '40 mm recovery board',
     singleskin: null
   },
-  // COST HOOK, INTENTIONALLY EMPTY. When a rate per depth is entered here for a
-  // route (depthRates[routeId][depthMm] = pounds per m2), the priced insulation
-  // panel line consumes it through thermalDepthRate() below. WHILE THIS IS EMPTY
-  // the price behaves exactly as today: thermalDepthRate() returns null and no
-  // total, rate or figure changes anywhere.
+  behaviour: {
+    composite: 'sets', singleply: 'sets', builtup: 'sets', overclad: 'sets',
+    liquid: 'retains', singleskin: 'none'
+  },
+  // COST HOOK, INTENTIONALLY EMPTY. depthRates[routeId] = pounds per m2 once filled;
+  // while empty no total, rate or figure changes anywhere.
   depthRates: {}
 };
-function thermalConductivity(){ return THERMAL.conductivity[THERMAL.insulant]; }
-// achieved U-value (W/m2K) for a bare insulation depth (mm) at the roof resistance.
-function thermalUForDepth(depthMm){ return 1 / (THERMAL.surfaceResistance + (depthMm / 1000) / thermalConductivity()); }
-// The empty cost hook's resolver: a per-depth panel rate once the table is filled,
-// else null so pricing is byte-identical. No caller changes money while it is empty.
-function thermalDepthRate(routeId, depthMm){
-  var r = THERMAL.depthRates[routeId];
-  return (r && r[depthMm] != null) ? r[depthMm] : null;
-}
+// A route not named above states the standard (warm-roof default) with no depth.
+function thermalBehaviour(routeId){ return THERMAL.behaviour[routeId] || 'sets'; }
 // The element's proposal record, resolved whether `survey` is the full survey
 // (record under proposal.elements[obId]) or a per-element view (proposal IS the
 // record). Thermal purpose lives on that record.
@@ -12307,50 +12300,39 @@ function thermalTargetOf(survey, obId){
   if (std === 'newbuild') return srNum(thermalElemRec(survey, obId).newBuildTarget);
   return THERMAL.refurbishmentTarget;
 }
-function thermalDepthOverrideOf(survey, obId, routeId){
+// The depth held for a route: Jamie's per-job text override where set, else the
+// settings default. Plain text, display only.
+function thermalDepthOf(survey, obId, routeId){
   var E = thermalElemRec(survey, obId);
-  return (E.thermalDepth && E.thermalDepth[routeId] != null) ? srNum(E.thermalDepth[routeId]) : null;
+  if (E.thermalDepth && E.thermalDepth[routeId] != null && String(E.thermalDepth[routeId]).trim() !== '') return String(E.thermalDepth[routeId]);
+  return THERMAL.depth[routeId] || null;
 }
-// The whole derivation for one route on one element. The surveyor picked the
-// standard; the standard picked the target; the target picks the shallowest depth
-// whose ACHIEVED U-value is at least as good as the target; the depth shows the
-// U-value achieved. Jamie may overrule the depth from the same list.
+// What one route on one element states. No calculation, no search: the element sets
+// the standard, the route's behaviour decides what is shown, the depth is held text.
 function thermalDerive(survey, obId, routeId){
   var std = thermalStandardOf(survey, obId);
-  if (std === 'na') return { applicable: false, reason: 'building unheated or exempt' };
-  var depths = THERMAL.depths[routeId];
-  if (!depths || !depths.length){
-    return { applicable: false, reason: (routeId === 'singleskin') ? 'this route carries no insulation' : 'no standard insulation depth for this route' };
-  }
-  var target = thermalTargetOf(survey, obId);
-  if (std === 'newbuild' && target == null) return { applicable: true, incomplete: true, reason: 'new build target not entered' };
-  var override = thermalDepthOverrideOf(survey, obId, routeId);
-  var chosen = null, byOverride = false, deepestUsed = false;
-  if (override != null && depths.indexOf(override) > -1){ chosen = override; byOverride = true; }
-  else {
-    for (var i = 0; i < depths.length; i++){ if (thermalUForDepth(depths[i]) <= target){ chosen = depths[i]; break; } }
-    if (chosen == null){ chosen = depths[depths.length - 1]; deepestUsed = true; }
-  }
-  var u = thermalUForDepth(chosen);
-  return { applicable: true, target: target, depthMm: chosen, uValue: u, meetsTarget: (u <= target),
-    deepestUsed: deepestUsed, overridden: byOverride, insulant: THERMAL.insulant };
+  var beh = thermalBehaviour(routeId);
+  if (std === 'na') return { standard: 'na', behaviour: beh };
+  if (beh === 'none') return { standard: std, behaviour: 'none' };
+  if (beh === 'retains') return { standard: std, behaviour: 'retains', depth: thermalDepthOf(survey, obId, routeId) };
+  var target = thermalTargetOf(survey, obId);   // SETS
+  if (std === 'newbuild' && target == null) return { standard: std, behaviour: 'sets', incomplete: true };
+  return { standard: std, behaviour: 'sets', target: target, depth: thermalDepthOf(survey, obId, routeId) };
 }
-// The single readiness line, ONLY for a New build element with no target entered.
+// The single readiness line, ONLY for a New build SETS route with no target entered.
 function thermalReadinessFail(survey, routeId){
   var oid = (typeof propObjects === 'function' && propObjects(survey)[0]) ? propObjects(survey)[0].id : null;
   var td = thermalDerive(survey, oid, routeId);
   return (td && td.incomplete) ? 'New build target U-value not entered' : null;
 }
-// Two plain strings for the surfaces: the U-value cell, and the one-line note.
+// The value cell, an optional (editable) depth, and an optional note beneath.
 function thermalDisplay(td){
-  if (!td.applicable) return { u: 'not applicable', line: td.reason, muted: true };
-  if (td.incomplete)  return { u: 'pending', line: td.reason, muted: true };
-  var uTxt = td.uValue.toFixed(2) + ' W/m²K';
-  var line;
-  if (td.deepestUsed && !td.meetsTarget) line = td.depthMm + ' mm ' + td.insulant + ', deepest available, does not meet ' + td.target.toFixed(2);
-  else if (!td.meetsTarget)              line = td.depthMm + ' mm ' + td.insulant + ', does not meet ' + td.target.toFixed(2);
-  else                                    line = td.depthMm + ' mm ' + td.insulant + ', achieves ' + td.uValue.toFixed(2);
-  return { u: uTxt, line: line, muted: false };
+  if (td.standard === 'na') return { cell: 'Not applicable', note: 'building unheated or exempt', muted: true };
+  if (td.behaviour === 'none') return { cell: 'Not applicable', note: 'this route carries no insulation', muted: true };
+  if (td.behaviour === 'retains') return { cell: 'Existing build-up retained', depth: td.depth || null,
+    note: 'Thermal performance is confirmed against the existing roof at design stage.', muted: false };
+  if (td.incomplete) return { cell: 'pending', note: 'new build target not entered', muted: true };
+  return { cell: td.target.toFixed(2) + ' W/m²K', depth: td.depth || null, note: null, muted: false };
 }
 
 // --- per-system indicative cost-per-m2 rates (business-wide, localStorage; the
@@ -12831,9 +12813,11 @@ function proposalRender(){
         pweReadinessMark(survey, obId, sy.id) + '</div>' +
         '<div class="np-specs"><div class="np-r"><span class="np-k">Lifespan</span><span class="np-v">' + srEsc(sy.life) + '</span></div>' +
         (function(){ var td = thermalDerive(survey, obId, sy.id); var disp = thermalDisplay(td);
-          return '<div class="np-r"><span class="np-k">Design U-value</span><span class="np-v">' +
-            (disp.muted ? ('<span class="np-pending">' + srEsc(disp.u) + '</span>') : srEsc(disp.u)) + '</span></div>' +
-            '<div class="np-uv-line">' + srEsc(disp.line) + '</div>'; })() +
+          var out = '<div class="np-r"><span class="np-k">Design U-value</span><span class="np-v">' +
+            (disp.muted ? ('<span class="np-pending">' + srEsc(disp.cell) + '</span>') : srEsc(disp.cell)) + '</span></div>';
+          if (disp.depth) out += '<div class="np-uv-line">' + srEsc(disp.depth) + '</div>';
+          if (disp.note) out += '<div class="np-uv-line">' + srEsc(disp.note) + '</div>';
+          return out; })() +
         '<div class="np-r"><span class="np-k">Time on site</span><span class="np-v">' + timeTxt + '</span></div></div></div>';
     });
     h += '</div>';
@@ -12849,17 +12833,16 @@ function proposalRender(){
         '<span class="np-damt" id="np-damt-' + K + '">' + (hd.total != null ? proposalMoney(hd.total) : 'Pending measure') + ' <span class="np-small">plus VAT</span></span>' +
         pweReadinessMark(survey, obId, sy.id) + '</div>' +
         (function(){ var td = thermalDerive(survey, obId, sy.id); var disp = thermalDisplay(td);
-          var picker = '';
-          if (td.applicable && !td.incomplete){
-            var depths = THERMAL.depths[sy.id] || [];
-            picker = ' <select class="np-uv-depth" onchange="proposalSetThermalDepth(\'' + obId + '\',\'' + sy.id + '\', this.value)">' +
-              '<option value="auto"' + (td.overridden ? '' : ' selected') + '>Auto</option>' +
-              depths.map(function(d){ return '<option value="' + d + '"' + (td.overridden && td.depthMm === d ? ' selected' : '') + '>' + d + ' mm</option>'; }).join('') +
-              '</select>';
-          }
+          // the depth is editable free text per job (item 5); a blank returns it to
+          // the settings default. It never changes a U-value, a price or readiness.
+          var depthCtl = (disp.depth != null)
+            ? (' <input type="text" class="np-uv-depth" value="' + srEsc(disp.depth) + '"' +
+               ' onchange="proposalSetThermalDepth(\'' + obId + '\',\'' + sy.id + '\', this.value)" placeholder="depth">')
+            : '';
+          var noteHtml = disp.note ? ('<span class="np-uv-note"> · ' + srEsc(disp.note) + '</span>') : '';
           return '<div class="np-dspec"><span class="np-k">Design U-value</span> <span class="np-v">' +
-            (disp.muted ? ('<span class="np-pending">' + srEsc(disp.u) + '</span>') : srEsc(disp.u)) + '</span>' +
-            '<span class="np-uv-note"> · ' + srEsc(disp.line) + '</span>' + picker + '</div>'; })() +
+            (disp.muted ? ('<span class="np-pending">' + srEsc(disp.cell) + '</span>') : srEsc(disp.cell)) + '</span>' +
+            depthCtl + noteHtml + '</div>'; })() +
         '<p class="np-what">' + srEsc(sy.what) + '</p>' +
         '<div class="np-getconsider">' +
         '<div class="np-gc np-get"><h4>What you get</h4><ul>' + sy.get.map(function(x){ return '<li>' + srEsc(x) + '</li>'; }).join('') + '</ul></div>' +
@@ -12968,15 +12951,15 @@ function proposalSetNewBuildTarget(obId, input){
   E.newBuildTarget = Math.round(v * 100) / 100;
   srPersist(survey); proposalRender();
 }
-// Depth override per route (item 4): Jamie picks a different standard depth because
-// an existing upstand or clearance may not take the derived one. 'auto' clears back
-// to the derived depth. Never blocks; never raises readiness.
+// Depth held per route, editable per job (item 5). Plain text seeded from the
+// settings table; a blank clears back to that default. Changing it changes only
+// the depth shown - never a U-value, never a price, never a readiness line.
 function proposalSetThermalDepth(obId, routeId, val){
   var survey = srLoadSurvey(proposalCurrentId); if (!survey) return;
   var E = propElemState(survey, obId); if (!E) return;
   if (!E.thermalDepth || typeof E.thermalDepth !== 'object') E.thermalDepth = {};
-  if (val === 'auto' || val === '' || val == null){ delete E.thermalDepth[routeId]; }
-  else { var d = srNum(val); if (d != null) E.thermalDepth[routeId] = d; }
+  var s = String(val == null ? '' : val).trim();
+  if (s === '') delete E.thermalDepth[routeId]; else E.thermalDepth[routeId] = s;
   srPersist(survey); proposalRender();
 }
 function proposalToggleRoute(obId, id){
