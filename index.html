@@ -1006,6 +1006,10 @@ body.mode-site #ctx-strip.shown { display: flex; position: fixed; left: 0; right
 #view-footprint .fp-net-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #434244; margin-top: 6px; }
 /* day-sheet "what the desk knows" line (part 2) - amber provisional per part 1 */
 .ds-row-desk { font-size: 0.8rem; color: #b26b00; margin-top: 4px; font-weight: 600; }
+.ds-row-sync { font-size: 0.78rem; margin-top: 3px; font-weight: 600; }
+.ds-row-sync:empty { display: none; }
+.ctx-sync { font-size: 0.72rem; font-weight: 600; margin-left: 10px; white-space: nowrap; }
+.ctx-sync:empty { display: none; }
 /* the estimate element walk (part 2) */
 #view-walk .walk-wrap { max-width: 560px; margin: 0 auto; }
 #view-walk .walk-elems { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -7673,9 +7677,10 @@ function loadSurveys() {
     return out;
   } catch(e) { console.error('Survey load failed:', e); return []; }
 }
-function saveSurveys(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+function saveSurveys(arr) { syncNoteWrite(arr); localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
 function saveSurveysSafe(arr) {
   try {
+    syncNoteWrite(arr);   // cross-device sync: mark changed surveys dirty before the write
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
     return true;
   } catch (e) {
@@ -7686,6 +7691,192 @@ function saveSurveysSafe(arr) {
     try { showToast('Device storage is full. Tap Save to Airtable to back up this survey.', 'err'); } catch (_) {}
     return false;
   }
+}
+
+// ============================================================
+// CROSS-DEVICE SYNC: dirty tracking, auto-push on save, auto-pull on open
+// ------------------------------------------------------------
+// Local save stays instant and signal-independent. Every local write marks the
+// changed surveys dirty (a separate localStorage map, never inside the snapshot)
+// and schedules a debounced push through pushSurveyToAirtable. On load and when
+// the day sheet renders, remote surveys are pulled in the background. Manual
+// Save to Airtable and Load from Airtable are unchanged.
+// ============================================================
+var SYNC_DIRTY_KEY = 'nova_sync_dirty_v1';   // { localId: { updatedAt, conflict } }
+var SYNC_SAVED_KEY = 'nova_sync_saved_v1';   // { localId: isoTimeOfLastSuccessfulPush }
+var SYNC_BASE_KEY = 'nova_sync_base_v1';     // { localId: remote updatedAt this device last pushed or pulled }
+var SYNC_PUSH_DELAY_MS = 3000, SYNC_PULL_THROTTLE_MS = 60000;
+var syncApplyingRemote = false;              // true while a write is the sync's own (pull, import, push persist)
+var syncPrevMap = null;                      // localId -> stripped JSON of the last written copy
+var syncTimer = null, syncInFlight = false, syncPending = false, syncPulling = false, syncLastPull = 0;
+function syncReadMap(key) { try { var m = JSON.parse(localStorage.getItem(key) || '{}'); return (m && typeof m === 'object') ? m : {}; } catch (_) { return {}; } }
+function syncWriteMap(key, m) { try { localStorage.setItem(key, JSON.stringify(m || {})); } catch (_) {} }
+function syncDirtyMap() { return syncReadMap(SYNC_DIRTY_KEY); }
+function syncSavedMap() { return syncReadMap(SYNC_SAVED_KEY); }
+function syncStrip(s) { var c = {}; for (var k in s) if (k !== 'updatedAt') c[k] = s[k]; return JSON.stringify(c); }
+function syncPrimePrev() {
+  if (syncPrevMap) return;
+  syncPrevMap = {};
+  try { JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').forEach(function (s) { if (s && s.id) syncPrevMap[s.id] = syncStrip(s); }); } catch (_) {}
+}
+// Called by both storage writers before the write: a survey whose content (ignoring
+// updatedAt) differs from the last written copy is stamped with a fresh updatedAt
+// and marked dirty, then a push is scheduled. The sync's own writes are skipped.
+function syncNoteWrite(arr) {
+  if (!Array.isArray(arr)) return;
+  syncPrimePrev();
+  var next = {}, dirty = null, now = new Date().toISOString();
+  arr.forEach(function (s) {
+    if (!s || !s.id) return;
+    var cur = syncStrip(s);
+    next[s.id] = cur;
+    if (syncApplyingRemote || syncPrevMap[s.id] === cur) return;
+    s.updatedAt = now;
+    if (!dirty) dirty = syncDirtyMap();
+    dirty[s.id] = { updatedAt: now, conflict: false };
+  });
+  syncPrevMap = next;
+  if (dirty) { syncWriteMap(SYNC_DIRTY_KEY, dirty); syncSchedulePush(); }
+}
+function syncBaseMap() { return syncReadMap(SYNC_BASE_KEY); }
+function syncSetBase(localId, remoteUpdatedAt) { if (!remoteUpdatedAt) return; var b = syncBaseMap(); b[localId] = remoteUpdatedAt; syncWriteMap(SYNC_BASE_KEY, b); }
+function syncMarkSaved(localId, remoteUpdatedAt) {
+  var d = syncDirtyMap(); if (d[localId]) { delete d[localId]; syncWriteMap(SYNC_DIRTY_KEY, d); }
+  var sv = syncSavedMap(); sv[localId] = new Date().toISOString(); syncWriteMap(SYNC_SAVED_KEY, sv);
+  syncSetBase(localId, remoteUpdatedAt);
+  syncRenderState();
+}
+function syncFmtTime(iso) { var d = new Date(iso); if (isNaN(d)) return ''; return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+// Three plain-English states, plus the conflict line; colours are the hub status palette.
+function syncStateFor(localId) {
+  var d = syncDirtyMap()[localId], saved = syncSavedMap()[localId];
+  if (d && d.conflict) return { kind: 'conflict', text: 'Newer copy in Airtable, tap Load from Airtable', color: '#c44' };
+  if (d) return navigator.onLine === false ? { kind: 'offline', text: 'Offline, will save when connected', color: '#666' } : { kind: 'dirty', text: 'Unsaved changes', color: '#666' };
+  if (saved) return { kind: 'saved', text: 'Saved to Airtable ' + syncFmtTime(saved), color: '#15803d' };
+  return { kind: 'none', text: '', color: '#666' };
+}
+function syncStateAttr(localId) { return ' style="color:' + syncStateFor(localId).color + ';"'; }
+// Refresh every visible state text: hub status span, context strip, day sheet rows.
+function syncRenderState() {
+  var hubEl = document.getElementById('sync-at-status');
+  if (hubEl && currentSurveyId && !hubEl.dataset.busy) {
+    var st = syncStateFor(currentSurveyId);
+    if (st.kind !== 'none' || !hubEl.textContent) { hubEl.style.color = st.color; hubEl.textContent = st.text; }
+  }
+  document.querySelectorAll('[data-sync-id]').forEach(function (el) {
+    var st2 = syncStateFor(el.getAttribute('data-sync-id'));
+    el.style.color = st2.color; el.textContent = st2.text;
+  });
+}
+function syncSchedulePush() {
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(function () { syncTimer = null; syncPushDirty(); }, SYNC_PUSH_DELAY_MS);
+  syncRenderState();
+}
+function syncRemoteId(localId) { return 'NOV-' + localId; }
+// GET /load-survey for one survey: { status: 'missing' | 'ok' | 'error', parsed }
+async function syncFetchRemote(localId, remoteId) {
+  try {
+    var resp = await fetch(WORKER_BASE + '/load-survey?id=' + encodeURIComponent(remoteId || syncRemoteId(localId)));
+    if (resp.status === 404 || resp.status === 409) return { status: 'missing' };
+    var data = await resp.json().catch(function () { return {}; });
+    if (!resp.ok || !data || !data.ok || typeof data.snapshot !== 'string') return { status: 'error' };
+    var parsed = null; try { parsed = JSON.parse(data.snapshot); } catch (_) { return { status: 'error' }; }
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.id !== 'string') return { status: 'error' };
+    return { status: 'ok', parsed: parsed };
+  } catch (_) { return { status: 'error' }; }
+}
+// Push every dirty survey, one in flight at a time; a write during a push re-schedules.
+// Remote newer than local: no push, mark conflicted. Any failure keeps the dirty flag.
+async function syncPushDirty() {
+  if (syncInFlight) { syncPending = true; return; }
+  if (navigator.onLine === false) { syncRenderState(); return; }
+  var dirty = syncDirtyMap(), ids = Object.keys(dirty).filter(function (id) { return !dirty[id].conflict; });
+  if (!ids.length) { syncRenderState(); return; }
+  syncInFlight = true;
+  try {
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i], local = srLoadSurvey(id);
+      if (!local) { var d0 = syncDirtyMap(); delete d0[id]; syncWriteMap(SYNC_DIRTY_KEY, d0); continue; }
+      if (navigator.onLine === false) break;
+      var remote = await syncFetchRemote(id);
+      if (remote.status === 'error') continue;
+      if (remote.status === 'ok') {
+        // Remote newer means: changed since the version this device last pushed or
+        // pulled (its base). Without a base, fall back to the plain timestamp order.
+        var ru = String(remote.parsed.updatedAt || ''), base = syncBaseMap()[id] || '';
+        var remoteNewer = base ? (ru !== base && ru > base) : (ru > String(local.updatedAt || ''));
+        if (remoteNewer) {
+          var d1 = syncDirtyMap(); if (d1[id]) { d1[id].conflict = true; syncWriteMap(SYNC_DIRTY_KEY, d1); }
+          continue;
+        }
+      }
+      await pushSurveyToAirtable(id, { silent: true });   // success clears the flag via syncMarkSaved
+    }
+  } finally {
+    syncInFlight = false;
+    syncRenderState();
+    if (syncPending) { syncPending = false; syncSchedulePush(); }
+  }
+}
+// Pull: every remote survey missing locally is imported; a remote copy newer than a
+// clean local copy replaces it; a dirty local copy is left for the push to resolve.
+// NOTE (follow-on, Worker change, not this build): /surveys carries no updatedAt, so
+// each remote id costs one /load-survey round trip.
+async function syncPullAll(opts) {
+  opts = opts || {};
+  if (navigator.onLine === false || syncPulling) return;
+  if (opts.throttle && (Date.now() - syncLastPull) < SYNC_PULL_THROTTLE_MS) return;
+  syncPulling = true; syncLastPull = Date.now();
+  var changed = [];
+  try {
+    var resp = await fetch(WORKER_BASE + '/surveys');
+    var data = await resp.json().catch(function () { return {}; });
+    if (!resp.ok || !data || !data.ok || !Array.isArray(data.surveys)) return;
+    for (var i = 0; i < data.surveys.length; i++) {
+      var rid = String((data.surveys[i] || {}).surveyId || '').trim(); if (!rid) continue;
+      var lid = rid.replace(/^NOV-/, '');
+      var dirty = syncDirtyMap();
+      var arr0 = loadSurveys(), local = arr0.filter(function (s) { return s && s.id === lid; })[0];
+      if (local && dirty[lid]) continue;                      // local edits pending: the push decides
+      var remote = await syncFetchRemote(lid, rid);
+      if (remote.status !== 'ok') continue;
+      var parsed = remote.parsed;
+      if (local && !(String(parsed.updatedAt || '') > String(local.updatedAt || ''))) continue;
+      var arr = loadSurveys(), idx = arr.findIndex(function (s) { return s && s.id === parsed.id; });
+      if (idx !== -1 && syncDirtyMap()[parsed.id]) continue;
+      if (idx !== -1) arr[idx] = parsed; else arr.push(parsed);
+      syncApplyingRemote = true;
+      try { if (!saveSurveysSafe(arr)) break; } finally { syncApplyingRemote = false; }
+      var sv = syncSavedMap(); sv[parsed.id] = parsed.updatedAt || new Date().toISOString(); syncWriteMap(SYNC_SAVED_KEY, sv);
+      syncSetBase(parsed.id, parsed.updatedAt || null);
+      changed.push(parsed.id);
+    }
+  } catch (_) {
+  } finally {
+    syncPulling = false;
+    if (changed.length) syncAfterPull(changed);
+    syncRenderState();
+  }
+}
+// After a pull: refresh the list surfaces only; an open edit form is never clobbered.
+function syncAfterPull(ids) {
+  var active = document.querySelector('.view.active'), vid = active ? active.id : '';
+  if (vid === 'view-daysheet' && typeof renderDaySheet === 'function') renderDaySheet();
+  else if (vid === 'view-home' && typeof renderSurveyList === 'function') renderSurveyList();
+  else if (vid === 'view-detail' && currentSurveyId && ids.indexOf(currentSurveyId) !== -1 && typeof goDetail === 'function') goDetail();
+}
+// Boot: listeners for online/offline and the leave guard, then a background pull.
+function syncBoot() {
+  window.addEventListener('online', function () { syncRenderState(); syncPushDirty(); syncPullAll(); });
+  window.addEventListener('offline', function () { syncRenderState(); });
+  window.addEventListener('beforeunload', function (e) {
+    if (navigator.onLine === false) return;                     // nothing the user can act on offline
+    if (!Object.keys(syncDirtyMap()).length) return;
+    e.preventDefault(); e.returnValue = '';
+  });
+  if (Object.keys(syncDirtyMap()).length) syncSchedulePush();
+  syncPullAll();
 }
 
 // Persist in-progress edits of an already-saved survey back into its
@@ -7981,7 +8172,12 @@ async function importSurveyFromAirtable(surveyId) {
     } else {
       surveys.push(parsed);
     }
-    if (!saveSurveysSafe(surveys)) return;
+    // the Airtable copy is the saved state: not dirty, not conflicted
+    syncApplyingRemote = true;
+    let savedOk;
+    try { savedOk = saveSurveysSafe(surveys); } finally { syncApplyingRemote = false; }
+    if (!savedOk) return;
+    syncMarkSaved(parsed.id, parsed.updatedAt);
     renderSurveyList();
     showToast('Loaded ' + parsed.id + ' from Airtable', 'ok');
     goToSurvey(parsed.id);
@@ -8191,6 +8387,7 @@ function renderDaySheet() {
         '<div class="ds-row-client">' + escapeHtml(clientNameOf(s)) + '</div>' +
         '<div class="ds-row-site">' + escapeHtml(firstLine((s.site || {}).address) || '(no site address)') + '</div>' +
         flowDeskKnowsLine(s) +
+        '<div class="ds-row-sync" data-sync-id="' + escapeHtml(s.id) + '"' + syncStateAttr(s.id) + '>' + escapeHtml(syncStateFor(s.id).text) + '</div>' +
       '</button>';
     }).join('');
   };
@@ -8217,6 +8414,7 @@ function renderDaySheet() {
   h += '<div class="ds-sub">Recent</div>';
   h += recent.length ? rows(recent) : '<div class="ds-empty">No recent visits.</div>';
   host.innerHTML = h;
+  syncPullAll({ throttle: true });   // cross-device sync: refresh from Airtable in the background
 }
 
 function openVisit(id) {
@@ -8544,7 +8742,8 @@ function showContext(id) {
   strip.innerHTML =
     '<span class="ctx-client">' + escapeHtml(clientNameOf(s)) + '</span>' +
     '<span class="ctx-site">' + escapeHtml(firstLine((s.site || {}).address) || '') + '</span>' +
-    '<span class="ctx-time">' + escapeHtml(apptTimeDisplay(s.visit || {}, false) || 'Time TBC') + '</span>';
+    '<span class="ctx-time">' + escapeHtml(apptTimeDisplay(s.visit || {}, false) || 'Time TBC') + '</span>' +
+    '<span class="ctx-sync" data-sync-id="' + escapeHtml(s.id) + '"' + syncStateAttr(s.id) + '>' + escapeHtml(syncStateFor(s.id).text) + '</span>';
   strip.classList.add('shown');
   updateSiteChromeOffset();
 }
@@ -9167,6 +9366,7 @@ function goToReportCurrent() {
 // field is for forward-compatibility — any field not in the map below still
 // round-trips through the snapshot). Auth lives on the Worker; this file
 // never sees the Airtable token.
+// The manual button: unchanged behaviour, now a thin call on the shared push path.
 async function syncSurveyToAirtable() {
   const btn = document.getElementById('sync-at-btn');
   const statusEl = document.getElementById('sync-at-status');
@@ -9176,11 +9376,22 @@ async function syncSurveyToAirtable() {
     statusEl.textContent = 'No survey loaded.';
     return;
   }
-  const s = loadSurveys().find(x => x.id === currentSurveyId);
+  return pushSurveyToAirtable(currentSurveyId, { silent: false });
+}
+// One save path (cross-device sync). silent:false drives the hub button and status
+// element exactly as the manual save always has; silent:true is the auto-push and
+// touches no UI of its own. Returns { ok, status, error } instead of only writing
+// to the status element.
+async function pushSurveyToAirtable(localId, opts) {
+  opts = opts || {};
+  const silent = !!opts.silent;
+  const btn = silent ? null : document.getElementById('sync-at-btn');
+  const statusEl = silent ? null : document.getElementById('sync-at-status');
+  const ui = function(color, text) { if (statusEl) { statusEl.style.color = color; statusEl.textContent = text; } };
+  const s = loadSurveys().find(x => x.id === localId);
   if (!s) {
-    statusEl.style.color = '#c44';
-    statusEl.textContent = 'Survey not found.';
-    return;
+    ui('#c44', 'Survey not found.');
+    return { ok: false, status: 0, error: 'not_found_locally' };
   }
   // Same reference string the report cover prints (refDisplay).
   const surveyId = 'NOV-' + s.id;
@@ -9266,20 +9477,17 @@ async function syncSurveyToAirtable() {
 
   // Back up any not-yet-uploaded photos to R2 first. Mutates s in place;
   // local persistence happens via saveSurveysSafe inside the helper path.
-  btn.disabled = true;
-  btn.classList.remove('btn-failed');
-  statusEl.style.color = '#666';
-  statusEl.textContent = 'Backing up photos…';
+  if (btn) { btn.disabled = true; btn.classList.remove('btn-failed'); }
+  ui('#666', 'Backing up photos…');
   try {
     await ensurePhotosUploaded(s, function(done, total) {
-      statusEl.textContent = total
-        ? 'Backing up photos… ' + done + ' of ' + total
-        : 'Backing up photos…';
+      ui('#666', total ? 'Backing up photos… ' + done + ' of ' + total : 'Backing up photos…');
     });
-    // Persist the mutated survey (now carrying R2 keys + thumbnails).
+    // Persist the mutated survey (now carrying R2 keys + thumbnails). The write is
+    // the push's own, so it must not mark the survey dirty again.
     const all = loadSurveys();
     const idx = all.findIndex(x => x.id === s.id);
-    if (idx !== -1) { all[idx] = s; saveSurveysSafe(all); }
+    if (idx !== -1) { all[idx] = s; syncApplyingRemote = true; try { saveSurveysSafe(all); } finally { syncApplyingRemote = false; } }
   } catch (_) { /* per-photo failures are swallowed inside the helper */ }
 
   // Snapshot: keep R2 keys (small strings), strip base64 image bytes so
@@ -9299,8 +9507,8 @@ async function syncSurveyToAirtable() {
   }
   const snapshot = JSON.stringify(clone);
 
-  statusEl.style.color = '#666';
-  statusEl.textContent = 'Saving…';
+  ui('#666', 'Saving…');
+  let result = { ok: false, status: 0, error: 'not_sent' };
   try {
     const resp = await fetch(WORKER_BASE + '/save-survey', {
       method: 'POST',
@@ -9309,23 +9517,26 @@ async function syncSurveyToAirtable() {
     });
     const data = await resp.json().catch(function() { return {}; });
     if (resp.ok && data && data.ok) {
-      statusEl.style.color = '#15803d';
-      statusEl.textContent = 'Saved to Airtable ✓';
-      btn.classList.remove('btn-failed');
+      result = { ok: true, status: resp.status, updatedAt: clone.updatedAt || null };
+      syncMarkSaved(s.id, clone.updatedAt || null);   // clears the dirty flag, records the time and the pushed version (sync)
+      ui('#15803d', 'Saved to Airtable ✓');
+      if (btn) btn.classList.remove('btn-failed');
     } else {
-      statusEl.style.color = '#c44';
-      statusEl.textContent = 'Save failed, try again';
-      btn.classList.add('btn-failed');
+      result = { ok: false, status: resp.status, error: (data && data.error) || 'save_failed' };
+      ui('#c44', 'Save failed, try again');
+      if (btn) btn.classList.add('btn-failed');
       console.warn('save-survey failed:', resp.status, data);
     }
   } catch (e) {
-    statusEl.style.color = '#c44';
-    statusEl.textContent = 'Save failed, try again';
-    btn.classList.add('btn-failed');
+    result = { ok: false, status: 0, error: String((e && e.message) || e) };
+    ui('#c44', 'Save failed, try again');
+    if (btn) btn.classList.add('btn-failed');
     console.warn('save-survey threw:', e);
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
+    if (typeof syncRenderState === 'function') syncRenderState();
   }
+  return result;
 }
 
 function backToDetail() {
@@ -10043,7 +10254,7 @@ function hubActionBar(s){
   var calBtn = btn('Add to calendar', 'addVisitToCalendar(currentSurveyId)',
     { disabled: !(vi && vi.appointmentStart), title: (vi && vi.appointmentStart) ? '' : 'Set an appointment time first' });
   html += group('Record', [
-    btn('Save to Airtable', 'syncSurveyToAirtable()', { id: 'sync-at-btn' }) + '<span id="sync-at-status" class="act-status"></span>',
+    btn('Save to Airtable', 'syncSurveyToAirtable()', { id: 'sync-at-btn' }) + '<span id="sync-at-status" class="act-status"' + syncStateAttr(s.id) + '>' + escapeHtml(syncStateFor(s.id).text) + '</span>',
     btn('Export survey', 'exportSurvey(currentSurveyId)'),
     btn('Import survey', 'importSurveyPrompt()'),
     calBtn,
@@ -26454,6 +26665,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applyMode(deriveDefaultMode());
   window.addEventListener('resize', updateSiteChromeOffset);
   goHome();
+  syncBoot();   // cross-device sync: leave guard, online retry, background pull
 });
 </script>
 </body>
