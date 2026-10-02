@@ -8128,7 +8128,12 @@ function updateSiteChromeOffset() {
   var tbh = tb ? tb.offsetHeight : 0;
   var shown = cs && cs.classList.contains('shown');
   if (shown) cs.style.top = tbh + 'px';
-  if (app) app.style.paddingTop = (tbh + (shown ? cs.offsetHeight : 0)) + 'px';
+  // The site-mode progress strip is fixed too: it sits under the context strip
+  // (or the top bar when there is no strip) and the app pads for it as well.
+  var ps = document.getElementById('progress-strip');
+  var psShown = ps && ps.classList.contains('ps-shown') && ps.classList.contains('ps-strip');
+  if (psShown) ps.style.top = (tbh + (shown ? cs.offsetHeight : 0)) + 'px'; else if (ps) ps.style.top = '';
+  if (app) app.style.paddingTop = (tbh + (shown ? cs.offsetHeight : 0) + (psShown ? ps.offsetHeight : 0)) + 'px';
 }
 function applyMode(m) {
   appMode = (m === 'site') ? 'site' : 'desk';
@@ -17645,8 +17650,13 @@ function flowRenderWalk(){
   flowCurrentId = survey.id;
   var objs = (typeof propObjects === 'function') ? propObjects(survey) : [{ id: (survey.buildings && survey.buildings[0] && survey.buildings[0].id) || 'B1', name: 'Element', idx: 0 }];
   if (!objs.length){
+    // The walk carries its own Continue here: the progress strip is suppressed on
+    // condition journeys and can sit behind the fixed chrome in site mode, so the
+    // strip alone left this state with no onward control.
+    var emptyLabel = (typeof flowNextLabel === 'function') ? flowNextLabel(survey) : '';
     host.innerHTML = '<div class="walk-wrap"><div class="walk-head"><span class="walk-title">Element walk</span>' +
-      '<span class="walk-sub">No elements captured yet.</span></div></div>';
+      '<span class="walk-sub">No elements captured yet.</span></div>' +
+      '<div class="walk-foot"><button class="btn btn-primary" onclick="flowNextGo(srLoadSurvey(flowCurrentId))">' + escapeHtml(emptyLabel || 'Capture the first building') + '</button></div></div>';
     if (typeof progressStripRender === 'function') progressStripRender();   // the strip's empty state IS the walk's
     return;
   }
