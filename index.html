@@ -4717,6 +4717,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-trace-btn { border: 1px solid #d7c9ea; background: #f7f3fd; color: #5b3f86; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
     #view-footprint .fp-trace-btn:disabled { opacity: .5; cursor: default; }
     #view-footprint .fp-undo-btn { margin-left: 8px; }
+    .visit-finish-note { margin: 10px 0 0; font-size: 14px; color: #666; }
     #view-footprint .fp-trace-note { font-size: 11.5px; color: #8a898b; }
     #view-footprint .fp-trace-prov { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; padding: 9px 13px; background: #fff8ec; border: 1px solid #f0d9b0; border-left: 3px solid #F7901E; border-radius: 8px; }
     #view-footprint .fp-trace-tag { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #b26b00; }
@@ -8431,15 +8432,21 @@ function renderVisit(s) {
   var host = document.getElementById('visit-body'); if (!host) return;
   var v = s.visit || {};
   var when = [v.date ? fmtDate(v.date) : '', apptTimeDisplay(v, false)].filter(Boolean).join(' &middot; ') || 'Time TBC';
+  // Condition journey: once faults exist the card says so and the primary
+  // button reads as a return to capture (same handler); the report is finished
+  // at the desk. With no faults, unchanged.
+  var cjN = (s.visitPurpose === 'condition' && typeof cjFaults === 'function') ? cjFaults(s).length : 0;
   host.innerHTML =
     '<h1 class="ds-h">' + escapeHtml(clientNameOf(s)) + '</h1>' +
     '<div class="visit-card">' +
       '<div class="visit-k">Site address</div><div class="visit-v">' + escapeHtml(firstLine((s.site || {}).address) || '(no site address)') + '</div>' +
       '<div class="visit-k">Meeting</div><div class="visit-v">' + escapeHtml(visitContactOf(s)) + '</div>' +
       '<div class="visit-k">Appointment</div><div class="visit-v">' + when + '</div>' +
+      (cjN ? '<div class="visit-k">Faults</div><div class="visit-v">' + cjN + ' fault' + (cjN === 1 ? '' : 's') + ' captured</div>' : '') +
     '</div>' +
     visitRenderWeather(s) +
-    '<button class="btn btn-primary btn-big visit-start" onclick="startSurvey(\'' + s.id + '\')">Start survey</button>';
+    '<button class="btn btn-primary btn-big visit-start" onclick="startSurvey(\'' + s.id + '\')">' + (cjN ? 'Add more faults' : 'Start survey') + '</button>' +
+    (cjN ? '<p class="visit-finish-note">Finish the report at the desk.</p>' : '');
 }
 // WEATHER, the condition site-day surface. It is a fact about the day the
 // surveyor stood on the roof, so it belongs where the visit begins - and it is
@@ -10072,6 +10079,7 @@ function hubContinueBar(s){
   if (!n) return '';
   var done = (n.stage === 'done');
   var lead = done ? 'Everything is done for this record.'
+    : n.lead ? n.lead
     : (n.stage === 'capture-first') ? 'Start the survey.'
     : (n.stage === 'capture') ? 'Continue the survey.'
     : (n.stage === 'routes') ? 'Ready the routes to price the job.'
@@ -10094,12 +10102,17 @@ function hubPanel(title, rows){
 // ELEMENTS panel (was Building): reads the element stores per captured object.
 function hubElementsPanel(s){
   var objs = (typeof propObjects === 'function') ? propObjects(s) : [];
+  // Condition journey with faults: the panel counts the faults and never offers
+  // "Capture the first building".
+  var cjN = (s && s.visitPurpose === 'condition' && typeof cjFaults === 'function') ? cjFaults(s).length : 0;
+  var cjRow = cjN ? '<div class="detail-row"><span class="v">' + cjN + ' fault' + (cjN === 1 ? '' : 's') + ' captured</span></div>' : '';
+  if (!objs.length && cjN) return '<div class="detail-block"><h3>Elements</h3>' + cjRow + '</div>';
   if (!objs.length){
     return '<div class="detail-block"><h3>Elements</h3>' +
       '<div class="detail-row"><span class="v empty">No elements captured yet.</span></div>' +
       '<div class="hub-panel-action"><button class="btn btn-secondary" onclick="fpOpen(currentSurveyId)">Capture the first building</button></div></div>';
   }
-  var h = '<div class="detail-block"><h3>Elements (' + objs.length + ')</h3>';
+  var h = '<div class="detail-block"><h3>Elements (' + objs.length + ')</h3>' + cjRow;
   objs.forEach(function(o){
     var fam = (typeof propObjFamily === 'function') ? propObjFamily(s, o.id).family : null;
     var c = (typeof elemConstruction === 'function') ? elemConstruction(o.b) : { coveringLabel:'' };
@@ -10217,7 +10230,7 @@ function hubActionBar(s){
   html += group('', [
     btn('Enquiry details', 'editCurrent()', { primary: true, sub: 'Client, site and visit.' }),
     btn('Capture', 'fpOpen(currentSurveyId)', { sub: 'Draw the roof and record the building.' }),
-    btn('Site plan', "spOpenSitePlan(currentSurveyId, 'detail')", { sub: 'Aerial, markers and photographs.' })
+    btn('Site plan', "spOpenSitePlan(currentSurveyId, 'detail')", { sub: 'Fault details, aerial and photographs.' })
   ]);
 
   // VISIT: guided checklist (condition only); Finish the visit standing button in
@@ -17301,7 +17314,7 @@ var flowVisitPurpose = null;   // in-memory mirror of the open survey's purpose
 var flowCurrentId = null;      // which survey the guide/handoff views are showing
 
 var FLOW_PURPOSES = [
-  { id:'condition', label:'Condition survey', desc:'A Tier 1 condition report. No pricing.' },
+  { id:'condition', label:'Condition survey', desc:'A condition report with a costed repair schedule.' },
   { id:'priced', label:'Priced job', desc:'A costed estimate and proposal. No condition report.' },
   { id:'both', label:'Both', desc:'One visit, two purposes: report first, then price.' }
 ];
@@ -17795,8 +17808,56 @@ function flowReportDeskComplete(survey){
   // desk refine is "done" once a condition judgement exists (a rating chosen).
   return !!(survey && survey['f-overall-rating'] && String(survey['f-overall-rating']).trim());
 }
+// --- condition journey (visitPurpose 'condition' only) ---
+// The next step is derived from the faults, not from drawn objects: capture on
+// site, complete each fault (severity, extent, recommendation), price each fault
+// in Repair pricing, write the report (rating, both life figures, executive
+// summary), then print. Field names are the existing stores; nothing new.
+function cjFaults(s){ return (s && Array.isArray(s.siteFaultMarkers)) ? s.siteFaultMarkers : []; }
+function cjFaultRef(f){ return 'F' + (f && f.number != null ? f.number : '?'); }
+function cjFaultMissing(f){
+  var m = [];
+  if (String((f && f.severity) || '').trim() === '') m.push('severity');
+  var ext = (typeof faultExtent === 'function') ? faultExtent(f) : { qty: 0 };
+  if (!ext || !isFinite(Number(ext.qty)) || Number(ext.qty) === 0) m.push('extent');
+  if (String((f && f.recommendation) || '').trim() === '') m.push('recommendation');
+  return m;
+}
+function cjFaultComplete(f){ return cjFaultMissing(f).length === 0; }
+function cjFaultCost(s, f){ var cp = s && s.costingPanel; return (typeof costPanelNum === 'function') ? costPanelNum(cp && cp.faults && cp.faults[cjFaultRef(f)]) : null; }
+function cjBlank(v){ return v == null || String(v).trim() === ''; }
+function cjReportMissing(s){
+  var m = [];
+  if (cjBlank(s['f-overall-rating'])) m.push('rating');
+  if (cjBlank(s['f-remaining-life-asstands'])) m.push('lifeNow');
+  if (cjBlank(s['f-remaining-life-postworks'])) m.push('lifeWorks');
+  if (cjBlank(s['f-executive-summary'])) m.push('summary');
+  return m;
+}
+function cjNext(s){
+  if (!s || s.visitPurpose !== 'condition') return null;
+  var faults = cjFaults(s).slice().sort(function(a, b){ return (Number(a.number) || 0) - (Number(b.number) || 0); });
+  if (!faults.length) return { stage:'faults-capture', lead:'Capture the faults on site.', label:'Capture the faults on site', action:'cj-visit' };
+  var done = faults.filter(cjFaultComplete).length;
+  if (done < faults.length){
+    var first = faults.filter(function(f){ return !cjFaultComplete(f); })[0];
+    var txt = 'Complete the faults, ' + done + ' of ' + faults.length + ' complete';
+    return { stage:'faults-complete', lead: txt + '.', label: txt, action:'cj-fault', faultId: first.id };
+  }
+  if (faults.some(function(f){ return cjFaultCost(s, f) == null; })) return { stage:'faults-price', lead:'Price the faults.', label:'Price the faults', action:'costpanel' };
+  if (cjReportMissing(s).length) return { stage:'reportdesk', lead:'Write the report.', label:'Write the report', action:'reportdesk' };
+  return { stage:'document', lead:'Print the report.', label:'Print the report', action:'report' };
+}
+// Site plan with one fault's panel open (the first incomplete one).
+function cjOpenFault(id, faultId){
+  if (typeof spOpenSitePlan === 'function') spOpenSitePlan(id, 'detail');
+  var open = function(){ try { spActiveFaultId = faultId; if (typeof spOpenFaultPanel === 'function') spOpenFaultPanel(faultId); } catch (e){} };
+  open(); setTimeout(open, 250);
+}
 function flowNext(survey){
   if (!survey) return { stage:'done', label:'', action:null };
+  var cj = (typeof cjNext === 'function') ? cjNext(survey) : null;
+  if (cj) return cj;
   var objs = (typeof propObjects === 'function') ? propObjects(survey) : [];
   var condition = (survey.visitPurpose === 'condition');
   // STAGE: capture-first
@@ -17824,6 +17885,9 @@ function flowNextGo(survey){
   flowCurrentId = id; currentSurveyId = id;
   switch (n.action){
     case 'capture-first': if (typeof fpOpen === 'function') fpOpen(id); return;
+    case 'cj-visit': if (typeof openVisit === 'function') openVisit(id); return;
+    case 'cj-fault': cjOpenFault(id, n.faultId); return;
+    case 'costpanel': if (typeof costPanelOpen === 'function') costPanelOpen(id); return;
     case 'walk-step':
       if (n.elementIdx != null){ flowActiveWalkIdx = n.elementIdx; fpActiveBuildingIdx = n.elementIdx; }
       if (typeof flowWalkRoute === 'function') flowWalkRoute(n.stepKey, srLoadSurvey(id));
@@ -19083,6 +19147,7 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
       '</div>' +
     '</div>';
   };
+  if (r === '' || r === 'tbc') return '<div class="cta-panel"><div class="cta-eyebrow">Where this roof stands</div><div class="cta-lead">Condition rating to be confirmed.</div></div>';
   if (r === 'excellent') return reassurance('Rated Excellent today. Continued routine maintenance keeps the roof in service indefinitely.', 'Of remaining life with routine maintenance');
   if (r === 'good') return reassurance('Rated Good today. Planned maintenance keeps the roof in service for the long term.', 'Of remaining life with planned maintenance');
   if (r === 'fair') return reassurance('Rated Fair today. Targeted works extend the life of the roof significantly.', 'Of remaining life with the recommended works');
@@ -19096,6 +19161,7 @@ function slExecCTA(rating, lifeNow, lifeWorks) {
 // panel). Mirrors slExecCTA's rating vocabulary.
 function slStandMeta(rating){
   var r = (rating || '').toLowerCase();
+  if (r === '' || r === 'tbc') return { title:'Condition rating to be confirmed.', comparison:false, neutral:true, doSub:'', withSub:'' };
   if (r === 'excellent') return { title:'Rated Excellent today. Continued routine maintenance keeps the roof in service indefinitely.', comparison:false, withSub:'Of remaining life with routine maintenance' };
   if (r === 'good')      return { title:'Rated Good today. Planned maintenance keeps the roof in service for the long term.', comparison:false, withSub:'Of remaining life with planned maintenance' };
   if (r === 'fair')      return { title:'Rated Fair today. Targeted works extend the life of the roof significantly.', comparison:false, withSub:'Of remaining life with the recommended works' };
@@ -20177,7 +20243,8 @@ function slRenderExec(survey) {
   const stand = slStandMeta(condition);
   const chips = slSevChip('critical', stats.bySeverity.critical) + slSevChip('poor', stats.bySeverity.poor) +
                 slSevChip('fair', stats.bySeverity.fair) + slSevChip('monitor', stats.bySeverity.monitor);
-  const lifeTiles =
+  // No rating set: a neutral stand panel with no life claim (no tiles).
+  const lifeTiles = stand.neutral ? '' :
     '<div class="ex-life">' +
       '<div class="ex-life-tile do"><div class="k">IF YOU DO NOTHING</div><div class="v"><span class="num">' + escapeHtml(slLifeFig(lifeNow)) + '</span> years</div><div class="sub">' + escapeHtml(stand.doSub || 'Before failure') + '</div></div>' +
       '<div class="ex-life-tile works"><div class="k">WITH THE PRIORITY WORKS</div><div class="v"><span class="num">' + escapeHtml(slLifeFig(lifeWorks)) + '</span> years</div><div class="sub">' + escapeHtml(stand.withSub || 'Of remaining life') + '</div></div>' +
@@ -20415,7 +20482,16 @@ function slReportPrintWarnings(survey){
     else if (/^Defect noted at .+\.$/.test(desc)) warns.push({ msg: 'Fault ' + ref + ' observation is still the auto-placeholder; replace it in the fault Observation field before printing.' });
     var ext = (typeof faultExtent === 'function') ? faultExtent(f) : { qty: 0 };
     if (!ext || !isFinite(Number(ext.qty)) || Number(ext.qty) === 0) warns.push({ msg: 'Fault ' + ref + ' extent is zero / not set; the report prints a dash. Set the extent on the fault.' });
+    if (String(f.severity || '').trim() === '') warns.push({ msg: 'Fault ' + ref + ' has no severity; set it on the fault so the schedule prints a rating.' });
+    if (String(f.recommendation || '').trim() === '') warns.push({ msg: 'Fault ' + ref + ' has no recommended action; fill the Recommendation field on the fault.' });
+    if (typeof cjFaultCost === 'function' && cjFaultCost(s, f) == null) warns.push({ msg: 'Fault ' + ref + ' has no cost in Repair pricing; the report prints TBC for it.' });
   });
+  // Report writing fields: each prints a placeholder when empty.
+  var cjBlankV = function(v){ return v == null || String(v).trim() === ''; };
+  if (cjBlankV(s['f-overall-rating'])) warns.push({ msg: 'Overall condition rating is not set; the report prints "Condition rating to be confirmed" with no life figures.' });
+  if (cjBlankV(s['f-remaining-life-asstands'])) warns.push({ msg: 'Expected life of current system (years) is not set; the report prints TBC.' });
+  if (cjBlankV(s['f-remaining-life-postworks'])) warns.push({ msg: 'Expected life after all remedial works (years) is not set; the report prints TBC.' });
+  if (cjBlankV(s['f-executive-summary'])) warns.push({ msg: 'Executive summary is empty; the report prints no summary text.' });
   // Aerial: a marker pinned OFF the site image is omitted from the figure (rather
   // than drawn outside it), and flagged here so it is never silently dropped.
   var hasAerial = (s.siteImageSource === 'upload') && !!(s.siteImageData || s.siteImageKey);
