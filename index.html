@@ -4716,6 +4716,7 @@ input.derived-field { background: #f6f8fa; color: #555; }
     #view-footprint .fp-trace-bar { margin: 6px 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
     #view-footprint .fp-trace-btn { border: 1px solid #d7c9ea; background: #f7f3fd; color: #5b3f86; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
     #view-footprint .fp-trace-btn:disabled { opacity: .5; cursor: default; }
+    #view-footprint .fp-undo-btn { margin-left: 8px; }
     #view-footprint .fp-trace-note { font-size: 11.5px; color: #8a898b; }
     #view-footprint .fp-trace-prov { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; padding: 9px 13px; background: #fff8ec; border: 1px solid #f0d9b0; border-left: 3px solid #F7901E; border-radius: 8px; }
     #view-footprint .fp-trace-tag { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #b26b00; }
@@ -8291,6 +8292,7 @@ function showView(name) {
   const v = document.getElementById('view-' + name);
   if (v) v.classList.add('active');
   window.scrollTo(0, 0);
+  if (name !== 'footprint' && typeof fpUndoClear === 'function') fpUndoClear();
   // the progress strip belongs only to the walk and capture surfaces; drop it
   // elsewhere, and let those surfaces' own renderers put it back.
   if (name !== 'walk' && name !== 'footprint' && name !== 'siteplan'){
@@ -14910,8 +14912,77 @@ function fpRenderBuildingSwitcher(survey){
   h += '</div></div>';
   return h;
 }
+// --- footprint undo (geometry only) ---
+// In-memory history per building, keyed by survey id + building index, capped at
+// 40 entries, cleared when the footprint view is left or the active building
+// changes. Each entry is a deep copy of the footprint (corners + edges), the
+// draw-mode point list and the mode, snapshotted immediately BEFORE a geometry
+// mutation: corner drag, insert, delete, draw-point drop, draw close (Tidy) and
+// draw cancel. Bay, elevation, feature, gutter and fault edits are not recorded.
+var fpUndoStacks = {};
+var FP_UNDO_CAP = 40;
+function fpUndoKey(){ return String(fpCurrentId || '') + '#' + String(fpActiveBuildingIdx || 0); }
+function fpUndoCount(){ var st = fpUndoStacks[fpUndoKey()]; return st ? st.length : 0; }
+function fpUndoClear(){ fpUndoStacks = {}; }
+function fpUndoSnapshot(fp, b){
+  return {
+    footprint: fp ? JSON.parse(JSON.stringify(fp)) : null,
+    footprintPreset: (b && b.footprintPreset) || null,
+    drawPts: fpDrawPts.map(function(q){ return { x: q.x, y: q.y }; }),
+    mode: fpMode
+  };
+}
+function fpUndoPush(fp, b){
+  var k = fpUndoKey();
+  if (!fpUndoStacks[k]) fpUndoStacks[k] = [];
+  var st = fpUndoStacks[k];
+  st.push(fpUndoSnapshot(fp, b));
+  while (st.length > FP_UNDO_CAP) st.shift();
+}
+// snapshot the current building's geometry before a mutation (loads the survey itself)
+function fpUndoPushCurrent(){
+  var survey = srLoadSurvey(fpCurrentId); var b = survey ? fpBuilding(survey) : null;
+  fpUndoPush(b ? (b.footprint || null) : null, b);
+}
+function fpUndoCanUndo(){ return fpUndoCount() > 0 || (fpMode === 'draw' && fpDrawPts.length > 0); }
+function fpUndo(){
+  var st = fpUndoStacks[fpUndoKey()];
+  if (!st || !st.length){
+    // draw mode with points and no history: drop the last point, as the trace does
+    if (fpMode === 'draw' && fpDrawPts.length){ fpDrawPts.pop(); fpRender(); }
+    return;
+  }
+  var e = st.pop();
+  var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
+  var b = fpBuilding(survey);
+  if (b){
+    b.footprint = e.footprint ? JSON.parse(JSON.stringify(e.footprint)) : null;
+    if (e.footprintPreset) b.footprintPreset = e.footprintPreset; else delete b.footprintPreset;
+  }
+  fpDrawPts = e.drawPts.map(function(q){ return { x: q.x, y: q.y }; });
+  fpMode = e.mode;
+  fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null;
+  srPersist(survey); fpRender();
+}
+function fpUndoButton(){
+  return '<button class="fp-trace-btn fp-undo-btn" onclick="fpUndo()"' + (fpUndoCanUndo() ? '' : ' disabled') + ' title="Undo the last footprint change (Cmd+Z or Ctrl+Z)">Undo</button>';
+}
+// Cmd+Z / Ctrl+Z while the footprint view is active and focus is not in a text
+// control; the edge length keypad owns the keys while it is open. No redo.
+document.addEventListener('keydown', function(e){
+  if (!(e.key === 'z' || e.key === 'Z') || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+  var view = document.getElementById('view-footprint');
+  if (!view || !view.classList.contains('active')) return;
+  var t = document.activeElement, tag = (t && t.tagName) ? t.tagName.toUpperCase() : '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+  if (fpKeypad) return;
+  if (fpTraceActive) return;
+  e.preventDefault();
+  if (fpUndoCanUndo()) fpUndo();
+});
 // Reset transient per-building UI selections so nothing carries across buildings.
 function fpResetBuildingUiState(){
+  fpUndoClear();
   fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpElevOpen = null;
   fpElevOpSheet = null; fpFeatureSheet = null; fpFaultOpenId = null; fpPlaceMode = null; fpFeaturePick = null; fpFaultPick = null; fpElevOpenPicker = null;
 }
@@ -14967,6 +15038,7 @@ function fpOpen(id){
   var s0 = srLoadSurvey(fpCurrentId);
   fpActiveBuildingIdx = fpClampBuildingIdx(s0, (s0 && typeof s0.activeBuildingIdx === 'number') ? s0.activeBuildingIdx : 0);
   fpMode = 'edit'; fpDrawPts = []; fpDrag = null; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpElevOpen = null;
+  fpUndoClear();
   if (typeof showView === 'function') showView('footprint');
   fpRender();
 }
@@ -15021,10 +15093,11 @@ function fpRender(){
   });
   h += '</div>';
   if (!drawing){
-    h += '<button class="fp-draw-btn" onclick="fpStartDraw()">' + (fp ? 'Redraw freeform' : 'Draw freeform') + '</button>';
+    h += '<button class="fp-draw-btn" onclick="fpStartDraw()">' + (fp ? 'Redraw freeform' : 'Draw freeform') + '</button>' + fpUndoButton();
   } else {
     h += '<div class="fp-draw-live"><span class="fp-draw-note">Tap the canvas to drop points around the outline, then Tidy.</span>' +
       '<button class="fp-tidy-btn" onclick="fpTidy()">Tidy to squared edges</button>' +
+      fpUndoButton() +
       '<button class="fp-clear-btn" onclick="fpClearDraw()">Cancel</button></div>';
   }
   h += '</div>';
@@ -15390,10 +15463,11 @@ function fpPreset(k){
   srPersist(survey); fpRender();
 }
 function fpStartDraw(){ fpMode = 'draw'; fpDrawPts = []; fpSelected = null; fpEdgeSheet = null; fpKeypad = null; fpRender(); }
-function fpClearDraw(){ fpMode = 'edit'; fpDrawPts = []; fpRender(); }
+function fpClearDraw(){ fpUndoPushCurrent(); fpMode = 'edit'; fpDrawPts = []; fpRender(); }
 function fpCanvasClick(evt){
   if (fpMode === 'draw'){
     var p = fpClientToVb(evt); if (!p) return;
+    fpUndoPushCurrent();
     fpDrawPts.push({ x: Math.round(p.x), y: Math.round(p.y) });
     fpRender();
     return;
@@ -15410,6 +15484,7 @@ function fpTidy(){
   if (!tidy){ showToast('Add at least three points around the outline, then Tidy.', 'err'); return; }
   var survey = srLoadSurvey(fpCurrentId); if (!survey) return;
   var b = fpEnsureBuilding(survey);
+  fpUndoPush(b.footprint || null, b);
   b.footprint = { corners: tidy, edges: fpMakeEdges(tidy.length) };
   b.footprintPreset = 'freeform';
   fpMode = 'edit'; fpDrawPts = []; fpSelected = null; fpEdgeSheet = null; fpKeypad = null;
@@ -15469,7 +15544,7 @@ function fpClientToVb(evt){
 function fpCornerDown(evt, i){
   evt.preventDefault(); evt.stopPropagation();
   var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
-  fpDrag = { i: i, survey: survey, fp: fp, sx: evt.clientX, sy: evt.clientY, moved: false };
+  fpDrag = { i: i, survey: survey, fp: fp, sx: evt.clientX, sy: evt.clientY, moved: false, before: fpUndoSnapshot(fp, fpBuilding(survey)) };
   try { evt.currentTarget.setPointerCapture && evt.currentTarget.setPointerCapture(evt.pointerId); } catch (e) {}
 }
 function fpCornerMove(evt){
@@ -15485,9 +15560,10 @@ function fpCornerMove(evt){
 }
 function fpCornerUp(evt){
   if (!fpDrag) return;
-  var i = fpDrag.i, survey = fpDrag.survey, fp = fpDrag.fp, moved = fpDrag.moved;
+  var i = fpDrag.i, survey = fpDrag.survey, fp = fpDrag.fp, moved = fpDrag.moved, before = fpDrag.before;
   fpDrag = null;
   if (moved){
+    if (before){ var uk = fpUndoKey(); if (!fpUndoStacks[uk]) fpUndoStacks[uk] = []; fpUndoStacks[uk].push(before); while (fpUndoStacks[uk].length > FP_UNDO_CAP) fpUndoStacks[uk].shift(); }
     var G = 10, c = fp.corners[i];
     fp.corners[i] = { x: Math.round(c.x / G) * G, y: Math.round(c.y / G) * G };   // snap to grid
     fpSelected = null; srPersist(survey); fpRender();
@@ -15501,6 +15577,7 @@ function fpRemoveSelected(){ if (fpSelected == null) return; var i = fpSelected;
 function fpInsertCorner(edgeIndex){
   var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
   var c = fp.corners[edgeIndex], n = fp.corners[(edgeIndex + 1) % fp.corners.length];
+  fpUndoPush(fp, fpBuilding(survey));
   fp.corners.splice(edgeIndex + 1, 0, { x: (c.x + n.x) / 2, y: (c.y + n.y) / 2 });
   fp.edges.splice(edgeIndex + 1, 0, { type:'straight', curvature:null });
   fpSelected = null; fpEdgeSheet = null;   // indices shifted
@@ -15509,6 +15586,7 @@ function fpInsertCorner(edgeIndex){
 function fpDeleteCorner(i){
   var survey = srLoadSurvey(fpCurrentId); var fp = fpFootprint(survey); if (!fp) return;
   if (fp.corners.length <= 3){ showToast('A footprint needs at least three corners.', 'err'); return; }
+  fpUndoPush(fp, fpBuilding(survey));
   fp.corners.splice(i, 1); fp.edges.splice(i, 1);
   fpSelected = null; fpEdgeSheet = null;
   srPersist(survey); fpRender();
@@ -17832,7 +17910,7 @@ function progressStripRender(){
 function progressToggle(){ progressExpanded = !progressExpanded; progressStripRender(); }
 function progressSelectElem(idx){
   flowActiveWalkIdx = idx;
-  if (progressCurrentView() === 'footprint'){ fpActiveBuildingIdx = idx; if (typeof fpRender === 'function') fpRender(); }
+  if (progressCurrentView() === 'footprint'){ fpActiveBuildingIdx = idx; if (typeof fpUndoClear === 'function') fpUndoClear(); if (typeof fpRender === 'function') fpRender(); }
   else if (typeof flowRenderWalk === 'function') flowRenderWalk();
   progressStripRender();
 }
