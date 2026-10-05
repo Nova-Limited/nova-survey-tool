@@ -7304,13 +7304,15 @@ function normalisePhotoEntry(p) {
 function imgSrcFor(slot) {
   if (!slot) return null;
   if (typeof slot === 'string') return slot || null;
+  // Fault-ledger photo with its bytes still on this device: the local blob wins
+  // (same bytes as the backup, and it works without signal).
+  if (slot.idbId && LEDGER_PHOTO_URLS[slot.idbId]) return LEDGER_PHOTO_URLS[slot.idbId];
   if (slot.key)  return WORKER_BASE + '/photo/' + slot.key;
   if (slot.data) return slot.data;
   // Fault-ledger photo: the bytes are in IndexedDB. imgSrcFor is synchronous, so
   // the desk hydration step (idbHydrateLedgerPhotos) resolves each idbId to an
   // object URL cached here before render; unhydrated -> null (caller shows a
   // placeholder, never an error).
-  if (slot.idbId && LEDGER_PHOTO_URLS[slot.idbId]) return LEDGER_PHOTO_URLS[slot.idbId];
   return null;
 }
 
@@ -7382,6 +7384,39 @@ function idbGetLedgerPhoto(idbId) {
       rq.onsuccess = function () { resolve(rq.result || null); };
       rq.onerror = function () { reject(rq.error || new Error('IndexedDB get failed')); };
     });
+  });
+}
+// Patch a stored photo's meta (used to record its uploaded key, so a later
+// rescue can tell a backed-up photo from one that was never uploaded).
+function idbSetLedgerPhotoMeta(idbId, patch) {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve) {
+      var tx = db.transaction(LEDGER_IDB_STORE, 'readwrite'), st = tx.objectStore(LEDGER_IDB_STORE);
+      var rq = st.get(idbId);
+      rq.onsuccess = function () { var rec = rq.result; if (!rec) { resolve(false); return; } rec.meta = Object.assign({}, rec.meta || {}, patch || {}); st.put(rec, idbId); };
+      tx.oncomplete = function () { resolve(true); };
+      tx.onerror = function () { resolve(false); };
+    });
+  }).catch(function () { return false; });
+}
+// Every stored photo's id + meta (no bytes), for the orphan scan.
+function idbListLedgerPhotos() {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve) {
+      var out = [];
+      var tx = db.transaction(LEDGER_IDB_STORE, 'readonly');
+      var rq = tx.objectStore(LEDGER_IDB_STORE).openCursor();
+      rq.onsuccess = function () { var c = rq.result; if (c) { out.push({ idbId: String(c.key), meta: (c.value && c.value.meta) || {} }); c.continue(); } else resolve(out); };
+      rq.onerror = function () { resolve(out); };
+    });
+  }).catch(function () { return []; });
+}
+function blobToDataUrl(blob) {
+  return new Promise(function (resolve, reject) {
+    var r = new FileReader();
+    r.onload = function () { resolve(r.result); };
+    r.onerror = function () { reject(r.error || new Error('read failed')); };
+    r.readAsDataURL(blob);
   });
 }
 function idbDeleteLedgerPhoto(idbId) {
@@ -7496,6 +7531,7 @@ async function ensurePhotosUploaded(survey, progressCb) {
       f.photos = f.photos.map(normalisePhotoEntry);
       f.photos.forEach(function(p, pi) {
         if (p.data && !p.key) jobs.push({ slot: 'photo', faultIdx: fi, photoIdx: pi });
+        else if (p.idbId && !p.key) jobs.push({ slot: 'ledger', faultIdx: fi, photoIdx: pi });   // site photo, bytes in IndexedDB
       });
     }
   });
@@ -7508,9 +7544,24 @@ async function ensurePhotosUploaded(survey, progressCb) {
     if (job.slot === 'site')       fullData = survey.siteImageData;
     if (job.slot === 'faultImage') fullData = faults[job.faultIdx].faultImage;
     if (job.slot === 'photo')      fullData = faults[job.faultIdx].photos[job.photoIdx].data;
+    if (job.slot === 'ledger') {
+      // Read the bytes from IndexedDB; the record keeps only the reference.
+      var lp = faults[job.faultIdx].photos[job.photoIdx];
+      try { var rec = await idbGetLedgerPhoto(lp.idbId); fullData = (rec && rec.blob) ? await blobToDataUrl(rec.blob) : ''; } catch (_) { fullData = ''; }
+      if (!fullData) { lp.pendingUpload = true; counts.failed++; continue; }
+    }
     if (!fullData) continue;
     try {
       var key = await uploadPhotoToWorker(novaId, fullData);
+      if (job.slot === 'ledger') {
+        // Keep the idbId (local bytes stay the display source) and keep data
+        // empty so full images never enter localStorage.
+        var lp2 = faults[job.faultIdx].photos[job.photoIdx];
+        lp2.key = key; lp2.pendingUpload = false; lp2.data = '';
+        try { idbSetLedgerPhotoMeta(lp2.idbId, { key: key }); } catch (_) {}
+        counts.uploaded++;
+        continue;
+      }
       var thumb = await makeThumbnail(fullData);
       if (job.slot === 'site') {
         survey.siteImageKey  = key;
@@ -7519,20 +7570,24 @@ async function ensurePhotosUploaded(survey, progressCb) {
         faults[job.faultIdx].faultImageKey = key;
         faults[job.faultIdx].faultImage    = thumb || fullData;
       } else if (job.slot === 'photo') {
-        // Preserve any caption already set on this photo through the R2 swap.
-        var prevCap = (faults[job.faultIdx].photos[job.photoIdx] || {}).caption || '';
-        faults[job.faultIdx].photos[job.photoIdx] = {
+        // Preserve any caption, and the provenance fields, through the R2 swap.
+        var prevP = faults[job.faultIdx].photos[job.photoIdx] || {};
+        var prevCap = prevP.caption || '';
+        var repl = {
           data: thumb || fullData,
           key: key,
           pendingUpload: false,
           caption: prevCap
         };
+        if (prevP.source) repl.source = prevP.source;
+        if (prevP.capturedAt) repl.capturedAt = prevP.capturedAt;
+        faults[job.faultIdx].photos[job.photoIdx] = repl;
       }
       counts.uploaded++;
     } catch (e) {
       // Mark pendingUpload so a later online save can retry. The local
       // base64 stays at full size until the upload eventually succeeds.
-      if (job.slot === 'photo') {
+      if (job.slot === 'photo' || job.slot === 'ledger') {
         faults[job.faultIdx].photos[job.photoIdx].pendingUpload = true;
       }
       counts.failed++;
@@ -7855,11 +7910,13 @@ async function syncPullAll(opts) {
       if (local && !(String(parsed.updatedAt || '') > String(local.updatedAt || ''))) continue;
       var arr = loadSurveys(), idx = arr.findIndex(function (s) { return s && s.id === parsed.id; });
       if (idx !== -1 && syncDirtyMap()[parsed.id]) continue;
+      var carried = (idx !== -1) ? syncCarryIdb(arr[idx], parsed) : false;
       if (idx !== -1) arr[idx] = parsed; else arr.push(parsed);
       syncApplyingRemote = true;
       try { if (!saveSurveysSafe(arr)) break; } finally { syncApplyingRemote = false; }
       var sv = syncSavedMap(); sv[parsed.id] = parsed.updatedAt || new Date().toISOString(); syncWriteMap(SYNC_SAVED_KEY, sv);
       syncSetBase(parsed.id, parsed.updatedAt || null);
+      if (carried) syncMarkDirty(parsed.id);   // a local-only site photo rode across: the push backs it up
       changed.push(parsed.id);
     }
   } catch (_) {
@@ -7875,6 +7932,128 @@ function syncAfterPull(ids) {
   if (vid === 'view-daysheet' && typeof renderDaySheet === 'function') renderDaySheet();
   else if (vid === 'view-home' && typeof renderSurveyList === 'function') renderSurveyList();
   else if (vid === 'view-detail' && currentSurveyId && ids.indexOf(currentSurveyId) !== -1 && typeof goDetail === 'function') goDetail();
+  else if (vid === 'view-siteplan' && currentSurveyId && ids.indexOf(currentSurveyId) !== -1) {
+    // The Site plan keeps its own in-memory fault list; a later panel edit would
+    // write the pre-pull copy back over the record. Re-hydrate from the record.
+    var sp2 = srLoadSurvey(currentSurveyId);
+    if (sp2 && typeof srHydrateSiteImage === 'function') {
+      currentSiteImage = srHydrateSiteImage(sp2);
+      try { if (typeof spRenderMarkers === 'function') spRenderMarkers(); } catch (_) {}
+      try { if (spActiveFaultId && typeof spOpenFaultPanel === 'function') spOpenFaultPanel(spActiveFaultId); } catch (_) {}
+    }
+  }
+  if (typeof idbRescueOrphans === 'function') idbRescueOrphans();   // a replaced copy may have dropped a photo reference
+}
+// Mark one survey dirty and schedule the push (used after a carry). The record's
+// own updatedAt is stamped too, so the other devices' pulls see the pushed copy
+// as newer than the one they hold.
+function syncMarkDirty(localId) {
+  var now = new Date().toISOString();
+  var arr = loadSurveys(), i = arr.findIndex(function (s) { return s && s.id === localId; });
+  if (i !== -1) {
+    arr[i].updatedAt = now;
+    syncApplyingRemote = true;
+    try { saveSurveysSafe(arr); } finally { syncApplyingRemote = false; }
+  }
+  var d = syncDirtyMap(); d[localId] = { updatedAt: now, conflict: false }; syncWriteMap(SYNC_DIRTY_KEY, d);
+  syncSchedulePush();
+}
+// When a remote copy replaces a local one, every local idbId rides across onto
+// the matching remote photo (same fault id, same position); a local-only site
+// photo the remote never saw (no key yet) is appended so it is never orphaned.
+// A local entry the remote lacks at that position is appended whether or not it
+// has been uploaded: the capturing device's copy is never discarded (a site photo
+// removed on another device therefore returns; remove it on the capturing device
+// to make the removal stick). Returns true when the remote copy gained a photo.
+function syncCarryIdb(local, remote) {
+  var changed = false;
+  if (!local || !remote) return changed;
+  var lf = Array.isArray(local.siteFaultMarkers) ? local.siteFaultMarkers : [];
+  var rf = Array.isArray(remote.siteFaultMarkers) ? remote.siteFaultMarkers : [];
+  lf.forEach(function (f) {
+    if (!f || !Array.isArray(f.photos)) return;
+    var r = rf.filter(function (x) { return x && x.id === f.id; })[0]; if (!r) return;
+    if (!Array.isArray(r.photos)) r.photos = [];
+    f.photos.forEach(function (p, i) {
+      if (!p || typeof p !== 'object' || !p.idbId) return;
+      var rp = r.photos[i];
+      if (rp && typeof rp === 'object') {
+        if (!rp.idbId) rp.idbId = p.idbId;
+        if (!rp.capturedAt && p.capturedAt) rp.capturedAt = p.capturedAt;
+        if (!rp.source && p.source) rp.source = p.source;
+        if (!rp.key && p.key) { rp.key = p.key; rp.pendingUpload = false; changed = true; }
+      } else if (rp == null) {
+        r.photos[i] = normalisePhotoEntry(p); changed = true;
+        if (remote.id) (rescuePending[remote.id] = rescuePending[remote.id] || []).push(p.idbId);   // reported once it has uploaded
+      }
+    });
+  });
+  return changed;
+}
+// Orphan rescue: a stored ledger photo whose survey is local but which no photo
+// entry references (a pull or Load replaced the copy that held the reference)
+// is re-attached to its fault by meta.faultId: empty entries first, in
+// capturedAt order, then appended. A blob already uploaded (meta.key) is
+// re-linked to the entry carrying that key, else re-attached with that key.
+// The survey is marked dirty so the push backs the photos up, and one toast
+// reports them once they have uploaded. Removing a site photo on this device
+// deletes its blob, so a local removal is never undone by the rescue.
+var rescuePending = {};   // surveyId -> [idbId] awaiting upload for the toast
+var rescueRunning = false;
+async function idbRescueOrphans() {
+  if (rescueRunning || !window.indexedDB) return 0;
+  rescueRunning = true;
+  var attached = 0;
+  try {
+    var recs = await idbListLedgerPhotos(); if (!recs.length) return 0;
+    var all = loadSurveys(); var byId = {};
+    all.forEach(function (s) { if (s && s.id) byId[s.id] = s; });
+    var referenced = {};
+    all.forEach(function (s) { (s.siteFaultMarkers || []).forEach(function (f) { (f && f.photos || []).forEach(function (p) { if (p && p.idbId) referenced[p.idbId] = true; }); }); });
+    var orphans = recs.filter(function (r) { return !referenced[r.idbId] && r.meta && r.meta.surveyId && byId[r.meta.surveyId] && r.meta.faultId; });
+    if (!orphans.length) return 0;
+    orphans.sort(function (a, b) { return String(a.meta.capturedAt || '').localeCompare(String(b.meta.capturedAt || '')); });
+    var changed = {};
+    orphans.forEach(function (r) {
+      var s = byId[r.meta.surveyId];
+      var f = (s.siteFaultMarkers || []).filter(function (x) { return x && x.id === r.meta.faultId; })[0]; if (!f) return;
+      if (!Array.isArray(f.photos)) f.photos = [];
+      if (r.meta.key) {
+        var hit = f.photos.filter(function (p) { return p && typeof p === 'object' && p.key === r.meta.key; })[0];
+        if (hit) { hit.idbId = r.idbId; if (!hit.capturedAt && r.meta.capturedAt) hit.capturedAt = r.meta.capturedAt; if (!hit.source) hit.source = 'site'; changed[s.id] = true; return; }
+      }
+      // never uploaded (no key yet), or uploaded but no entry carries the key any more: re-attach
+      var entry = { idbId: r.idbId, capturedAt: r.meta.capturedAt || '', key: r.meta.key || '', data: '', pendingUpload: false, caption: '', source: 'site' };
+      var slot = -1;
+      for (var k = 0; k < f.photos.length; k++) { var q = f.photos[k]; if (q && typeof q === 'object' && !q.key && !q.idbId && !q.data) { slot = k; break; } }
+      if (slot !== -1) { entry.caption = f.photos[slot].caption || ''; f.photos[slot] = entry; } else f.photos.push(entry);
+      changed[s.id] = true; attached++;
+      (rescuePending[s.id] = rescuePending[s.id] || []).push(r.idbId);
+    });
+    if (!Object.keys(changed).length) return 0;
+    saveSurveys(all);   // content changed -> dirty -> the push uploads the recovered photos
+    try { idbHydrateLedgerPhotos(all.filter(function (s) { return changed[s.id]; })[0] || null, function () {}); } catch (_) {}
+  } catch (_) {
+  } finally { rescueRunning = false; }
+  return attached;
+}
+// After a push's upload pass: once every rescued photo of that survey has a key, say so once.
+function idbRescueAfterUpload(s) {
+  var pend = s && rescuePending[s.id]; if (!pend || !pend.length) return;
+  var keyed = {};
+  (s.siteFaultMarkers || []).forEach(function (f) { (f && f.photos || []).forEach(function (p) { if (p && p.idbId && p.key) keyed[p.idbId] = true; }); });
+  if (!pend.every(function (id) { return keyed[id]; })) return;
+  delete rescuePending[s.id];
+  try { showToast(pend.length + ' site photo' + (pend.length === 1 ? '' : 's') + ' recovered and backed up', 'ok'); } catch (_) {}
+}
+// F. Ask once for persistent storage (keeps IndexedDB photos out of eviction);
+// the answer is recorded and nothing else changes on it.
+function storagePersistOnce() {
+  try { if (localStorage.getItem('nova_storage_persist_v1')) return; } catch (_) { return; }
+  if (!(navigator.storage && typeof navigator.storage.persist === 'function')) return;
+  navigator.storage.persist().then(function (granted) {
+    try { localStorage.setItem('nova_storage_persist_v1', JSON.stringify({ askedAt: new Date().toISOString(), granted: !!granted })); } catch (_) {}
+  }).catch(function () {});
 }
 // Boot: listeners for online/offline and the leave guard, then a background pull.
 function syncBoot() {
@@ -8178,6 +8357,7 @@ async function importSurveyFromAirtable(surveyId) {
     if (existingIdx !== -1) {
       const ok = confirm('A local copy of ' + parsed.id + ' exists. Replace it with the Airtable copy?');
       if (!ok) return;
+      var carriedLoad = syncCarryIdb(surveys[existingIdx], parsed);
       surveys[existingIdx] = parsed;
     } else {
       surveys.push(parsed);
@@ -8188,6 +8368,7 @@ async function importSurveyFromAirtable(surveyId) {
     try { savedOk = saveSurveysSafe(surveys); } finally { syncApplyingRemote = false; }
     if (!savedOk) return;
     syncMarkSaved(parsed.id, parsed.updatedAt);
+    if (typeof carriedLoad !== 'undefined' && carriedLoad) syncMarkDirty(parsed.id);   // local-only site photos carried across: push backs them up
     renderSurveyList();
     showToast('Loaded ' + parsed.id + ' from Airtable', 'ok');
     goToSurvey(parsed.id);
@@ -8431,6 +8612,7 @@ function renderDaySheet() {
 function openVisit(id) {
   var s = srLoadSurvey(id);
   if (!s) { showToast('Survey not found', 'err'); return; }
+  if (typeof idbRescueOrphans === 'function') idbRescueOrphans();
   currentSurveyId = id;
   renderVisit(s);
   showContext(id);
@@ -8553,6 +8735,7 @@ function ledgerNewDraft(survey) {
 function openFaultLedger(id) {
   currentSurveyId = id;
   ledgerSurveyId = id;
+  if (typeof idbRescueOrphans === 'function') idbRescueOrphans();
   // Same autosave-clobber protection fpOpen relies on: the form's 10s autosave
   // persists collectFormData() over the record and would wipe ledger faults
   // captured here. The form re-arms its autosave on re-entry, so this loses nothing.
@@ -8610,7 +8793,7 @@ function renderFaultLedger() {
     h += '<div class="ledger-photo">' +
       (src ? '<img src="' + src + '" alt="Fault photo">' : '<div class="ledger-photo-ph">photo</div>') +
       '<button class="ledger-photo-x" onclick="ledgerRemovePhoto(' + pi + ')" aria-label="Remove photo">&times;</button>' +
-      '<span class="ledger-photo-t">' + escapeHtml(fmtCapturedAt(p.capturedAt) || '&mdash;') + '</span>' +
+      '<span class="ledger-photo-t">' + escapeHtml(fmtCapturedAt(p.capturedAt) || '&mdash;') + (photoBackupState(p) ? ' &middot; ' + escapeHtml(photoBackupState(p)) : '') + '</span>' +
     '</div>';
   });
   h += '</div>';
@@ -9519,6 +9702,8 @@ async function pushSurveyToAirtable(localId, opts) {
     const all = loadSurveys();
     const idx = all.findIndex(x => x.id === s.id);
     if (idx !== -1) { all[idx] = s; syncApplyingRemote = true; try { saveSurveysSafe(all); } finally { syncApplyingRemote = false; } }
+    if (typeof idbRescueAfterUpload === 'function') idbRescueAfterUpload(s);
+    if (typeof spAdoptUploadedKeys === 'function') spAdoptUploadedKeys(s);
   } catch (_) { /* per-photo failures are swallowed inside the helper */ }
 
   // Snapshot: keep R2 keys (small strings), strip base64 image bytes so
@@ -9531,7 +9716,11 @@ async function pushSurveyToAirtable(localId, opts) {
       if (Array.isArray(f.photos)) {
         f.photos = f.photos.map(function(p) {
           var n = normalisePhotoEntry(p);
-          return { data: '', key: n.key, pendingUpload: n.pendingUpload };
+          var o = { data: '', key: n.key, pendingUpload: n.pendingUpload };
+          if (n.caption) o.caption = n.caption;
+          if (n.source) o.source = n.source;
+          if (n.capturedAt) o.capturedAt = n.capturedAt;
+          return o;   // idbId is this device's reference only; never sent
         });
       }
     });
@@ -15092,6 +15281,7 @@ function fpOpen(id){
 function goDetail(){
   var sid = currentSurveyId || (typeof fpCurrentId !== 'undefined' ? fpCurrentId : null);
   var s = sid ? srLoadSurvey(sid) : null;
+  if (s && typeof idbRescueOrphans === 'function') idbRescueOrphans();
   if (s){
     currentSurveyId = sid;
     if (typeof flowCurrentId !== 'undefined') flowCurrentId = sid;   // the checklist + quick-action read this
@@ -24792,6 +24982,29 @@ let spFaultCounter = 0;
 //    from form, image fields from currentSiteImage, buildings live ref);
 //    spSaveSurveyField writes through and immediately persists the draft
 //    if we're not editing a saved survey (matches the autosave pattern).
+// After a background push uploads site photos, the open Site plan's in-memory
+// fault list (currentSiteImage.siteFaultMarkers) would still carry key '' and a
+// later panel edit would write that stale copy back over the record. Adopt the
+// uploaded keys into the in-memory entries (matched by fault id + idbId) and
+// refresh the photo surfaces that are showing.
+function spAdoptUploadedKeys(s) {
+  if (!s || !currentSurveyId || s.id !== currentSurveyId) return;
+  var mem = currentSiteImage && Array.isArray(currentSiteImage.siteFaultMarkers) ? currentSiteImage.siteFaultMarkers : null;
+  var changed = false;
+  if (mem) {
+    (s.siteFaultMarkers || []).forEach(function (f) {
+      var mf = mem.filter(function (x) { return x && x.id === f.id; })[0]; if (!mf || !Array.isArray(mf.photos)) return;
+      (f.photos || []).forEach(function (p) {
+        if (!p || !p.idbId || !p.key) return;
+        mf.photos.forEach(function (mp) { if (mp && typeof mp === 'object' && mp.idbId === p.idbId && !mp.key) { mp.key = p.key; mp.pendingUpload = false; changed = true; } });
+      });
+    });
+  }
+  var active = document.querySelector('.view.active'), vid = active ? active.id : '';
+  if (vid === 'view-siteplan' && spActiveFaultId && typeof spRenderFaultPhotos === 'function') spRenderFaultPhotos();
+  if (vid === 'view-costpanel' && typeof costPanelRender === 'function' && typeof costPanelCurrentId !== 'undefined' && costPanelCurrentId === s.id) costPanelRender();
+  return changed;
+}
 function spCurrentSurvey() {
   const latEl = document.getElementById('sp-lat');
   const lngEl = document.getElementById('sp-lng');
@@ -25993,7 +26206,8 @@ function spRemoveFaultPhoto(idx) {
     return f.id === spActiveFaultId;
   });
   if (!fault || !Array.isArray(fault.photos)) return;
-  fault.photos.splice(idx, 1);
+  var removedP = fault.photos.splice(idx, 1)[0];
+  if (removedP && removedP.idbId && typeof idbDeleteLedgerPhoto === 'function') { try { idbDeleteLedgerPhoto(removedP.idbId); } catch (_) {} }
   spSaveSurveyField('siteFaultMarkers', survey.siteFaultMarkers);
   spRenderFaultPhotos();
 }
@@ -26013,9 +26227,19 @@ function photoProvStamp(iso) {
 function photoProvenance(entry) {
   var e = normalisePhotoEntry(entry);
   var when = photoProvStamp(e.capturedAt);
-  if (e.source === 'site' || e.idbId) return 'Taken on site' + (when ? ', ' + when : '');
-  if (e.source === 'desk') return 'Added at the desk' + (when ? ', ' + when : '');
-  return 'Source not recorded';
+  var state = photoBackupState(e);
+  var line;
+  if (e.source === 'site' || e.idbId) line = 'Taken on site' + (when ? ', ' + when : '');
+  else if (e.source === 'desk') line = 'Added at the desk' + (when ? ', ' + when : '');
+  else line = 'Source not recorded';
+  return line + (state ? ', ' + state : '');
+}
+// "backed up" once the photo has an R2 key; otherwise its only copy is here.
+function photoBackupState(entry) {
+  var e = (entry && typeof entry === 'object') ? entry : normalisePhotoEntry(entry);
+  if (e.key) return 'backed up';
+  if (e.idbId || e.data) return 'on this device only';
+  return '';
 }
 // Full-screen enlarge, closed by tap or Escape. One overlay element, reused.
 function photoOverlayOpen(src, label) {
@@ -26935,6 +27159,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', updateSiteChromeOffset);
   goHome();
   syncBoot();   // cross-device sync: leave guard, online retry, background pull
+  storagePersistOnce();
+  idbRescueOrphans();   // re-attach any stored site photo no record references
 });
 </script>
 </body>
